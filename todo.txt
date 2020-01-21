@@ -1,2 +1,2 @@
-Get PPO to run on single task
+Get PPO to run on single task (RLlib)
 Get MAML to run on ML1, ML10 and ML45
