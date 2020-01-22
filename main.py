@@ -1,19 +1,28 @@
+import random
+
 import numpy as np
+from gym.spaces.box import Box
 import ray
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.tune.registry import register_env
 from metaworld.benchmarks import ML1
 
-ENV_NAME = ML1.available_tasks()[0]
+ENV_NAME = random.choice(ML1.available_tasks())
 
 
 def env_creator(env_config=None):
     """ Environment creator function to register environment. """
 
+    # Get environment and set task.
     env = ML1.get_train_tasks(ENV_NAME)
     tasks = env.sample_tasks(1)
     env.set_task(tasks[0])
+
+    # HARDCODE: Expand observation space.
+    obs_shape = env.observation_space.shape
+    env.active_env.observation_space = Box(low=-float("inf"), high=float("inf"), shape=obs_shape)
+
     return env
 
 
