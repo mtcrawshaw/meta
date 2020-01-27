@@ -1,2 +1,3 @@
-Get PPO to run on single task (RLlib)
-Get MAML to run on ML1, ML10 and ML45
+Add PPO for single task
+Add MAML for task distribution
+Add RL^2 (or something) and modular meta learning for meta learning
