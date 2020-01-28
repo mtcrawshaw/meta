@@ -8,4 +8,10 @@ RLLab for PPO and MAML?
 
 Ideas:
 - There should be more sharing in the earlier policy layers than the later
-  layers
+  layers.
+- Encourage sharing between tasks that are more similar through some sort of
+  similarity supervision for the tasks.
+    - Comparison of states?
+- Look through "routing networks and the challenges of compositional
+  computation" for ideas about training incentives
+    - All modules should get the chance to be trained
