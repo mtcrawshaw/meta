@@ -1,6 +1,8 @@
+import torch
 from gym.spaces import Space
 
 from storage import RolloutStorage
+
 
 class PPOPolicy:
     """ A policy class for PPO. """
@@ -15,7 +17,7 @@ class PPOPolicy:
         """ Sample action from policy. """
 
         action = self.action_space.sample()
-        return None, action
+        return torch.Tensor([0.0]), action, torch.Tensor([0.0])
 
     def update(self, rollouts: RolloutStorage):
         """ Train policy with PPO from ``rollouts``. """

@@ -1,5 +1,4 @@
 import argparse
-from pprint import pprint
 
 from metaworld.benchmarks import ML1
 
@@ -17,8 +16,14 @@ def main(args: argparse.Namespace):
     env.set_task(tasks[0])
 
     # Create policy and rollout storage.
-    policy = PPOPolicy(observation_space=env.observation_space, action_space=env.action_space)
-    rollouts = RolloutStorage()
+    policy = PPOPolicy(
+        observation_space=env.observation_space, action_space=env.action_space
+    )
+    rollouts = RolloutStorage(
+        rollout_length=args.rollout_length,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
 
     # Initialize environment and set first observation.
     obs = env.reset()
@@ -28,17 +33,20 @@ def main(args: argparse.Namespace):
     for iteration in range(args.num_iterations):
 
         # Rollout loop.
-        for t in range(args.rollout_length):
+        for rollout_step in range(args.rollout_length):
 
             # Sample actions.
-            value, action = policy.act(rollouts.obs[t])
+            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
 
             # Perform step and record in ``rollouts``.
             obs, reward, done, info = env.step(action)
-            rollouts.add_step(obs, action, value, reward)
+            rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
 
         # Compute update.
         policy.update(rollouts)
+
+        # Clear rollout storage.
+        rollouts.clear()
 
 
 if __name__ == "__main__":
