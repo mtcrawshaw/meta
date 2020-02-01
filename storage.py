@@ -66,7 +66,7 @@ class RolloutStorage:
 
         obs : Union[np.ndarray, int],
             Observation returned from environment after step was taken.
-        action : Union[np.ndarray, int],
+        action : torch.Tensor,
             Action taken in environment step.
         action_log_prob : torch.Tensor,
             Log probs of action distribution output by policy network.

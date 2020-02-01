@@ -1,5 +1,6 @@
 import argparse
 
+import torch
 from metaworld.benchmarks import ML1
 
 from ppo import PPOPolicy
@@ -39,7 +40,9 @@ def main(args: argparse.Namespace):
             value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
 
             # Perform step and record in ``rollouts``.
-            obs, reward, done, info = env.step(action)
+            # We cast the action to a numpy array here because policy.act() returns
+            # it as a torch.Tensor. Less conversion back and forth this way.
+            obs, reward, done, info = env.step(action.numpy())
             rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
 
         # Compute update.
