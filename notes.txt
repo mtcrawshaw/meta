@@ -1,17 +1,13 @@
 Todo:
 Add PPO for single task
-Add MAML for task distribution
-Add RL^2 (or something) and modular meta learning for meta learning
-
-Notes:
-RLLab for PPO and MAML?
-
-Ideas:
-- There should be more sharing in the earlier policy layers than the later
-  layers.
-- Encourage sharing between tasks that are more similar through some sort of
-  similarity supervision for the tasks.
-    - Comparison of states?
-- Look through "routing networks and the challenges of compositional
-  computation" for ideas about training incentives
-    - All modules should get the chance to be trained
+- Just get PPO running on CPU
+- Move to settings file
+- Convert to package
+- black/pylint/mypy
+- Add GPU support
+- Add multiprocessing
+Add MAML for single task distribution
+Add modular meta learning for meta learning
+Other baselines for meta learning?
+Implement new ideas for meta learning
+Implement learned loss convexity regularization for multi task learning
