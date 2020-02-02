@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from gym.spaces import Space, Discrete, Box
 
+from utils import convert_to_tensor
+
 
 class RolloutStorage:
     """ An object to store rollout information. """
@@ -122,27 +124,3 @@ class RolloutStorage:
 
         tensor_obs = convert_to_tensor(obs)
         self.obs[0].copy_(tensor_obs)
-
-
-def convert_to_tensor(val: Union[np.ndarray, int, float]):
-    """
-    Converts a value (observation or action) from environment to a tensor.
-
-    Arguments
-    ---------
-    val: np.ndarray or int
-        Observation or action returned from the environment.
-    """
-
-    if isinstance(val, int) or isinstance(val, float):
-        converted = torch.Tensor([val])
-    elif isinstance(val, np.ndarray):
-        converted = torch.Tensor(val)
-    elif isinstance(val, torch.Tensor):
-        converted = copy.deepcopy(val)
-    else:
-        raise ValueError(
-            "Cannot convert value of type '%r' to torch.Tensor." % type(val)
-        )
-
-    return converted
