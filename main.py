@@ -18,7 +18,13 @@ def main(args: argparse.Namespace):
 
     # Create policy and rollout storage.
     policy = PPOPolicy(
-        observation_space=env.observation_space, action_space=env.action_space
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        num_ppo_epochs=args.num_ppo_epochs,
+        lr=args.lr,
+        eps=args.eps,
+        value_loss_coeff=args.value_loss_coeff,
+        entropy_loss_coeff=args.entropy_loss_coeff,
     )
     rollouts = RolloutStorage(
         rollout_length=args.rollout_length,
@@ -72,6 +78,36 @@ if __name__ == "__main__":
         type=str,
         default="bin-picking-v1",
         help="Which Meta-World environment to run.",
+    )
+    parser.add_argument(
+        "--num_ppo_epochs",
+        type=int,
+        default=4,
+        help="Number of training steps to perform on each rollout.",
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=3e-4,
+        help="Learning rate for training.",
+    )
+    parser.add_argument(
+        "--eps",
+        type=float,
+        default=1e-8,
+        help="Adam epsilon value for numerical stability. Usually 1e-8",
+    )
+    parser.add_argument(
+        "--value_loss_coeff",
+        type=float,
+        default=0.5,
+        help="Coefficient on value loss in training objective.",
+    )
+    parser.add_argument(
+        "--entropy_loss_coeff",
+        type=float,
+        default=0.01,
+        help="Coefficient on entropy loss in training objective.",
     )
     args = parser.parse_args()
 

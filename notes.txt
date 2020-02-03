@@ -1,6 +1,6 @@
 Todo:
 Add PPO for single task
-- Just get PPO running on CPU
+- Just get PPO running on CPU (make sure that PolicyNetwork.logstd is changing)
 - Move to settings file
 - Convert to package
 - black/pylint/mypy
@@ -17,3 +17,4 @@ Settings to add:
 - Network architecture hyperparameters
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
+- Gradient clipping

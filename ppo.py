@@ -4,6 +4,7 @@ from typing import Union
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
@@ -14,7 +15,16 @@ from utils import convert_to_tensor, init
 class PPOPolicy:
     """ A policy class for PPO. """
 
-    def __init__(self, observation_space: Space, action_space: Space):
+    def __init__(
+        self,
+        observation_space: Space,
+        action_space: Space,
+        num_ppo_epochs: int,
+        lr: float,
+        eps: float,
+        value_loss_coeff: float,
+        entropy_loss_coeff: float,
+    ):
         """
         init function for PPOPolicy.
 
@@ -24,14 +34,30 @@ class PPOPolicy:
             Environment's observation space.
         action_space : Space
             Environment's action space.
+        num_ppo_epochs : int
+            Number of training steps of surrogate loss for each rollout.
+        lr : float
+            Learning rate.
+        eps : float
+            Epsilon value for Adam, used for numerical stability. Usually 1e-8.
+        value_loss_coeff : float
+            Coefficient for value loss in training objective.
+        entropy_loss_coeff : float
+            Coefficient for entropy loss in training objective.
         """
 
-        # Set spaces.
+        # Set policy state.
         self.observation_space = observation_space
         self.action_space = action_space
+        self.num_ppo_epochs = num_ppo_epochs
+        self.lr = lr
+        self.eps = eps
+        self.value_loss_coeff = value_loss_coeff
+        self.entropy_loss_coeff = entropy_loss_coeff
 
-        # Instantiate policy network.
+        # Instantiate policy network and optimizer.
         self.policy_network = PolicyNetwork(observation_space, action_space)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(self, obs: Union[np.ndarray, int, float]):
         """
@@ -76,7 +102,7 @@ class PPOPolicy:
 
     def update(self, rollouts: RolloutStorage):
         """
-        Train policy with PPO from ``rollouts``.
+        Train policy with PPO from rollout information in ``rollouts``.
 
         Arguments
         ---------
@@ -84,7 +110,28 @@ class PPOPolicy:
             Storage container holding rollout information to train from.
         """
 
-        pass
+        # TODO: Compute advantages.
+        advantages = None
+
+        # Run multiple training steps on surrogate loss.
+        for _ in range(self.num_ppo_epochs):
+
+            # TODO: Sample data from rollouts.
+
+            # TODO: Compute value loss, action loss, and entropy loss.
+            value_loss = torch.Tensor([0.0])
+            action_loss = torch.Tensor([0.0])
+            entropy_loss = torch.Tensor([0.0])
+
+            # Optimizer step
+            self.optimizer.zero_grad()
+            loss = -(
+                action_loss
+                - self.value_loss_coeff * value_loss
+                + self.entropy_loss_coeff * entropy_loss
+            )
+            # loss.backward()
+            # self.optimizer.step()
 
 
 class PolicyNetwork(nn.Module):
@@ -163,7 +210,7 @@ class PolicyNetwork(nn.Module):
 
         if isinstance(self.action_space, Discrete):
             # Matches torch.distribution.Categorical
-            action_probs = {"probs": actor_output}
+            action_probs = {"logits": actor_output}
         elif isinstance(self.action_space, Box):
             # Matches torch.distribution.Normal
             action_probs = {"loc": actor_output, "scale": self.logstd.exp()}
