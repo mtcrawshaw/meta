@@ -1,6 +1,7 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU (make sure that PolicyNetwork.logstd is changing)
+- Make tensor shapes consistent (extra dimension of length 1 or not?)
 - Move to settings file
 - Convert to package
 - black/pylint/mypy
@@ -18,3 +19,5 @@ Settings to add:
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
 - Gradient clipping
+- Advantage normalization?
+- Value loss clipping?

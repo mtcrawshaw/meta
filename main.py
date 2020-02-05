@@ -27,7 +27,8 @@ def main(args: argparse.Namespace):
         entropy_loss_coeff=args.entropy_loss_coeff,
         gamma=args.gamma,
         gae_lambda=args.gae_lambda,
-        minibatch_size=args.minibatch_size
+        minibatch_size=args.minibatch_size,
+        clip_param=args.clip_param,
     )
     rollouts = RolloutStorage(
         rollout_length=args.rollout_length,
@@ -43,6 +44,7 @@ def main(args: argparse.Namespace):
     for iteration in range(args.num_iterations):
 
         # Rollout loop.
+        rollout_reward = 0.0
         for rollout_step in range(args.rollout_length):
 
             # Sample actions.
@@ -53,10 +55,13 @@ def main(args: argparse.Namespace):
             # it as a torch.Tensor. Less conversion back and forth this way.
             obs, reward, done, info = env.step(action.numpy())
             rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
+            rollout_reward += reward
 
         # Get value of the new observation and compute update.
         rollouts.value_preds[-1] = policy.get_value(rollouts.obs[-1])
-        policy.update(rollouts)
+        loss_items = policy.update(rollouts)
+        print(loss_items)
+        print(rollout_reward)
 
         # Clear rollout storage.
         rollouts.clear()
@@ -130,6 +135,12 @@ if __name__ == "__main__":
         type=int,
         default=32,
         help="Size of each SGD minibatch.",
+    )
+    parser.add_argument(
+        "--clip_param",
+        type=float,
+        default=0.2,
+        help="Clipping parameter for PPO surrogate loss.",
     )
 
     args = parser.parse_args()

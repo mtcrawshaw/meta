@@ -27,6 +27,7 @@ class PPOPolicy:
         gamma: float,
         gae_lambda: float,
         minibatch_size: int,
+        clip_param: float,
     ):
         """
         init function for PPOPolicy.
@@ -53,6 +54,8 @@ class PPOPolicy:
             Lambda parameter for GAE (used in equation (11) in PPO paper).
         minibatch_size : int
             Size of minibatches for training on rollout data.
+        clip_param : float
+            Clipping parameter for PPO surrogate loss.
         """
 
         # Set policy state.
@@ -66,6 +69,7 @@ class PPOPolicy:
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.minibatch_size = minibatch_size
+        self.clip_param = clip_param
 
         # Instantiate policy network and optimizer.
         self.policy_network = PolicyNetwork(observation_space, action_space)
@@ -127,8 +131,12 @@ class PPOPolicy:
         Returns
         -------
         value : torch.Tensor
+            Value predictions of ``obs_batch`` under current policy.
         action_log_probs: torch.Tensor
+            Log probabilities of ``actions_batch`` under action distributions resulting
+            from ``obs_batch``.
         action_dist_entropy : torch.Tensor
+            Entropies of action distributions resulting from ``obs_batch``.
         """
 
         value, action_probs = self.policy_network(obs_batch)
@@ -141,10 +149,12 @@ class PPOPolicy:
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
-        # Compute log probabilities and action distribution entropies.
-        # TODO: FIX THIS LOG PROBS COMPUTATION TO BE LIKE IN ACT()
-        action_log_probs = action_dist.log_probs(actions_batch)
-        action_dist_entropy = action_dist.entropy().mean()
+        # Compute log probabilities and action distribution entropies. We sume over
+        # ``element_log_probs`` here to convert element-wise log probs into a joint
+        # log prob.
+        element_log_probs = action_dist.log_prob(actions_batch)
+        action_log_probs = element_log_probs.sum(-1)
+        action_dist_entropy = action_dist.entropy()
 
         return value, action_log_probs, action_dist_entropy
 
@@ -175,6 +185,11 @@ class PPOPolicy:
         ---------
         rollouts : RolloutStorage
             Storage container holding rollout information to train from.
+
+        Returns
+        -------
+        loss_items : Dict[str, float]
+            Dictionary from loss names (e.g. action) to float loss values.
         """
 
         # Compute advantages corresponding to equations (11) and (12) in the PPO paper.
@@ -189,12 +204,15 @@ class PPOPolicy:
             gae = self.gamma * self.gae_lambda * gae + delta
 
             # TODO: The PPO implementation at
-            # (https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail) uses the second
+            # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail uses the second
             # version of this line, but the PPO paper uses the first. Try both.
             advantages[t] = gae
             # advantages[t] = gae + rollouts.value_preds[t]
 
         # Run multiple training steps on surrogate loss.
+        loss_names = ["action", "value", "entropy", "total"]
+        loss_items = {loss_name: 0.0 for loss_name in loss_names}
+        num_updates = 0
         for _ in range(self.num_ppo_epochs):
 
             minibatch_generator = rollouts.minibatch_generator(self.minibatch_size)
@@ -206,25 +224,51 @@ class PPOPolicy:
                     obs_batch,
                     value_preds_batch,
                     actions_batch,
-                    action_log_probs_batch,
+                    old_action_log_probs_batch,
                     rewards_batch,
                 ) = minibatch
                 advantages_batch = advantages[batch_indices]
 
-                # TODO: Compute value loss, action loss, and entropy loss on sampled data.
-                value_loss = torch.Tensor([0.0])
-                action_loss = torch.Tensor([0.0])
-                entropy_loss = torch.Tensor([0.0])
+                # Compute new values, action log probs, and dist entropies.
+                (
+                    values_batch,
+                    action_log_probs_batch,
+                    action_dist_entropy_batch,
+                ) = self.evaluate_actions(obs_batch, actions_batch)
 
-                # Optimizer step
+                # Compute action loss, value loss, and entropy loss.
+                ratio = torch.exp(action_log_probs_batch - old_action_log_probs_batch)
+                surrogate1 = ratio * advantages_batch
+                surrogate2 = (
+                    torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
+                    * advantages_batch
+                )
+                action_loss = torch.min(surrogate1, surrogate2).mean()
+                value_loss = 0.5 * (advantages_batch - values_batch).pow(2).mean()
+                entropy_loss = action_dist_entropy_batch.mean()
+
+                # Optimizer step.
                 self.optimizer.zero_grad()
                 loss = -(
                     action_loss
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss
                 )
-                # loss.backward()
-                # self.optimizer.step()
+                loss.backward(retain_graph=True)
+                self.optimizer.step()
+
+                # Get loss values.
+                loss_items["action"] += action_loss.item()
+                loss_items["value"] += value_loss.item()
+                loss_items["entropy"] += entropy_loss.item()
+                loss_items["total"] += loss.item()
+                num_updates += 1
+
+        # Take average of loss values over all updates.
+        for loss_name in loss_names:
+            loss_items[loss_name] /= num_updates
+
+        return loss_items
 
 
 class PolicyNetwork(nn.Module):
