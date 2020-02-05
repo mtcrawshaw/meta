@@ -3,6 +3,7 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space, Discrete, Box
 
 from utils import convert_to_tensor
@@ -42,18 +43,23 @@ class RolloutStorage:
                     "'%r' not a supported %s space." % (type(space), space_name)
                 )
 
-        # Initialize rollout information.
-        # The +1 is here because we want to keep the obs before the first step
-        # and after the last step of the rollout.
-        self.obs = torch.zeros(rollout_length + 1, *self.space_shapes["obs"])
-        self.actions = torch.zeros(rollout_length, *self.space_shapes["action"])
-        self.action_log_probs = torch.zeros(rollout_length, 1)
-        self.value_preds = torch.zeros(rollout_length, 1)
-        self.rewards = torch.zeros(rollout_length, 1)
-
         # Misc state.
         self.rollout_length = rollout_length
         self.rollout_step = 0
+
+        # Initialize rollout information.
+        self.init_rollout_info()
+
+    def init_rollout_info(self):
+        """ Initialize rollout information. """
+
+        # The +1 is here because we want to store the obs/value prediction
+        # from before the first step and after the last step of the rollout.
+        self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
+        self.value_preds = torch.zeros(self.rollout_length + 1, 1)
+        self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
+        self.action_log_probs = torch.zeros(self.rollout_length, 1)
+        self.rewards = torch.zeros(self.rollout_length, 1)
 
     def add_step(
         self,
@@ -98,13 +104,8 @@ class RolloutStorage:
         # Store last observation to bring it into next rollout.
         last_obs = self.obs[-1]
 
-        # The +1 is here because we want to keep the obs before the first step
-        # and after the last step of the rollout.
-        self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
-        self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
-        self.action_log_probs = torch.zeros(self.rollout_length, 1)
-        self.value_preds = torch.zeros(self.rollout_length, 1)
-        self.rewards = torch.zeros(self.rollout_length, 1)
+        # Initialize rollout information.
+        self.init_rollout_info()
 
         # Bring last observation into next rollout.
         self.obs[0].copy_(last_obs)
@@ -118,9 +119,44 @@ class RolloutStorage:
 
         Arguments
         ---------
-        obs: np.ndarray or int
+        obs : np.ndarray or int
             Observation returned from the environment.
         """
 
         tensor_obs = convert_to_tensor(obs)
         self.obs[0].copy_(tensor_obs)
+
+    def minibatch_generator(self, minibatch_size: int):
+        """
+        Generates minibatches from rollout to train on.
+
+        Arguments
+        ---------
+        minibatch_size : int
+            Size of minibatches to return.
+
+        Yields
+        ------
+        minibatch: Tuple[List[int].Tensor, ...]
+            Tuple of batch indices with tensors containing rollout minibatch info.
+        """
+
+        sampler = BatchSampler(
+            sampler=SubsetRandomSampler(range(self.rollout_length)),
+            batch_size=minibatch_size,
+            drop_last=True,
+        )
+        for batch_indices in sampler:
+
+            # Yield a minibatch corresponding to indices from sampler.
+
+            # The -1 is here in order to exclude the observation resulting after the
+            # last step.
+            obs_batch = self.obs[:-1][batch_indices]
+            value_preds_batch = self.value_preds[:-1][batch_indices]
+            actions_batch = self.actions[batch_indices]
+            action_log_probs_batch = self.action_log_probs[batch_indices]
+            rewards_batch = self.rewards[batch_indices]
+
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, \
+                action_log_probs_batch, rewards_batch

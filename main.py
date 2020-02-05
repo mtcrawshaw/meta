@@ -25,6 +25,9 @@ def main(args: argparse.Namespace):
         eps=args.eps,
         value_loss_coeff=args.value_loss_coeff,
         entropy_loss_coeff=args.entropy_loss_coeff,
+        gamma=args.gamma,
+        gae_lambda=args.gae_lambda,
+        minibatch_size=args.minibatch_size
     )
     rollouts = RolloutStorage(
         rollout_length=args.rollout_length,
@@ -51,7 +54,8 @@ def main(args: argparse.Namespace):
             obs, reward, done, info = env.step(action.numpy())
             rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
 
-        # Compute update.
+        # Get value of the new observation and compute update.
+        rollouts.value_preds[-1] = policy.get_value(rollouts.obs[-1])
         policy.update(rollouts)
 
         # Clear rollout storage.
@@ -109,6 +113,25 @@ if __name__ == "__main__":
         default=0.01,
         help="Coefficient on entropy loss in training objective.",
     )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.99,
+        help="Discount factor.",
+    )
+    parser.add_argument(
+        "--gae_lambda",
+        type=float,
+        default=0.95,
+        help="Lambda parameter for GAE (used in equation (11) of PPO paper).",
+    )
+    parser.add_argument(
+        "--minibatch_size",
+        type=int,
+        default=32,
+        help="Size of each SGD minibatch.",
+    )
+
     args = parser.parse_args()
 
     main(args)
