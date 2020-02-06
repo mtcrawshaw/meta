@@ -1,23 +1,31 @@
 Todo:
 Add PPO for single task
-- Just get PPO running on CPU (make sure that PolicyNetwork.logstd is changing)
-- Make tensor shapes consistent (extra dimension of length 1 or not?)
-- Move to settings file
-- Convert to package
-- black/pylint/mypy
+- Just get PPO running on CPU
+    - Handle dones
+    - Try it on a small easy environment
+    - Make sure PolicyNetwork.logstd is changing
+    - Make tensor shapes consistent
+    - Find out if retain_graph=True is okay
+    - Write tests
+- Clean up
+    - Move to settings file
+    - Convert to package
+    - black/pylint/mypy
 - Add GPU support
 - Add multiprocessing
-- Add recurrent policies?
+- Add support for recurrent policies
 Add MAML for single task distribution
 Add modular meta learning for meta learning
 Other baselines for meta learning?
 Implement new ideas for meta learning
+Implement ML^3 for multi task learning
 Implement learned loss convexity regularization for multi task learning
 
-Settings to add:
+Training settings to add/consider:
 - Network architecture hyperparameters
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
 - Gradient clipping
-- Advantage normalization?
-- Value loss clipping?
+- Advantage normalization
+- Value loss clipping
+- Whether or not to add value_pred to advantageg estimate
