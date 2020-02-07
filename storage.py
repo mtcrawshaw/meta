@@ -141,8 +141,9 @@ class RolloutStorage:
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
+        minibatch_size = min(minibatch_size, self.rollout_step)
         sampler = BatchSampler(
-            sampler=SubsetRandomSampler(range(self.rollout_length)),
+            sampler=SubsetRandomSampler(range(self.rollout_step)),
             batch_size=minibatch_size,
             drop_last=True,
         )

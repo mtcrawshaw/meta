@@ -195,7 +195,7 @@ class PPOPolicy:
         # Compute advantages corresponding to equations (11) and (12) in the PPO paper.
         advantages = torch.zeros(rollouts.rollout_length, 1)
         gae = 0
-        for t in reversed(range(rollouts.rollout_length)):
+        for t in reversed(range(rollouts.rollout_step)):
             delta = (
                 rollouts.rewards[t]
                 + self.gamma * rollouts.value_preds[t + 1]

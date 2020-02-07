@@ -57,14 +57,25 @@ def main(args: argparse.Namespace):
             rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
             rollout_reward += reward
 
+            if done:
+                break
+
         # Get value of the new observation and compute update.
-        rollouts.value_preds[-1] = policy.get_value(rollouts.obs[-1])
+        completed_steps = rollouts.rollout_step
+        rollouts.value_preds[completed_steps] = policy.get_value(rollouts.obs[completed_steps])
         loss_items = policy.update(rollouts)
+        print(rollout_step)
         print(loss_items)
         print(rollout_reward)
+        print("\n")
 
         # Clear rollout storage.
         rollouts.clear()
+
+        # Reinitialize environment and set first observation, if finished.
+        if done:
+            obs = env.reset()
+            rollouts.set_initial_obs(obs)
 
 
 if __name__ == "__main__":
