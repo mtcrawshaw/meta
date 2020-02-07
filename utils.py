@@ -1,9 +1,9 @@
 import copy
-from typing import Union
+from typing import Union, List
 
 import numpy as np
 import torch
-
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
     """
@@ -35,3 +35,10 @@ def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
+
+def get_metaworld_env_names() -> List[str]:
+    """ Returns a list of Metaworld environment names. """
+
+    train_classes = HARD_MODE_CLS_DICT["train"]
+    test_classes = HARD_MODE_CLS_DICT["test"]
+    return list(train_classes.keys()) + list(test_classes.keys())

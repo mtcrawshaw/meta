@@ -1,20 +1,25 @@
 import argparse
 
 import torch
+import gym
 from metaworld.benchmarks import ML1
 
 from ppo import PPOPolicy
 from storage import RolloutStorage
+from utils import get_metaworld_env_names
 
 
 def main(args: argparse.Namespace):
     """ Main function for main.py. """
 
-    # Get environment and set task.
-    env_name = args.env_name
-    env = ML1.get_train_tasks(env_name)
-    tasks = env.sample_tasks(1)
-    env.set_task(tasks[0])
+    # Set environment.
+    metaworld_env_names = get_metaworld_env_names()
+    if args.env_name in metaworld_env_names:
+        env = ML1.get_train_tasks(args.env_name)
+        tasks = env.sample_tasks(1)
+        env.set_task(tasks[0])
+    else:
+        env = gym.make(args.env_name)
 
     # Create policy and rollout storage.
     policy = PPOPolicy(
@@ -92,7 +97,7 @@ if __name__ == "__main__":
         help="Length of rollout (inner loop).",
     )
     parser.add_argument(
-        "--env-name",
+        "--env_name",
         type=str,
         default="bin-picking-v1",
         help="Which Meta-World environment to run.",
