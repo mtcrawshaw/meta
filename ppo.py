@@ -43,7 +43,7 @@ class PPOPolicy:
         lr : float
             Learning rate.
         eps : float
-            Epsilon value for Adam, used for numerical stability. Usually 1e-8.
+            Epsilon value used for numerical stability. Usually 1e-8.
         value_loss_coeff : float
             Coefficient for value loss in training objective.
         entropy_loss_coeff : float
@@ -149,7 +149,7 @@ class PPOPolicy:
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
-        # Compute log probabilities and action distribution entropies. We sume over
+        # Compute log probabilities and action distribution entropies. We sum over
         # ``element_log_probs`` here to convert element-wise log probs into a joint
         # log prob.
         element_log_probs = action_dist.log_prob(actions_batch)
@@ -192,8 +192,11 @@ class PPOPolicy:
             Dictionary from loss names (e.g. action) to float loss values.
         """
 
-        # Compute advantages corresponding to equations (11) and (12) in the PPO paper.
-        advantages = torch.zeros(rollouts.rollout_length, 1)
+        # Compute returns corresponding to equations (11) and (12) in the PPO paper.
+        returns = torch.zeros(rollouts.rollout_length, 1)
+        rollouts.value_preds[rollouts.rollout_step] = self.get_value(
+            rollouts.obs[rollouts.rollout_step]
+        )
         gae = 0
         for t in reversed(range(rollouts.rollout_step)):
             delta = (
@@ -202,12 +205,11 @@ class PPOPolicy:
                 - rollouts.value_preds[t]
             )
             gae = self.gamma * self.gae_lambda * gae + delta
+            returns[t] = gae + rollouts.value_preds[t]
 
-            # TODO: The PPO implementation at
-            # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail uses the second
-            # version of this line, but the PPO paper uses the first. Try both.
-            advantages[t] = gae
-            # advantages[t] = gae + rollouts.value_preds[t]
+        # Compute advantages.
+        advantages = returns - rollouts.value_preds[:-1]
+        advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
@@ -218,7 +220,8 @@ class PPOPolicy:
             minibatch_generator = rollouts.minibatch_generator(self.minibatch_size)
             for minibatch in minibatch_generator:
 
-                # Get batch of rollout data and construct corresponding advantage batch.
+                # Get batch of rollout data and construct corresponding batch of
+                # returns and advantages.
                 (
                     batch_indices,
                     obs_batch,
@@ -227,6 +230,7 @@ class PPOPolicy:
                     old_action_log_probs_batch,
                     rewards_batch,
                 ) = minibatch
+                returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
 
                 # Compute new values, action log probs, and dist entropies.
@@ -244,7 +248,7 @@ class PPOPolicy:
                     * advantages_batch
                 )
                 action_loss = torch.min(surrogate1, surrogate2).mean()
-                value_loss = 0.5 * (advantages_batch - values_batch).pow(2).mean()
+                value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
                 entropy_loss = action_dist_entropy_batch.mean()
 
                 # Optimizer step.
@@ -331,7 +335,8 @@ class PolicyNetwork(nn.Module):
         Arguments
         ---------
         obs : torch.Tensor
-            Observation to be used as input to policy network.
+            Observation to be used as input to policy network. If the observation space
+            is discrete, this function expects ``obs`` to be a one-hot vector.
 
         Returns
         -------
@@ -356,10 +361,10 @@ class PolicyNetwork(nn.Module):
 
 
 def get_space_size(space: Space):
-    """ Get the size of a gym.spaces Space. """
+    """ Get the input/output size of an MLP whose input/output space is ``space``. """
 
     if isinstance(space, Discrete):
-        size = 1
+        size = space.n
     elif isinstance(space, Box):
         size = reduce(lambda a, b: a * b, space.shape)
     else:

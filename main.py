@@ -60,14 +60,12 @@ def main(args: argparse.Namespace):
             if done:
                 break
 
-        # Get value of the new observation and compute update.
-        completed_steps = rollouts.rollout_step
-        rollouts.value_preds[completed_steps] = policy.get_value(rollouts.obs[completed_steps])
+        # Compute update.
         loss_items = policy.update(rollouts)
         print(rollout_step)
         print(loss_items)
         print(rollout_reward)
-        print("\n")
+        print("")
 
         # Clear rollout storage.
         rollouts.clear()
@@ -115,7 +113,7 @@ if __name__ == "__main__":
         "--eps",
         type=float,
         default=1e-8,
-        help="Adam epsilon value for numerical stability. Usually 1e-8",
+        help="Epsilon value for numerical stability. Usually 1e-8",
     )
     parser.add_argument(
         "--value_loss_coeff",

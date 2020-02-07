@@ -26,6 +26,10 @@ Training settings to add/consider:
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
 - Gradient clipping
-- Advantage normalization
 - Value loss clipping
 - Whether or not to add value_pred to advantageg estimate
+
+Leads for PPO bugs:
+- retain_graph=True
+- Super small batches?
+- Write manual test
