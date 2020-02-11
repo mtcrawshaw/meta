@@ -34,6 +34,8 @@ def main(args: argparse.Namespace):
         gae_lambda=args.gae_lambda,
         minibatch_size=args.minibatch_size,
         clip_param=args.clip_param,
+        max_grad_norm=args.max_grad_norm,
+        clip_value_loss=args.clip_value_loss,
     )
     rollouts = RolloutStorage(
         rollout_length=args.rollout_length,
@@ -155,6 +157,18 @@ if __name__ == "__main__":
         type=float,
         default=0.2,
         help="Clipping parameter for PPO surrogate loss.",
+    )
+    parser.add_argument(
+        "--max_grad_norm",
+        type=float,
+        default=0.5,
+        help="Maximum norm of loss gradients for update.",
+    )
+    parser.add_argument(
+        "--clip_value_loss",
+        default=False,
+        action="store_true",
+        help="Whether or not to clip the value loss.",
     )
 
     args = parser.parse_args()

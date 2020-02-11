@@ -28,6 +28,8 @@ class PPOPolicy:
         gae_lambda: float,
         minibatch_size: int,
         clip_param: float,
+        max_grad_norm: float,
+        clip_value_loss: bool,
     ):
         """
         init function for PPOPolicy.
@@ -56,6 +58,10 @@ class PPOPolicy:
             Size of minibatches for training on rollout data.
         clip_param : float
             Clipping parameter for PPO surrogate loss.
+        max_grad_norm : float
+            Maximum norm of loss gradients for update.
+        clip_value_loss : float
+            Whether or not to clip the value loss.
         """
 
         # Set policy state.
@@ -70,6 +76,8 @@ class PPOPolicy:
         self.gae_lambda = gae_lambda
         self.minibatch_size = minibatch_size
         self.clip_param = clip_param
+        self.max_grad_norm = max_grad_norm
+        self.clip_value_loss = clip_value_loss
 
         # Instantiate policy network and optimizer.
         self.policy_network = PolicyNetwork(observation_space, action_space)
@@ -248,7 +256,19 @@ class PPOPolicy:
                     * advantages_batch
                 )
                 action_loss = torch.min(surrogate1, surrogate2).mean()
-                value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
+                if self.clip_value_loss:
+                    value_losses = (returns_batch - values_batch).pow(2)
+                    clipped_value_preds = value_preds_batch + torch.clamp(
+                        values_batch - value_preds_batch,
+                        -self.clip_param,
+                        self.clip_param,
+                    )
+                    clipped_value_losses = (returns_batch - clipped_value_preds).pow(2)
+                    value_loss = (
+                        0.5 * torch.max(value_losses, clipped_value_losses).mean()
+                    )
+                else:
+                    value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
                 entropy_loss = action_dist_entropy_batch.mean()
 
                 # Optimizer step.
@@ -271,6 +291,9 @@ class PPOPolicy:
                 in the original repo.
                 """
                 loss.backward(retain_graph=True)
+                nn.utils.clip_grad_norm_(
+                    self.policy_network.parameters(), self.max_grad_norm
+                )
                 self.optimizer.step()
 
                 # Get loss values.

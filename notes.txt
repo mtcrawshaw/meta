@@ -1,14 +1,12 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Handle dones
-    - Try it on a small easy environment
     - Make sure PolicyNetwork.logstd is changing
-    - Make tensor shapes consistent
     - Find out if retain_graph=True is okay
-    - Build up rollouts as numpy arrays
     - Write tests
 - Clean up
+    - Build up rollouts as numpy arrays
+    - Make tensor shapes consistent
     - Move to settings file
     - Convert to package
     - black/pylint/mypy
@@ -26,11 +24,8 @@ Training settings to add/consider:
 - Network architecture hyperparameters
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
-- Gradient clipping
-- Value loss clipping
-- Whether or not to add value_pred to advantageg estimate
 
 Leads for PPO bugs:
 - retain_graph=True
-- Super small batches?
+- Small batches when done
 - Write manual test
