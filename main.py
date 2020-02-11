@@ -2,7 +2,6 @@ import argparse
 
 import torch
 import gym
-from metaworld.benchmarks import ML1
 
 from ppo import PPOPolicy
 from storage import RolloutStorage
@@ -15,9 +14,14 @@ def main(args: argparse.Namespace):
     # Set environment.
     metaworld_env_names = get_metaworld_env_names()
     if args.env_name in metaworld_env_names:
+
+        # We import here so that we avoid importing metaworld if possible, since it is
+        # dependent on mujoco.
+        from metaworld.benchmarks import ML1
         env = ML1.get_train_tasks(args.env_name)
         tasks = env.sample_tasks(1)
         env.set_task(tasks[0])
+
     else:
         env = gym.make(args.env_name)
 
@@ -101,8 +105,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--env_name",
         type=str,
-        default="bin-picking-v1",
-        help="Which Meta-World environment to run.",
+        default="CartPole-v1",
+        help="Which environment to run. Can be a Gym or a Meta-World environment",
     )
     parser.add_argument(
         "--num_ppo_epochs",
