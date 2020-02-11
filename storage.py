@@ -137,7 +137,7 @@ class RolloutStorage:
 
         Yields
         ------
-        minibatch: Tuple[List[int].Tensor, ...]
+        minibatch: Tuple[List[int], Tensor, ...]
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 

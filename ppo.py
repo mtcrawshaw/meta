@@ -258,6 +258,18 @@ class PPOPolicy:
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss
                 )
+                """
+                The ``retain_graph=True`` here is because of a PyTorch error having to
+                with running backward on the same computation graph a second time. This
+                error doesn't appear in the implementation which this repo is based on,
+                which is strange. If you remove ``advantages_batch``, ``returns batch``,
+                and ``old_action_log_probs_batch`` from the loss computation, then the
+                error goes away. Another solution is to call .clone().detach() on each
+                of the offending tensors. It doesn't seem like using
+                ``retain_graph=True`` or .clone().detach() should cause any problems,
+                but the question still remains about why the error appears here and not
+                in the original repo.
+                """
                 loss.backward(retain_graph=True)
                 self.optimizer.step()
 

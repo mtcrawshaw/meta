@@ -6,6 +6,7 @@ Add PPO for single task
     - Make sure PolicyNetwork.logstd is changing
     - Make tensor shapes consistent
     - Find out if retain_graph=True is okay
+    - Build up rollouts as numpy arrays
     - Write tests
 - Clean up
     - Move to settings file
