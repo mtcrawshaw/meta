@@ -1,8 +1,8 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Make sure PolicyNetwork.logstd is changing
     - Find out if retain_graph=True is okay
+    - Make sure PolicyNetwork.logstd is changing
     - Write tests
 - Clean up
     - Build up rollouts as numpy arrays
@@ -24,8 +24,8 @@ Training settings to add/consider:
 - Network architecture hyperparameters
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
+- Collecting data from multiple episodes into a single (larger) minibatch
 
 Leads for PPO bugs:
 - retain_graph=True
-- Small batches when done
 - Write manual test
