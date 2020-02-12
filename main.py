@@ -18,7 +18,6 @@ def main(args: argparse.Namespace):
         # We import here so that we avoid importing metaworld if possible, since it is
         # dependent on mujoco.
         from metaworld.benchmarks import ML1
-
         env = ML1.get_train_tasks(args.env_name)
         tasks = env.sample_tasks(1)
         env.set_task(tasks[0])
@@ -118,7 +117,10 @@ if __name__ == "__main__":
         help="Number of training steps to perform on each rollout.",
     )
     parser.add_argument(
-        "--lr", type=float, default=3e-4, help="Learning rate for training.",
+        "--lr",
+        type=float,
+        default=3e-4,
+        help="Learning rate for training.",
     )
     parser.add_argument(
         "--eps",
@@ -139,7 +141,10 @@ if __name__ == "__main__":
         help="Coefficient on entropy loss in training objective.",
     )
     parser.add_argument(
-        "--gamma", type=float, default=0.99, help="Discount factor.",
+        "--gamma",
+        type=float,
+        default=0.99,
+        help="Discount factor.",
     )
     parser.add_argument(
         "--gae_lambda",
@@ -148,7 +153,10 @@ if __name__ == "__main__":
         help="Lambda parameter for GAE (used in equation (11) of PPO paper).",
     )
     parser.add_argument(
-        "--minibatch_size", type=int, default=32, help="Size of each SGD minibatch.",
+        "--minibatch_size",
+        type=int,
+        default=32,
+        help="Size of each SGD minibatch.",
     )
     parser.add_argument(
         "--clip_param",
