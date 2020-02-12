@@ -35,7 +35,12 @@ class RolloutStorage:
         spaces = {"obs": observation_space, "action": action_space}
         for space_name, space in spaces.items():
             if isinstance(space, Discrete):
-                self.space_shapes[space_name] = (space.n,)
+                if space_name == "obs":
+                    self.space_shapes[space_name] = (space.n,)
+                elif space_name == "action":
+                    self.space_shapes[space_name] = (1,)
+                else:
+                    raise ValueError("Unrecognized space '%s'." % space_name)
             elif isinstance(space, Box):
                 self.space_shapes[space_name] = space.shape
             else:

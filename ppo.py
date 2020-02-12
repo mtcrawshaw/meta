@@ -32,6 +32,7 @@ class PPOPolicy:
         clip_value_loss: bool,
         num_layers: int,
         hidden_size: int,
+        normalize_advantages: float,
     ):
         """
         init function for PPOPolicy.
@@ -68,6 +69,8 @@ class PPOPolicy:
             Number of layers in actor/critic network.
         hidden_size : int
             Hidden size of actor/critic network.
+        normalize_advantages : float
+            Whether or not to normalize advantages.
         """
 
         # Set policy state.
@@ -86,6 +89,7 @@ class PPOPolicy:
         self.clip_value_loss = clip_value_loss
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.normalize_advantages = normalize_advantages
 
         # Instantiate policy network and optimizer.
         self.policy_network = PolicyNetwork(
@@ -230,7 +234,10 @@ class PPOPolicy:
 
         # Compute advantages.
         advantages = returns - rollouts.value_preds[:-1]
-        advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
+        if self.normalize_advantages:
+            advantages = (advantages - advantages.mean()) / (
+                advantages.std() + self.eps
+            )
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
@@ -304,9 +311,10 @@ class PPOPolicy:
                 in the original repo.
                 """
                 loss.backward(retain_graph=True)
-                nn.utils.clip_grad_norm_(
-                    self.policy_network.parameters(), self.max_grad_norm
-                )
+                if self.max_grad_norm is not None:
+                    nn.utils.clip_grad_norm_(
+                        self.policy_network.parameters(), self.max_grad_norm
+                    )
                 self.optimizer.step()
 
                 # Get loss values.
