@@ -1,13 +1,18 @@
+from math import exp
 from typing import Dict, Any
+
+import numpy as np
 
 from ppo import PPOPolicy
 from storage import RolloutStorage
 from dummy_env import DummyEnv
 
 
-def get_action_loss(rollouts: RolloutStorage, settings: Dict[str, Any]) -> float:
+def get_losses(rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len:
+        int) -> Dict[str, Any]:
     """
-    Compute action loss from rollouts.
+    Computes action, value, entropy, and total loss from rollouts, assuming
+    that we aren't performing value loss clipping.
 
     Parameters
     ----------
@@ -18,68 +23,55 @@ def get_action_loss(rollouts: RolloutStorage, settings: Dict[str, Any]) -> float
 
     Returns
     -------
-    action_loss : float
-        Action loss as defined in PPO paper.
-    """
-
-    return 0.0
-
-
-def get_value_loss(rollouts: RolloutStorage, settings: Dict[str, Any]) -> float:
-    """
-    Compute value loss from rollouts. 
-
-    Parameters
-    ----------
-    rollouts : RolloutStorage
-        Rollout information such as observations, actions, rewards, etc.
-    settings : Dict[str, Any]
-        Settings dictionary.
-
-    Returns
-    -------
-    value_loss : float
-        Value loss as defined in PPO paper.
-    """
-
-    return 0.0
-
-
-def get_entropy_loss(rollouts: RolloutStorage) -> float:
-    """
-    Computes entropy loss from rollouts.
-
-    Parameters
-    ----------
-    rollouts : RolloutStorage
-        Rollout information such as observations, actions, rewards, etc.
-
-    Returns
-    -------
-    entropy_loss : float
-        Entropy loss as defined in PPO paper.
-    """
-
-    return 0.0
-
-
-def get_total_loss(loss_items: Dict[str, float], settings: Dict[str, Any]):
-    """
-    Computes total loss as a linear combination of other three loss values.
-
-    Parameters
-    ----------
     loss_items : Dict[str, float]
-        Dictionary holding action, value, and entropy losses.
-    settings : Dict[str, Any]
-        Settings dictionary.
-
-    Returns
-    -------
-    total_loss : float
-        Total loss as defined in PPO paper.
+        Dictionary holding action, value, entropy, and total loss.
     """
-    return 0.0
+
+    assert not settings["clip_value_loss"]
+    loss_items = {}
+
+    # Compute returns.
+    returns = []
+    for t in range(rollout_len):
+        returns.append(0.0)
+        for i in range(t, rollout_len):
+            delta = float(rollouts.rewards[t])
+            delta += settings["gamma"] * float(rollouts.value_preds[t + 1])
+            delta -= float(rollouts.value_preds[t])
+            returns[t] += delta * (settings["gamma"] * settings["gae_lambda"]) ** i
+
+    # Compute advantages.
+    advantages = []
+    for t in range(rollout_len):
+        advantages.append(returns[t] - float(rollouts.value_preds[t]))
+    advantage_mean = np.mean(advantages)
+    advantage_std = np.std(advantages)
+    for t in range(rollout_len):
+        advantages[t] = (advantages[t] - advantage_mean) / (advantage_std + settings["eps"])
+
+    # Compute losses.
+    loss_items["action"] = 0.0
+    loss_items["value"] = 0.0
+    loss_items["entropy"] = 0.0
+    entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
+    for t in range(rollout_len):
+        loss_items["action"] = advantages[t]
+        loss_items["value"] += 0.5 * (returns[t] - float(rollouts.value_preds[t])) ** 2
+        loss_items["entropy"] += entropy([float(x) for x in rollouts.action_log_probs[t]])
+
+    # Divide to find average.
+    loss_items["action"] /= rollout_len
+    loss_items["value"] /= rollout_len
+    loss_items["entropy"] /= rollout_len
+
+    # Compute total loss.
+    loss_items["total"] = -(
+        loss_items["action"]
+        - settings["value_loss_coeff"] * loss_items["value"]
+        + settings["entropy_loss_coeff"] * loss_items["entropy"]
+    )
+
+    return loss_items
 
 
 def test_ppo():
@@ -132,14 +124,14 @@ def test_ppo():
     loss_items = policy.update(rollouts)
 
     # Compute expected losses.
-    loss_names = ["action", "value", "entropy", "total"]
-    expected_loss_items = {}
-    expected_loss_items["action"] = get_action_loss(rollouts, settings)
-    expected_loss_items["value"] = get_value_loss(rollouts, settings)
-    expected_loss_items["entropy"] = get_entropy_loss(rollouts)
-    expected_loss_items["total"] = get_action_loss(dict(expected_loss_items), settings)
-    for loss_name in loss_names:
-        assert abs(loss_items[loss_name] - expected_loss_items[loss_name]) < 1e-5
+    expected_loss_items = get_losses(rollouts, settings, rollout_len)
+    for loss_name in ["action", "value", "entropy", "total"]:
+        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
+        print("%s diff: %.5f" % (loss_name, diff))
+    assert abs(loss_items["action"] - expected_loss_items["action"]) < 1e-5
+    assert abs(loss_items["value"] - expected_loss_items["value"]) < 1e-5
+    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < 1e-5
+    assert abs(loss_items["total"] - expected_loss_items["total"]) < 1e-5
 
 
 if __name__ == "__main__":
