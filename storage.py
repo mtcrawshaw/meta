@@ -159,5 +159,4 @@ class RolloutStorage:
             action_log_probs_batch = self.action_log_probs[batch_indices]
             rewards_batch = self.rewards[batch_indices]
 
-            yield batch_indices, obs_batch, value_preds_batch, actions_batch, \
-                action_log_probs_batch, rewards_batch
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, rewards_batch
