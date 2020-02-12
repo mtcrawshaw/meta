@@ -35,7 +35,7 @@ class RolloutStorage:
         spaces = {"obs": observation_space, "action": action_space}
         for space_name, space in spaces.items():
             if isinstance(space, Discrete):
-                self.space_shapes[space_name] = (1,)
+                self.space_shapes[space_name] = (space.n,)
             elif isinstance(space, Box):
                 self.space_shapes[space_name] = space.shape
             else:
