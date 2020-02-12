@@ -3,6 +3,7 @@ from typing import Tuple
 import numpy as np
 from gym.spaces import Discrete
 
+
 class DummyEnv:
     """ Dummy environment for testing. Only has two states, and two actions.  """
 

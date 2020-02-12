@@ -28,4 +28,5 @@ Training settings to add/consider:
 
 Leads for PPO bugs:
 - retain_graph=True
-- Write manual test
+- Manual tests (Loss values first, then new parameters)
+- Check to see if transitions are getting mixed around in rollouts
