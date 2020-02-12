@@ -30,6 +30,8 @@ class PPOPolicy:
         clip_param: float,
         max_grad_norm: float,
         clip_value_loss: bool,
+        num_layers: int,
+        hidden_size: int,
     ):
         """
         init function for PPOPolicy.
@@ -62,6 +64,10 @@ class PPOPolicy:
             Maximum norm of loss gradients for update.
         clip_value_loss : float
             Whether or not to clip the value loss.
+        num_layers : int
+            Number of layers in actor/critic network.
+        hidden_size : int
+            Hidden size of actor/critic network.
         """
 
         # Set policy state.
@@ -78,9 +84,16 @@ class PPOPolicy:
         self.clip_param = clip_param
         self.max_grad_norm = max_grad_norm
         self.clip_value_loss = clip_value_loss
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
 
         # Instantiate policy network and optimizer.
-        self.policy_network = PolicyNetwork(observation_space, action_space)
+        self.policy_network = PolicyNetwork(
+            observation_space,
+            action_space,
+            num_layers=self.num_layers,
+            hidden_size=self.hidden_size,
+        )
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(self, obs: Union[np.ndarray, int, float]):
@@ -314,7 +327,11 @@ class PolicyNetwork(nn.Module):
     """ MLP network parameterizing the policy. """
 
     def __init__(
-        self, observation_space: Space, action_space: Space, hidden_size: int = 64
+        self,
+        observation_space: Space,
+        action_space: Space,
+        num_layers: int = 3,
+        hidden_size: int = 64,
     ):
         """
         init function for PolicyNetwork.
@@ -341,22 +358,27 @@ class PolicyNetwork(nn.Module):
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
         )
 
+        # Generate layers of network.
         self.hidden_size = hidden_size
-        self.actor = nn.Sequential(
-            init_(nn.Linear(self.input_size, self.hidden_size)),
-            nn.Tanh(),
-            init_(nn.Linear(self.hidden_size, self.hidden_size)),
-            nn.Tanh(),
-            init_(nn.Linear(self.hidden_size, self.output_size)),
-        )
+        actor_layers = []
+        critic_layers = []
+        for i in range(num_layers):
 
-        self.critic = nn.Sequential(
-            init_(nn.Linear(self.input_size, self.hidden_size)),
-            nn.Tanh(),
-            init_(nn.Linear(self.hidden_size, self.hidden_size)),
-            nn.Tanh(),
-            init_(nn.Linear(self.hidden_size, 1)),
-        )
+            # Calcuate input and output size of layer.
+            layer_input_size = self.input_size if i == 0 else hidden_size
+            actor_output_size = self.output_size if i == num_layers - 1 else hidden_size
+            critic_output_size = 1 if i == num_layers - 1 else hidden_size
+
+            actor_layers.append(init_(nn.Linear(layer_input_size, actor_output_size)))
+            critic_layers.append(init_(nn.Linear(layer_input_size, critic_output_size)))
+
+            # Activation functions.
+            if i != num_layers - 1:
+                actor_layers.append(nn.Tanh())
+                critic_layers.append(nn.Tanh())
+
+        self.actor = nn.Sequential(*actor_layers)
+        self.critic = nn.Sequential(*critic_layers)
 
         # Extra parameter vector for standard deviations in the case that
         # the policy distribution is Gaussian.
