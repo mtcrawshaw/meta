@@ -10,7 +10,6 @@ from gym.spaces import Space, Box, Discrete
 
 from storage import RolloutStorage
 from utils import convert_to_tensor, init
-from unique_env import UniquePolicyNetwork
 
 
 class PPOPolicy:
@@ -99,8 +98,7 @@ class PPOPolicy:
             num_layers=self.num_layers,
             hidden_size=self.hidden_size,
         )
-        # self.policy_network = UniquePolicyNetwork()
-        # self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(self, obs: Union[np.ndarray, int, float]):
         """
@@ -263,37 +261,6 @@ class PPOPolicy:
                 returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
 
-                print("New batch:")
-                for (
-                    index,
-                    obs,
-                    value_pred,
-                    action,
-                    old_action_log_probs,
-                    reward,
-                    single_return,
-                    advantage,
-                ) in zip(
-                    batch_indices,
-                    obs_batch,
-                    value_preds_batch,
-                    actions_batch,
-                    old_action_log_probs_batch,
-                    rewards_batch,
-                    returns_batch,
-                    advantages_batch,
-                ):
-                    print("index: %s" % str(index))
-                    print("obs: %s" % str(obs))
-                    print("value_pred: %s" % str(value_pred))
-                    print("action: %s" % str(action))
-                    print("old action probs: %s" % str(torch.exp(old_action_log_probs)))
-                    print("reward: %s" % str(reward))
-                    print("return: %s" % str(single_return))
-                    print("advantage: %s" % str(advantage))
-                    print("")
-
-                """
                 # Compute new values, action log probs, and dist entropies.
                 (
                     values_batch,
@@ -332,7 +299,6 @@ class PPOPolicy:
                     + self.entropy_loss_coeff * entropy_loss
                 )
                 """
-                """
                 The ``retain_graph=True`` here is because of a PyTorch error having to
                 with running backward on the same computation graph a second time. This
                 error doesn't appear in the implementation which this repo is based on,
@@ -343,7 +309,6 @@ class PPOPolicy:
                 ``retain_graph=True`` or .clone().detach() should cause any problems,
                 but the question still remains about why the error appears here and not
                 in the original repo.
-                """
                 """
                 loss.backward(retain_graph=True)
                 if self.max_grad_norm is not None:
@@ -357,7 +322,6 @@ class PPOPolicy:
                 loss_items["value"] += value_loss.item()
                 loss_items["entropy"] += entropy_loss.item()
                 loss_items["total"] += loss.item()
-                """
                 num_updates += 1
 
         # Take average of loss values over all updates.

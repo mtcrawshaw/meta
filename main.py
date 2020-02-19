@@ -6,7 +6,6 @@ import gym
 from ppo import PPOPolicy
 from storage import RolloutStorage
 from utils import get_metaworld_env_names
-from unique_env import UniqueEnv
 
 
 def main(args: argparse.Namespace):
@@ -24,8 +23,6 @@ def main(args: argparse.Namespace):
         tasks = env.sample_tasks(1)
         env.set_task(tasks[0])
 
-    elif args.env_name == "unique_env":
-        env = UniqueEnv()
     else:
         env = gym.make(args.env_name)
 
