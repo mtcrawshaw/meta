@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Union
+from typing import Union, Tuple, Dict
 
 import numpy as np
 import torch
@@ -10,6 +10,7 @@ from gym.spaces import Space, Box, Discrete
 
 from storage import RolloutStorage
 from utils import convert_to_tensor, init
+from unique_env import UniquePolicyNetwork
 
 
 class PPOPolicy:
@@ -92,13 +93,16 @@ class PPOPolicy:
         self.normalize_advantages = normalize_advantages
 
         # Instantiate policy network and optimizer.
+        """
         self.policy_network = PolicyNetwork(
             observation_space,
             action_space,
             num_layers=self.num_layers,
             hidden_size=self.hidden_size,
         )
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
+        """
+        self.policy_network = UniquePolicyNetwork()
+        # self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(self, obs: Union[np.ndarray, int, float]):
         """
@@ -132,7 +136,7 @@ class PPOPolicy:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
         # Sample action.
-        action = action_dist.sample()
+        action = action_dist.sample(sample_shape=torch.Size([1]))
 
         # Compute log probability of action. We sum over ``element_log_probs``
         # to convert element-wise log probs into a joint log prob.
@@ -261,6 +265,22 @@ class PPOPolicy:
                 returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
 
+                print("New batch:")
+                for obs, value_pred, action, old_action_log_probs, reward in zip(
+                    obs_batch,
+                    value_preds_batch,
+                    actions_batch,
+                    old_action_log_probs_batch,
+                    rewards_batch,
+                ):
+                    print("obs: %s" % str(obs))
+                    print("value_pred: %s" % str(value_pred))
+                    print("action: %s" % str(action))
+                    print("old action probs: %s" % str(torch.exp(old_action_log_probs)))
+                    print("reward: %s" % str(reward))
+                    print("")
+
+                """
                 # Compute new values, action log probs, and dist entropies.
                 (
                     values_batch,
@@ -299,6 +319,7 @@ class PPOPolicy:
                     + self.entropy_loss_coeff * entropy_loss
                 )
                 """
+                """
                 The ``retain_graph=True`` here is because of a PyTorch error having to
                 with running backward on the same computation graph a second time. This
                 error doesn't appear in the implementation which this repo is based on,
@@ -309,6 +330,7 @@ class PPOPolicy:
                 ``retain_graph=True`` or .clone().detach() should cause any problems,
                 but the question still remains about why the error appears here and not
                 in the original repo.
+                """
                 """
                 loss.backward(retain_graph=True)
                 if self.max_grad_norm is not None:
@@ -322,6 +344,7 @@ class PPOPolicy:
                 loss_items["value"] += value_loss.item()
                 loss_items["entropy"] += entropy_loss.item()
                 loss_items["total"] += loss.item()
+                """
                 num_updates += 1
 
         # Take average of loss values over all updates.
@@ -393,7 +416,7 @@ class PolicyNetwork(nn.Module):
         if isinstance(action_space, Box):
             self.logstd = torch.zeros(self.output_size)
 
-    def forward(self, obs: torch.Tensor):
+    def forward(self, obs: torch.Tensor) -> Tuple[float, Dict[str, torch.Tensor]]:
         """
         Forward pass definition for PolicyNetwork.
 
