@@ -63,7 +63,10 @@ def main(args: argparse.Namespace):
         for rollout_step in range(args.rollout_length):
 
             # Sample actions.
-            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
+            with torch.no_grad():
+                value_pred, action, action_log_prob = policy.act(
+                    rollouts.obs[rollout_step]
+                )
 
             # Perform step and record in ``rollouts``.
             # We cast the action to a numpy array here because policy.act() returns

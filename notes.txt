@@ -27,8 +27,6 @@ Training settings to add/consider:
 - Collecting data from multiple episodes into a single (larger) minibatch
 
 Leads for PPO bugs:
-- retain_graph=True
 - Manual tests (Loss values first, then new parameters)
-- Check to see if transitions are getting mixed around in rollouts
 - Play with sign of action_loss, setting value and entropy to 0, and setting
   action_loss to regular VPG loss. Why does action_loss seem to be backward?
