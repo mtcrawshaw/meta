@@ -29,9 +29,9 @@ class UniqueEnv:
         the standard for OpenAI gym environments.
         """
 
+        reward = float(self.timestep)
         self.timestep += 1
         obs = float(self.timestep)
-        reward = float(self.timestep)
         done = False
         info = {}
 

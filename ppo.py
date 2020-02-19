@@ -93,15 +93,13 @@ class PPOPolicy:
         self.normalize_advantages = normalize_advantages
 
         # Instantiate policy network and optimizer.
-        """
         self.policy_network = PolicyNetwork(
             observation_space,
             action_space,
             num_layers=self.num_layers,
             hidden_size=self.hidden_size,
         )
-        """
-        self.policy_network = UniquePolicyNetwork()
+        # self.policy_network = UniquePolicyNetwork()
         # self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(self, obs: Union[np.ndarray, int, float]):
@@ -136,7 +134,7 @@ class PPOPolicy:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
         # Sample action.
-        action = action_dist.sample(sample_shape=torch.Size([1]))
+        action = action_dist.sample()
 
         # Compute log probability of action. We sum over ``element_log_probs``
         # to convert element-wise log probs into a joint log prob.
@@ -266,18 +264,33 @@ class PPOPolicy:
                 advantages_batch = advantages[batch_indices]
 
                 print("New batch:")
-                for obs, value_pred, action, old_action_log_probs, reward in zip(
+                for (
+                    index,
+                    obs,
+                    value_pred,
+                    action,
+                    old_action_log_probs,
+                    reward,
+                    single_return,
+                    advantage,
+                ) in zip(
+                    batch_indices,
                     obs_batch,
                     value_preds_batch,
                     actions_batch,
                     old_action_log_probs_batch,
                     rewards_batch,
+                    returns_batch,
+                    advantages_batch,
                 ):
+                    print("index: %s" % str(index))
                     print("obs: %s" % str(obs))
                     print("value_pred: %s" % str(value_pred))
                     print("action: %s" % str(action))
                     print("old action probs: %s" % str(torch.exp(old_action_log_probs)))
                     print("reward: %s" % str(reward))
+                    print("return: %s" % str(single_return))
+                    print("advantage: %s" % str(advantage))
                     print("")
 
                 """
