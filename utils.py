@@ -1,5 +1,5 @@
 import copy
-from typing import Union, List
+from typing import Union, List, Dict
 
 import numpy as np
 import torch
@@ -35,6 +35,15 @@ def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
+
+
+def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
+    """ Prints values of metrics from input dictionary ``metrics``. """
+
+    msg = "Iteration: %d" % iteration
+    for metric_name, metric_val in metrics.items():
+        msg += " | %s: %.6f" % (metric_name, metric_val)
+    print(msg, end="\r")
 
 
 def get_metaworld_env_names() -> List[str]:

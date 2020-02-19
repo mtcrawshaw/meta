@@ -5,7 +5,7 @@ import gym
 
 from ppo import PPOPolicy
 from storage import RolloutStorage
-from utils import get_metaworld_env_names
+from utils import get_metaworld_env_names, print_metrics
 
 
 def main(args: argparse.Namespace):
@@ -56,6 +56,15 @@ def main(args: argparse.Namespace):
     rollouts.set_initial_obs(obs)
 
     # Training loop.
+    metric_keys = ["action", "value", "entropy", "total", "reward"]
+    metrics = {key: None for key in metric_keys}
+
+    def update_metric(current_metric, new_val, alpha):
+        if current_metric is None:
+            return new_val
+        else:
+            return current_metric * alpha + new_val * (1 - alpha)
+
     for iteration in range(args.num_iterations):
 
         # Rollout loop.
@@ -80,10 +89,21 @@ def main(args: argparse.Namespace):
 
         # Compute update.
         loss_items = policy.update(rollouts)
-        print(rollout_step)
-        print(loss_items)
-        print(rollout_reward)
-        print("")
+
+        # Update and print metrics.
+        for loss_key, loss_item in loss_items.items():
+            metrics[loss_key] = update_metric(
+                metrics[loss_key], loss_item, args.ema_alpha
+            )
+        metrics["reward"] = update_metric(
+            metrics["reward"], rollout_reward, args.ema_alpha
+        )
+        if iteration % args.print_freq == 0:
+            print_metrics(metrics, iteration)
+        if iteration == args.num_iterations - 1:
+            print(
+                ""
+            )  # This is to ensure that printed out values don't get overwritten.
 
         # Clear rollout storage.
         rollouts.clear()
@@ -190,6 +210,18 @@ if __name__ == "__main__":
         default=True,
         action="store_false",
         help="Do not normalize advantages.",
+    )
+    parser.add_argument(
+        "--ema_alpha",
+        type=float,
+        default=0.95,
+        help="Alpha value for exponential moving averages.",
+    )
+    parser.add_argument(
+        "--print_freq",
+        type=int,
+        default=10,
+        help="Number of training iterations between metric printing.",
     )
 
     args = parser.parse_args()

@@ -1,7 +1,7 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Find out if retain_graph=True is okay
+    - Beat CartPole-v1
     - Make sure PolicyNetwork.logstd is changing
     - Write tests
 - Clean up
@@ -12,7 +12,7 @@ Add PPO for single task
     - black/pylint/mypy
 - Add GPU support
 - Add multiprocessing
-- Add support for recurrent policies
+- Add support for recurrent policies?
 Add MAML for single task distribution
 Add modular meta learning for meta learning
 Other baselines for meta learning?

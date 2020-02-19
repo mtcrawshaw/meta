@@ -8,8 +8,9 @@ from storage import RolloutStorage
 from dummy_env import DummyEnv
 
 
-def get_losses(rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len:
-        int) -> Dict[str, Any]:
+def get_losses(
+    rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len: int
+) -> Dict[str, Any]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming
     that we aren't performing value loss clipping.
@@ -47,7 +48,9 @@ def get_losses(rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len:
     advantage_mean = np.mean(advantages)
     advantage_std = np.std(advantages)
     for t in range(rollout_len):
-        advantages[t] = (advantages[t] - advantage_mean) / (advantage_std + settings["eps"])
+        advantages[t] = (advantages[t] - advantage_mean) / (
+            advantage_std + settings["eps"]
+        )
 
     # Compute losses.
     loss_items["action"] = 0.0
@@ -57,7 +60,9 @@ def get_losses(rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len:
     for t in range(rollout_len):
         loss_items["action"] = advantages[t]
         loss_items["value"] += 0.5 * (returns[t] - float(rollouts.value_preds[t])) ** 2
-        loss_items["entropy"] += entropy([float(x) for x in rollouts.action_log_probs[t]])
+        loss_items["entropy"] += entropy(
+            [float(x) for x in rollouts.action_log_probs[t]]
+        )
 
     # Divide to find average.
     loss_items["action"] /= rollout_len
