@@ -16,17 +16,15 @@ def convert_to_tensor(val: Union[np.ndarray, int, float]):
     """
 
     if isinstance(val, int) or isinstance(val, float):
-        converted = torch.Tensor([val])
+        return torch.Tensor([val])
     elif isinstance(val, np.ndarray):
-        converted = torch.Tensor(val)
+        return torch.Tensor(val)
     elif isinstance(val, torch.Tensor):
-        converted = copy.deepcopy(val)
+        return val
     else:
         raise ValueError(
             "Cannot convert value of type '%r' to torch.Tensor." % type(val)
         )
-
-    return converted
 
 
 def init(module, weight_init, bias_init, gain=1):

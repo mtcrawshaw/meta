@@ -61,10 +61,10 @@ class RolloutStorage:
         # The +1 is here because we want to store the obs/value prediction
         # from before the first step and after the last step of the rollout.
         self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
-        self.value_preds = torch.zeros(self.rollout_length + 1, 1)
+        self.value_preds = torch.zeros(self.rollout_length + 1)
         self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
-        self.action_log_probs = torch.zeros(self.rollout_length, 1)
-        self.rewards = torch.zeros(self.rollout_length, 1)
+        self.action_log_probs = torch.zeros(self.rollout_length)
+        self.rewards = torch.zeros(self.rollout_length)
 
     def add_step(
         self,
@@ -96,10 +96,10 @@ class RolloutStorage:
             )
 
         self.obs[self.rollout_step + 1].copy_(convert_to_tensor(obs))
-        self.actions[self.rollout_step].copy_(convert_to_tensor(action))
-        self.action_log_probs[self.rollout_step].copy_(action_log_prob)
-        self.value_preds[self.rollout_step].copy_(value_pred)
-        self.rewards[self.rollout_step].copy_(convert_to_tensor(reward))
+        self.actions[self.rollout_step] = action
+        self.action_log_probs[self.rollout_step] = action_log_prob
+        self.value_preds[self.rollout_step] = value_pred
+        self.rewards[self.rollout_step] = reward
 
         self.rollout_step += 1
 

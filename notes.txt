@@ -32,3 +32,7 @@ Leads for PPO bugs:
   is randomly initialized, then the policy will converge to around 9.5 average
   reward (which means the agent is dying as quickly as possible) and then the
   value of action_loss peaks and plateaus. Why does it increase there?
+- Tensor shapes weren't consistent before, caused some weird errors with
+  broadcasting results when shapes didn't match up. Inspect rollout information
+  again and make sure everything is still good, especially log probs
+  calculations.

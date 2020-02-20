@@ -177,8 +177,7 @@ class PPOPolicy:
         # Compute log probabilities and action distribution entropies. We sum over
         # ``element_log_probs`` here to convert element-wise log probs into a joint
         # log prob.
-        element_log_probs = action_dist.log_prob(actions_batch)
-        action_log_probs = element_log_probs.sum(-1)
+        action_log_probs = action_dist.log_prob(actions_batch)
         action_dist_entropy = action_dist.entropy()
 
         return value, action_log_probs, action_dist_entropy
@@ -218,7 +217,7 @@ class PPOPolicy:
         """
 
         # Compute returns corresponding to equations (11) and (12) in the PPO paper.
-        returns = torch.zeros(rollouts.rollout_length, 1)
+        returns = torch.zeros(rollouts.rollout_length)
         with torch.no_grad():
             rollouts.value_preds[rollouts.rollout_step] = self.get_value(
                 rollouts.obs[rollouts.rollout_step]

@@ -1,6 +1,7 @@
 from math import exp
 from typing import Dict, Any
 
+import torch
 import numpy as np
 
 from ppo import PPOPolicy
@@ -9,18 +10,23 @@ from dummy_env import DummyEnv
 
 
 def get_losses(
-    rollouts: RolloutStorage, settings: Dict[str, Any], rollout_len: int
+    rollouts: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any], rollout_len: int
 ) -> Dict[str, Any]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming
-    that we aren't performing value loss clipping.
+    that we aren't performing value loss clipping, and we are normalizing
+    advantages.
 
     Parameters
     ----------
     rollouts : RolloutStorage
         Rollout information such as observations, actions, rewards, etc.
+    policy : PPOPolicy
+        Policy object for training.
     settings : Dict[str, Any]
         Settings dictionary.
+    rollout_len : int
+        Length of rollout to train on.
 
     Returns
     -------
@@ -55,7 +61,6 @@ def get_losses(
         advantages[t] = (advantages[t] - advantage_mean) / (
             advantage_std + settings["eps"]
         )
-    print("Expected advantages: %s" % str(advantages))
 
     # Compute losses.
     loss_items["action"] = 0.0
@@ -63,20 +68,23 @@ def get_losses(
     loss_items["entropy"] = 0.0
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
+    ratios = []
     for t in range(rollout_len):
-        # START HERE: compare ratio, surrogate1, surrogate2, action_loss, and
-        # entropy_loss
-        ratio = 1.0
+        new_value_pred, new_action_log_probs, new_entropy = policy.evaluate_actions(
+            rollouts.obs[t], rollouts.actions[t]
+        )
+        new_probs = new_action_log_probs.detach().numpy()
+        old_probs = rollouts.action_log_probs[t].detach().numpy()
+        ratio = np.exp(new_probs - old_probs)
+        ratios.append(ratio)
         surrogate1 = ratio * advantages[t]
         surrogate2 = (
             clamp(ratio, 1.0 - settings["clip_param"], 1.0 + settings["clip_param"])
             * advantages[t]
         )
         loss_items["action"] += min(surrogate1, surrogate2)
-        loss_items["value"] += 0.5 * (returns[t] - float(rollouts.value_preds[t])) ** 2
-        loss_items["entropy"] += entropy(
-            [float(x) for x in rollouts.action_log_probs[t]]
-        )
+        loss_items["value"] += 0.5 * (returns[t] - float(new_value_pred)) ** 2
+        loss_items["entropy"] += float(new_entropy)
 
     # Divide to find average.
     loss_items["action"] /= rollout_len
@@ -135,7 +143,8 @@ def test_ppo():
     obs = env.reset()
     rollouts.set_initial_obs(obs)
     for rollout_step in range(rollout_len):
-        value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
+        with torch.no_grad():
+            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
         obs, reward, done, info = env.step(action)
         rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
 
@@ -143,10 +152,11 @@ def test_ppo():
     loss_items = policy.update(rollouts)
 
     # Compute expected losses.
-    rollouts.value_preds[rollouts.rollout_step] = policy.get_value(
-        rollouts.obs[rollouts.rollout_step]
-    )
-    expected_loss_items = get_losses(rollouts, settings, rollout_len)
+    with torch.no_grad():
+        rollouts.value_preds[rollouts.rollout_step] = policy.get_value(
+            rollouts.obs[rollouts.rollout_step]
+        )
+    expected_loss_items = get_losses(rollouts, policy, settings, rollout_len)
 
     # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
