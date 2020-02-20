@@ -28,5 +28,7 @@ Training settings to add/consider:
 
 Leads for PPO bugs:
 - Manual tests (Loss values first, then new parameters)
-- Play with sign of action_loss, setting value and entropy to 0, and setting
-  action_loss to regular VPG loss. Why does action_loss seem to be backward?
+- Why does action_loss seem to be backward? The value is small when the policy
+  is randomly initialized, then the policy will converge to around 9.5 average
+  reward (which means the agent is dying as quickly as possible) and then the
+  value of action_loss peaks and plateaus. Why does it increase there?

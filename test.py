@@ -29,6 +29,7 @@ def get_losses(
     """
 
     assert not settings["clip_value_loss"]
+    assert settings["normalize_advantages"]
     loss_items = {}
 
     # Compute returns.
@@ -36,29 +37,42 @@ def get_losses(
     for t in range(rollout_len):
         returns.append(0.0)
         for i in range(t, rollout_len):
-            delta = float(rollouts.rewards[t])
-            delta += settings["gamma"] * float(rollouts.value_preds[t + 1])
-            delta -= float(rollouts.value_preds[t])
-            returns[t] += delta * (settings["gamma"] * settings["gae_lambda"]) ** i
+            delta = float(rollouts.rewards[i])
+            delta += settings["gamma"] * float(rollouts.value_preds[i + 1])
+            delta -= float(rollouts.value_preds[i])
+            returns[t] += delta * (settings["gamma"] * settings["gae_lambda"]) ** (
+                i - t
+            )
+        returns[t] += float(rollouts.value_preds[t])
 
     # Compute advantages.
     advantages = []
     for t in range(rollout_len):
         advantages.append(returns[t] - float(rollouts.value_preds[t]))
     advantage_mean = np.mean(advantages)
-    advantage_std = np.std(advantages)
+    advantage_std = np.std(advantages, ddof=1)
     for t in range(rollout_len):
         advantages[t] = (advantages[t] - advantage_mean) / (
             advantage_std + settings["eps"]
         )
+    print("Expected advantages: %s" % str(advantages))
 
     # Compute losses.
     loss_items["action"] = 0.0
     loss_items["value"] = 0.0
     loss_items["entropy"] = 0.0
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
+    clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
     for t in range(rollout_len):
-        loss_items["action"] = advantages[t]
+        # START HERE: compare ratio, surrogate1, surrogate2, action_loss, and
+        # entropy_loss
+        ratio = 1.0
+        surrogate1 = ratio * advantages[t]
+        surrogate2 = (
+            clamp(ratio, 1.0 - settings["clip_param"], 1.0 + settings["clip_param"])
+            * advantages[t]
+        )
+        loss_items["action"] += min(surrogate1, surrogate2)
         loss_items["value"] += 0.5 * (returns[t] - float(rollouts.value_preds[t])) ** 2
         loss_items["entropy"] += entropy(
             [float(x) for x in rollouts.action_log_probs[t]]
@@ -104,7 +118,7 @@ def test_ppo():
         "clip_value_loss": False,
         "num_layers": 1,
         "hidden_size": None,
-        "normalize_advantages": False,
+        "normalize_advantages": True,
     }
     policy = PPOPolicy(
         observation_space=env.observation_space,
@@ -129,7 +143,12 @@ def test_ppo():
     loss_items = policy.update(rollouts)
 
     # Compute expected losses.
+    rollouts.value_preds[rollouts.rollout_step] = policy.get_value(
+        rollouts.obs[rollouts.rollout_step]
+    )
     expected_loss_items = get_losses(rollouts, settings, rollout_len)
+
+    # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
         diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
         print("%s diff: %.5f" % (loss_name, diff))
