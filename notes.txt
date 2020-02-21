@@ -1,9 +1,12 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
+    - Use not tiny batches
     - Beat CartPole-v1
     - Make sure PolicyNetwork.logstd is changing
     - Write tests
+      - Loss values/intermediate calculations
+      - Tensor sizes
 - Clean up
     - Build up rollouts as numpy arrays
     - Make tensor shapes consistent
@@ -27,7 +30,7 @@ Training settings to add/consider:
 - Collecting data from multiple episodes into a single (larger) minibatch
 
 Leads for PPO bugs:
-- Manual tests (Loss values first, then new parameters)
+- Manual tests
 - Why does action_loss seem to be backward? The value is small when the policy
   is randomly initialized, then the policy will converge to around 9.5 average
   reward (which means the agent is dying as quickly as possible) and then the
@@ -36,3 +39,4 @@ Leads for PPO bugs:
   broadcasting results when shapes didn't match up. Inspect rollout information
   again and make sure everything is still good, especially log probs
   calculations.
+- It seems to work when value_loss_coeff = 0.0. WTF

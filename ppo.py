@@ -136,8 +136,8 @@ class PPOPolicy:
 
         # Compute log probability of action. We sum over ``element_log_probs``
         # to convert element-wise log probs into a joint log prob.
-        element_log_probs = action_dist.log_prob(action)
-        action_log_prob = element_log_probs.sum(-1)
+        action_log_prob = action_dist.log_prob(action)
+        # action_log_prob = action_log_prob.sum(-1)
 
         return value_pred, action, action_log_prob
 
@@ -177,6 +177,8 @@ class PPOPolicy:
         # Compute log probabilities and action distribution entropies. We sum over
         # ``element_log_probs`` here to convert element-wise log probs into a joint
         # log prob.
+        actions_batch = torch.squeeze(actions_batch)
+        value = torch.squeeze(value)
         action_log_probs = action_dist.log_prob(actions_batch)
         action_dist_entropy = action_dist.entropy()
 
