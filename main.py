@@ -26,7 +26,9 @@ def main(args: argparse.Namespace):
     else:
         env = gym.make(args.env_name)
 
-    # Create policy and rollout storage.
+    # Create policy and rollout storage. ``rollouts`` is a list of RolloutStorage.
+    # Each RolloutStorage object holds state, action, reward, etc. for a single
+    # episode.
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -45,15 +47,18 @@ def main(args: argparse.Namespace):
         hidden_size=args.hidden_size,
         normalize_advantages=args.normalize_advantages,
     )
-    rollouts = RolloutStorage(
-        rollout_length=args.rollout_length,
-        observation_space=env.observation_space,
-        action_space=env.action_space,
+    rollouts = []
+    rollouts.append(
+        RolloutStorage(
+            rollout_length=args.rollout_length,
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+        )
     )
 
     # Initialize environment and set first observation.
     obs = env.reset()
-    rollouts.set_initial_obs(obs)
+    rollouts[-1].set_initial_obs(obs)
 
     # Training loop.
     metric_keys = ["action", "value", "entropy", "total", "reward"]
@@ -69,23 +74,41 @@ def main(args: argparse.Namespace):
 
         # Rollout loop.
         rollout_reward = 0.0
-        for rollout_step in range(args.rollout_length):
+        rollout_step = 0
+        for total_rollout_step in range(args.rollout_length):
 
             # Sample actions.
             with torch.no_grad():
                 value_pred, action, action_log_prob = policy.act(
-                    rollouts.obs[rollout_step]
+                    rollouts[-1].obs[rollout_step]
                 )
 
             # Perform step and record in ``rollouts``.
             # We cast the action to a numpy array here because policy.act() returns
             # it as a torch.Tensor. Less conversion back and forth this way.
             obs, reward, done, info = env.step(action.numpy())
-            rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
+            rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
             rollout_reward += reward
 
+            # Reinitialize environment and set first observation, if finished.
             if done:
-                break
+                rollouts.append(
+                    RolloutStorage(
+                        rollout_length=args.rollout_length,
+                        observation_space=env.observation_space,
+                        action_space=env.action_space,
+                    )
+                )
+                obs = env.reset()
+                rollouts[-1].set_initial_obs(obs)
+                rollout_step = 0
+
+                metrics["reward"] = update_metric(
+                    metrics["reward"], rollout_reward, args.ema_alpha
+                )
+                rollout_reward = 0.0
+
+            rollout_step += 1
 
         # Compute update.
         loss_items = policy.update(rollouts)
@@ -95,23 +118,27 @@ def main(args: argparse.Namespace):
             metrics[loss_key] = update_metric(
                 metrics[loss_key], loss_item, args.ema_alpha
             )
-        metrics["reward"] = update_metric(
-            metrics["reward"], rollout_reward, args.ema_alpha
-        )
         if iteration % args.print_freq == 0:
             print_metrics(metrics, iteration)
+
+        # This is to ensure that printed out values don't get overwritten.
         if iteration == args.num_iterations - 1:
-            print(
-                ""
-            )  # This is to ensure that printed out values don't get overwritten.
+            print("")
 
-        # Clear rollout storage.
-        rollouts.clear()
-
-        # Reinitialize environment and set first observation, if finished.
+        # Clear rollout storage. If we're in the middle of an episode, call
+        # RolloutStorage.clear() to retain observation.
         if done:
-            obs = env.reset()
-            rollouts.set_initial_obs(obs)
+            rollouts = []
+            rollouts.append(
+                RolloutStorage(
+                    rollout_length=args.rollout_length,
+                    observation_space=env.observation_space,
+                    action_space=env.action_space,
+                )
+            )
+        else:
+            rollouts = [rollouts[-1]]
+            rollouts[-1].clear()
 
 
 if __name__ == "__main__":

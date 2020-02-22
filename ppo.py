@@ -218,6 +218,8 @@ class PPOPolicy:
             Dictionary from loss names (e.g. action) to float loss values.
         """
 
+        return {"action": 0.0, "value": 0.0, "entropy": 0.0, "total": 0.0}
+
         # Compute returns corresponding to equations (11) and (12) in the PPO paper.
         returns = torch.zeros(rollouts.rollout_length)
         with torch.no_grad():

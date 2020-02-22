@@ -11,7 +11,10 @@ from dummy_env import DummyEnv
 
 
 def get_losses(
-    rollouts: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any], rollout_len: int
+    rollouts: RolloutStorage,
+    policy: PPOPolicy,
+    settings: Dict[str, Any],
+    rollout_len: int,
 ) -> Dict[str, Any]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming
