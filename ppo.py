@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Union, Tuple, Dict
+from typing import Union, Tuple, Dict, List
 
 import numpy as np
 import torch
@@ -19,6 +19,7 @@ class PPOPolicy:
         self,
         observation_space: Space,
         action_space: Space,
+        rollout_length: int,
         num_ppo_epochs: int,
         lr: float,
         eps: float,
@@ -43,6 +44,9 @@ class PPOPolicy:
             Environment's observation space.
         action_space : Space
             Environment's action space.
+        rollout_length: int
+            Total number of environent timesteps (possibly over multiple episodes) per
+            update.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr : float
@@ -76,6 +80,7 @@ class PPOPolicy:
         # Set policy state.
         self.observation_space = observation_space
         self.action_space = action_space
+        self.rollout_length = rollout_length
         self.num_ppo_epochs = num_ppo_epochs
         self.lr = lr
         self.eps = eps
@@ -203,14 +208,16 @@ class PPOPolicy:
         value_pred, _ = self.policy_network(tensor_obs)
         return value_pred
 
-    def update(self, rollouts: RolloutStorage):
+    def update(self, individual_rollouts: List[RolloutStorage]):
         """
         Train policy with PPO from rollout information in ``rollouts``.
 
         Arguments
         ---------
-        rollouts : RolloutStorage
-            Storage container holding rollout information to train from.
+        individual_rollouts : List[RolloutStorage]
+            List of storage containers holding rollout information to train from. Each
+            RolloutStorage object holds observation, action, reward, etc. from a single
+            episode.
 
         Returns
         -------
@@ -218,26 +225,48 @@ class PPOPolicy:
             Dictionary from loss names (e.g. action) to float loss values.
         """
 
-        return {"action": 0.0, "value": 0.0, "entropy": 0.0, "total": 0.0}
+        if len(individual_rollouts) == 0:
+            raise ValueError("Received empty list of rollouts.")
 
-        # Compute returns corresponding to equations (11) and (12) in the PPO paper.
-        returns = torch.zeros(rollouts.rollout_length)
-        with torch.no_grad():
-            rollouts.value_preds[rollouts.rollout_step] = self.get_value(
-                rollouts.obs[rollouts.rollout_step]
-            )
-        gae = 0
-        for t in reversed(range(rollouts.rollout_step)):
-            delta = (
-                rollouts.rewards[t]
-                + self.gamma * rollouts.value_preds[t + 1]
-                - rollouts.value_preds[t]
-            )
-            gae = self.gamma * self.gae_lambda * gae + delta
-            returns[t] = gae + rollouts.value_preds[t]
+        # Compute returns corresponding to equations (11) and (12) in the PPO paper, for
+        # each rollout in ``rollouts``, and build up one large RolloutStorage object for
+        # all episodes.
+        rollouts = RolloutStorage(
+            rollout_length=self.rollout_length,
+            observation_space=self.observation_space,
+            action_space=self.action_space,
+        )
+        returns = torch.zeros(self.rollout_length)
+        advantages = torch.zeros(self.rollout_length)
+        current_pos = 0
+        for rollout in individual_rollouts:
 
-        # Compute advantages.
-        advantages = returns - rollouts.value_preds[:-1]
+            # Compute returns.
+            with torch.no_grad():
+                rollout.value_preds[rollout.rollout_step] = self.get_value(
+                    rollout.obs[rollout.rollout_step]
+                )
+            gae = 0
+            for t in reversed(range(rollout.rollout_step)):
+                delta = (
+                    rollout.rewards[t]
+                    + self.gamma * rollout.value_preds[t + 1]
+                    - rollout.value_preds[t]
+                )
+                gae = self.gamma * self.gae_lambda * gae + delta
+                returns[t + current_pos] = gae + rollout.value_preds[t]
+
+            # Compute advantages.
+            end_pos = current_pos + rollout.rollout_step
+            advantages[current_pos:end_pos] = (
+                returns[current_pos:end_pos]
+                - rollout.value_preds[: rollout.rollout_step]
+            )
+
+            # Copy episode into combined rollout object.
+            rollouts.insert_rollout(rollout, current_pos)
+            current_pos += rollout.rollout_step
+
         if self.normalize_advantages:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps

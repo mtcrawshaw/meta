@@ -32,6 +32,7 @@ def main(args: argparse.Namespace):
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
+        rollout_length=args.rollout_length,
         num_ppo_epochs=args.num_ppo_epochs,
         lr=args.lr,
         eps=args.eps,
@@ -147,13 +148,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_iterations",
         type=int,
-        default=100,
+        default=10000,
         help="Number of PPO training iterations (outer loop).",
     )
     parser.add_argument(
         "--rollout_length",
         type=int,
-        default=100,
+        default=1024,
         help="Length of rollout (inner loop).",
     )
     parser.add_argument(
@@ -174,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--eps",
         type=float,
-        default=1e-8,
+        default=1e-5,
         help="Epsilon value for numerical stability. Usually 1e-8",
     )
     parser.add_argument(
@@ -199,7 +200,7 @@ if __name__ == "__main__":
         help="Lambda parameter for GAE (used in equation (11) of PPO paper).",
     )
     parser.add_argument(
-        "--minibatch_size", type=int, default=32, help="Size of each SGD minibatch.",
+        "--minibatch_size", type=int, default=256, help="Size of each SGD minibatch.",
     )
     parser.add_argument(
         "--clip_param",

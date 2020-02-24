@@ -133,7 +133,9 @@ class RolloutStorage:
 
     def minibatch_generator(self, minibatch_size: int):
         """
-        Generates minibatches from rollout to train on.
+        Generates minibatches from rollout to train on. Note that this samples from the
+        entire RolloutStorage object, even if only a small portion of it has been
+        filled. The remaining values default to zero.
 
         Arguments
         ---------
@@ -146,9 +148,8 @@ class RolloutStorage:
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
-        minibatch_size = min(minibatch_size, self.rollout_step)
         sampler = BatchSampler(
-            sampler=SubsetRandomSampler(range(self.rollout_step)),
+            sampler=SubsetRandomSampler(range(self.rollout_length)),
             batch_size=minibatch_size,
             drop_last=True,
         )
@@ -165,3 +166,23 @@ class RolloutStorage:
             rewards_batch = self.rewards[batch_indices]
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, rewards_batch
+
+    def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
+        """
+        Insert the values from one RolloutStorage object into ``self`` as position
+        ``pos``, ignoring the values from after the last step.
+
+        new_rollout : RolloutStorage
+            New rollout values to insert into ``self``.
+        pos : int
+            Position at which to insert values of ``new_rollout``.
+        """
+
+        end = pos + new_rollout.rollout_step
+        self.obs[pos:end] = new_rollout.obs[: new_rollout.rollout_step]
+        self.value_preds[pos:end] = new_rollout.value_preds[: new_rollout.rollout_step]
+        self.actions[pos:end] = new_rollout.actions[: new_rollout.rollout_step]
+        self.action_log_probs[pos:end] = new_rollout.action_log_probs[
+            : new_rollout.rollout_step
+        ]
+        self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
