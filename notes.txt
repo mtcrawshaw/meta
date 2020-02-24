@@ -1,7 +1,6 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Use not tiny batches
     - Beat CartPole-v1
     - Make sure PolicyNetwork.logstd is changing
     - Write tests
@@ -30,18 +29,20 @@ Training settings to add/consider:
 - Collecting data from multiple episodes into a single (larger) minibatch
 
 Leads for PPO bugs:
-- Manual tests
-- Why does action_loss seem to be backward? The value is small when the policy
-  is randomly initialized, then the policy will converge to around 9.5 average
-  reward (which means the agent is dying as quickly as possible) and then the
-  value of action_loss peaks and plateaus. Why does it increase there?
-- Tensor shapes weren't consistent before, caused some weird errors with
-  broadcasting results when shapes didn't match up. Inspect rollout information
-  again and make sure everything is still good, especially log probs
-  calculations.
-- It seems to work when value_loss_coeff = 0.0. This is especially weird
-  because the parameters of the actor are not at all involved in the
-  computation of value_loss. If you set action_loss to just value_loss and then
-  look at the values of param.grad for name, param in
-  self.policy_network.named_parameters(), the gradients of the actor parameters
-  are None.
+- Why does action_loss seem to be backward? The value is small when the policy is
+  randomly initialized, then the policy will converge to around 9.5 average reward
+  (which means the agent is dying as quickly as possible) and then the value of
+  action_loss peaks and plateaus. Why does it increase there?
+- Tensor shapes weren't consistent before, caused some weird errors with broadcasting
+  results when shapes didn't match up. Inspect rollout information again and make sure
+  everything is still good, especially log probs calculations.
+- It seems to work when value_loss_coeff = 0.0. This is especially weird because the
+  parameters of the actor are not at all involved in the computation of value_loss. If
+  you set action_loss to just value_loss and then look at the values of param.grad for
+  name, param in self.policy_network.named_parameters(), the gradients of the actor
+  parameters are None. (Note: After combining rollout info from multiple episodes into
+  one batch, training no longer works even when value_loss_coeff = 0.0)
+- At this point, I think we just need to test everything. What we need to test:
+  - Rollout values after combining
+  - Values of returns, advantages, and losses
+  - Tensor sizes
