@@ -8,8 +8,8 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from storage import RolloutStorage
-from utils import convert_to_tensor, init
+from meta.storage import RolloutStorage
+from meta.utils import convert_to_tensor, init
 
 
 class PPOPolicy:

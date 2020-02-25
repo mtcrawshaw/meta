@@ -4,13 +4,10 @@ Add PPO for single task
     - Beat CartPole-v1
     - Make sure PolicyNetwork.logstd is changing
     - Write tests
-      - Loss values/intermediate calculations
-      - Tensor sizes
 - Clean up
-    - Build up rollouts as numpy arrays
+    - Build up rollouts as numpy arrays?
     - Make tensor shapes consistent
     - Move to settings file
-    - Convert to package
     - black/pylint/mypy
 - Add GPU support
 - Add multiprocessing
