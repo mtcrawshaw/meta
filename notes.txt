@@ -1,9 +1,12 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Beat CartPole-v1
-    - Make sure PolicyNetwork.logstd is changing
     - Write tests
+      - Rollout values after combining
+      - Values of returns, advantages, and losses
+      - Tensor sizes
+      - Do this for as many environments as possible
+    - Make sure PolicyNetwork.logstd is changing
 - Clean up
     - Build up rollouts as numpy arrays?
     - Make tensor shapes consistent
@@ -39,7 +42,8 @@ Leads for PPO bugs:
   name, param in self.policy_network.named_parameters(), the gradients of the actor
   parameters are None. (Note: After combining rollout info from multiple episodes into
   one batch, training no longer works even when value_loss_coeff = 0.0)
-- At this point, I think we just need to test everything. What we need to test:
-  - Rollout values after combining
-  - Values of returns, advantages, and losses
-  - Tensor sizes
+- Found the bug! In commit 79fc, returns is instantiated to have size
+  rollouts.rollout_length, when it should really be rollouts.rollout_step. Unfortunately
+  this typo doesn't exist in the current HEAD (commit 0dc9) so that means there is
+  another bug after adding handling of multiple episodes per update. Time to write
+  tests!
