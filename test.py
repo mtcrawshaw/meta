@@ -40,11 +40,13 @@ def get_losses(
     loss_items = {}
 
     # Compute returns and advantages.
-    returns = np.zeros((len(rollouts), settings["rollout_length"]))
-    advantages = np.zeros((len(rollouts), settings["rollout_length"]))
-    for e in range(len(rollouts)):
-        for t in range(settings["rollout_length"]):
-            for i in range(t, settings["rollout_length"]):
+    num_episodes = len(rollouts)
+    episode_len = rollouts[0].rollout_step
+    returns = np.zeros((num_episodes, episode_len))
+    advantages = np.zeros((num_episodes, episode_len))
+    for e in range(num_episodes):
+        for t in range(episode_len):
+            for i in range(t, episode_len):
                 delta = float(rollouts[e].rewards[i])
                 delta += settings["gamma"] * float(rollouts[e].value_preds[i + 1])
                 delta -= float(rollouts[e].value_preds[i])
@@ -66,7 +68,7 @@ def get_losses(
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
     for e in range(len(rollouts)):
-        for t in range(settings["rollout_length"]):
+        for t in range(episode_len):
             new_value_pred, new_action_log_probs, new_entropy = policy.evaluate_actions(
                 rollouts[e].obs[t], rollouts[e].actions[t]
             )
