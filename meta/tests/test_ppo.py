@@ -11,14 +11,11 @@ from meta.tests.dummy_env import DummyEnv
 
 
 def get_losses(
-    rollouts: List[RolloutStorage],
-    policy: PPOPolicy,
-    settings: Dict[str, Any],
+    rollouts: List[RolloutStorage], policy: PPOPolicy, settings: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    Computes action, value, entropy, and total loss from rollouts, assuming
-    that we aren't performing value loss clipping, and we are normalizing
-    advantages.
+    Computes action, value, entropy, and total loss from rollouts, assuming that we
+    aren't performing value loss clipping, and we are normalizing advantages.
 
     Parameters
     ----------
@@ -50,9 +47,9 @@ def get_losses(
                 delta = float(rollouts[e].rewards[i])
                 delta += settings["gamma"] * float(rollouts[e].value_preds[i + 1])
                 delta -= float(rollouts[e].value_preds[i])
-                returns[e][t] += delta * (settings["gamma"] * settings["gae_lambda"]) ** (
-                    i - t
-                )
+                returns[e][t] += delta * (
+                    settings["gamma"] * settings["gae_lambda"]
+                ) ** (i - t)
             returns[e][t] += float(rollouts[e].value_preds[t])
             advantages[e][t] = returns[e][t] - float(rollouts[e].value_preds[t])
 
@@ -151,7 +148,9 @@ def test_ppo():
 
         for rollout_step in range(episode_len):
             with torch.no_grad():
-                value_pred, action, action_log_prob = policy.act(rollouts[-1].obs[rollout_step])
+                value_pred, action, action_log_prob = policy.act(
+                    rollouts[-1].obs[rollout_step]
+                )
             obs, reward, done, info = env.step(action)
             rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
 
@@ -170,4 +169,3 @@ def test_ppo():
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
     assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
-
