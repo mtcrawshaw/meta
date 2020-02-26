@@ -1,8 +1,10 @@
 import copy
+from functools import reduce
 from typing import Union, List, Dict
 
 import numpy as np
 import torch
+from gym.spaces import Space, Box, Discrete
 
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
@@ -45,6 +47,19 @@ def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
         else:
             msg += " | %s: %s" % (metric_name, metric_val)
     print(msg, end="\r")
+
+
+def get_space_size(space: Space):
+    """ Get the input/output size of an MLP whose input/output space is ``space``. """
+
+    if isinstance(space, Discrete):
+        size = space.n
+    elif isinstance(space, Box):
+        size = reduce(lambda a, b: a * b, space.shape)
+    else:
+        raise ValueError("Unsupported space type: %s." % type(space))
+
+    return size
 
 
 def get_metaworld_env_names() -> List[str]:

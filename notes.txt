@@ -1,15 +1,10 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Write tests
-      - Rollout values after combining
-      - Values of returns, advantages, and losses
-      - Tensor sizes
-      - Do this for as many environments as possible
+    - Fill out test skeleton (make sure tests are deterministic given training settings)
     - Make sure PolicyNetwork.logstd is changing
 - Clean up
     - Build up rollouts as numpy arrays?
-    - Make tensor shapes consistent
     - Move to settings file
     - black/pylint/mypy
 - Add GPU support

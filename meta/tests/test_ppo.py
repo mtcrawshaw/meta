@@ -169,3 +169,33 @@ def test_ppo():
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
     assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
+
+
+def test_act_sizes():
+    """ Test the sizes of returned tensors from ppo.act(). """
+    raise NotImplementedError
+
+
+def test_act_values():
+    """ Test the values in the returned tensors from ppo.act(). """
+    raise NotImplementedError
+
+
+def test_evaluate_actions_sizes():
+    """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
+    raise NotImplementedError
+
+
+def test_evaluate_actions_values():
+    """ Test the values in the returned tensors from ppo.evaluate_actions(). """
+    raise NotImplementedError
+
+
+def test_get_value_sizes():
+    """ Test the sizes of returned tensors from ppo.get_value(). """
+    raise NotImplementedError
+
+
+def test_update_values():
+    """ Test the loss values returned from ppo.update(). """
+    raise NotImplementedError
