@@ -91,7 +91,7 @@ def test_update_values():
     a linear actor/critic network and a dummy environment.
     """
 
-    # Initialize dummy env.
+    # Initialize environment and policy.
     # env = get_env(SETTINGS["env_name"])
     env = DummyEnv()
     policy = get_policy(env)
@@ -194,9 +194,10 @@ def get_losses(
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
     for e in range(len(rollouts)):
         for t in range(episode_len):
-            new_value_pred, new_action_log_probs, new_entropy = policy.evaluate_actions(
-                rollouts[e].obs[t], rollouts[e].actions[t]
-            )
+            with torch.no_grad():
+                new_value_pred, new_action_log_probs, new_entropy = policy.evaluate_actions(
+                    rollouts[e].obs[t], rollouts[e].actions[t]
+                )
             new_probs = new_action_log_probs.detach().numpy()
             old_probs = rollouts[e].action_log_probs[t].detach().numpy()
             ratio = np.exp(new_probs - old_probs)

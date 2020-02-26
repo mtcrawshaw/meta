@@ -12,7 +12,7 @@ SETTINGS = {
     "entropy_loss_coeff": 0.01,
     "gamma": 0.99,
     "gae_lambda": 0.95,
-    "minibatch_size": 8,
+    "minibatch_size": 32,
     "clip_param": 0.2,
     "max_grad_norm": 0.5,
     "clip_value_loss": False,
