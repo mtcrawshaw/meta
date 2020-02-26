@@ -8,7 +8,7 @@ from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_metaworld_env_names, print_metrics
+from meta.utils import get_env, print_metrics
 
 
 def collect_rollout(
@@ -88,19 +88,7 @@ def train(args: argparse.Namespace):
     """ Main function for train.py. """
 
     # Set environment.
-    metaworld_env_names = get_metaworld_env_names()
-    if args.env_name in metaworld_env_names:
-
-        # We import here so that we avoid importing metaworld if possible, since it is
-        # dependent on mujoco.
-        from metaworld.benchmarks import ML1
-
-        env = ML1.get_train_tasks(args.env_name)
-        tasks = env.sample_tasks(1)
-        env.set_task(tasks[0])
-
-    else:
-        env = gym.make(args.env_name)
+    env = get_env(args.env_name)
 
     # Create policy and rollout storage. ``rollouts`` is a list of RolloutStorage.
     # Each RolloutStorage object holds state, action, reward, etc. for a single

@@ -4,6 +4,8 @@ from typing import Union, List, Dict
 
 import numpy as np
 import torch
+import gym
+from gym import Env
 from gym.spaces import Space, Box, Discrete
 
 
@@ -60,6 +62,26 @@ def get_space_size(space: Space):
         raise ValueError("Unsupported space type: %s." % type(space))
 
     return size
+
+
+def get_env(env_name: str) -> Env:
+    """ Return environment object from environment name. """
+
+    metaworld_env_names = get_metaworld_env_names()
+    if env_name in metaworld_env_names:
+
+        # We import here so that we avoid importing metaworld if possible, since it is
+        # dependent on mujoco.
+        from metaworld.benchmarks import ML1
+
+        env = ML1.get_train_tasks(env_name)
+        tasks = env.sample_tasks(1)
+        env.set_task(tasks[0])
+
+    else:
+        env = gym.make(env_name)
+
+    return env
 
 
 def get_metaworld_env_names() -> List[str]:

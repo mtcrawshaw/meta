@@ -143,7 +143,11 @@ class PPOPolicy:
         # Compute log probability of action. We sum over ``element_log_probs``
         # to convert element-wise log probs into a joint log prob.
         action_log_prob = action_dist.log_prob(action)
-        # action_log_prob = action_log_prob.sum(-1)
+        if action_log_prob.shape == torch.Size([]):
+            action_log_prob = action_log_prob.view(1)
+        else:
+            pass
+            # action_log_prob = action_log_prob.sum(-1)
 
         return value_pred, action, action_log_prob
 
