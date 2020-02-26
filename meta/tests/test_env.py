@@ -4,11 +4,11 @@ import numpy as np
 from gym.spaces import Discrete
 
 
-class DummyEnv:
-    """ Dummy environment for testing. Only has two states, and two actions.  """
+class TestEnv:
+    """ Environment for testing. Only has two states, and two actions.  """
 
     def __init__(self) -> None:
-        """ Init function for DummyEnv. """
+        """ Init function for TestEnv. """
 
         self.states = [np.array([1, 0]), np.array([0, 1])]
         self.observation_space = Discrete(len(self.states))

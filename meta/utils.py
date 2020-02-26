@@ -8,6 +8,8 @@ import gym
 from gym import Env
 from gym.spaces import Space, Box, Discrete
 
+from meta.tests.test_env import TestEnv
+
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
     """
@@ -77,6 +79,9 @@ def get_env(env_name: str) -> Env:
         env = ML1.get_train_tasks(env_name)
         tasks = env.sample_tasks(1)
         env.set_task(tasks[0])
+
+    elif env_name == "test-env":
+        env = TestEnv()
 
     else:
         env = gym.make(env_name)

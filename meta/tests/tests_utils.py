@@ -1,8 +1,10 @@
+from typing import Dict, Any
+
 from gym import Env
 
 from meta.ppo import PPOPolicy
 
-SETTINGS = {
+DEFAULT_SETTINGS = {
     "env_name": "CartPole-v1",
     "rollout_length": 32,
     "num_ppo_epochs": 1,
@@ -21,26 +23,26 @@ SETTINGS = {
     "normalize_advantages": True,
 }
 
-def get_policy(env: Env) -> PPOPolicy:
+def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
     """ Return a PPOPolicy for ``env`` for use in test cases. """
 
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        rollout_length=SETTINGS["rollout_length"],
-        num_ppo_epochs=SETTINGS["num_ppo_epochs"],
-        lr=SETTINGS["lr"],
-        eps=SETTINGS["eps"],
-        value_loss_coeff=SETTINGS["value_loss_coeff"],
-        entropy_loss_coeff=SETTINGS["entropy_loss_coeff"],
-        gamma=SETTINGS["gamma"],
-        gae_lambda=SETTINGS["gae_lambda"],
-        minibatch_size=SETTINGS["minibatch_size"],
-        clip_param=SETTINGS["clip_param"],
-        max_grad_norm=SETTINGS["max_grad_norm"],
-        clip_value_loss=SETTINGS["clip_value_loss"],
-        num_layers=SETTINGS["num_layers"],
-        hidden_size=SETTINGS["hidden_size"],
-        normalize_advantages=SETTINGS["normalize_advantages"],
+        rollout_length=settings["rollout_length"],
+        num_ppo_epochs=settings["num_ppo_epochs"],
+        lr=settings["lr"],
+        eps=settings["eps"],
+        value_loss_coeff=settings["value_loss_coeff"],
+        entropy_loss_coeff=settings["entropy_loss_coeff"],
+        gamma=settings["gamma"],
+        gae_lambda=settings["gae_lambda"],
+        minibatch_size=settings["minibatch_size"],
+        clip_param=settings["clip_param"],
+        max_grad_norm=settings["max_grad_norm"],
+        clip_value_loss=settings["clip_value_loss"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        normalize_advantages=settings["normalize_advantages"],
     )
     return policy

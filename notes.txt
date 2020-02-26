@@ -1,7 +1,11 @@
 Todo:
 Add PPO for single task
 - Just get PPO running on CPU
-    - Fill out test skeleton (make sure tests are deterministic given training settings)
+    - Write tests
+      - Vary environments
+      - Make tests deterministic given settings
+      - Introduce hypothesis
+    - Beat single tasks from MetaWorld
     - Make sure PolicyNetwork.logstd is changing
 - Clean up
     - Build up rollouts as numpy arrays?

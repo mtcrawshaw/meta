@@ -8,15 +8,15 @@ import gym
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import get_env
-from meta.tests.dummy_env import DummyEnv
-from meta.tests.tests_utils import get_policy, SETTINGS
+from meta.tests.tests_utils import get_policy, DEFAULT_SETTINGS
 
 
 def test_act_sizes():
     """ Test the sizes of returned tensors from ppo.act(). """
 
-    env = get_env(SETTINGS["env_name"])
-    policy = get_policy(env)
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
     obs = env.observation_space.sample()
 
     value_pred, action, action_log_prob = policy.act(obs)
@@ -37,16 +37,17 @@ def act_values():
 def test_evaluate_actions_sizes():
     """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
 
-    env = get_env(SETTINGS["env_name"])
-    policy = get_policy(env)
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
     obs_list = [
         torch.Tensor(env.observation_space.sample())
-        for _ in range(SETTINGS["minibatch_size"])
+        for _ in range(settings["minibatch_size"])
     ]
     obs_batch = torch.stack(obs_list)
     actions_list = [
         torch.Tensor([float(env.action_space.sample())])
-        for _ in range(SETTINGS["minibatch_size"])
+        for _ in range(settings["minibatch_size"])
     ]
     actions_batch = torch.stack(actions_list)
 
@@ -55,11 +56,11 @@ def test_evaluate_actions_sizes():
     )
 
     assert isinstance(value_pred, torch.Tensor)
-    assert value_pred.shape == torch.Size([SETTINGS["minibatch_size"]])
+    assert value_pred.shape == torch.Size([settings["minibatch_size"]])
     assert isinstance(action_log_prob, torch.Tensor)
-    assert action_log_prob.shape == torch.Size([SETTINGS["minibatch_size"]])
+    assert action_log_prob.shape == torch.Size([settings["minibatch_size"]])
     assert isinstance(action_log_prob, torch.Tensor)
-    assert action_dist_entropy.shape == torch.Size([SETTINGS["minibatch_size"]])
+    assert action_dist_entropy.shape == torch.Size([settings["minibatch_size"]])
 
 
 def evaluate_actions_values():
@@ -70,8 +71,9 @@ def evaluate_actions_values():
 def test_get_value_sizes():
     """ Test the sizes of returned tensors from ppo.get_value(). """
 
-    env = get_env(SETTINGS["env_name"])
-    policy = get_policy(env)
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
     obs = env.observation_space.sample()
 
     value_pred = policy.get_value(obs)
@@ -92,9 +94,10 @@ def test_update_values():
     """
 
     # Initialize environment and policy.
-    # env = get_env(SETTINGS["env_name"])
-    env = DummyEnv()
-    policy = get_policy(env)
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "test-env"
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
 
     # Initialize policy and rollout storage.
     num_episodes = 4
@@ -127,13 +130,13 @@ def test_update_values():
     loss_items = policy.update(rollouts)
 
     # Compute expected losses.
-    expected_loss_items = get_losses(rollouts, policy)
+    expected_loss_items = get_losses(rollouts, policy, settings)
 
     # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
         diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
         print("%s diff: %.5f" % (loss_name, diff))
-    TOL = 2.5e-3
+    TOL = 1e-3
     assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
@@ -141,7 +144,7 @@ def test_update_values():
 
 
 def get_losses(
-    rollouts: List[RolloutStorage], policy: PPOPolicy,
+    rollouts: List[RolloutStorage], policy: PPOPolicy, settings: Dict[str, Any]
 ) -> Dict[str, float]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming that we
@@ -154,6 +157,8 @@ def get_losses(
         episode.
     policy : PPOPolicy
         Policy object for training.
+    settings : Dict[str, Any]
+        Settings dictionary for training.
 
     Returns
     -------
@@ -161,7 +166,7 @@ def get_losses(
         Dictionary holding action, value, entropy, and total loss.
     """
 
-    assert not SETTINGS["clip_value_loss"]
+    assert not settings["clip_value_loss"]
     loss_items = {}
 
     # Compute returns and advantages.
@@ -173,18 +178,18 @@ def get_losses(
         for t in range(episode_len):
             for i in range(t, episode_len):
                 delta = float(rollouts[e].rewards[i])
-                delta += SETTINGS["gamma"] * float(rollouts[e].value_preds[i + 1])
+                delta += settings["gamma"] * float(rollouts[e].value_preds[i + 1])
                 delta -= float(rollouts[e].value_preds[i])
                 returns[e][t] += delta * (
-                    SETTINGS["gamma"] * SETTINGS["gae_lambda"]
+                    settings["gamma"] * settings["gae_lambda"]
                 ) ** (i - t)
             returns[e][t] += float(rollouts[e].value_preds[t])
             advantages[e][t] = returns[e][t] - float(rollouts[e].value_preds[t])
 
-    if SETTINGS["normalize_advantages"]:
+    if settings["normalize_advantages"]:
         advantage_std = np.std(advantages, ddof=1)
         advantages -= np.mean(advantages)
-        advantages /= np.std(advantages, ddof=1) + SETTINGS["eps"]
+        advantages /= np.std(advantages, ddof=1) + settings["eps"]
 
     # Compute losses.
     loss_items["action"] = 0.0
@@ -203,7 +208,7 @@ def get_losses(
             ratio = np.exp(new_probs - old_probs)
             surrogate1 = ratio * advantages[e][t]
             surrogate2 = (
-                clamp(ratio, 1.0 - SETTINGS["clip_param"], 1.0 + SETTINGS["clip_param"])
+                clamp(ratio, 1.0 - settings["clip_param"], 1.0 + settings["clip_param"])
                 * advantages[e][t]
             )
             loss_items["action"] += min(surrogate1, surrogate2)
@@ -211,15 +216,15 @@ def get_losses(
             loss_items["entropy"] += float(new_entropy)
 
     # Divide to find average.
-    loss_items["action"] /= SETTINGS["rollout_length"]
-    loss_items["value"] /= SETTINGS["rollout_length"]
-    loss_items["entropy"] /= SETTINGS["rollout_length"]
+    loss_items["action"] /= settings["rollout_length"]
+    loss_items["value"] /= settings["rollout_length"]
+    loss_items["entropy"] /= settings["rollout_length"]
 
     # Compute total loss.
     loss_items["total"] = -(
         loss_items["action"]
-        - SETTINGS["value_loss_coeff"] * loss_items["value"]
-        + SETTINGS["entropy_loss_coeff"] * loss_items["entropy"]
+        - settings["value_loss_coeff"] * loss_items["value"]
+        + settings["entropy_loss_coeff"] * loss_items["entropy"]
     )
 
     return loss_items
