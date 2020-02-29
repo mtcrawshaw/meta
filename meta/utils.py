@@ -8,7 +8,7 @@ import gym
 from gym import Env
 from gym.spaces import Space, Box, Discrete
 
-from meta.tests.envs import ParityEnv
+from meta.tests.envs import ParityEnv, UniqueEnv
 
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
@@ -82,6 +82,9 @@ def get_env(env_name: str) -> Env:
 
     elif env_name == "parity-env":
         env = ParityEnv()
+
+    elif env_name == "unique-env":
+        env = UniqueEnv()
 
     else:
         env = gym.make(env_name)

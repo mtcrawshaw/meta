@@ -3,6 +3,7 @@ from typing import Tuple, Dict
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.distributions import Categorical
 from gym.spaces import Box, Discrete
 
 
@@ -74,25 +75,53 @@ class UniqueEnv:
         return obs, reward, done, info
 
 
-class UniquePolicyNetwork(nn.Module):
-    """ Policy for testing. Returns a unique action distribution for each observation. """
+class UniquePolicy:
+    """
+    Policy for testing. Returns a unique action distribution for each observation.
+    """
 
     def __init__(self):
-        """ Init function for UniquePolicy Network. """
+        """ Init function for UniquePolicy. """
+        self.policy_network = UniquePolicyNetwork()
+
+    def act(self, obs: float):
+        """ Sample action from policy. """
+
+        tensor_obs = torch.Tensor([obs])
+        value_pred, action_probs = self.policy_network(tensor_obs)
+        action_dist = Categorical(**action_probs)
+
+        action = action_dist.sample()
+        action_log_prob = action_dist.log_prob(action)
+
+        # Reshape action_log_prob as in meta/tests/ppo.py.
+        if action_log_prob.shape == torch.Size([]):
+            action_log_prob = action_log_prob.view(1)
+        else:
+            pass
+            # action_log_prob = action_log_prob.sum(-1)
+
+        return value_pred, action, action_log_prob
+
+
+class UniquePolicyNetwork(nn.Module):
+    """
+    Policy network for testing. Returns a unique action distribution for each
+    observation.
+    """
+
+    def __init__(self):
+        """ Init function for UniquePolicyNetwork. """
 
         super().__init__()
+        self.action_probs = lambda obs: [1 / (obs + 1), 1 - 1 / (obs + 1)]
 
     def forward(self, obs: torch.Tensor) -> Tuple[float, Dict[str, torch.Tensor]]:
         """ Forward pass definition for UniquePolicyNetwork. """
 
         value_pred = torch.zeros(obs.shape)
         value_pred.copy_(obs)
-        probs = torch.cat(
-            [
-                1 / (obs + 1),
-                1 - 1 / (obs + 1),
-            ]
-        )
+        probs = torch.cat(self.action_probs(obs))
         action_probs = {"probs": probs}
 
         return value_pred, action_probs

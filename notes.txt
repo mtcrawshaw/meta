@@ -50,3 +50,8 @@ Leads for PPO bugs:
   test_ppo.test_update.values()) fails when the number of policy layers is greater than
   1. The difference between the expected and the actual values seem to grow as the
   number of layers grows.
+
+Current tasks:
+- Write tests for values in test_ppo.py
+- Make tests deterministic
+- Fix occasional invalid multinomial distribution error
