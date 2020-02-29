@@ -18,7 +18,7 @@ DEFAULT_SETTINGS = {
     "clip_param": 0.2,
     "max_grad_norm": 0.5,
     "clip_value_loss": False,
-    "num_layers": 3,
+    "num_layers": 1,
     "hidden_size": 64,
     "normalize_advantages": True,
 }
