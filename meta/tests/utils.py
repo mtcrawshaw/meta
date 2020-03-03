@@ -23,6 +23,7 @@ DEFAULT_SETTINGS = {
     "normalize_advantages": True,
 }
 
+
 def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
     """ Return a PPOPolicy for ``env`` for use in test cases. """
 

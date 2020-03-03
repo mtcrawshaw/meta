@@ -87,7 +87,7 @@ class UniquePolicy:
     def act(self, obs: float):
         """ Sample action from policy. """
 
-        tensor_obs = torch.Tensor([obs])
+        tensor_obs = torch.Tensor(obs)
         value_pred, action_probs = self.policy_network(tensor_obs)
         action_dist = Categorical(**action_probs)
 
