@@ -14,14 +14,17 @@ Add PPO for single task
 - Add GPU support
 - Add multiprocessing
 - Add support for recurrent policies?
-Add MAML for single task distribution
+Implement multitask PPO for multi task learning
+Implement PCGrad for multi task learning
+Implement new idea for multi task learning
+Implement ML^3 for multi task learning
+Implement learned loss convexity regularization for multi task learning
+Implement MAML for meta learning single task distribution
 Add modular meta learning for meta learning
 Other baselines for meta learning?
 Implement new ideas for meta learning
-Implement ML^3 for multi task learning
-Implement learned loss convexity regularization for multi task learning
 
-Training settings to add/consider:
+PPO training settings to add/consider:
 - Network architecture hyperparameters
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
@@ -50,6 +53,8 @@ Leads for PPO bugs:
   test_ppo.test_update.values()) fails when the number of policy layers is greater than
   1. The difference between the expected and the actual values seem to grow as the
   number of layers grows.
+- If you run ``pytest ./`` and look at the error output for test_update_values(), you
+  can see that the returned action loss is always nearly zero. Is that correct?
 
 Current tasks:
 - Write tests for values in test_ppo.py
