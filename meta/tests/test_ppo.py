@@ -152,7 +152,7 @@ def test_update_values():
     # Compute expected losses.
     expected_loss_items = get_losses(rollouts, policy, settings)
 
-    # Save parameters and perform update, then compare parameters after update.
+    # Compute actual losses.
     loss_items = policy.update(rollouts)
 
     # Compare expected vs. actual.
@@ -197,6 +197,12 @@ def get_losses(
     returns = np.zeros((num_episodes, episode_len))
     advantages = np.zeros((num_episodes, episode_len))
     for e in range(num_episodes):
+
+        with torch.no_grad():
+            rollouts[e].value_preds[rollouts[e].rollout_step] = policy.get_value(
+                rollouts[e].obs[rollouts[e].rollout_step]
+            )
+
         for t in range(episode_len):
             for i in range(t, episode_len):
                 delta = float(rollouts[e].rewards[i])

@@ -215,7 +215,7 @@ class PPOPolicy:
 
     def update(self, individual_rollouts: List[RolloutStorage]):
         """
-        Train policy with PPO from rollout information in ``rollouts``.
+        Train policy with PPO from rollout information in ``individual rollouts``.
 
         Arguments
         ---------
@@ -234,8 +234,8 @@ class PPOPolicy:
             raise ValueError("Received empty list of rollouts.")
 
         # Compute returns corresponding to equations (11) and (12) in the PPO paper, for
-        # each rollout in ``rollouts``, and build up one large RolloutStorage object for
-        # all episodes.
+        # each rollout in ``invidial_rollouts``, and build up one large RolloutStorage
+        # object for all episodes.
         rollouts = RolloutStorage(
             rollout_length=self.rollout_length,
             observation_space=self.observation_space,

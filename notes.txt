@@ -55,6 +55,8 @@ Leads for PPO bugs:
   number of layers grows.
 - If you run ``pytest ./`` and look at the error output for test_update_values(), you
   can see that the returned action loss is always nearly zero. Is that correct?
+- Fixed bugs in loss computation in test_ppo.py, tests now all pass. Reward still
+  doesn't go up for CartPole-v1.
 
 Current tasks:
 - Write tests for values in test_ppo.py
