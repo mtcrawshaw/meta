@@ -4,15 +4,16 @@ from typing import Dict, Any, List
 import torch
 import numpy as np
 import gym
+from gym import Env
 
 from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage
+from meta.storage import RolloutStorage, combine_rollouts
 from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 from meta.tests.envs import UniquePolicy
 
 
-TOL = 1e-5
+TOL = 1e-6
 
 
 def test_act_sizes():
@@ -110,6 +111,80 @@ def get_value_values():
     raise NotImplementedError
 
 
+def test_combine_rollouts_values():
+    """
+    Tests the values of the rollout information returned from combine_rollouts().
+    """
+
+    # Initialize environment and policy.
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "unique-env"
+    env = get_env(settings["env_name"])
+    policy = UniquePolicy()
+
+    # Initialize policy and rollout storage.
+    num_episodes = 4
+    episode_len = 8
+    individual_rollouts = get_rollouts(env, policy, num_episodes, episode_len)
+
+    # Combine rollouts.
+    rollouts = combine_rollouts(individual_rollouts)
+
+    # Test values.
+    total_step = 0
+    for e in range(num_episodes):
+        for t in range(episode_len):
+
+            # Check that ``rollouts`` contains the same information as
+            # ``individual_rollouts``.
+            assert individual_rollouts[e].obs[t] == rollouts.obs[total_step]
+            assert (
+                individual_rollouts[e].value_preds[t]
+                == rollouts.value_preds[total_step]
+            )
+            assert individual_rollouts[e].actions[t] == rollouts.actions[total_step]
+            assert (
+                individual_rollouts[e].action_log_probs[t]
+                == rollouts.action_log_probs[total_step]
+            )
+            assert individual_rollouts[e].rewards[t] == rollouts.rewards[total_step]
+
+            # Check that ``rollouts`` contains transitions from UniqueEnv.
+            assert float(rollouts.obs[total_step]) == float(
+                rollouts.value_preds[total_step]
+            )
+            assert (
+                float(rollouts.actions[total_step]) - int(rollouts.actions[total_step])
+                == 0
+                and int(rollouts.actions[total_step]) in env.action_space
+            )
+            assert (
+                float(rollouts.action_log_probs[total_step])
+                - log(
+                    policy.policy_network.action_probs(float(rollouts.obs[total_step]))[
+                        int(rollouts.actions[total_step])
+                    ]
+                )
+                < TOL
+            )
+            assert float(rollouts.obs[total_step]) == float(
+                rollouts.rewards[total_step]
+            )
+
+            total_step += 1
+
+    # Check to make sure that the length of ``rollouts`` is the combined length of
+    # ``individual_rollouts``.
+    assert total_step == rollouts.rollout_step
+
+
+def compute_returns_advantages_values():
+    """
+    Tests the computed values of returns and advantages in PPO loss computation.
+    """
+    raise NotImplementedError
+
+
 def test_update_values():
     """
     Tests whether PPOPolicy.update() calculates correct updates in the case of
@@ -125,6 +200,32 @@ def test_update_values():
     # Initialize policy and rollout storage.
     num_episodes = 4
     episode_len = 8
+    rollouts = get_rollouts(env, policy, num_episodes, episode_len)
+
+    # Compute expected losses.
+    expected_loss_items = get_losses(rollouts, policy, settings)
+
+    # Compute actual losses.
+    loss_items = policy.update(rollouts)
+
+    # Compare expected vs. actual.
+    for loss_name in ["action", "value", "entropy", "total"]:
+        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
+        print("%s diff: %.5f" % (loss_name, diff))
+    assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
+    assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
+    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
+    assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
+
+
+def get_rollouts(
+    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
+) -> List[RolloutStorage]:
+    """
+    Collects ``num_episodes`` rollouts of size ``episode_len`` from ``env`` using
+    ``policy``.
+    """
+
     rollout_len = num_episodes * episode_len
     rollouts = []
 
@@ -149,20 +250,7 @@ def test_update_values():
             obs, reward, done, info = env.step(action.numpy())
             rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
 
-    # Compute expected losses.
-    expected_loss_items = get_losses(rollouts, policy, settings)
-
-    # Compute actual losses.
-    loss_items = policy.update(rollouts)
-
-    # Compare expected vs. actual.
-    for loss_name in ["action", "value", "entropy", "total"]:
-        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
-        print("%s diff: %.5f" % (loss_name, diff))
-    assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
-    assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
-    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
-    assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
+    return rollouts
 
 
 def get_losses(
@@ -189,6 +277,7 @@ def get_losses(
     """
 
     assert not settings["clip_value_loss"]
+    assert settings["num_ppo_epochs"] == 1
     loss_items = {}
 
     # Compute returns and advantages.

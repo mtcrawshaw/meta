@@ -9,7 +9,7 @@ from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
-from meta.storage import RolloutStorage
+from meta.storage import RolloutStorage, combine_rollouts
 from meta.utils import convert_to_tensor, init
 
 
@@ -213,34 +213,14 @@ class PPOPolicy:
         value_pred, _ = self.policy_network(tensor_obs)
         return value_pred
 
-    def update(self, individual_rollouts: List[RolloutStorage]):
+    def compute_returns_advantages(
+        self, individual_rollouts: List[RolloutStorage]
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Train policy with PPO from rollout information in ``individual rollouts``.
-
-        Arguments
-        ---------
-        individual_rollouts : List[RolloutStorage]
-            List of storage containers holding rollout information to train from. Each
-            RolloutStorage object holds observation, action, reward, etc. from a single
-            episode.
-
-        Returns
-        -------
-        loss_items : Dict[str, float]
-            Dictionary from loss names (e.g. action) to float loss values.
+        Compute returns corresponding to equations (11) and (12) in the PPO paper, for
+        each rollout in ``invidial_rollouts``.
         """
 
-        if len(individual_rollouts) == 0:
-            raise ValueError("Received empty list of rollouts.")
-
-        # Compute returns corresponding to equations (11) and (12) in the PPO paper, for
-        # each rollout in ``invidial_rollouts``, and build up one large RolloutStorage
-        # object for all episodes.
-        rollouts = RolloutStorage(
-            rollout_length=self.rollout_length,
-            observation_space=self.observation_space,
-            action_space=self.action_space,
-        )
         returns = torch.zeros(self.rollout_length)
         advantages = torch.zeros(self.rollout_length)
         current_pos = 0
@@ -268,14 +248,35 @@ class PPOPolicy:
                 - rollout.value_preds[: rollout.rollout_step]
             )
 
-            # Copy episode into combined rollout object.
-            rollouts.insert_rollout(rollout, current_pos)
             current_pos += rollout.rollout_step
 
         if self.normalize_advantages:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps
             )
+
+        return returns, advantages
+
+    def update(self, individual_rollouts: List[RolloutStorage]):
+        """
+        Train policy with PPO from rollout information in ``individual rollouts``.
+
+        Arguments
+        ---------
+        individual_rollouts : List[RolloutStorage]
+            List of storage containers holding rollout information to train from. Each
+            RolloutStorage object holds observation, action, reward, etc. from a single
+            episode.
+
+        Returns
+        -------
+        loss_items : Dict[str, float]
+            Dictionary from loss names (e.g. action) to float loss values.
+        """
+
+        # Combine rollouts into one object and compute returns/advantages.
+        rollouts = combine_rollouts(individual_rollouts)
+        returns, advantages = self.compute_returns_advantages(individual_rollouts)
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
