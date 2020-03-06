@@ -146,14 +146,14 @@ def test_update_values():
                 value_pred, action, action_log_prob = policy.act(
                     rollouts[-1].obs[rollout_step]
                 )
-            obs, reward, done, info = env.step(action)
+            obs, reward, done, info = env.step(action.numpy())
             rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
-
-    # Save parameters and perform update, then compare parameters after update.
-    loss_items = policy.update(rollouts)
 
     # Compute expected losses.
     expected_loss_items = get_losses(rollouts, policy, settings)
+
+    # Save parameters and perform update, then compare parameters after update.
+    loss_items = policy.update(rollouts)
 
     # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
