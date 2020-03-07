@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from meta.utils import init, get_space_size
+from meta.utils import get_space_size, init
 from gym.spaces import Space, Box, Discrete
 
 

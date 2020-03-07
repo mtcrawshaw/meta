@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import gym
 from gym import Env
-from gym.spaces import Space, Discrete, Box
+from gym.spaces import Space, Box, Discrete
 
 from meta.tests.envs import ParityEnv
 
@@ -63,12 +63,6 @@ def get_space_size(space: Space):
     return size
 
 
-def get_metaworld_env_names() -> List[str]:
-    """ Returns a list of Metaworld environment names. """
-
-    return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
-
-
 def get_env(env_name: str) -> Env:
     """ Return environment object from environment name. """
 
@@ -90,6 +84,12 @@ def get_env(env_name: str) -> Env:
         env = gym.make(env_name)
 
     return env
+
+
+def get_metaworld_env_names() -> List[str]:
+    """ Returns a list of Metaworld environment names. """
+
+    return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
 
 
 # HARDCODE. This is copied from the metaworld repo to avoid the need to import metaworld

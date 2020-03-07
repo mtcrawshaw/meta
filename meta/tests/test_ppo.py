@@ -87,6 +87,48 @@ def get_value_values():
     raise NotImplementedError
 
 
+def test_update_values():
+    """
+    Tests whether PPOPolicy.update() calculates correct loss values.
+    """
+
+    # Initialize environment and policy.
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "parity-env"
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
+
+    # Generate rollout.
+    rollouts = RolloutStorage(
+        rollout_length=settings["rollout_length"],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
+    obs = env.reset()
+    rollouts.set_initial_obs(obs)
+    for rollout_step in range(settings["rollout_length"]):
+        with torch.no_grad():
+            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
+        obs, reward, done, info = env.step(action)
+        rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
+
+    # Compute expected losses.
+    expected_loss_items = get_losses(rollouts, policy, settings)
+
+    # Compute actual losses.
+    loss_items = policy.update(rollouts)
+
+    # Compare expected vs. actual.
+    for loss_name in ["action", "value", "entropy", "total"]:
+        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
+        print("%s diff: %.5f" % (loss_name, diff))
+    TOL = 1e-5
+    assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
+    assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
+    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
+    assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
+
+
 def get_losses(
     rollouts: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -180,44 +222,3 @@ def get_losses(
 
     return loss_items
 
-
-def test_update_values():
-    """
-    Tests whether PPOPolicy.update() calculates correct loss values.
-    """
-
-    # Initialize environment and policy.
-    settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "parity-env"
-    env = get_env(settings["env_name"])
-    policy = get_policy(env, settings)
-
-    # Generate rollout.
-    rollouts = RolloutStorage(
-        rollout_length=settings["rollout_length"],
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-    )
-    obs = env.reset()
-    rollouts.set_initial_obs(obs)
-    for rollout_step in range(settings["rollout_length"]):
-        with torch.no_grad():
-            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
-        obs, reward, done, info = env.step(action)
-        rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
-
-    # Compute expected losses.
-    expected_loss_items = get_losses(rollouts, policy, settings)
-
-    # Compute actual losses.
-    loss_items = policy.update(rollouts)
-
-    # Compare expected vs. actual.
-    for loss_name in ["action", "value", "entropy", "total"]:
-        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
-        print("%s diff: %.5f" % (loss_name, diff))
-    TOL = 1e-5
-    assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
-    assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
-    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
-    assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL

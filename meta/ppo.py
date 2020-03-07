@@ -8,9 +8,9 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
+from meta.network import PolicyNetwork
 from meta.storage import RolloutStorage
 from meta.utils import convert_to_tensor, init
-from meta.network import PolicyNetwork
 
 
 class PPOPolicy:

@@ -24,20 +24,6 @@ Added back in:
     commit c767445093ae9e40d8a08b69a0b1515b751187e2
         Added call to torch.no_grad() in tests, fixed minibatch_size in settings, and added notes.
 
-
-Need to be added:
-
-    commit 6ac4d94693d893c18f18fe92f801e428982e4c97
-        Added test for combined rollouts.
-
-    commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
-        Fixed bug in UniquePolicy, test_act_values() now passes.
-
-    commit 9bef9f7bf0b85e6dff52eb9021bb3c6f24c84224
-        Implemented UniqueEnv and test_train.test_collect_rollouts_values().
-
-    ----
-
     commit dc0af215c2f81177878982ce013df811301ffdbc
         Reorganized tests and added UniqueEnv to test envs.
 
@@ -50,7 +36,17 @@ Need to be added:
     commit 083302f33c038a312e551e5293b7b42697e1d1f4
         Wrote skeleton of tests and moved PolicyNetwork into its own file.
 
-    ----
+
+Need to be added:
+
+    commit 6ac4d94693d893c18f18fe92f801e428982e4c97
+        Added test for combined rollouts.
+
+    commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
+        Fixed bug in UniquePolicy, test_act_values() now passes.
+
+    commit 9bef9f7bf0b85e6dff52eb9021bb3c6f24c84224
+        Implemented UniqueEnv and test_train.test_collect_rollouts_values().
 
     commit 0dc98d63c3d848bdf0fb360bae8c7df06ea6277a
         Moved rollout collection into separate function for testing.
