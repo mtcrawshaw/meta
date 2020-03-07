@@ -15,17 +15,20 @@ Added back in:
     commit d4ae719ad7a339a8c23ad3049d0462e130563afb
         Moved tests into package, can now be run with pytest.
 
-
-Need to be added:
-
-    commit 6ac4d94693d893c18f18fe92f801e428982e4c97
-        Added test for combined rollouts.
-
     commit 8fa37947a1b3b4b3c7713d07e657227412f3a4c0
         Fixed bugs in loss computation in test_ppo.py, tests now all pass. Reward still doesn't go up.
 
     commit 77bd9821a5f526808b73874ac40c9275b1b94348
         Changed test_update_values() to compute expected losses before policy update. action and entropy losses now pass.
+
+    commit c767445093ae9e40d8a08b69a0b1515b751187e2
+        Added call to torch.no_grad() in tests, fixed minibatch_size in settings, and added notes.
+
+
+Need to be added:
+
+    commit 6ac4d94693d893c18f18fe92f801e428982e4c97
+        Added test for combined rollouts.
 
     commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
         Fixed bug in UniquePolicy, test_act_values() now passes.
@@ -38,9 +41,6 @@ Need to be added:
 
     commit 2606d039063f5bc015ad1a3df8119bca483174f7
         Replaced global test settings with settings parameter, and renamed DummyEnv to TestEnv.
-
-    commit c767445093ae9e40d8a08b69a0b1515b751187e2
-        Added call to torch.no_grad() in tests, fixed minibatch_size in settings, and added notes.
 
     commit c5b7dc8917d79997ac27dbedf228465138b998d2
         Add tests for tensor sizes and modified ppo loss test to fit new test format.
