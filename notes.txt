@@ -62,5 +62,5 @@ Leads for PPO bugs:
 
 Current tasks:
 - Add reverted features back in
-- Make tests deterministic
+- Control randomness in training with seed
 - Fix occasional invalid multinomial distribution error

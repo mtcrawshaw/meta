@@ -8,8 +8,8 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from storage import RolloutStorage
-from utils import convert_to_tensor, init
+from meta.storage import RolloutStorage
+from meta.utils import convert_to_tensor, init
 
 
 class PPOPolicy:
@@ -219,7 +219,7 @@ class PPOPolicy:
         """
 
         # Compute returns corresponding to equations (11) and (12) in the PPO paper.
-        returns = torch.zeros(rollouts.rollout_length)
+        returns = torch.zeros(rollouts.rollout_step)
         with torch.no_grad():
             rollouts.value_preds[rollouts.rollout_step] = self.get_value(
                 rollouts.obs[rollouts.rollout_step]
@@ -235,7 +235,7 @@ class PPOPolicy:
             returns[t] = gae + rollouts.value_preds[t]
 
         # Compute advantages.
-        advantages = returns - rollouts.value_preds[:-1]
+        advantages = returns - rollouts.value_preds[:rollouts.rollout_step]
         if self.normalize_advantages:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps
