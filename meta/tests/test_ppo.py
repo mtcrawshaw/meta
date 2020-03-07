@@ -7,11 +7,88 @@ import gym
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.tests.envs import DummyEnv
+from meta.utils import get_env
+from meta.tests.utils import get_policy, DEFAULT_SETTINGS
+
+
+def test_act_sizes():
+    """ Test the sizes of returned tensors from ppo.act(). """
+
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
+    obs = env.observation_space.sample()
+
+    value_pred, action, action_log_prob = policy.act(obs)
+
+    assert isinstance(value_pred, torch.Tensor)
+    assert value_pred.shape == torch.Size([1])
+    assert isinstance(action, torch.Tensor)
+    assert action.shape == torch.Size(env.action_space.shape)
+    assert isinstance(action_log_prob, torch.Tensor)
+    assert action_log_prob.shape == torch.Size([1])
+
+
+def act_values():
+    """ Test the values in the returned tensors from ppo.act(). """
+    raise NotImplementedError
+
+
+def test_evaluate_actions_sizes():
+    """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
+
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
+    obs_list = [
+        torch.Tensor(env.observation_space.sample())
+        for _ in range(settings["minibatch_size"])
+    ]
+    obs_batch = torch.stack(obs_list)
+    actions_list = [
+        torch.Tensor([float(env.action_space.sample())])
+        for _ in range(settings["minibatch_size"])
+    ]
+    actions_batch = torch.stack(actions_list)
+
+    value_pred, action_log_prob, action_dist_entropy = policy.evaluate_actions(
+        obs_batch, actions_batch
+    )
+
+    assert isinstance(value_pred, torch.Tensor)
+    assert value_pred.shape == torch.Size([settings["minibatch_size"]])
+    assert isinstance(action_log_prob, torch.Tensor)
+    assert action_log_prob.shape == torch.Size([settings["minibatch_size"]])
+    assert isinstance(action_log_prob, torch.Tensor)
+    assert action_dist_entropy.shape == torch.Size([settings["minibatch_size"]])
+
+
+def evaluate_actions_values():
+    """ Test the values in the returned tensors from ppo.evaluate_actions(). """
+    raise NotImplementedError
+
+
+def test_get_value_sizes():
+    """ Test the sizes of returned tensors from ppo.get_value(). """
+
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
+    obs = env.observation_space.sample()
+
+    value_pred = policy.get_value(obs)
+
+    assert isinstance(value_pred, torch.Tensor)
+    assert value_pred.shape == torch.Size([1])
+
+
+def get_value_values():
+    """ Test the values of returned tensors from ppo.get_value(). """
+    raise NotImplementedError
 
 
 def get_losses(
-    rollouts: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any], rollout_len: int
+    rollouts: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming that we
@@ -25,8 +102,6 @@ def get_losses(
         Policy object for training.
     settings : Dict[str, Any]
         Settings dictionary.
-    rollout_len : int
-        Length of rollout to train on.
 
     Returns
     -------
@@ -44,9 +119,9 @@ def get_losses(
             rollouts.obs[rollouts.rollout_step]
         )
     returns = []
-    for t in range(rollout_len):
+    for t in range(settings["rollout_length"]):
         returns.append(0.0)
-        for i in range(t, rollout_len):
+        for i in range(t, settings["rollout_length"]):
             delta = float(rollouts.rewards[i])
             delta += settings["gamma"] * float(rollouts.value_preds[i + 1])
             delta -= float(rollouts.value_preds[i])
@@ -57,13 +132,13 @@ def get_losses(
 
     # Compute advantages.
     advantages = []
-    for t in range(rollout_len):
+    for t in range(settings["rollout_length"]):
         advantages.append(returns[t] - float(rollouts.value_preds[t]))
 
     if settings["normalize_advantages"]:
         advantage_mean = np.mean(advantages)
         advantage_std = np.std(advantages, ddof=1)
-        for t in range(rollout_len):
+        for t in range(settings["rollout_length"]):
             advantages[t] = (advantages[t] - advantage_mean) / (
                 advantage_std + settings["eps"]
             )
@@ -74,7 +149,7 @@ def get_losses(
     loss_items["entropy"] = 0.0
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
-    for t in range(rollout_len):
+    for t in range(settings["rollout_length"]):
         with torch.no_grad():
             new_value_pred, new_action_log_probs, new_entropy = policy.evaluate_actions(
                 rollouts.obs[t], rollouts.actions[t]
@@ -92,9 +167,9 @@ def get_losses(
         loss_items["entropy"] += float(new_entropy)
 
     # Divide to find average.
-    loss_items["action"] /= rollout_len
-    loss_items["value"] /= rollout_len
-    loss_items["entropy"] /= rollout_len
+    loss_items["action"] /= settings["rollout_length"]
+    loss_items["value"] /= settings["rollout_length"]
+    loss_items["entropy"] /= settings["rollout_length"]
 
     # Compute total loss.
     loss_items["total"] = -(
@@ -106,55 +181,33 @@ def get_losses(
     return loss_items
 
 
-def test_ppo():
+def test_update_values():
     """
-    Tests whether PPOPolicy.update() calculates correct updates in the case of
-    a linear actor/critic network and a dummy environment.
+    Tests whether PPOPolicy.update() calculates correct loss values.
     """
 
-    # Initialize dummy env.
-    env = DummyEnv()
-
-    # Initialize policy and rollout storage.
-    rollout_len = 2
-    settings = {
-        "num_ppo_epochs": 1,
-        "lr": 3e-4,
-        "eps": 1e-8,
-        "value_loss_coeff": 0.5,
-        "entropy_loss_coeff": 0.01,
-        "gamma": 0.99,
-        "gae_lambda": 0.95,
-        "minibatch_size": rollout_len,
-        "clip_param": 0.2,
-        "max_grad_norm": None,
-        "clip_value_loss": False,
-        "num_layers": 1,
-        "hidden_size": None,
-        "normalize_advantages": True,
-    }
-    policy = PPOPolicy(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        **settings,
-    )
-    rollouts = RolloutStorage(
-        rollout_length=rollout_len,
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-    )
+    # Initialize environment and policy.
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "parity-env"
+    env = get_env(settings["env_name"])
+    policy = get_policy(env, settings)
 
     # Generate rollout.
+    rollouts = RolloutStorage(
+        rollout_length=settings["rollout_length"],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
     obs = env.reset()
     rollouts.set_initial_obs(obs)
-    for rollout_step in range(rollout_len):
+    for rollout_step in range(settings["rollout_length"]):
         with torch.no_grad():
             value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
         obs, reward, done, info = env.step(action)
         rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
 
     # Compute expected losses.
-    expected_loss_items = get_losses(rollouts, policy, settings, rollout_len)
+    expected_loss_items = get_losses(rollouts, policy, settings)
 
     # Compute actual losses.
     loss_items = policy.update(rollouts)
@@ -168,4 +221,3 @@ def test_ppo():
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
     assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
-

@@ -5,31 +5,18 @@ import gym
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_metaworld_env_names, print_metrics
+from meta.utils import get_metaworld_env_names, print_metrics, get_env
 
 
 def train(args: argparse.Namespace):
     """ Run PPO training. """
 
-    # Set environment.
-    metaworld_env_names = get_metaworld_env_names()
-    if args.env_name in metaworld_env_names:
-
-        # We import here so that we avoid importing metaworld if possible, since it is
-        # dependent on mujoco.
-        from metaworld.benchmarks import ML1
-
-        env = ML1.get_train_tasks(args.env_name)
-        tasks = env.sample_tasks(1)
-        env.set_task(tasks[0])
-
-    else:
-        env = gym.make(args.env_name)
-
-    # Create policy and rollout storage.
+    # Create environment, policy, and rollout storage.
+    env = get_env(args.env_name)
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
+        rollout_length=args.rollout_length,
         num_ppo_epochs=args.num_ppo_epochs,
         lr=args.lr,
         eps=args.eps,
@@ -112,4 +99,3 @@ def train(args: argparse.Namespace):
         if done:
             obs = env.reset()
             rollouts.set_initial_obs(obs)
-

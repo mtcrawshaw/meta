@@ -1,8 +1,14 @@
 import copy
 from typing import Union, List, Dict
+from functools import reduce
 
 import numpy as np
 import torch
+import gym
+from gym import Env
+from gym.spaces import Space, Discrete, Box
+
+from meta.tests.envs import ParityEnv
 
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
@@ -44,10 +50,46 @@ def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
     print(msg, end="\r")
 
 
+def get_space_size(space: Space):
+    """ Get the input/output size of an MLP whose input/output space is ``space``. """
+
+    if isinstance(space, Discrete):
+        size = space.n
+    elif isinstance(space, Box):
+        size = reduce(lambda a, b: a * b, space.shape)
+    else:
+        raise ValueError("Unsupported space type: %s." % type(space))
+
+    return size
+
+
 def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
 
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+
+
+def get_env(env_name: str) -> Env:
+    """ Return environment object from environment name. """
+
+    metaworld_env_names = get_metaworld_env_names()
+    if env_name in metaworld_env_names:
+
+        # We import here so that we avoid importing metaworld if possible, since it is
+        # dependent on mujoco.
+        from metaworld.benchmarks import ML1
+
+        env = ML1.get_train_tasks(env_name)
+        tasks = env.sample_tasks(1)
+        env.set_task(tasks[0])
+
+    elif env_name == "parity-env":
+        env = ParityEnv()
+
+    else:
+        env = gym.make(env_name)
+
+    return env
 
 
 # HARDCODE. This is copied from the metaworld repo to avoid the need to import metaworld

@@ -36,6 +36,8 @@ Need to be added:
     commit 9bef9f7bf0b85e6dff52eb9021bb3c6f24c84224
         Implemented UniqueEnv and test_train.test_collect_rollouts_values().
 
+    ----
+
     commit dc0af215c2f81177878982ce013df811301ffdbc
         Reorganized tests and added UniqueEnv to test envs.
 
@@ -47,6 +49,8 @@ Need to be added:
 
     commit 083302f33c038a312e551e5293b7b42697e1d1f4
         Wrote skeleton of tests and moved PolicyNetwork into its own file.
+
+    ----
 
     commit 0dc98d63c3d848bdf0fb360bae8c7df06ea6277a
         Moved rollout collection into separate function for testing.
