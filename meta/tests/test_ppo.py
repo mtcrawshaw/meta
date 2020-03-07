@@ -5,9 +5,9 @@ import torch
 import numpy as np
 import gym
 
-from ppo import PPOPolicy
-from storage import RolloutStorage
-from dummy_env import DummyEnv
+from meta.ppo import PPOPolicy
+from meta.storage import RolloutStorage
+from meta.tests.envs import DummyEnv
 
 
 def get_losses(
@@ -161,12 +161,9 @@ def test_ppo():
     for loss_name in ["action", "value", "entropy", "total"]:
         diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
         print("%s diff: %.5f" % (loss_name, diff))
-    TOL = 1e-3
+    TOL = 1e-5
     assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
     assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
 
-
-if __name__ == "__main__":
-    test_ppo()

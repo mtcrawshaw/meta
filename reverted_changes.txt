@@ -12,6 +12,8 @@ Added back in:
     commit 55a5e591618eab6636b2c51c365c71ab0722b99e
         Converted to package.
 
+    commit d4ae719ad7a339a8c23ad3049d0462e130563afb
+        Moved tests into package, can now be run with pytest.
 
 
 Need to be added:
@@ -48,9 +50,6 @@ Need to be added:
 
     commit 0dc98d63c3d848bdf0fb360bae8c7df06ea6277a
         Moved rollout collection into separate function for testing.
-
-    commit d4ae719ad7a339a8c23ad3049d0462e130563afb
-        Moved tests into package, can now be run with pytest.
 
     commit 9cae9f1380cf971c2f8850efca15569dcdbe95be
         Fixed bugs in test. Losses are correctly computed but training still doesn't work.
