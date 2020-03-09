@@ -243,4 +243,3 @@ def get_losses(
     )
 
     return loss_items
-
