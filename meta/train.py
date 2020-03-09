@@ -50,9 +50,7 @@ def collect_rollout(
 
         # Sample actions.
         with torch.no_grad():
-            value_pred, action, action_log_prob = policy.act(
-                rollouts.obs[rollout_step]
-            )
+            value_pred, action, action_log_prob = policy.act(rollouts.obs[rollout_step])
 
         # Perform step and record in ``rollouts``.
         # We cast the action to a numpy array here because policy.act() returns
@@ -98,6 +96,7 @@ def train(args: argparse.Namespace):
     # Initialize metrics.
     metric_keys = ["action", "value", "entropy", "total", "reward"]
     metrics = {key: None for key in metric_keys}
+
     def update_metric(current_metric, new_val, alpha):
         if current_metric is None:
             return new_val

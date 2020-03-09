@@ -1,4 +1,4 @@
-from math import exp
+from math import exp, log
 from typing import Dict, Any
 
 import torch
@@ -9,6 +9,10 @@ from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
+from meta.tests.envs import UniquePolicy
+
+
+TOL = 1e-5
 
 
 def test_act_sizes():
@@ -29,9 +33,38 @@ def test_act_sizes():
     assert action_log_prob.shape == torch.Size([1])
 
 
-def act_values():
+def test_act_values():
     """ Test the values in the returned tensors from ppo.act(). """
-    raise NotImplementedError
+
+    settings = dict(DEFAULT_SETTINGS)
+    env = get_env("unique-env")
+    policy = UniquePolicy()
+    obs = env.observation_space.sample()
+
+    value_pred, action, action_log_prob = policy.act(obs)
+
+    assert isinstance(value_pred, torch.Tensor)
+    assert float(value_pred) == obs
+    assert isinstance(action, torch.Tensor)
+    assert float(action) - int(action) == 0.0 and int(action) in env.action_space
+    env = get_env("unique-env")
+    policy = UniquePolicy()
+    obs = env.observation_space.sample()
+
+    value_pred, action, action_log_prob = policy.act(obs)
+
+    assert isinstance(value_pred, torch.Tensor)
+    assert float(value_pred) == obs
+    assert isinstance(action, torch.Tensor)
+    assert float(action) - int(action) == 0.0 and int(action) in env.action_space
+    assert isinstance(action_log_prob, torch.Tensor)
+    assert (
+        abs(
+            float(action_log_prob)
+            - log(float(policy.policy_network.action_probs(obs)[int(action)]))
+        )
+        < TOL
+    )
 
 
 def test_evaluate_actions_sizes():
@@ -122,7 +155,6 @@ def test_update_values():
     for loss_name in ["action", "value", "entropy", "total"]:
         diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
         print("%s diff: %.5f" % (loss_name, diff))
-    TOL = 1e-5
     assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
@@ -221,4 +253,3 @@ def get_losses(
     )
 
     return loss_items
-
