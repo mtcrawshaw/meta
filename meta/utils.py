@@ -1,6 +1,6 @@
 import copy
-from typing import Union, List, Dict
 from functools import reduce
+from typing import Union, List, Dict
 
 import numpy as np
 import torch
@@ -46,7 +46,10 @@ def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
 
     msg = "Iteration: %d" % iteration
     for metric_name, metric_val in metrics.items():
-        msg += " | %s: %.6f" % (metric_name, metric_val)
+        if metric_val is not None:
+            msg += " | %s: %.6f" % (metric_name, metric_val)
+        else:
+            msg += " | %s: %s" % (metric_name, metric_val)
     print(msg, end="\r")
 
 

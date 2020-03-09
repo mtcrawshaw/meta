@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Union, Tuple, Dict
+from typing import Union, Tuple, Dict, List
 
 import numpy as np
 import torch
@@ -212,19 +212,12 @@ class PPOPolicy:
         value_pred, _ = self.policy_network(tensor_obs)
         return value_pred
 
-    def update(self, rollouts: RolloutStorage):
+    def compute_returns_advantages(
+        self, rollouts: RolloutStorage
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Train policy with PPO from rollout information in ``rollouts``.
-
-        Arguments
-        ---------
-        rollouts : RolloutStorage
-            Storage container holding rollout information to train from.
-
-        Returns
-        -------
-        loss_items : Dict[str, float]
-            Dictionary from loss names (e.g. action) to float loss values.
+        Compute returns corresponding to equations (11) and (12) in the PPO paper using
+        rollout information from ``rollouts``.
         """
 
         # Compute returns corresponding to equations (11) and (12) in the PPO paper.
@@ -249,6 +242,26 @@ class PPOPolicy:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps
             )
+
+        return returns, advantages
+
+    def update(self, rollouts: RolloutStorage):
+        """
+        Train policy with PPO from rollout information in ``rollouts``.
+
+        Arguments
+        ---------
+        rollouts : RolloutStorage
+            Storage container holding rollout information to train from.
+
+        Returns
+        -------
+        loss_items : Dict[str, float]
+            Dictionary from loss names (e.g. action) to float loss values.
+        """
+
+        # Compute returns/advantages.
+        returns, advantages = self.compute_returns_advantages(rollouts)
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]

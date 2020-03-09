@@ -42,14 +42,15 @@ Added back in:
     commit 9bef9f7bf0b85e6dff52eb9021bb3c6f24c84224
         Implemented UniqueEnv and test_train.test_collect_rollouts_values().
 
+    commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
+        Fixed bug in UniquePolicy, test_act_values() now passes.
+
+
 
 Need to be added:
 
     commit 6ac4d94693d893c18f18fe92f801e428982e4c97
         Added test for combined rollouts.
-
-    commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
-        Fixed bug in UniquePolicy, test_act_values() now passes.
 
     commit 9cae9f1380cf971c2f8850efca15569dcdbe95be
         Fixed bugs in test. Losses are correctly computed but training still doesn't work.

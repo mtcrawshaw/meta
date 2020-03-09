@@ -1,6 +1,7 @@
 import argparse
-from typing import Any
+from typing import Any, List
 
+import numpy as np
 import torch
 import gym
 from gym import Env
@@ -66,7 +67,7 @@ def collect_rollout(
 
 
 def train(args: argparse.Namespace):
-    """ Run PPO training. """
+    """ Main function for train.py. """
 
     # Create environment, policy, and rollout storage.
     env = get_env(args.env_name)

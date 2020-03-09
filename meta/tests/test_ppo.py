@@ -4,6 +4,7 @@ from typing import Dict, Any
 import torch
 import numpy as np
 import gym
+from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
@@ -12,7 +13,7 @@ from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 from meta.tests.envs import UniquePolicy
 
 
-TOL = 1e-5
+TOL = 1e-6
 
 
 def test_act_sizes():
@@ -107,6 +108,13 @@ def test_get_value_sizes():
 
 def get_value_values():
     """ Test the values of returned tensors from ppo.get_value(). """
+    raise NotImplementedError
+
+
+def compute_returns_advantages_values():
+    """
+    Tests the computed values of returns and advantages in PPO loss computation.
+    """
     raise NotImplementedError
 
 

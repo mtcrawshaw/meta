@@ -3,9 +3,9 @@ from typing import Tuple, Dict
 import numpy as np
 import torch
 import torch.nn as nn
+from gym.spaces import Space, Box, Discrete
 
 from meta.utils import get_space_size, init
-from gym.spaces import Space, Box, Discrete
 
 
 class PolicyNetwork(nn.Module):
