@@ -1,11 +1,70 @@
 import argparse
+from typing import Any
 
 import torch
 import gym
+from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import get_metaworld_env_names, print_metrics, get_env
+
+
+def collect_rollout(
+    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
+) -> RolloutStorage:
+    """
+    Run environment and collect rollout information (observations, rewards, actions,
+    etc.) into a RolloutStorage object.
+
+    Parameters
+    ----------
+    env : Env
+        Environment to run.
+    policy : PPOPolicy
+        Policy to sample actions with.
+    rollout_length : int
+        Maximum length of rollout. If episode ends before ``rollout_length`` timesteps
+        have passed, ``rollouts.rollout_step`` will be less than ``rollout_length``.
+    initial_obs : Any
+        Initial observation returned from call to env.reset().
+
+    Returns
+    -------
+    rollouts : RolloutStorage
+        RolloutStorage object holding rollout information.
+    obs : Any
+        Last observation from rollout, to be used as the initial observation for the
+        next rollout.
+    """
+
+    rollouts = RolloutStorage(
+        rollout_length=rollout_length,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
+    rollouts.set_initial_obs(initial_obs)
+
+    # Rollout loop.
+    for rollout_step in range(rollout_length):
+
+        # Sample actions.
+        with torch.no_grad():
+            value_pred, action, action_log_prob = policy.act(
+                rollouts.obs[rollout_step]
+            )
+
+        # Perform step and record in ``rollouts``.
+        # We cast the action to a numpy array here because policy.act() returns
+        # it as a torch.Tensor. Less conversion back and forth this way.
+        obs, reward, done, info = env.step(action.numpy())
+        rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
+
+        if done:
+            obs = env.reset()
+            break
+
+    return rollouts, obs
 
 
 def train(args: argparse.Namespace):
@@ -32,52 +91,31 @@ def train(args: argparse.Namespace):
         hidden_size=args.hidden_size,
         normalize_advantages=args.normalize_advantages,
     )
-    rollouts = RolloutStorage(
-        rollout_length=args.rollout_length,
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-    )
 
     # Initialize environment and set first observation.
-    obs = env.reset()
-    rollouts.set_initial_obs(obs)
+    initial_obs = env.reset()
 
-    # Training loop.
+    # Initialize metrics.
     metric_keys = ["action", "value", "entropy", "total", "reward"]
     metrics = {key: None for key in metric_keys}
-
     def update_metric(current_metric, new_val, alpha):
         if current_metric is None:
             return new_val
         else:
             return current_metric * alpha + new_val * (1 - alpha)
 
+    # Training loop.
     for iteration in range(args.num_iterations):
 
-        # Rollout loop.
-        rollout_reward = 0.0
-        for rollout_step in range(args.rollout_length):
-
-            # Sample actions.
-            with torch.no_grad():
-                value_pred, action, action_log_prob = policy.act(
-                    rollouts.obs[rollout_step]
-                )
-
-            # Perform step and record in ``rollouts``.
-            # We cast the action to a numpy array here because policy.act() returns
-            # it as a torch.Tensor. Less conversion back and forth this way.
-            obs, reward, done, info = env.step(action.numpy())
-            rollouts.add_step(obs, action, action_log_prob, value_pred, reward)
-            rollout_reward += reward
-
-            if done:
-                break
-
-        # Compute update.
+        # Sample rollouts and compute update.
+        rollouts, last_obs = collect_rollout(
+            env, policy, args.rollout_length, initial_obs
+        )
+        initial_obs = last_obs
         loss_items = policy.update(rollouts)
 
         # Update and print metrics.
+        rollout_reward = float(torch.sum(rollouts.rewards))
         for loss_key, loss_item in loss_items.items():
             metrics[loss_key] = update_metric(
                 metrics[loss_key], loss_item, args.ema_alpha
@@ -94,8 +132,3 @@ def train(args: argparse.Namespace):
 
         # Clear rollout storage.
         rollouts.clear()
-
-        # Reinitialize environment and set first observation, if finished.
-        if done:
-            obs = env.reset()
-            rollouts.set_initial_obs(obs)

@@ -48,7 +48,7 @@ Need to be added:
     commit 9bef9f7bf0b85e6dff52eb9021bb3c6f24c84224
         Implemented UniqueEnv and test_train.test_collect_rollouts_values().
 
-    commit 0dc98d63c3d848bdf0fb360bae8c7df06ea6277a
+--> commit 0dc98d63c3d848bdf0fb360bae8c7df06ea6277a
         Moved rollout collection into separate function for testing.
 
     commit 9cae9f1380cf971c2f8850efca15569dcdbe95be
