@@ -47,16 +47,6 @@ def test_act_values():
     assert float(value_pred) == obs
     assert isinstance(action, torch.Tensor)
     assert float(action) - int(action) == 0.0 and int(action) in env.action_space
-    env = get_env("unique-env")
-    policy = UniquePolicy()
-    obs = env.observation_space.sample()
-
-    value_pred, action, action_log_prob = policy.act(obs)
-
-    assert isinstance(value_pred, torch.Tensor)
-    assert float(value_pred) == obs
-    assert isinstance(action, torch.Tensor)
-    assert float(action) - int(action) == 0.0 and int(action) in env.action_space
     assert isinstance(action_log_prob, torch.Tensor)
     assert (
         abs(
@@ -253,3 +243,4 @@ def get_losses(
     )
 
     return loss_items
+
