@@ -133,7 +133,9 @@ class RolloutStorage:
 
     def minibatch_generator(self, minibatch_size: int):
         """
-        Generates minibatches from rollout to train on.
+        Generates minibatches from rollout to train on. Note that this samples from the
+        entire RolloutStorage object, even if only a small portion of it has been
+        filled. The remaining values default to zero.
 
         Arguments
         ---------

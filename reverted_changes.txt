@@ -63,3 +63,19 @@ Need to be added:
 
     commit 8aac0b4a7eb3505a7401f6f2db94448e5d766935
         Started to add handling of more than one episode per update, and blackening.
+
+
+
+Functions that need to change to convert to multi-episode batches:
+1 - train.collect_rollout()
+1 - train.train()
+1 - PPOPolicy.compute_returns_advantages()
+1 - PPOPolicy.update()
+1 - RolloutStorage.minibatch_generator()
+- RolloutStorage.insert_rollout()
+- storage.combine_rollouts()
+- test_ppo.test_combine_rollouts_values()
+- test_ppo.test_update_values()
+- test_ppo.get_rollouts()
+- test_ppo.get_losses()
+- test_train.test_collect_rollout_values()
