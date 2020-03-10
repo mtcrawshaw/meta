@@ -50,7 +50,8 @@ def collect_rollout(
     rollouts[-1].set_initial_obs(initial_obs)
 
     # Rollout loop.
-    for rollout_step in range(rollout_length):
+    rollout_step = 0
+    for total_rollout_step in range(rollout_length):
 
         # Sample actions.
         with torch.no_grad():
@@ -63,10 +64,21 @@ def collect_rollout(
         # it as a torch.Tensor. Less conversion back and forth this way.
         obs, reward, done, info = env.step(action.numpy())
         rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
+        rollout_step += 1
 
+        # Reinitialize environment and set first observation, if finished.
         if done:
             obs = env.reset()
-            break
+            if total_rollout_step < rollout_length - 1:
+                rollouts.append(
+                    RolloutStorage(
+                        rollout_length=rollout_length,
+                        observation_space=env.observation_space,
+                        action_space=env.action_space,
+                    )
+                )
+                rollouts[-1].set_initial_obs(obs)
+                rollout_step = 0
 
     return rollouts, obs
 

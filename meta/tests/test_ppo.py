@@ -123,8 +123,8 @@ def test_combine_rollouts_values():
     policy = UniquePolicy()
 
     # Initialize policy and rollout storage.
-    num_episodes = 1
-    episode_len = 32
+    num_episodes = 4
+    episode_len = 8
     individual_rollouts = get_rollouts(env, policy, num_episodes, episode_len)
 
     # Combine rollouts.
@@ -198,8 +198,8 @@ def test_update_values():
     policy = get_policy(env, settings)
 
     # Initialize policy and rollout storage.
-    num_episodes = 1
-    episode_len = 32
+    num_episodes = 4
+    episode_len = 8
     rollouts = get_rollouts(env, policy, num_episodes, episode_len)
 
     # Compute expected losses.

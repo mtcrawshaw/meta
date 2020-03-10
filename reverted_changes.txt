@@ -51,10 +51,6 @@ Added back in:
     commit 727e0a41b08152e276f900bd9491f2bfbaa1efe7
         Added notes and updated test.py to match combined episode batches in main.py, but tests fail.
 
-
-
-Need to be added:
-
     commit 6ac4d94693d893c18f18fe92f801e428982e4c97
         Added test for combined rollouts.
 
@@ -64,9 +60,3 @@ Need to be added:
     commit 8aac0b4a7eb3505a7401f6f2db94448e5d766935
         Started to add handling of more than one episode per update, and blackening.
 
-
-
-Functions that need to change to convert to multi-episode batches:
-- train.train()
-- PPOPolicy.compute_returns_advantages()
-- RolloutStorage.minibatch_generator()
