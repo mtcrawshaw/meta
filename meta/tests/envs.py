@@ -1,3 +1,4 @@
+import random
 from typing import Tuple, Dict
 
 import numpy as np
@@ -67,9 +68,11 @@ class UniqueEnv:
         """
 
         reward = float(self.timestep)
+        DONE_TEMP = 10.
+        done_prob = 1. - DONE_TEMP / (self.timestep + DONE_TEMP - 1)
+        done = random.random() < done_prob
         self.timestep += 1
         obs = float(self.timestep)
-        done = False
         info = {}
 
         return obs, reward, done, info
