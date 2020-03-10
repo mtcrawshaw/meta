@@ -8,7 +8,7 @@ from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_metaworld_env_names, print_metrics, get_env
+from meta.utils import get_env, print_metrics
 
 
 def collect_rollout(
@@ -16,7 +16,7 @@ def collect_rollout(
 ) -> List[RolloutStorage]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
-    etc.) into a RolloutStorage object.
+    etc.) into a RolloutStorage object, one for each episode.
 
     Parameters
     ----------
@@ -25,8 +25,8 @@ def collect_rollout(
     policy : PPOPolicy
         Policy to sample actions with.
     rollout_length : int
-        Maximum length of rollout. If episode ends before ``rollout_length`` timesteps
-        have passed, ``rollouts.rollout_step`` will be less than ``rollout_length``.
+        Combined length of episodes in rollout (i.e. number of steps for a single
+        update).
     initial_obs : Any
         Initial observation returned from call to env.reset().
 
@@ -74,8 +74,12 @@ def collect_rollout(
 def train(args: argparse.Namespace):
     """ Main function for train.py. """
 
-    # Create environment, policy, and rollout storage.
+    # Set environment.
     env = get_env(args.env_name)
+
+    # Create policy and rollout storage. ``rollouts`` is a list of RolloutStorage.
+    # Each RolloutStorage object holds state, action, reward, etc. for a single
+    # episode.
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -99,7 +103,7 @@ def train(args: argparse.Namespace):
     # Initialize environment and set first observation.
     initial_obs = env.reset()
 
-    # Initialize metrics.
+    # Training loop.
     metric_keys = ["action", "value", "entropy", "total", "reward"]
     metrics = {key: None for key in metric_keys}
 
@@ -109,7 +113,6 @@ def train(args: argparse.Namespace):
         else:
             return current_metric * alpha + new_val * (1 - alpha)
 
-    # Training loop.
     for iteration in range(args.num_iterations):
 
         # Sample rollouts and compute update.

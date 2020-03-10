@@ -10,7 +10,7 @@ from meta.tests.envs import UniquePolicy
 
 def test_collect_rollout_values():
     """
-    Test the values of the returned RolloutStorage object from train.collect_rollout().
+    Test the values of the returned RolloutStorage objects from train.collect_rollout().
     """
 
     settings = dict(DEFAULT_SETTINGS)

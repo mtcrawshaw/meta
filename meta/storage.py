@@ -1,5 +1,5 @@
 import copy
-from typing import Union
+from typing import Union, List
 
 import numpy as np
 import torch
@@ -167,3 +167,25 @@ class RolloutStorage:
             rewards_batch = self.rewards[batch_indices]
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, rewards_batch
+
+    def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
+        """
+        Insert the values from one RolloutStorage object into ``self`` as position
+        ``pos``, ignoring the values from after the last step.
+
+        new_rollout : RolloutStorage
+            New rollout values to insert into ``self``.
+        pos : int
+            Position at which to insert values of ``new_rollout``.
+        """
+
+        pass
+
+
+def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorage:
+    """
+    Given a list of individual RolloutStorage objects, returns a single combined
+    RolloutStorage object.
+    """
+
+    return individual_rollouts[0]

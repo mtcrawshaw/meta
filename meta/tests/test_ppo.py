@@ -7,7 +7,7 @@ import gym
 from gym import Env
 
 from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage
+from meta.storage import RolloutStorage, combine_rollouts
 from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 from meta.tests.envs import UniquePolicy
@@ -120,7 +120,8 @@ def compute_returns_advantages_values():
 
 def test_update_values():
     """
-    Tests whether PPOPolicy.update() calculates correct loss values.
+    Tests whether PPOPolicy.update() calculates correct updates in the case of
+    a linear actor/critic network and a dummy environment.
     """
 
     # Initialize environment and policy.
@@ -129,8 +130,10 @@ def test_update_values():
     env = get_env(settings["env_name"])
     policy = get_policy(env, settings)
 
-    # Generate rollout.
-    rollouts = get_rollouts(env, policy, settings["rollout_length"])
+    # Initialize policy and rollout storage.
+    num_episodes = 1
+    episode_len = 32
+    rollouts = get_rollouts(env, policy, num_episodes, episode_len)
 
     # Compute expected losses.
     expected_loss_items = get_losses(rollouts, policy, settings)
@@ -149,50 +152,56 @@ def test_update_values():
 
 
 def get_rollouts(
-    env: Env, policy: PPOPolicy, rollout_length: int
+    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
 ) -> List[RolloutStorage]:
     """
-    Collects one rollout of size ``rollout_length `` (or until the episode terminates)
-    from ``env`` using ``policy``.
+    Collects ``num_episodes`` rollouts of size ``episode_len`` from ``env`` using
+    ``policy``.
     """
 
+    rollout_len = num_episodes * episode_len
     rollouts = []
-    rollouts.append(
-        RolloutStorage(
-            rollout_length=rollout_length,
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-        )
-    )
-    obs = env.reset()
-    rollouts[-1].set_initial_obs(obs)
-    for rollout_step in range(rollout_length):
-        with torch.no_grad():
-            value_pred, action, action_log_prob = policy.act(
-                rollouts[-1].obs[rollout_step]
+
+    # Generate rollout.
+    for episode in range(num_episodes):
+
+        rollouts.append(
+            RolloutStorage(
+                rollout_length=episode_len,
+                observation_space=env.observation_space,
+                action_space=env.action_space,
             )
-        obs, reward, done, info = env.step(action)
-        rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
+        )
+        obs = env.reset()
+        rollouts[-1].set_initial_obs(obs)
+
+        for rollout_step in range(episode_len):
+            with torch.no_grad():
+                value_pred, action, action_log_prob = policy.act(
+                    rollouts[-1].obs[rollout_step]
+                )
+            obs, reward, done, info = env.step(action.numpy())
+            rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
 
     return rollouts
 
 
 def get_losses(
     rollouts: List[RolloutStorage], policy: PPOPolicy, settings: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Dict[str, float]:
     """
     Computes action, value, entropy, and total loss from rollouts, assuming that we
-    aren't performing value loss clipping, and that num_ppo_epochs is 1.
+    aren't performing value loss clipping.
 
     Parameters
     ----------
-    rollouts : List[RolloutStorage]
+    rollouts : List[RolloutStorage}
         Rollout information such as observations, actions, rewards, etc for each
         episode.
     policy : PPOPolicy
         Policy object for training.
     settings : Dict[str, Any]
-        Settings dictionary.
+        Settings dictionary for training.
 
     Returns
     -------
@@ -204,7 +213,7 @@ def get_losses(
     assert settings["num_ppo_epochs"] == 1
     loss_items = {}
 
-    # Compute returns.
+    # Compute returns and advantages.
     num_episodes = len(rollouts)
     episode_len = rollouts[0].rollout_step
     returns = np.zeros((num_episodes, episode_len))
@@ -239,7 +248,7 @@ def get_losses(
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
     for e in range(len(rollouts)):
-        for t in range(settings["rollout_length"]):
+        for t in range(episode_len):
             with torch.no_grad():
                 (
                     new_value_pred,

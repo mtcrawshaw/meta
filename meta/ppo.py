@@ -9,7 +9,7 @@ from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
-from meta.storage import RolloutStorage
+from meta.storage import RolloutStorage, combine_rollouts
 from meta.utils import convert_to_tensor, init
 
 
@@ -46,7 +46,8 @@ class PPOPolicy:
         action_space : Space
             Environment's action space.
         rollout_length: int
-            Total number of environment timesteps per update.
+            Total number of environent timesteps (possibly over multiple episodes) per
+            update.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr : float
@@ -239,7 +240,7 @@ class PPOPolicy:
                     - rollout.value_preds[t]
                 )
                 gae = self.gamma * self.gae_lambda * gae + delta
-                returns[t] = gae + rollout.value_preds[t]
+                returns[t + current_pos] = gae + rollout.value_preds[t]
 
             # Compute advantages.
             end_pos = current_pos + rollout.rollout_step
@@ -259,7 +260,7 @@ class PPOPolicy:
 
     def update(self, individual_rollouts: List[RolloutStorage]):
         """
-        Train policy with PPO from rollout information in ``individual_rollouts``.
+        Train policy with PPO from rollout information in ``individual rollouts``.
 
         Arguments
         ---------
@@ -275,7 +276,7 @@ class PPOPolicy:
         """
 
         # Combine rollouts into one object and compute returns/advantages.
-        rollouts = individual_rollouts[0]
+        rollouts = combine_rollouts(individual_rollouts)
         returns, advantages = self.compute_returns_advantages(individual_rollouts)
 
         # Run multiple training steps on surrogate loss.
