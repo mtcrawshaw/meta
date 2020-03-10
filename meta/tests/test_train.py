@@ -23,27 +23,28 @@ def test_collect_rollout_values():
 
     # Check if rollout info came from UniqueEnv.
     TOL = 1e-6
-    for step in range(rollouts.rollout_step):
+    for rollout in rollouts:
+        for step in range(rollout.rollout_step):
 
-        obs = rollouts.obs[step]
-        value_pred = rollouts.value_preds[step]
-        action = rollouts.actions[step]
-        action_log_prob = rollouts.action_log_probs[step]
-        reward = rollouts.rewards[step]
+            obs = rollout.obs[step]
+            value_pred = rollout.value_preds[step]
+            action = rollout.actions[step]
+            action_log_prob = rollout.action_log_probs[step]
+            reward = rollout.rewards[step]
 
-        # Check shapes.
-        assert obs.shape == torch.Size([1])
-        assert value_pred.shape == torch.Size([])
-        assert action.shape == torch.Size([1])
-        assert action_log_prob.shape == torch.Size([])
-        assert reward.shape == torch.Size([])
+            # Check shapes.
+            assert obs.shape == torch.Size([1])
+            assert value_pred.shape == torch.Size([])
+            assert action.shape == torch.Size([1])
+            assert action_log_prob.shape == torch.Size([])
+            assert reward.shape == torch.Size([])
 
-        # Check consistency of values.
-        assert float(obs) == float(value_pred)
-        assert float(action) - int(action) == 0 and int(action) in env.action_space
-        assert (
-            float(action_log_prob)
-            - log(policy.policy_network.action_probs(float(obs))[int(action)])
-            < TOL
-        )
-        assert float(obs) == float(reward)
+            # Check consistency of values.
+            assert float(obs) == float(value_pred)
+            assert float(action) - int(action) == 0 and int(action) in env.action_space
+            assert (
+                float(action_log_prob)
+                - log(policy.policy_network.action_probs(float(obs))[int(action)])
+                < TOL
+            )
+            assert float(obs) == float(reward)

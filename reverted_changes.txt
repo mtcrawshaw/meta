@@ -45,18 +45,18 @@ Added back in:
     commit dbb7c99f7ec90d4cb598ca7c739687969fbe73ac
         Fixed bug in UniquePolicy, test_act_values() now passes.
 
+    commit 9cae9f1380cf971c2f8850efca15569dcdbe95be
+        Fixed bugs in test. Losses are correctly computed but training still doesn't work.
+
+    commit 727e0a41b08152e276f900bd9491f2bfbaa1efe7
+        Added notes and updated test.py to match combined episode batches in main.py, but tests fail.
+
 
 
 Need to be added:
 
     commit 6ac4d94693d893c18f18fe92f801e428982e4c97
         Added test for combined rollouts.
-
-    commit 9cae9f1380cf971c2f8850efca15569dcdbe95be
-        Fixed bugs in test. Losses are correctly computed but training still doesn't work.
-
-    commit 727e0a41b08152e276f900bd9491f2bfbaa1efe7
-        Added notes and updated test.py to match combined episode batches in main.py, but tests fail.
 
     commit 75578c93b7ccbe5dd0457ed89719fbb4b35ce836
         Combined rollout info from multiple episodes into a single batch. Untested.
@@ -75,7 +75,7 @@ Functions that need to change to convert to multi-episode batches:
 - RolloutStorage.insert_rollout()
 - storage.combine_rollouts()
 - test_ppo.test_combine_rollouts_values()
-- test_ppo.test_update_values()
-- test_ppo.get_rollouts()
-- test_ppo.get_losses()
-- test_train.test_collect_rollout_values()
+1 - test_ppo.test_update_values()
+1 - test_ppo.get_rollouts()
+1 - test_ppo.get_losses()
+1 - test_train.test_collect_rollout_values()
