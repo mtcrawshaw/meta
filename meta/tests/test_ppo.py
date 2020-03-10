@@ -111,6 +111,73 @@ def get_value_values():
     raise NotImplementedError
 
 
+def test_combine_rollouts_values():
+    """
+    Tests the values of the rollout information returned from combine_rollouts().
+    """
+
+    # Initialize environment and policy.
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "unique-env"
+    env = get_env(settings["env_name"])
+    policy = UniquePolicy()
+
+    # Initialize policy and rollout storage.
+    num_episodes = 1
+    episode_len = 32
+    individual_rollouts = get_rollouts(env, policy, num_episodes, episode_len)
+
+    # Combine rollouts.
+    rollouts = combine_rollouts(individual_rollouts)
+
+    # Test values.
+    total_step = 0
+    for e in range(num_episodes):
+        for t in range(episode_len):
+
+            # Check that ``rollouts`` contains the same information as
+            # ``individual_rollouts``.
+            assert individual_rollouts[e].obs[t] == rollouts.obs[total_step]
+            assert (
+                individual_rollouts[e].value_preds[t]
+                == rollouts.value_preds[total_step]
+            )
+            assert individual_rollouts[e].actions[t] == rollouts.actions[total_step]
+            assert (
+                individual_rollouts[e].action_log_probs[t]
+                == rollouts.action_log_probs[total_step]
+            )
+            assert individual_rollouts[e].rewards[t] == rollouts.rewards[total_step]
+
+            # Check that ``rollouts`` contains transitions from UniqueEnv.
+            assert float(rollouts.obs[total_step]) == float(
+                rollouts.value_preds[total_step]
+            )
+            assert (
+                float(rollouts.actions[total_step]) - int(rollouts.actions[total_step])
+                == 0
+                and int(rollouts.actions[total_step]) in env.action_space
+            )
+            assert (
+                float(rollouts.action_log_probs[total_step])
+                - log(
+                    policy.policy_network.action_probs(float(rollouts.obs[total_step]))[
+                        int(rollouts.actions[total_step])
+                    ]
+                )
+                < TOL
+            )
+            assert float(rollouts.obs[total_step]) == float(
+                rollouts.rewards[total_step]
+            )
+
+            total_step += 1
+
+    # Check to make sure that the length of ``rollouts`` is the combined length of
+    # ``individual_rollouts``.
+    assert total_step == rollouts.rollout_step
+
+
 def compute_returns_advantages_values():
     """
     Tests the computed values of returns and advantages in PPO loss computation.

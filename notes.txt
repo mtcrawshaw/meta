@@ -62,5 +62,7 @@ Leads for PPO bugs:
 
 Current tasks:
 - Add reverted features back in
+- Changed insert_rollout() to append_rollout(), and increase self.rollout_step inside
+  that function
 - Control randomness in training with seed
 - Fix occasional invalid multinomial distribution error

@@ -67,15 +67,6 @@ Need to be added:
 
 
 Functions that need to change to convert to multi-episode batches:
-1 - train.collect_rollout()
-1 - train.train()
-1 - PPOPolicy.compute_returns_advantages()
-1 - PPOPolicy.update()
-1 - RolloutStorage.minibatch_generator()
-- RolloutStorage.insert_rollout()
-- storage.combine_rollouts()
-- test_ppo.test_combine_rollouts_values()
-1 - test_ppo.test_update_values()
-1 - test_ppo.get_rollouts()
-1 - test_ppo.get_losses()
-1 - test_train.test_collect_rollout_values()
+- train.train()
+- PPOPolicy.compute_returns_advantages()
+- RolloutStorage.minibatch_generator()
