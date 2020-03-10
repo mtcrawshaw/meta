@@ -60,8 +60,9 @@ Leads for PPO bugs:
   doesn't go up for CartPole-v1.
 - Found bug in train.collect_rollout(), rollout_step was being incremented sooner than
   it should've and the policy was only being fed observations of all zeros. Fixed it and
-  now reward goes up, but it comes back down to 10ish. Not sure if this happens in
-  single episode version.
+  now reward goes up, but it comes back down to 10ish. I checked and this does not
+  happen with the last single-episode version (commit cdb9). There's still another bug
+  here somewhere.
 
 Current tasks:
 - Add reverted features back in
@@ -69,5 +70,6 @@ Current tasks:
   that function
 - Change default arguments and list default arguments in help message
 - __repr__ of rollouts
+- Move test_combine_rollouts_values() into test_storage.py
 - Control randomness in training with seed
 - Fix occasional invalid multinomial distribution error

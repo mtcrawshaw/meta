@@ -40,6 +40,7 @@ def test_collect_rollout_values():
             assert reward.shape == torch.Size([])
 
             # Check consistency of values.
+            assert float(obs) == float(step + 1)
             assert float(obs) == float(value_pred)
             assert float(action) - int(action) == 0 and int(action) in env.action_space
             assert (
