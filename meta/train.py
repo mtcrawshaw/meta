@@ -80,7 +80,7 @@ def collect_rollout(
                 rollouts[-1].set_initial_obs(obs)
                 rollout_step = 0
 
-    return rollouts, obs
+    return rollouts, obs, done
 
 
 def train(args: argparse.Namespace):
@@ -125,10 +125,12 @@ def train(args: argparse.Namespace):
         else:
             return current_metric * alpha + new_val * (1 - alpha)
 
+    last_episode_reward = 0
+
     for iteration in range(args.num_iterations):
 
         # Sample rollouts and compute update.
-        rollouts, last_obs = collect_rollout(
+        rollouts, last_obs, done = collect_rollout(
             env, policy, args.rollout_length, initial_obs
         )
         initial_obs = last_obs
@@ -136,10 +138,17 @@ def train(args: argparse.Namespace):
 
         # Update and print metrics.
         episode_rewards = [float(torch.sum(rollout.rewards)) for rollout in rollouts]
-        avg_episode_reward = np.mean(episode_rewards)
-        metrics["reward"] = update_metric(
-            metrics["reward"], avg_episode_reward, args.ema_alpha
-        )
+        episode_rewards[0] += last_episode_reward
+        if done:
+            last_episode_reward = 0
+        else:
+            last_episode_reward = episode_rewards[-1]
+            episode_rewards = episode_rewards[:-1]
+        if len(episode_rewards) > 0:
+            avg_episode_reward = np.mean(episode_rewards)
+            metrics["reward"] = update_metric(
+                metrics["reward"], avg_episode_reward, args.ema_alpha
+            )
         for loss_key, loss_item in loss_items.items():
             metrics[loss_key] = update_metric(
                 metrics[loss_key], loss_item, args.ema_alpha

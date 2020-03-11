@@ -72,4 +72,5 @@ Current tasks:
 - __repr__ of rollouts
 - Move test_combine_rollouts_values() into test_storage.py
 - Control randomness in training with seed
+- Test to make sure rewards for episodes across updates is computed correctly
 - Fix occasional invalid multinomial distribution error
