@@ -19,6 +19,15 @@ def get_render_func(venv):
     return None
 
 
+def get_vec_normalize(venv):
+    if isinstance(venv, VecNormalize):
+        return venv
+    elif hasattr(venv, 'venv'):
+        return get_vec_normalize(venv.venv)
+
+    return None
+
+
 # Necessary for my KFAC implementation.
 class AddBias(nn.Module):
     def __init__(self, bias):
