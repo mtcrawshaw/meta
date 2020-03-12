@@ -1,161 +1,179 @@
-import argparse
-from typing import Any, List
+import copy
+import glob
+import os
+import time
+from collections import deque
 
+import gym
 import numpy as np
 import torch
-import gym
-from gym import Env
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
-from meta.ppo import PPOPolicy
+from meta import utils, ppo
+from meta.envs import make_vec_envs
+from meta.model import Policy
 from meta.storage import RolloutStorage
-from meta.utils import get_env, print_metrics
 
 
-def collect_rollout(
-    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
-) -> List[RolloutStorage]:
-    """
-    Run environment and collect rollout information (observations, rewards, actions,
-    etc.) into a RolloutStorage object, one for each episode.
+def train(args):
 
-    Parameters
-    ----------
-    env : Env
-        Environment to run.
-    policy : PPOPolicy
-        Policy to sample actions with.
-    rollout_length : int
-        Combined length of episodes in rollout (i.e. number of steps for a single
-        update).
-    initial_obs : Any
-        Initial observation returned from call to env.reset().
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
 
-    Returns
-    -------
-    rollouts : List[RolloutStorage]
-        List of RolloutStorage objects, one for each episode.
-    obs : Any
-        Last observation from rollout, to be used as the initial observation for the
-        next rollout.
-    """
+    if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
 
-    rollouts = []
-    rollouts.append(
-        RolloutStorage(
-            rollout_length=rollout_length,
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-        )
+    log_dir = os.path.expanduser(args.log_dir)
+    utils.cleanup_log_dir(log_dir)
+
+    torch.set_num_threads(1)
+    device = torch.device("cuda:0" if args.cuda else "cpu")
+
+    envs = make_vec_envs(
+        args.env_name,
+        args.seed,
+        args.num_processes,
+        args.gamma,
+        args.log_dir,
+        device,
+        False,
     )
-    rollouts[-1].set_initial_obs(initial_obs)
 
-    # Rollout loop.
-    rollout_step = 0
-    for total_rollout_step in range(rollout_length):
+    actor_critic = Policy(
+        envs.observation_space.shape,
+        envs.action_space,
+        base_kwargs={"recurrent": args.recurrent_policy},
+    )
+    actor_critic.to(device)
 
-        # Sample actions.
-        with torch.no_grad():
-            value_pred, action, action_log_prob = policy.act(
-                rollouts[-1].obs[rollout_step]
-            )
-
-        # Perform step and record in ``rollouts``.
-        # We cast the action to a numpy array here because policy.act() returns
-        # it as a torch.Tensor. Less conversion back and forth this way.
-        obs, reward, done, info = env.step(action.numpy())
-        rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
-        rollout_step += 1
-
-        # Reinitialize environment and set first observation, if finished.
-        if done:
-            obs = env.reset()
-            if total_rollout_step < rollout_length - 1:
-                rollouts.append(
-                    RolloutStorage(
-                        rollout_length=rollout_length,
-                        observation_space=env.observation_space,
-                        action_space=env.action_space,
-                    )
-                )
-                rollouts[-1].set_initial_obs(obs)
-                rollout_step = 0
-
-    return rollouts, obs, done
-
-
-def train(args: argparse.Namespace):
-    """ Main function for train.py. """
-
-    # Set environment.
-    env = get_env(args.env_name)
-
-    # Create policy and rollout storage. ``rollouts`` is a list of RolloutStorage.
-    # Each RolloutStorage object holds state, action, reward, etc. for a single
-    # episode.
-    policy = PPOPolicy(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        rollout_length=args.rollout_length,
-        num_ppo_epochs=args.num_ppo_epochs,
+    agent = ppo.PPO(
+        actor_critic,
+        args.clip_param,
+        args.ppo_epoch,
+        args.num_mini_batch,
+        args.value_loss_coef,
+        args.entropy_coef,
         lr=args.lr,
         eps=args.eps,
-        value_loss_coeff=args.value_loss_coeff,
-        entropy_loss_coeff=args.entropy_loss_coeff,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
-        minibatch_size=args.minibatch_size,
-        clip_param=args.clip_param,
         max_grad_norm=args.max_grad_norm,
-        clip_value_loss=args.clip_value_loss,
-        num_layers=args.num_layers,
-        hidden_size=args.hidden_size,
-        normalize_advantages=args.normalize_advantages,
     )
 
-    # Initialize environment and set first observation.
-    initial_obs = env.reset()
+    rollouts = RolloutStorage(
+        args.num_steps,
+        args.num_processes,
+        envs.observation_space.shape,
+        envs.action_space,
+        actor_critic.recurrent_hidden_state_size,
+    )
 
-    # Training loop.
-    metric_keys = ["action", "value", "entropy", "total", "reward"]
-    metrics = {key: None for key in metric_keys}
+    obs = envs.reset()
+    rollouts.obs[0].copy_(obs)
+    rollouts.to(device)
 
-    def update_metric(current_metric, new_val, alpha):
-        if current_metric is None:
-            return new_val
-        else:
-            return current_metric * alpha + new_val * (1 - alpha)
+    episode_rewards = deque(maxlen=10)
 
-    last_episode_reward = 0
+    start = time.time()
+    num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
+    for j in range(num_updates):
 
-    for iteration in range(args.num_iterations):
+        if args.use_linear_lr_decay:
+            # decrease learning rate linearly
+            utils.update_linear_schedule(
+                agent.optimizer,
+                j,
+                num_updates,
+                args.lr,
+            )
 
-        # Sample rollouts and compute update.
-        rollouts, last_obs, done = collect_rollout(
-            env, policy, args.rollout_length, initial_obs
+        for step in range(args.num_steps):
+            # Sample actions
+            with torch.no_grad():
+                (
+                    value,
+                    action,
+                    action_log_prob,
+                    recurrent_hidden_states,
+                ) = actor_critic.act(
+                    rollouts.obs[step],
+                    rollouts.recurrent_hidden_states[step],
+                    rollouts.masks[step],
+                )
+
+            # Obser reward and next obs
+            obs, reward, done, infos = envs.step(action)
+
+            for info in infos:
+                if "episode" in info.keys():
+                    episode_rewards.append(info["episode"]["r"])
+
+            # If done then clean the history of observations.
+            masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
+            bad_masks = torch.FloatTensor(
+                [[0.0] if "bad_transition" in info.keys() else [1.0] for info in infos]
+            )
+            rollouts.insert(
+                obs,
+                recurrent_hidden_states,
+                action,
+                action_log_prob,
+                value,
+                reward,
+                masks,
+                bad_masks,
+            )
+
+        with torch.no_grad():
+            next_value = actor_critic.get_value(
+                rollouts.obs[-1],
+                rollouts.recurrent_hidden_states[-1],
+                rollouts.masks[-1],
+            ).detach()
+
+        rollouts.compute_returns(
+            next_value,
+            args.use_gae,
+            args.gamma,
+            args.gae_lambda,
+            args.use_proper_time_limits,
         )
-        initial_obs = last_obs
-        loss_items = policy.update(rollouts)
 
-        # Update and print metrics.
-        episode_rewards = [float(torch.sum(rollout.rewards)) for rollout in rollouts]
-        episode_rewards[0] += last_episode_reward
-        if done:
-            last_episode_reward = 0
-        else:
-            last_episode_reward = episode_rewards[-1]
-            episode_rewards = episode_rewards[:-1]
-        if len(episode_rewards) > 0:
-            avg_episode_reward = np.mean(episode_rewards)
-            metrics["reward"] = update_metric(
-                metrics["reward"], avg_episode_reward, args.ema_alpha
-            )
-        for loss_key, loss_item in loss_items.items():
-            metrics[loss_key] = update_metric(
-                metrics[loss_key], loss_item, args.ema_alpha
-            )
-        if iteration % args.print_freq == 0:
-            print_metrics(metrics, iteration)
+        value_loss, action_loss, dist_entropy = agent.update(rollouts)
 
-        # This is to ensure that printed out values don't get overwritten.
-        if iteration == args.num_iterations - 1:
-            print("")
+        rollouts.after_update()
+
+        # save for every interval-th episode or for the last epoch
+        if (
+            j % args.save_interval == 0 or j == num_updates - 1
+        ) and args.save_dir != "":
+            save_path = os.path.join(args.save_dir)
+            try:
+                os.makedirs(save_path)
+            except OSError:
+                pass
+
+            torch.save(
+                [actor_critic, getattr(utils.get_vec_normalize(envs), "ob_rms", None)],
+                os.path.join(save_path, args.env_name + ".pt"),
+            )
+
+        if j % args.log_interval == 0 and len(episode_rewards) > 1:
+            total_num_steps = (j + 1) * args.num_processes * args.num_steps
+            end = time.time()
+            print(
+                "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
+                    j,
+                    total_num_steps,
+                    int(total_num_steps / (end - start)),
+                    len(episode_rewards),
+                    np.mean(episode_rewards),
+                    np.median(episode_rewards),
+                    np.min(episode_rewards),
+                    np.max(episode_rewards),
+                    dist_entropy,
+                    value_loss,
+                    action_loss,
+                )
+            )

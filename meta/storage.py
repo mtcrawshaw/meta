@@ -1,215 +1,222 @@
-import copy
-from typing import Union, List
-
-import numpy as np
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from gym.spaces import Space, Discrete, Box
-
-from meta.utils import convert_to_tensor
 
 
-class RolloutStorage:
-    """ An object to store rollout information. """
+def _flatten_helper(T, N, _tensor):
+    return _tensor.view(T * N, *_tensor.size()[2:])
 
+
+class RolloutStorage(object):
     def __init__(
-        self, rollout_length: int, observation_space: Space, action_space: Space
-    ):
-        """
-        init function for RolloutStorage class.
-
-        Arguments
-        ---------
-        rollout_length : int
-            Length of the rollout between each update.
-        observation_shape : Space
-            Environment's observation space.
-        action_space : Space
-            Environment's action space.
-        """
-
-        # Get observation and action shape.
-        self.observation_space = observation_space
-        self.action_space = action_space
-        self.space_shapes = {}
-        spaces = {"obs": observation_space, "action": action_space}
-        for space_name, space in spaces.items():
-            if isinstance(space, Discrete):
-                if space_name == "obs":
-                    self.space_shapes[space_name] = (space.n,)
-                elif space_name == "action":
-                    self.space_shapes[space_name] = (1,)
-                else:
-                    raise ValueError("Unrecognized space '%s'." % space_name)
-            elif isinstance(space, Box):
-                self.space_shapes[space_name] = space.shape
-            else:
-                raise ValueError(
-                    "'%r' not a supported %s space." % (type(space), space_name)
-                )
-
-        # Misc state.
-        self.rollout_length = rollout_length
-        self.rollout_step = 0
-
-        # Initialize rollout information.
-        self.init_rollout_info()
-
-    def init_rollout_info(self):
-        """ Initialize rollout information. """
-
-        # The +1 is here because we want to store the obs/value prediction
-        # from before the first step and after the last step of the rollout.
-        self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
-        self.value_preds = torch.zeros(self.rollout_length + 1)
-        self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
-        self.action_log_probs = torch.zeros(self.rollout_length)
-        self.rewards = torch.zeros(self.rollout_length)
-
-    def add_step(
         self,
-        obs: Union[np.ndarray, int, float],
-        action: Union[np.ndarray, int, float],
-        action_log_prob: torch.Tensor,
-        value_pred: torch.Tensor,
-        reward: float,
+        num_steps,
+        num_processes,
+        obs_shape,
+        action_space,
+        recurrent_hidden_state_size,
     ):
-        """
-        Add an environment step to storage.
-
-        obs : Union[np.ndarray, int],
-            Observation returned from environment after step was taken.
-        action : torch.Tensor,
-            Action taken in environment step.
-        action_log_prob : torch.Tensor,
-            Log probs of action distribution output by policy network.
-        value_pred : torch.Tensor,
-            Value prediction from policy at step.
-        reward : float,
-            Reward earned from environment step.
-        """
-
-        if self.rollout_step == self.rollout_length:
-            raise ValueError(
-                "Rollout storage is already full, call RolloutStorage.clear() "
-                "to clear storage before calling add_step()."
-            )
-
-        self.obs[self.rollout_step + 1].copy_(convert_to_tensor(obs))
-        self.actions[self.rollout_step] = action
-        self.action_log_probs[self.rollout_step] = action_log_prob
-        self.value_preds[self.rollout_step] = value_pred
-        self.rewards[self.rollout_step] = reward
-
-        self.rollout_step += 1
-
-    def clear(self):
-        """ Clear the stored rollout. """
-
-        # Store last observation to bring it into next rollout.
-        last_obs = self.obs[-1]
-
-        # Initialize rollout information.
-        self.init_rollout_info()
-
-        # Bring last observation into next rollout.
-        self.obs[0].copy_(last_obs)
-
-        # Reset rollout step.
-        self.rollout_step = 0
-
-    def set_initial_obs(self, obs: Union[np.ndarray, int]):
-        """
-        Set the first observation in storage.
-
-        Arguments
-        ---------
-        obs : np.ndarray or int
-            Observation returned from the environment.
-        """
-
-        tensor_obs = convert_to_tensor(obs)
-        self.obs[0].copy_(tensor_obs)
-
-    def minibatch_generator(self, minibatch_size: int):
-        """
-        Generates minibatches from rollout to train on. Note that this samples from the
-        entire RolloutStorage object, even if only a small portion of it has been
-        filled. The remaining values default to zero.
-
-        Arguments
-        ---------
-        minibatch_size : int
-            Size of minibatches to return.
-
-        Yields
-        ------
-        minibatch: Tuple[List[int], Tensor, ...]
-            Tuple of batch indices with tensors containing rollout minibatch info.
-        """
-
-        sampler = BatchSampler(
-            sampler=SubsetRandomSampler(range(self.rollout_length)),
-            batch_size=minibatch_size,
-            drop_last=True,
+        self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
+        self.recurrent_hidden_states = torch.zeros(
+            num_steps + 1, num_processes, recurrent_hidden_state_size
         )
-        for batch_indices in sampler:
+        self.rewards = torch.zeros(num_steps, num_processes, 1)
+        self.value_preds = torch.zeros(num_steps + 1, num_processes, 1)
+        self.returns = torch.zeros(num_steps + 1, num_processes, 1)
+        self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
+        if action_space.__class__.__name__ == "Discrete":
+            action_shape = 1
+        else:
+            action_shape = action_space.shape[0]
+        self.actions = torch.zeros(num_steps, num_processes, action_shape)
+        if action_space.__class__.__name__ == "Discrete":
+            self.actions = self.actions.long()
+        self.masks = torch.ones(num_steps + 1, num_processes, 1)
 
-            # Yield a minibatch corresponding to indices from sampler.
+        # Masks that indicate whether it's a true terminal state
+        # or time limit end state
+        self.bad_masks = torch.ones(num_steps + 1, num_processes, 1)
 
-            # The -1 is here in order to exclude the observation resulting after the
-            # last step.
-            obs_batch = self.obs[:-1][batch_indices]
-            value_preds_batch = self.value_preds[:-1][batch_indices]
-            actions_batch = self.actions[batch_indices]
-            action_log_probs_batch = self.action_log_probs[batch_indices]
-            rewards_batch = self.rewards[batch_indices]
+        self.num_steps = num_steps
+        self.step = 0
 
-            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, rewards_batch
+    def to(self, device):
+        self.obs = self.obs.to(device)
+        self.recurrent_hidden_states = self.recurrent_hidden_states.to(device)
+        self.rewards = self.rewards.to(device)
+        self.value_preds = self.value_preds.to(device)
+        self.returns = self.returns.to(device)
+        self.action_log_probs = self.action_log_probs.to(device)
+        self.actions = self.actions.to(device)
+        self.masks = self.masks.to(device)
+        self.bad_masks = self.bad_masks.to(device)
 
-    def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
-        """
-        Insert the values from one RolloutStorage object into ``self`` as position
-        ``pos``, ignoring the values from after the last step.
+    def insert(
+        self,
+        obs,
+        recurrent_hidden_states,
+        actions,
+        action_log_probs,
+        value_preds,
+        rewards,
+        masks,
+        bad_masks,
+    ):
+        self.obs[self.step + 1].copy_(obs)
+        self.recurrent_hidden_states[self.step + 1].copy_(recurrent_hidden_states)
+        self.actions[self.step].copy_(actions)
+        self.action_log_probs[self.step].copy_(action_log_probs)
+        self.value_preds[self.step].copy_(value_preds)
+        self.rewards[self.step].copy_(rewards)
+        self.masks[self.step + 1].copy_(masks)
+        self.bad_masks[self.step + 1].copy_(bad_masks)
 
-        new_rollout : RolloutStorage
-            New rollout values to insert into ``self``.
-        pos : int
-            Position at which to insert values of ``new_rollout``.
-        """
+        self.step = (self.step + 1) % self.num_steps
 
-        end = pos + new_rollout.rollout_step
-        self.obs[pos:end] = new_rollout.obs[: new_rollout.rollout_step]
-        self.value_preds[pos:end] = new_rollout.value_preds[: new_rollout.rollout_step]
-        self.actions[pos:end] = new_rollout.actions[: new_rollout.rollout_step]
-        self.action_log_probs[pos:end] = new_rollout.action_log_probs[
-            : new_rollout.rollout_step
-        ]
-        self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
+    def after_update(self):
+        self.obs[0].copy_(self.obs[-1])
+        self.recurrent_hidden_states[0].copy_(self.recurrent_hidden_states[-1])
+        self.masks[0].copy_(self.masks[-1])
+        self.bad_masks[0].copy_(self.bad_masks[-1])
 
+    def compute_returns(
+        self, next_value, use_gae, gamma, gae_lambda, use_proper_time_limits=True
+    ):
+        if use_proper_time_limits:
+            if use_gae:
+                self.value_preds[-1] = next_value
+                gae = 0
+                for step in reversed(range(self.rewards.size(0))):
+                    delta = (
+                        self.rewards[step]
+                        + gamma * self.value_preds[step + 1] * self.masks[step + 1]
+                        - self.value_preds[step]
+                    )
+                    gae = delta + gamma * gae_lambda * self.masks[step + 1] * gae
+                    gae = gae * self.bad_masks[step + 1]
+                    self.returns[step] = gae + self.value_preds[step]
+            else:
+                self.returns[-1] = next_value
+                for step in reversed(range(self.rewards.size(0))):
+                    self.returns[step] = (
+                        (
+                            self.returns[step + 1] * gamma * self.masks[step + 1]
+                            + self.rewards[step]
+                        )
+                        * self.bad_masks[step + 1]
+                        + (1 - self.bad_masks[step + 1]) * self.value_preds[step]
+                    )
+        else:
+            if use_gae:
+                self.value_preds[-1] = next_value
+                gae = 0
+                for step in reversed(range(self.rewards.size(0))):
+                    delta = (
+                        self.rewards[step]
+                        + gamma * self.value_preds[step + 1] * self.masks[step + 1]
+                        - self.value_preds[step]
+                    )
+                    gae = delta + gamma * gae_lambda * self.masks[step + 1] * gae
+                    self.returns[step] = gae + self.value_preds[step]
+            else:
+                self.returns[-1] = next_value
+                for step in reversed(range(self.rewards.size(0))):
+                    self.returns[step] = (
+                        self.returns[step + 1] * gamma * self.masks[step + 1]
+                        + self.rewards[step]
+                    )
 
-def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorage:
-    """
-    Given a list of individual RolloutStorage objects, returns a single combined
-    RolloutStorage object.
-    """
+    def feed_forward_generator(
+        self, advantages, num_mini_batch=None, mini_batch_size=None
+    ):
+        num_steps, num_processes = self.rewards.size()[0:2]
+        batch_size = num_processes * num_steps
 
-    if len(individual_rollouts) == 0:
-        raise ValueError("Received empty list of rollouts.")
+        if mini_batch_size is None:
+            assert batch_size >= num_mini_batch, (
+                "PPO requires the number of processes ({}) "
+                "* number of steps ({}) = {} "
+                "to be greater than or equal to the number of PPO mini batches ({})."
+                "".format(
+                    num_processes, num_steps, num_processes * num_steps, num_mini_batch
+                )
+            )
+            mini_batch_size = batch_size // num_mini_batch
+        sampler = BatchSampler(
+            SubsetRandomSampler(range(batch_size)), mini_batch_size, drop_last=True
+        )
+        for indices in sampler:
+            obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
+            recurrent_hidden_states_batch = self.recurrent_hidden_states[:-1].view(
+                -1, self.recurrent_hidden_states.size(-1)
+            )[indices]
+            actions_batch = self.actions.view(-1, self.actions.size(-1))[indices]
+            value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
+            return_batch = self.returns[:-1].view(-1, 1)[indices]
+            masks_batch = self.masks[:-1].view(-1, 1)[indices]
+            old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
+            if advantages is None:
+                adv_targ = None
+            else:
+                adv_targ = advantages.view(-1, 1)[indices]
 
-    rollout_length = sum([rollout.rollout_step for rollout in individual_rollouts])
-    rollouts = RolloutStorage(
-        rollout_length=rollout_length,
-        observation_space=individual_rollouts[0].observation_space,
-        action_space=individual_rollouts[0].action_space,
-    )
+            yield obs_batch, recurrent_hidden_states_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_targ
 
-    current_pos = 0
-    for rollout in individual_rollouts:
-        rollouts.insert_rollout(rollout, current_pos)
-        current_pos += rollout.rollout_step
+    def recurrent_generator(self, advantages, num_mini_batch):
+        num_processes = self.rewards.size(1)
+        assert num_processes >= num_mini_batch, (
+            "PPO requires the number of processes ({}) "
+            "to be greater than or equal to the number of "
+            "PPO mini batches ({}).".format(num_processes, num_mini_batch)
+        )
+        num_envs_per_batch = num_processes // num_mini_batch
+        perm = torch.randperm(num_processes)
+        for start_ind in range(0, num_processes, num_envs_per_batch):
+            obs_batch = []
+            recurrent_hidden_states_batch = []
+            actions_batch = []
+            value_preds_batch = []
+            return_batch = []
+            masks_batch = []
+            old_action_log_probs_batch = []
+            adv_targ = []
 
-    # Set combined rollout_step.
-    rollouts.rollout_step = current_pos
+            for offset in range(num_envs_per_batch):
+                ind = perm[start_ind + offset]
+                obs_batch.append(self.obs[:-1, ind])
+                recurrent_hidden_states_batch.append(
+                    self.recurrent_hidden_states[0:1, ind]
+                )
+                actions_batch.append(self.actions[:, ind])
+                value_preds_batch.append(self.value_preds[:-1, ind])
+                return_batch.append(self.returns[:-1, ind])
+                masks_batch.append(self.masks[:-1, ind])
+                old_action_log_probs_batch.append(self.action_log_probs[:, ind])
+                adv_targ.append(advantages[:, ind])
 
-    return rollouts
+            T, N = self.num_steps, num_envs_per_batch
+            # These are all tensors of size (T, N, -1)
+            obs_batch = torch.stack(obs_batch, 1)
+            actions_batch = torch.stack(actions_batch, 1)
+            value_preds_batch = torch.stack(value_preds_batch, 1)
+            return_batch = torch.stack(return_batch, 1)
+            masks_batch = torch.stack(masks_batch, 1)
+            old_action_log_probs_batch = torch.stack(old_action_log_probs_batch, 1)
+            adv_targ = torch.stack(adv_targ, 1)
+
+            # States is just a (N, -1) tensor
+            recurrent_hidden_states_batch = torch.stack(
+                recurrent_hidden_states_batch, 1
+            ).view(N, -1)
+
+            # Flatten the (T, N, ...) tensors to (T * N, ...)
+            obs_batch = _flatten_helper(T, N, obs_batch)
+            actions_batch = _flatten_helper(T, N, actions_batch)
+            value_preds_batch = _flatten_helper(T, N, value_preds_batch)
+            return_batch = _flatten_helper(T, N, return_batch)
+            masks_batch = _flatten_helper(T, N, masks_batch)
+            old_action_log_probs_batch = _flatten_helper(
+                T, N, old_action_log_probs_batch
+            )
+            adv_targ = _flatten_helper(T, N, adv_targ)
+
+            yield obs_batch, recurrent_hidden_states_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_targ

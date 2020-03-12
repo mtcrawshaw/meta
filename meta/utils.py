@@ -1,159 +1,65 @@
-import copy
-from functools import reduce
-from typing import Union, List, Dict
+import glob
+import os
 
-import numpy as np
 import torch
-import gym
-from gym import Env
-from gym.spaces import Space, Box, Discrete
+import torch.nn as nn
 
-from meta.tests.envs import ParityEnv, UniqueEnv
+from meta.envs import VecNormalize
 
 
-def convert_to_tensor(val: Union[np.ndarray, int, float]):
-    """
-    Converts a value (observation or action) from environment to a tensor.
+# Get a render function
+def get_render_func(venv):
+    if hasattr(venv, "envs"):
+        return venv.envs[0].render
+    elif hasattr(venv, "venv"):
+        return get_render_func(venv.venv)
+    elif hasattr(venv, "env"):
+        return get_render_func(venv.env)
 
-    Arguments
-    ---------
-    val: np.ndarray or int
-        Observation or action returned from the environment.
-    """
+    return None
 
-    if isinstance(val, int) or isinstance(val, float):
-        return torch.Tensor([val])
-    elif isinstance(val, np.ndarray):
-        return torch.Tensor(val)
-    elif isinstance(val, torch.Tensor):
-        return val
-    else:
-        raise ValueError(
-            "Cannot convert value of type '%r' to torch.Tensor." % type(val)
-        )
+
+def get_vec_normalize(venv):
+    if isinstance(venv, VecNormalize):
+        return venv
+    elif hasattr(venv, 'venv'):
+        return get_vec_normalize(venv.venv)
+
+    return None
+
+
+# Necessary for my KFAC implementation.
+class AddBias(nn.Module):
+    def __init__(self, bias):
+        super(AddBias, self).__init__()
+        self._bias = nn.Parameter(bias.unsqueeze(1))
+
+    def forward(self, x):
+        if x.dim() == 2:
+            bias = self._bias.t().view(1, -1)
+        else:
+            bias = self._bias.t().view(1, -1, 1, 1)
+
+        return x + bias
+
+
+def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
+    """Decreases the learning rate linearly"""
+    lr = initial_lr - (initial_lr * (epoch / float(total_num_epochs)))
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
 
 
 def init(module, weight_init, bias_init, gain=1):
-    """ Helper function it initialize network weights. """
-
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
 
 
-def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
-    """ Prints values of metrics from input dictionary ``metrics``. """
-
-    msg = "Iteration: %d" % iteration
-    for metric_name, metric_val in metrics.items():
-        if metric_val is not None:
-            msg += " | %s: %.6f" % (metric_name, metric_val)
-        else:
-            msg += " | %s: %s" % (metric_name, metric_val)
-    print(msg, end="\r")
-
-
-def get_space_size(space: Space):
-    """ Get the input/output size of an MLP whose input/output space is ``space``. """
-
-    if isinstance(space, Discrete):
-        size = space.n
-    elif isinstance(space, Box):
-        size = reduce(lambda a, b: a * b, space.shape)
-    else:
-        raise ValueError("Unsupported space type: %s." % type(space))
-
-    return size
-
-
-def get_env(env_name: str) -> Env:
-    """ Return environment object from environment name. """
-
-    metaworld_env_names = get_metaworld_env_names()
-    if env_name in metaworld_env_names:
-
-        # We import here so that we avoid importing metaworld if possible, since it is
-        # dependent on mujoco.
-        from metaworld.benchmarks import ML1
-
-        env = ML1.get_train_tasks(env_name)
-        tasks = env.sample_tasks(1)
-        env.set_task(tasks[0])
-
-    elif env_name == "parity-env":
-        env = ParityEnv()
-
-    elif env_name == "unique-env":
-        env = UniqueEnv()
-
-    else:
-        env = gym.make(env_name)
-
-    return env
-
-
-def get_metaworld_env_names() -> List[str]:
-    """ Returns a list of Metaworld environment names. """
-
-    return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
-
-
-# HARDCODE. This is copied from the metaworld repo to avoid the need to import metaworld
-# unnencessarily. Since it relies on mujoco, we don't want to import it if we don't have
-# to.
-HARD_MODE_CLS_DICT = {
-    "train": [
-        "reach-v1",
-        "push-v1",
-        "pick-place-v1",
-        "reach-wall-v1",
-        "pick-place-wall-v1",
-        "push-wall-v1",
-        "door-open-v1",
-        "door-close-v1",
-        "drawer-open-v1",
-        "drawer-close-v1",
-        "button-press_topdown-v1",
-        "button-press-v1",
-        "button-press-topdown-wall-v1",
-        "button-press-wall-v1",
-        "peg-insert-side-v1",
-        "peg-unplug-side-v1",
-        "window-open-v1",
-        "window-close-v1",
-        "dissassemble-v1",
-        "hammer-v1",
-        "plate-slide-v1",
-        "plate-slide-side-v1",
-        "plate-slide-back-v1",
-        "plate-slide-back-side-v1",
-        "handle-press-v1",
-        "handle-pull-v1",
-        "handle-press-side-v1",
-        "handle-pull-side-v1",
-        "stick-push-v1",
-        "stick-pull-v1",
-        "basket-ball-v1",
-        "soccer-v1",
-        "faucet-open-v1",
-        "faucet-close-v1",
-        "coffee-push-v1",
-        "coffee-pull-v1",
-        "coffee-button-v1",
-        "sweep-v1",
-        "sweep-into-v1",
-        "pick-out-of-hole-v1",
-        "assembly-v1",
-        "shelf-place-v1",
-        "push-back-v1",
-        "lever-pull-v1",
-        "dial-turn-v1",
-    ],
-    "test": [
-        "bin-picking-v1",
-        "box-close-v1",
-        "hand-insert-v1",
-        "door-lock-v1",
-        "door-unlock-v1",
-    ],
-}
+def cleanup_log_dir(log_dir):
+    try:
+        os.makedirs(log_dir)
+    except OSError:
+        files = glob.glob(os.path.join(log_dir, "*.monitor.csv"))
+        for f in files:
+            os.remove(f)

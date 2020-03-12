@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from a2c_ppo_acktr.train import train
+from meta.train import train
 
 
 if __name__ == "__main__":
