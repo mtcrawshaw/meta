@@ -19,7 +19,7 @@ def test_collect_rollout_values():
     env = get_env(settings["env_name"])
     policy = UniquePolicy()
     initial_obs = env.reset()
-    rollouts, _ = collect_rollout(env, policy, settings["rollout_length"], initial_obs)
+    rollouts, _, _ = collect_rollout(env, policy, settings["rollout_length"], initial_obs)
 
     # Check if rollout info came from UniqueEnv.
     TOL = 1e-6
@@ -40,6 +40,7 @@ def test_collect_rollout_values():
             assert reward.shape == torch.Size([])
 
             # Check consistency of values.
+            assert float(obs) == float(step + 1)
             assert float(obs) == float(value_pred)
             assert float(action) - int(action) == 0 and int(action) in env.action_space
             assert (

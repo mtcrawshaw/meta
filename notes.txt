@@ -57,8 +57,19 @@ Leads for PPO bugs:
   can see that the returned action loss is always nearly zero. Is that correct?
 - Fixed bugs in loss computation in test_ppo.py, tests now all pass. Reward still
   doesn't go up for CartPole-v1.
+- Found bug in train.collect_rollout(), rollout_step was being incremented sooner than
+  it should've and the policy was only being fed observations of all zeros. Fixed it and
+  now reward goes up, but it comes back down to 10ish. I checked and this does not
+  happen with the last single-episode version (commit cdb9). There's still another bug
+  here somewhere.
 
 Current tasks:
-- Write tests for values in test_ppo.py
-- Make tests deterministic
+- Add reverted features back in
+- Changed insert_rollout() to append_rollout(), and increase self.rollout_step inside
+  that function
+- Change default arguments and list default arguments in help message
+- __repr__ of rollouts
+- Move test_combine_rollouts_values() into test_storage.py
+- Control randomness in training with seed
+- Test to make sure rewards for episodes across updates is computed correctly
 - Fix occasional invalid multinomial distribution error

@@ -221,8 +221,9 @@ class PPOPolicy:
         each rollout in ``invidial_rollouts``.
         """
 
-        returns = torch.zeros(self.rollout_length)
-        advantages = torch.zeros(self.rollout_length)
+        total_length = sum(rollout.rollout_step for rollout in individual_rollouts)
+        returns = torch.zeros(total_length)
+        advantages = torch.zeros(total_length)
         current_pos = 0
         for rollout in individual_rollouts:
 

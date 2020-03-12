@@ -64,6 +64,7 @@ def collect_rollout(
         # it as a torch.Tensor. Less conversion back and forth this way.
         obs, reward, done, info = env.step(action.numpy())
         rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
+        rollout_step += 1
 
         # Reinitialize environment and set first observation, if finished.
         if done:
@@ -79,9 +80,7 @@ def collect_rollout(
                 rollouts[-1].set_initial_obs(obs)
                 rollout_step = 0
 
-        rollout_step += 1
-
-    return rollouts, obs
+    return rollouts, obs, done
 
 
 def train(args: argparse.Namespace):
@@ -126,10 +125,19 @@ def train(args: argparse.Namespace):
         else:
             return current_metric * alpha + new_val * (1 - alpha)
 
+<<<<<<< HEAD
     for iteration in range(args.num_iterations):
 
         # Sample rollouts and compute update.
         rollouts, last_obs = collect_rollout(
+=======
+    last_episode_reward = 0
+
+    for iteration in range(args.num_iterations):
+
+        # Sample rollouts and compute update.
+        rollouts, last_obs, done = collect_rollout(
+>>>>>>> reverted_develop
             env, policy, args.rollout_length, initial_obs
         )
         initial_obs = last_obs
@@ -137,10 +145,24 @@ def train(args: argparse.Namespace):
 
         # Update and print metrics.
         episode_rewards = [float(torch.sum(rollout.rewards)) for rollout in rollouts]
+<<<<<<< HEAD
         avg_episode_reward = np.mean(episode_rewards)
         metrics["reward"] = update_metric(
             metrics["reward"], avg_episode_reward, args.ema_alpha
         )
+=======
+        episode_rewards[0] += last_episode_reward
+        if done:
+            last_episode_reward = 0
+        else:
+            last_episode_reward = episode_rewards[-1]
+            episode_rewards = episode_rewards[:-1]
+        if len(episode_rewards) > 0:
+            avg_episode_reward = np.mean(episode_rewards)
+            metrics["reward"] = update_metric(
+                metrics["reward"], avg_episode_reward, args.ema_alpha
+            )
+>>>>>>> reverted_develop
         for loss_key, loss_item in loss_items.items():
             metrics[loss_key] = update_metric(
                 metrics[loss_key], loss_item, args.ema_alpha
