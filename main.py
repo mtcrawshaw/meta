@@ -100,12 +100,6 @@ if __name__ == "__main__":
         help="log interval, one log per n updates (default: 10)",
     )
     parser.add_argument(
-        "--save-interval",
-        type=int,
-        default=100,
-        help="save interval, one save per n updates (default: 100)",
-    )
-    parser.add_argument(
         "--num-env-steps",
         type=int,
         default=10e6,
@@ -115,16 +109,6 @@ if __name__ == "__main__":
         "--env-name",
         default="PongNoFrameskip-v4",
         help="environment to train on (default: PongNoFrameskip-v4)",
-    )
-    parser.add_argument(
-        "--log-dir",
-        default="/tmp/gym/",
-        help="directory to save agent logs (default: /tmp/gym)",
-    )
-    parser.add_argument(
-        "--save-dir",
-        default="./trained_models/",
-        help="directory to save agent logs (default: ./trained_models/)",
     )
     parser.add_argument(
         "--no-cuda", action="store_true", default=False, help="disables CUDA training"

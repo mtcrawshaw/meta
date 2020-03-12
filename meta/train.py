@@ -26,9 +26,6 @@ def train(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
 
-    log_dir = os.path.expanduser(args.log_dir)
-    utils.cleanup_log_dir(log_dir)
-
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
@@ -37,7 +34,6 @@ def train(args):
         args.seed,
         args.num_processes,
         args.gamma,
-        args.log_dir,
         device,
         False,
     )
@@ -143,21 +139,6 @@ def train(args):
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
 
         rollouts.after_update()
-
-        # save for every interval-th episode or for the last epoch
-        if (
-            j % args.save_interval == 0 or j == num_updates - 1
-        ) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir)
-            try:
-                os.makedirs(save_path)
-            except OSError:
-                pass
-
-            torch.save(
-                [actor_critic, getattr(utils.get_vec_normalize(envs), "ob_rms", None)],
-                os.path.join(save_path, args.env_name + ".pt"),
-            )
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_processes * args.num_steps

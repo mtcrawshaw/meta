@@ -28,7 +28,7 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, allow_early_resets):
+def make_env(env_id, seed, rank, allow_early_resets):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split(".")
@@ -47,12 +47,11 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
         if str(env.__class__.__name__).find("TimeLimit") >= 0:
             env = TimeLimitMask(env)
 
-        if log_dir is not None:
-            env = bench.Monitor(
-                env,
-                os.path.join(log_dir, str(rank)),
-                allow_early_resets=allow_early_resets,
-            )
+        env = bench.Monitor(
+            env,
+            None,
+            allow_early_resets=allow_early_resets,
+        )
 
         if is_atari:
             if len(env.observation_space.shape) == 3:
@@ -79,13 +78,12 @@ def make_vec_envs(
     seed,
     num_processes,
     gamma,
-    log_dir,
     device,
     allow_early_resets,
     num_frame_stack=None,
 ):
     envs = [
-        make_env(env_name, seed, i, log_dir, allow_early_resets)
+        make_env(env_name, seed, i, allow_early_resets)
         for i in range(num_processes)
     ]
 
