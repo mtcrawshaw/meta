@@ -11,9 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from a2c_ppo_acktr import algo, utils
-from a2c_ppo_acktr.algo import gail
-from a2c_ppo_acktr.arguments import get_args
+from a2c_ppo_acktr import utils, ppo
 from a2c_ppo_acktr.envs import make_vec_envs
 from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
@@ -51,53 +49,17 @@ def train(args):
     )
     actor_critic.to(device)
 
-    if args.algo == "a2c":
-        agent = algo.A2C_ACKTR(
-            actor_critic,
-            args.value_loss_coef,
-            args.entropy_coef,
-            lr=args.lr,
-            eps=args.eps,
-            alpha=args.alpha,
-            max_grad_norm=args.max_grad_norm,
-        )
-    elif args.algo == "ppo":
-        agent = algo.PPO(
-            actor_critic,
-            args.clip_param,
-            args.ppo_epoch,
-            args.num_mini_batch,
-            args.value_loss_coef,
-            args.entropy_coef,
-            lr=args.lr,
-            eps=args.eps,
-            max_grad_norm=args.max_grad_norm,
-        )
-    elif args.algo == "acktr":
-        agent = algo.A2C_ACKTR(
-            actor_critic, args.value_loss_coef, args.entropy_coef, acktr=True
-        )
-
-    if args.gail:
-        assert len(envs.observation_space.shape) == 1
-        discr = gail.Discriminator(
-            envs.observation_space.shape[0] + envs.action_space.shape[0], 100, device
-        )
-        file_name = os.path.join(
-            args.gail_experts_dir,
-            "trajs_{}.pt".format(args.env_name.split("-")[0].lower()),
-        )
-
-        expert_dataset = gail.ExpertDataset(
-            file_name, num_trajectories=4, subsample_frequency=20
-        )
-        drop_last = len(expert_dataset) > args.gail_batch_size
-        gail_train_loader = torch.utils.data.DataLoader(
-            dataset=expert_dataset,
-            batch_size=args.gail_batch_size,
-            shuffle=True,
-            drop_last=drop_last,
-        )
+    agent = ppo.PPO(
+        actor_critic,
+        args.clip_param,
+        args.ppo_epoch,
+        args.num_mini_batch,
+        args.value_loss_coef,
+        args.entropy_coef,
+        lr=args.lr,
+        eps=args.eps,
+        max_grad_norm=args.max_grad_norm,
+    )
 
     rollouts = RolloutStorage(
         args.num_steps,
@@ -123,7 +85,7 @@ def train(args):
                 agent.optimizer,
                 j,
                 num_updates,
-                agent.optimizer.lr if args.algo == "acktr" else args.lr,
+                args.lr,
             )
 
         for step in range(args.num_steps):
@@ -170,26 +132,6 @@ def train(args):
                 rollouts.masks[-1],
             ).detach()
 
-        if args.gail:
-            if j >= 10:
-                envs.venv.eval()
-
-            gail_epoch = args.gail_epoch
-            if j < 10:
-                gail_epoch = 100  # Warm up
-            for _ in range(gail_epoch):
-                discr.update(
-                    gail_train_loader, rollouts, utils.get_vec_normalize(envs)._obfilt
-                )
-
-            for step in range(args.num_steps):
-                rollouts.rewards[step] = discr.predict_reward(
-                    rollouts.obs[step],
-                    rollouts.actions[step],
-                    args.gamma,
-                    rollouts.masks[step],
-                )
-
         rollouts.compute_returns(
             next_value,
             args.use_gae,
@@ -206,7 +148,7 @@ def train(args):
         if (
             j % args.save_interval == 0 or j == num_updates - 1
         ) and args.save_dir != "":
-            save_path = os.path.join(args.save_dir, args.algo)
+            save_path = os.path.join(args.save_dir)
             try:
                 os.makedirs(save_path)
             except OSError:

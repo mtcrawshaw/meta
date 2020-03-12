@@ -9,29 +9,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
-        "--algo", default="a2c", help="algorithm to use: a2c | ppo | acktr"
-    )
-    parser.add_argument(
-        "--gail",
-        action="store_true",
-        default=False,
-        help="do imitation learning with gail",
-    )
-    parser.add_argument(
-        "--gail-experts-dir",
-        default="./gail_experts",
-        help="directory that contains expert demonstrations for gail",
-    )
-    parser.add_argument(
-        "--gail-batch-size",
-        type=int,
-        default=128,
-        help="gail batch size (default: 128)",
-    )
-    parser.add_argument(
-        "--gail-epoch", type=int, default=5, help="gail epochs (default: 5)"
-    )
-    parser.add_argument(
         "--lr", type=float, default=7e-4, help="learning rate (default: 7e-4)"
     )
     parser.add_argument(
@@ -172,14 +149,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
     args.cuda = not args.no_cuda and torch.cuda.is_available()
-
-    assert args.algo in ["a2c", "ppo", "acktr"]
-    if args.recurrent_policy:
-        assert args.algo in [
-            "a2c",
-            "ppo",
-        ], "Recurrent policy is not implemented for ACKTR"
 
     train(args)
