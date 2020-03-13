@@ -36,6 +36,9 @@ def train(args):
         args.clip_param,
         args.ppo_epoch,
         args.minibatch_size,
+        args.gamma,
+        args.gae_lambda,
+        args.use_proper_time_limits,
         args.value_loss_coef,
         args.entropy_coef,
         lr=args.lr,
@@ -82,17 +85,8 @@ def train(args):
                 obs, action, action_log_prob, value, reward, masks, bad_masks,
             )
 
-        with torch.no_grad():
-            next_value = actor_critic.get_value(
-                rollouts.obs[-1], rollouts.masks[-1],
-            ).detach()
-
-        rollouts.compute_returns(
-            next_value, args.gamma, args.gae_lambda, args.use_proper_time_limits,
-        )
 
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
-
         rollouts.after_update()
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:

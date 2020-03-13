@@ -1,14 +1,14 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Move computation of returns from storage.py into ppo.py
     - Remove CNN model
     - Remove distributions
     - Make training run on unwrapped environment
-
-Conversion tasks to leave for later:
     - Make train.py run single process training
     - Restructure training loop to match develop/num-env-steps argument
+    - Align function signatures for all files in meta/
+
+Conversion tasks to leave for later:
     - Remove proper time limits option
     - Remove masks
     - Remove random seed

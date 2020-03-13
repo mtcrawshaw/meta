@@ -13,6 +13,9 @@ class PPO:
         clip_param,
         ppo_epoch,
         minibatch_size,
+        gamma,
+        gae_lambda,
+        use_proper_time_limits,
         value_loss_coef,
         entropy_coef,
         lr=None,
@@ -26,6 +29,9 @@ class PPO:
         self.clip_param = clip_param
         self.ppo_epoch = ppo_epoch
         self.minibatch_size = minibatch_size
+        self.gamma = gamma
+        self.gae_lambda = gae_lambda
+        self.use_proper_time_limits = use_proper_time_limits
 
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
@@ -35,8 +41,46 @@ class PPO:
 
         self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
 
+    def compute_returns(self, rollouts):
+
+        with torch.no_grad():
+            next_value = self.actor_critic.get_value(
+                rollouts.obs[-1], rollouts.masks[-1],
+            ).detach()
+
+        num_steps, num_processes = rollouts.rewards.size()[0:2]
+        returns = torch.zeros(num_steps + 1, num_processes, 1)
+        if self.use_proper_time_limits:
+            rollouts.value_preds[-1] = next_value
+            gae = 0
+            for step in reversed(range(rollouts.rewards.size(0))):
+                delta = (
+                    rollouts.rewards[step]
+                    + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
+                    - rollouts.value_preds[step]
+                )
+                gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                gae = gae * rollouts.bad_masks[step + 1]
+                returns[step] = gae + rollouts.value_preds[step]
+        else:
+            rollouts.value_preds[-1] = next_value
+            gae = 0
+            for step in reversed(range(rollouts.rewards.size(0))):
+                delta = (
+                    rollouts.rewards[step]
+                    + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
+                    - rollouts.value_preds[step]
+                )
+                gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                returns[step] = gae + rollouts.value_preds[step]
+
+        return returns
+
     def update(self, rollouts):
-        advantages = rollouts.returns[:-1] - rollouts.value_preds[:-1]
+
+        # Compute returns and advantages.
+        returns = self.compute_returns(rollouts)
+        advantages = returns[:-1] - rollouts.value_preds[:-1]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
 
         value_loss_epoch = 0
@@ -45,20 +89,19 @@ class PPO:
         num_updates = 0
 
         for _ in range(self.ppo_epoch):
-            data_generator = rollouts.feed_forward_generator(
-                advantages, self.minibatch_size
-            )
+            data_generator = rollouts.feed_forward_generator(self.minibatch_size)
 
             for sample in data_generator:
                 (
+                    batch_indices,
                     obs_batch,
                     actions_batch,
                     value_preds_batch,
-                    return_batch,
                     masks_batch,
                     old_action_log_probs_batch,
-                    adv_targ,
                 ) = sample
+                returns_batch = returns[:-1].view(-1, 1)[batch_indices]
+                advantages_batch = advantages.view(-1, 1)[batch_indices]
 
                 # Reshape to do in a single forward pass for all steps
                 (
@@ -70,10 +113,10 @@ class PPO:
                 )
 
                 ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
-                surr1 = ratio * adv_targ
+                surr1 = ratio * advantages_batch
                 surr2 = (
                     torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
-                    * adv_targ
+                    * advantages_batch
                 )
                 action_loss = -torch.min(surr1, surr2).mean()
 
@@ -81,13 +124,13 @@ class PPO:
                     value_pred_clipped = value_preds_batch + (
                         values - value_preds_batch
                     ).clamp(-self.clip_param, self.clip_param)
-                    value_losses = (values - return_batch).pow(2)
-                    value_losses_clipped = (value_pred_clipped - return_batch).pow(2)
+                    value_losses = (values - returns_batch).pow(2)
+                    value_losses_clipped = (value_pred_clipped - returns_batch).pow(2)
                     value_loss = (
                         0.5 * torch.max(value_losses, value_losses_clipped).mean()
                     )
                 else:
-                    value_loss = 0.5 * (return_batch - values).pow(2).mean()
+                    value_loss = 0.5 * (returns_batch - values).pow(2).mean()
 
                 self.optimizer.zero_grad()
                 (

@@ -13,7 +13,6 @@ class RolloutStorage:
         self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
         self.rewards = torch.zeros(num_steps, num_processes, 1)
         self.value_preds = torch.zeros(num_steps + 1, num_processes, 1)
-        self.returns = torch.zeros(num_steps + 1, num_processes, 1)
         self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
         if action_space.__class__.__name__ == "Discrete":
             action_shape = 1
@@ -49,34 +48,7 @@ class RolloutStorage:
         self.masks[0].copy_(self.masks[-1])
         self.bad_masks[0].copy_(self.bad_masks[-1])
 
-    def compute_returns(
-        self, next_value, gamma, gae_lambda, use_proper_time_limits=True
-    ):
-        if use_proper_time_limits:
-            self.value_preds[-1] = next_value
-            gae = 0
-            for step in reversed(range(self.rewards.size(0))):
-                delta = (
-                    self.rewards[step]
-                    + gamma * self.value_preds[step + 1] * self.masks[step + 1]
-                    - self.value_preds[step]
-                )
-                gae = delta + gamma * gae_lambda * self.masks[step + 1] * gae
-                gae = gae * self.bad_masks[step + 1]
-                self.returns[step] = gae + self.value_preds[step]
-        else:
-            self.value_preds[-1] = next_value
-            gae = 0
-            for step in reversed(range(self.rewards.size(0))):
-                delta = (
-                    self.rewards[step]
-                    + gamma * self.value_preds[step + 1] * self.masks[step + 1]
-                    - self.value_preds[step]
-                )
-                gae = delta + gamma * gae_lambda * self.masks[step + 1] * gae
-                self.returns[step] = gae + self.value_preds[step]
-
-    def feed_forward_generator(self, advantages, minibatch_size):
+    def feed_forward_generator(self, minibatch_size):
         num_steps, num_processes = self.rewards.size()[0:2]
         batch_size = num_processes * num_steps
         if minibatch_size > batch_size:
@@ -93,12 +65,7 @@ class RolloutStorage:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
             actions_batch = self.actions.view(-1, self.actions.size(-1))[indices]
             value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
-            return_batch = self.returns[:-1].view(-1, 1)[indices]
             masks_batch = self.masks[:-1].view(-1, 1)[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
-            if advantages is None:
-                adv_targ = None
-            else:
-                adv_targ = advantages.view(-1, 1)[indices]
 
-            yield obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_targ
+            yield indices, obs_batch, actions_batch, value_preds_batch, masks_batch, old_action_log_probs_batch
