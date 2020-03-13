@@ -74,15 +74,6 @@ def train(args):
     num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
     for j in range(num_updates):
 
-        if args.use_linear_lr_decay:
-            # decrease learning rate linearly
-            utils.update_linear_schedule(
-                agent.optimizer,
-                j,
-                num_updates,
-                args.lr,
-            )
-
         for step in range(args.num_steps):
             # Sample actions
             with torch.no_grad():
@@ -125,7 +116,6 @@ def train(args):
 
         rollouts.compute_returns(
             next_value,
-            args.use_gae,
             args.gamma,
             args.gae_lambda,
             args.use_proper_time_limits,

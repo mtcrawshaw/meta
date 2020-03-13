@@ -30,12 +30,6 @@ if __name__ == "__main__":
         help="discount factor for rewards (default: 0.99)",
     )
     parser.add_argument(
-        "--use-gae",
-        action="store_true",
-        default=False,
-        help="use generalized advantage estimation",
-    )
-    parser.add_argument(
         "--gae-lambda",
         type=float,
         default=0.95,
@@ -118,12 +112,6 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="compute returns taking into account time limits",
-    )
-    parser.add_argument(
-        "--use-linear-lr-decay",
-        action="store_true",
-        default=False,
-        help="use a linear schedule on the learning rate",
     )
 
     args = parser.parse_args()
