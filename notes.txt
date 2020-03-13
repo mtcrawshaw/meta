@@ -29,6 +29,7 @@ PPO training settings to add/consider:
 - Choice of optimizer and optimizer hyperparameters
 - Parameter sharing between actor and critic
 - Collecting data from multiple episodes into a single (larger) minibatch
+- Deterministic acting (i.e. always choose action with highest prob)
 
 Leads for PPO bugs:
 - Why does action_loss seem to be backward? The value is small when the policy is

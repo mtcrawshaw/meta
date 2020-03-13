@@ -1,7 +1,7 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Remove distributions
+--> - Remove distributions
     - Consolidate Policy and PPO
     - Make training run on unwrapped environment
     - Make train.py run single process training

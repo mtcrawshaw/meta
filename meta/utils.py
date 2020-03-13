@@ -1,7 +1,9 @@
 import glob
 import os
+from functools import reduce
 
 import torch.nn as nn
+from gym.spaces import Space, Box, Discrete
 
 
 # Get a render function
@@ -51,3 +53,16 @@ def cleanup_log_dir(log_dir):
         files = glob.glob(os.path.join(log_dir, "*.monitor.csv"))
         for f in files:
             os.remove(f)
+
+
+def get_space_size(space: Space):
+    """ Get the input/output size of an MLP whose input/output space is ``space``. """
+
+    if isinstance(space, Discrete):
+        size = space.n
+    elif isinstance(space, Box):
+        size = reduce(lambda a, b: a * b, space.shape)
+    else:
+        raise ValueError("Unsupported space type: %s." % type(space))
+
+    return size

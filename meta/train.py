@@ -27,9 +27,7 @@ def train(args):
         args.env_name, args.seed, args.num_processes, args.gamma, False,
     )
 
-    actor_critic = Policy(
-        envs.observation_space.shape, envs.action_space,
-    )
+    actor_critic = Policy(envs.observation_space, envs.action_space,)
 
     agent = PPO(
         actor_critic,
@@ -65,9 +63,7 @@ def train(args):
         for step in range(args.num_steps):
             # Sample actions
             with torch.no_grad():
-                (value, action, action_log_prob,) = actor_critic.act(
-                    rollouts.obs[step], rollouts.masks[step],
-                )
+                value, action, action_log_prob = actor_critic.act(rollouts.obs[step])
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
@@ -84,7 +80,6 @@ def train(args):
             rollouts.insert(
                 obs, action, action_log_prob, value, reward, masks, bad_masks,
             )
-
 
         value_loss, action_loss, dist_entropy = agent.update(rollouts)
         rollouts.after_update()
@@ -147,12 +142,7 @@ def make_env(env_id, seed, rank, allow_early_resets):
 
 
 def make_vec_envs(
-    env_name,
-    seed,
-    num_processes,
-    gamma,
-    allow_early_resets,
-    num_frame_stack=None,
+    env_name, seed, num_processes, gamma, allow_early_resets, num_frame_stack=None,
 ):
     envs = [
         make_env(env_name, seed, i, allow_early_resets) for i in range(num_processes)

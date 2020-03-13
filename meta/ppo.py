@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical, Normal
 
 from meta.network import PolicyNetwork
 from meta.utils import AddBias, init
@@ -44,9 +45,7 @@ class PPO:
     def compute_returns(self, rollouts):
 
         with torch.no_grad():
-            next_value = self.actor_critic.get_value(
-                rollouts.obs[-1], rollouts.masks[-1],
-            ).detach()
+            next_value = self.actor_critic.get_value(rollouts.obs[-1]).detach()
 
         num_steps, num_processes = rollouts.rewards.size()[0:2]
         returns = torch.zeros(num_steps + 1, num_processes, 1)
@@ -56,10 +55,15 @@ class PPO:
             for step in reversed(range(rollouts.rewards.size(0))):
                 delta = (
                     rollouts.rewards[step]
-                    + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
+                    + self.gamma
+                    * rollouts.value_preds[step + 1]
+                    * rollouts.masks[step + 1]
                     - rollouts.value_preds[step]
                 )
-                gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                gae = (
+                    delta
+                    + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                )
                 gae = gae * rollouts.bad_masks[step + 1]
                 returns[step] = gae + rollouts.value_preds[step]
         else:
@@ -68,10 +72,15 @@ class PPO:
             for step in reversed(range(rollouts.rewards.size(0))):
                 delta = (
                     rollouts.rewards[step]
-                    + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
+                    + self.gamma
+                    * rollouts.value_preds[step + 1]
+                    * rollouts.masks[step + 1]
                     - rollouts.value_preds[step]
                 )
-                gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                gae = (
+                    delta
+                    + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+                )
                 returns[step] = gae + rollouts.value_preds[step]
 
         return returns
@@ -108,9 +117,7 @@ class PPO:
                     values,
                     action_log_probs,
                     dist_entropy,
-                ) = self.actor_critic.evaluate_actions(
-                    obs_batch, masks_batch, actions_batch
-                )
+                ) = self.actor_critic.evaluate_actions(obs_batch, actions_batch)
 
                 ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
                 surr1 = ratio * advantages_batch
@@ -157,52 +164,58 @@ class PPO:
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space):
+    def __init__(self, observation_space, action_space):
         super(Policy, self).__init__()
 
-        if len(obs_shape) == 3:
-            num_inputs = obs_shape[0] * obs_shape[1] * obs_shape[2]
-        elif len(obs_shape) == 1:
-            num_inputs = obs_shape[0]
-        else:
-            raise NotImplementedError
-
-        self.base = PolicyNetwork(num_inputs)
+        self.base = PolicyNetwork(observation_space, action_space)
 
         if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.hidden_size, num_outputs)
+            self.num_outputs = action_space.n
+            self.distribution_cls = Categorical
         elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.hidden_size, num_outputs)
-        elif action_space.__class__.__name__ == "MultiBinary":
-            num_outputs = action_space.shape[0]
-            self.dist = Bernoulli(self.base.hidden_size, num_outputs)
+            self.num_outputs = action_space.shape[0]
+            self.distribution_cls = Normal
         else:
             raise NotImplementedError
 
-    def act(self, inputs, masks, deterministic=False):
-        value, actor_features, = self.base(inputs, masks)
-        dist = self.dist(actor_features)
+    def act(self, inputs):
+        value_pred, action_probs = self.base(inputs)
+        dist = self.distribution_cls(**action_probs)
 
-        if deterministic:
-            action = dist.mode()
-        else:
+        if self.distribution_cls == Categorical:
+            action = dist.sample().unsqueeze(-1)
+            action_log_probs = (
+                dist.log_prob(action.squeeze(-1))
+                .view(action.size(0), -1)
+                .sum(-1)
+                .unsqueeze(-1)
+            )
+        elif self.distribution_cls == Normal:
             action = dist.sample()
+            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
 
-        action_log_probs = dist.log_probs(action)
+        return value_pred, action, action_log_probs
 
-        return value, action, action_log_probs
-
-    def get_value(self, inputs, masks):
-        value, _ = self.base(inputs, masks)
+    def get_value(self, inputs):
+        value, _ = self.base(inputs)
         return value
 
-    def evaluate_actions(self, inputs, masks, action):
-        value, actor_features = self.base(inputs, masks)
-        dist = self.dist(actor_features)
+    def evaluate_actions(self, inputs, action):
+        value, action_probs = self.base(inputs)
+        dist = self.distribution_cls(**action_probs)
 
-        action_log_probs = dist.log_probs(action)
+        if self.distribution_cls == Categorical:
+            action = dist.sample().unsqueeze(-1)
+            action_log_probs = (
+                dist.log_prob(action.squeeze(-1))
+                .view(action.size(0), -1)
+                .sum(-1)
+                .unsqueeze(-1)
+            )
+        elif self.distribution_cls == Normal:
+            action = dist.sample()
+            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
+
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy
@@ -213,6 +226,7 @@ class Policy(nn.Module):
 #
 
 # Categorical
+"""
 class FixedCategorical(torch.distributions.Categorical):
     def sample(self):
         return super().sample().unsqueeze(-1)
@@ -305,3 +319,4 @@ class Bernoulli(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         return FixedBernoulli(logits=x)
+"""
