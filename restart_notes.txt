@@ -1,8 +1,14 @@
+Goal: Minimize diff with develop branch while keeping performance
+
 Tasks to convert ikostrikov code into our format:
-- Make train.py run single process training
-- Make train.py act on a single environment, not vectorized/wrapped version
-- Move content of distributions.py into model.py/ppo.py
-- Move content of model.py into network.py/ppo.py
-- Move computation of returns from storage.py into ppo.py
-- Remove envs.py
-- Restructure training loop
+    - Make train.py run single process training
+    - Make train.py act on a single environment, not vectorized/wrapped version
+    - Move content of distributions.py into model.py/ppo.py
+    - Move content of model.py into network.py/ppo.py
+    - Move computation of returns from storage.py into ppo.py
+    - Remove envs.py
+    - Restructure training loop to match develop/num-env-steps argument
+    - Remove LR schedule
+    - Remove proper time limits option
+    - Remove choice to not use gae
+    - Remove CNN model

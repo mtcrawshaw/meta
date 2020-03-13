@@ -41,7 +41,7 @@ def train(args):
     actor_critic = Policy(
         envs.observation_space.shape,
         envs.action_space,
-        base_kwargs={"recurrent": args.recurrent_policy},
+        base_kwargs={},
     )
     actor_critic.to(device)
 
@@ -62,7 +62,6 @@ def train(args):
         args.num_processes,
         envs.observation_space.shape,
         envs.action_space,
-        actor_critic.recurrent_hidden_state_size,
     )
 
     obs = envs.reset()
@@ -91,10 +90,8 @@ def train(args):
                     value,
                     action,
                     action_log_prob,
-                    recurrent_hidden_states,
                 ) = actor_critic.act(
                     rollouts.obs[step],
-                    rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step],
                 )
 
@@ -112,7 +109,6 @@ def train(args):
             )
             rollouts.insert(
                 obs,
-                recurrent_hidden_states,
                 action,
                 action_log_prob,
                 value,
@@ -124,7 +120,6 @@ def train(args):
         with torch.no_grad():
             next_value = actor_critic.get_value(
                 rollouts.obs[-1],
-                rollouts.recurrent_hidden_states[-1],
                 rollouts.masks[-1],
             ).detach()
 

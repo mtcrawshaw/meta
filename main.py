@@ -120,12 +120,6 @@ if __name__ == "__main__":
         help="compute returns taking into account time limits",
     )
     parser.add_argument(
-        "--recurrent-policy",
-        action="store_true",
-        default=False,
-        help="use a recurrent policy",
-    )
-    parser.add_argument(
         "--use-linear-lr-decay",
         action="store_true",
         default=False,
