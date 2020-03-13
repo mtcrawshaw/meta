@@ -121,14 +121,6 @@ class TimeLimitMask(gym.Wrapper):
         return self.env.reset(**kwargs)
 
 
-# Can be used to test recurrent policies for Reacher-v2
-class MaskGoal(gym.ObservationWrapper):
-    def observation(self, observation):
-        if self.env._elapsed_steps > 0:
-            observation[-2:] = 0
-        return observation
-
-
 class TransposeObs(gym.ObservationWrapper):
     def __init__(self, env=None):
         """

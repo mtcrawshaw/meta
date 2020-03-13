@@ -13,7 +13,7 @@ import torch.optim as optim
 
 from meta import utils, ppo
 from meta.envs import make_vec_envs
-from meta.model import Policy
+from meta.ppo import Policy
 from meta.storage import RolloutStorage
 
 

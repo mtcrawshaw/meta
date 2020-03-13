@@ -1,8 +1,12 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from meta.network import MLPBase, NNBase
+from meta.utils import AddBias, init
 
 class PPO:
     def __init__(
@@ -109,3 +113,160 @@ class PPO:
         dist_entropy_epoch /= num_updates
 
         return value_loss_epoch, action_loss_epoch, dist_entropy_epoch
+
+
+class Policy(nn.Module):
+    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+        super(Policy, self).__init__()
+        if base_kwargs is None:
+            base_kwargs = {}
+        if base is None:
+            if len(obs_shape) == 3:
+                base = CNNBase
+            elif len(obs_shape) == 1:
+                base = MLPBase
+            else:
+                raise NotImplementedError
+
+        self.base = base(obs_shape[0], **base_kwargs)
+
+        if action_space.__class__.__name__ == "Discrete":
+            num_outputs = action_space.n
+            self.dist = Categorical(self.base.output_size, num_outputs)
+        elif action_space.__class__.__name__ == "Box":
+            num_outputs = action_space.shape[0]
+            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+        elif action_space.__class__.__name__ == "MultiBinary":
+            num_outputs = action_space.shape[0]
+            self.dist = Bernoulli(self.base.output_size, num_outputs)
+        else:
+            raise NotImplementedError
+
+    def forward(self, inputs, masks):
+        raise NotImplementedError
+
+    def act(self, inputs, masks, deterministic=False):
+        value, actor_features, = self.base(inputs, masks)
+        dist = self.dist(actor_features)
+
+        if deterministic:
+            action = dist.mode()
+        else:
+            action = dist.sample()
+
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
+
+        return value, action, action_log_probs
+
+    def get_value(self, inputs, masks):
+        value, _ = self.base(inputs, masks)
+        return value
+
+    def evaluate_actions(self, inputs, masks, action):
+        value, actor_features = self.base(inputs, masks)
+        dist = self.dist(actor_features)
+
+        action_log_probs = dist.log_probs(action)
+        dist_entropy = dist.entropy().mean()
+
+        return value, action_log_probs, dist_entropy
+
+
+#
+# Standardize distribution interfaces
+#
+
+# Categorical
+class FixedCategorical(torch.distributions.Categorical):
+    def sample(self):
+        return super().sample().unsqueeze(-1)
+
+    def log_probs(self, actions):
+        return (
+            super()
+            .log_prob(actions.squeeze(-1))
+            .view(actions.size(0), -1)
+            .sum(-1)
+            .unsqueeze(-1)
+        )
+
+    def mode(self):
+        return self.probs.argmax(dim=-1, keepdim=True)
+
+
+# Normal
+class FixedNormal(torch.distributions.Normal):
+    def log_probs(self, actions):
+        return super().log_prob(actions).sum(-1, keepdim=True)
+
+    def entrop(self):
+        return super.entropy().sum(-1)
+
+    def mode(self):
+        return self.mean
+
+
+# Bernoulli
+class FixedBernoulli(torch.distributions.Bernoulli):
+    def log_probs(self, actions):
+        return super.log_prob(actions).view(actions.size(0), -1).sum(-1).unsqueeze(-1)
+
+    def entropy(self):
+        return super().entropy().sum(-1)
+
+    def mode(self):
+        return torch.gt(self.probs, 0.5).float()
+
+
+class Categorical(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super(Categorical, self).__init__()
+
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
+        )
+
+        self.linear = init_(nn.Linear(num_inputs, num_outputs))
+
+    def forward(self, x):
+        x = self.linear(x)
+        return FixedCategorical(logits=x)
+
+
+class DiagGaussian(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super(DiagGaussian, self).__init__()
+
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
+
+        self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
+        self.logstd = AddBias(torch.zeros(num_outputs))
+
+    def forward(self, x):
+        action_mean = self.fc_mean(x)
+
+        #  An ugly hack for my KFAC implementation.
+        zeros = torch.zeros(action_mean.size())
+        if x.is_cuda:
+            zeros = zeros.cuda()
+
+        action_logstd = self.logstd(zeros)
+        return FixedNormal(action_mean, action_logstd.exp())
+
+
+class Bernoulli(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super(Bernoulli, self).__init__()
+
+        init_ = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
+        )
+
+        self.linear = init_(nn.Linear(num_inputs, num_outputs))
+
+    def forward(self, x):
+        x = self.linear(x)
+        return FixedBernoulli(logits=x)
