@@ -76,10 +76,10 @@ if __name__ == "__main__":
         "--ppo-epoch", type=int, default=4, help="number of ppo epochs (default: 4)"
     )
     parser.add_argument(
-        "--num-mini-batch",
+        "--minibatch-size",
         type=int,
         default=32,
-        help="number of batches for ppo (default: 32)",
+        help="minibatch size for ppo (default: 32)",
     )
     parser.add_argument(
         "--clip-param",

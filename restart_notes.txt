@@ -5,7 +5,6 @@ Tasks to convert ikostrikov code into our format:
     - Move content of model.py into network.py/ppo.py
     - Move computation of returns from storage.py into ppo.py
     - Remove CNN model
-    - Convert num-mini-batch to minibatch-size
 
 Conversion tasks to leave for later:
     - Remove envs.py

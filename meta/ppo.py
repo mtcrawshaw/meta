@@ -10,7 +10,7 @@ class PPO:
         actor_critic,
         clip_param,
         ppo_epoch,
-        num_mini_batch,
+        minibatch_size,
         value_loss_coef,
         entropy_coef,
         lr=None,
@@ -23,7 +23,7 @@ class PPO:
 
         self.clip_param = clip_param
         self.ppo_epoch = ppo_epoch
-        self.num_mini_batch = num_mini_batch
+        self.minibatch_size = minibatch_size
 
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
@@ -40,10 +40,11 @@ class PPO:
         value_loss_epoch = 0
         action_loss_epoch = 0
         dist_entropy_epoch = 0
+        num_updates = 0
 
         for e in range(self.ppo_epoch):
             data_generator = rollouts.feed_forward_generator(
-                advantages, self.num_mini_batch
+                advantages, self.minibatch_size
             )
 
             for sample in data_generator:
@@ -101,7 +102,7 @@ class PPO:
                 action_loss_epoch += action_loss.item()
                 dist_entropy_epoch += dist_entropy.item()
 
-        num_updates = self.ppo_epoch * self.num_mini_batch
+                num_updates += 1
 
         value_loss_epoch /= num_updates
         action_loss_epoch /= num_updates

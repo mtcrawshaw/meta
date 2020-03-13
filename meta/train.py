@@ -49,7 +49,7 @@ def train(args):
         actor_critic,
         args.clip_param,
         args.ppo_epoch,
-        args.num_mini_batch,
+        args.minibatch_size,
         args.value_loss_coef,
         args.entropy_coef,
         lr=args.lr,

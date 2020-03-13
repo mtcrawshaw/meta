@@ -98,23 +98,17 @@ class RolloutStorage(object):
                 self.returns[step] = gae + self.value_preds[step]
 
     def feed_forward_generator(
-        self, advantages, num_mini_batch=None, mini_batch_size=None
+        self, advantages, minibatch_size
     ):
         num_steps, num_processes = self.rewards.size()[0:2]
         batch_size = num_processes * num_steps
+        if minibatch_size > batch_size:
+            raise ValueError("Minibatch size (%d) is required to be no larger than"\
+                " num_processes (%d) times num_steps (%d)" % (minibatch_size,
+                    num_processes, num_steps))
 
-        if mini_batch_size is None:
-            assert batch_size >= num_mini_batch, (
-                "PPO requires the number of processes ({}) "
-                "* number of steps ({}) = {} "
-                "to be greater than or equal to the number of PPO mini batches ({})."
-                "".format(
-                    num_processes, num_steps, num_processes * num_steps, num_mini_batch
-                )
-            )
-            mini_batch_size = batch_size // num_mini_batch
         sampler = BatchSampler(
-            SubsetRandomSampler(range(batch_size)), mini_batch_size, drop_last=True
+            SubsetRandomSampler(range(batch_size)), minibatch_size, drop_last=True
         )
         for indices in sampler:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
