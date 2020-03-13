@@ -31,16 +31,6 @@ class RolloutStorage:
         self.num_steps = num_steps
         self.step = 0
 
-    def to(self, device):
-        self.obs = self.obs.to(device)
-        self.rewards = self.rewards.to(device)
-        self.value_preds = self.value_preds.to(device)
-        self.returns = self.returns.to(device)
-        self.action_log_probs = self.action_log_probs.to(device)
-        self.actions = self.actions.to(device)
-        self.masks = self.masks.to(device)
-        self.bad_masks = self.bad_masks.to(device)
-
     def insert(
         self, obs, actions, action_log_probs, value_preds, rewards, masks, bad_masks,
     ):

@@ -55,12 +55,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=1, help="random seed (default: 1)")
     parser.add_argument(
-        "--cuda-deterministic",
-        action="store_true",
-        default=False,
-        help="sets flags for determinism when using CUDA (potentially slow!)",
-    )
-    parser.add_argument(
         "--num-processes",
         type=int,
         default=16,
@@ -105,9 +99,6 @@ if __name__ == "__main__":
         help="environment to train on (default: PongNoFrameskip-v4)",
     )
     parser.add_argument(
-        "--no-cuda", action="store_true", default=False, help="disables CUDA training"
-    )
-    parser.add_argument(
         "--use-proper-time-limits",
         action="store_true",
         default=False,
@@ -115,6 +106,5 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    args.cuda = not args.no_cuda and torch.cuda.is_available()
 
     train(args)

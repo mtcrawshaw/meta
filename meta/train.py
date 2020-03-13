@@ -18,24 +18,18 @@ from meta.storage import RolloutStorage
 
 def train(args):
 
+    # Set random seed and number of threads.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
-
-    if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
-
     torch.set_num_threads(1)
-    device = torch.device("cuda:0" if args.cuda else "cpu")
 
     envs = make_vec_envs(
-        args.env_name, args.seed, args.num_processes, args.gamma, device, False,
+        args.env_name, args.seed, args.num_processes, args.gamma, False,
     )
 
     actor_critic = Policy(
         envs.observation_space.shape, envs.action_space, base_kwargs={},
     )
-    actor_critic.to(device)
 
     agent = PPO(
         actor_critic,
@@ -58,7 +52,6 @@ def train(args):
 
     obs = envs.reset()
     rollouts.obs[0].copy_(obs)
-    rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
 
@@ -164,7 +157,6 @@ def make_vec_envs(
     seed,
     num_processes,
     gamma,
-    device,
     allow_early_resets,
     num_frame_stack=None,
 ):
@@ -183,12 +175,12 @@ def make_vec_envs(
         else:
             envs = VecNormalize(envs, gamma=gamma)
 
-    envs = VecPyTorch(envs, device)
+    envs = VecPyTorch(envs)
 
     if num_frame_stack is not None:
-        envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
+        envs = VecPyTorchFrameStack(envs, num_frame_stack)
     elif len(envs.observation_space.shape) == 3:
-        envs = VecPyTorchFrameStack(envs, 4, device)
+        envs = VecPyTorchFrameStack(envs, 4)
 
     return envs
 
@@ -235,15 +227,14 @@ class TransposeImage(TransposeObs):
 
 
 class VecPyTorch(VecEnvWrapper):
-    def __init__(self, venv, device):
+    def __init__(self, venv):
         """Return only every `skip`-th frame"""
         super(VecPyTorch, self).__init__(venv)
-        self.device = device
         # TODO: Fix data types
 
     def reset(self):
         obs = self.venv.reset()
-        obs = torch.from_numpy(obs).float().to(self.device)
+        obs = torch.from_numpy(obs).float()
         return obs
 
     def step_async(self, actions):
@@ -255,7 +246,7 @@ class VecPyTorch(VecEnvWrapper):
 
     def step_wait(self):
         obs, reward, done, info = self.venv.step_wait()
-        obs = torch.from_numpy(obs).float().to(self.device)
+        obs = torch.from_numpy(obs).float()
         reward = torch.from_numpy(reward).unsqueeze(dim=1).float()
         return obs, reward, done, info
 
@@ -288,7 +279,7 @@ class VecNormalize(VecNormalize_):
 # Derived from
 # https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_frame_stack.py
 class VecPyTorchFrameStack(VecEnvWrapper):
-    def __init__(self, venv, nstack, device=None):
+    def __init__(self, venv, nstack):
         self.venv = venv
         self.nstack = nstack
 
@@ -298,9 +289,7 @@ class VecPyTorchFrameStack(VecEnvWrapper):
         low = np.repeat(wos.low, self.nstack, axis=0)
         high = np.repeat(wos.high, self.nstack, axis=0)
 
-        if device is None:
-            device = torch.device("cpu")
-        self.stacked_obs = torch.zeros((venv.num_envs,) + low.shape).to(device)
+        self.stacked_obs = torch.zeros((venv.num_envs,) + low.shape)
 
         observation_space = gym.spaces.Box(
             low=low, high=high, dtype=venv.observation_space.dtype
