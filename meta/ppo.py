@@ -1,12 +1,10 @@
-import math
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
-from meta.network import MLPBase, NNBase
+from meta.network import MLPBase, CNNBase
 from meta.utils import AddBias, init
+
 
 class PPO:
     def __init__(
@@ -46,7 +44,7 @@ class PPO:
         dist_entropy_epoch = 0
         num_updates = 0
 
-        for e in range(self.ppo_epoch):
+        for _ in range(self.ppo_epoch):
             data_generator = rollouts.feed_forward_generator(
                 advantages, self.minibatch_size
             )
@@ -155,7 +153,6 @@ class Policy(nn.Module):
             action = dist.sample()
 
         action_log_probs = dist.log_probs(action)
-        dist_entropy = dist.entropy().mean()
 
         return value, action, action_log_probs
 

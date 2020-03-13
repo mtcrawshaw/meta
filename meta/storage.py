@@ -6,13 +6,9 @@ def _flatten_helper(T, N, _tensor):
     return _tensor.view(T * N, *_tensor.size()[2:])
 
 
-class RolloutStorage(object):
+class RolloutStorage:
     def __init__(
-        self,
-        num_steps,
-        num_processes,
-        obs_shape,
-        action_space,
+        self, num_steps, num_processes, obs_shape, action_space,
     ):
         self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
         self.rewards = torch.zeros(num_steps, num_processes, 1)
@@ -46,14 +42,7 @@ class RolloutStorage(object):
         self.bad_masks = self.bad_masks.to(device)
 
     def insert(
-        self,
-        obs,
-        actions,
-        action_log_probs,
-        value_preds,
-        rewards,
-        masks,
-        bad_masks,
+        self, obs, actions, action_log_probs, value_preds, rewards, masks, bad_masks,
     ):
         self.obs[self.step + 1].copy_(obs)
         self.actions[self.step].copy_(actions)
@@ -97,15 +86,15 @@ class RolloutStorage(object):
                 gae = delta + gamma * gae_lambda * self.masks[step + 1] * gae
                 self.returns[step] = gae + self.value_preds[step]
 
-    def feed_forward_generator(
-        self, advantages, minibatch_size
-    ):
+    def feed_forward_generator(self, advantages, minibatch_size):
         num_steps, num_processes = self.rewards.size()[0:2]
         batch_size = num_processes * num_steps
         if minibatch_size > batch_size:
-            raise ValueError("Minibatch size (%d) is required to be no larger than"\
-                " num_processes (%d) times num_steps (%d)" % (minibatch_size,
-                    num_processes, num_steps))
+            raise ValueError(
+                "Minibatch size (%d) is required to be no larger than"
+                " num_processes (%d) times num_steps (%d)"
+                % (minibatch_size, num_processes, num_steps)
+            )
 
         sampler = BatchSampler(
             SubsetRandomSampler(range(batch_size)), minibatch_size, drop_last=True
@@ -123,4 +112,3 @@ class RolloutStorage(object):
                 adv_targ = advantages.view(-1, 1)[indices]
 
             yield obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_targ
-
