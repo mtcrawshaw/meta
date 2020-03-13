@@ -28,7 +28,7 @@ def train(args):
     )
 
     actor_critic = Policy(
-        envs.observation_space.shape, envs.action_space, base_kwargs={},
+        envs.observation_space.shape, envs.action_space,
     )
 
     agent = PPO(

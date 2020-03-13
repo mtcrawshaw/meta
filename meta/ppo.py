@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from meta.network import MLPBase, CNNBase
+from meta.network import PolicyNetwork
 from meta.utils import AddBias, init
 
 
@@ -157,34 +157,29 @@ class PPO:
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space):
         super(Policy, self).__init__()
-        if base_kwargs is None:
-            base_kwargs = {}
-        if base is None:
-            if len(obs_shape) == 3:
-                base = CNNBase
-            elif len(obs_shape) == 1:
-                base = MLPBase
-            else:
-                raise NotImplementedError
 
-        self.base = base(obs_shape[0], **base_kwargs)
-
-        if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "MultiBinary":
-            num_outputs = action_space.shape[0]
-            self.dist = Bernoulli(self.base.output_size, num_outputs)
+        if len(obs_shape) == 3:
+            num_inputs = obs_shape[0] * obs_shape[1] * obs_shape[2]
+        elif len(obs_shape) == 1:
+            num_inputs = obs_shape[0]
         else:
             raise NotImplementedError
 
-    def forward(self, inputs, masks):
-        raise NotImplementedError
+        self.base = PolicyNetwork(num_inputs)
+
+        if action_space.__class__.__name__ == "Discrete":
+            num_outputs = action_space.n
+            self.dist = Categorical(self.base.hidden_size, num_outputs)
+        elif action_space.__class__.__name__ == "Box":
+            num_outputs = action_space.shape[0]
+            self.dist = DiagGaussian(self.base.hidden_size, num_outputs)
+        elif action_space.__class__.__name__ == "MultiBinary":
+            num_outputs = action_space.shape[0]
+            self.dist = Bernoulli(self.base.hidden_size, num_outputs)
+        else:
+            raise NotImplementedError
 
     def act(self, inputs, masks, deterministic=False):
         value, actor_features, = self.base(inputs, masks)
