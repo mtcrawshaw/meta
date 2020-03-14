@@ -90,8 +90,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-env-steps",
         type=int,
-        default=10e6,
-        help="number of environment steps to train (default: 10e6)",
+        default=15000,
+        help="number of environment steps to train (default: 15000)",
     )
     parser.add_argument(
         "--env-name",
@@ -103,6 +103,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="compute returns taking into account time limits",
+    )
+    parser.add_argument(
+        "--save-output-metrics",
+        action="store_true",
+        default=False,
+        help="save output metric values as future baseline for testing against",
     )
 
     args = parser.parse_args()

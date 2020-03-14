@@ -14,6 +14,7 @@ from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
 from meta.ppo import PPO, Policy
 from meta.storage import RolloutStorage
+from meta.utils import save_output_metrics, compare_output_metrics
 
 
 def train(args):
@@ -55,6 +56,8 @@ def train(args):
     rollouts.obs[0].copy_(obs)
 
     episode_rewards = deque(maxlen=10)
+    metric_names = ["mean", "median", "min", "max"]
+    output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
     num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
@@ -102,6 +105,22 @@ def train(args):
                     action_loss,
                 )
             )
+
+            for metric_name in metric_names:
+                output_metrics["mean"].append(np.mean(episode_rewards))
+                output_metrics["median"].append(np.median(episode_rewards))
+                output_metrics["min"].append(np.min(episode_rewards))
+                output_metrics["max"].append(np.max(episode_rewards))
+
+    # Save output_metrics if necessary, otherwise compare output_metrics to baseline.
+    if args.save_output_metrics:
+        save_output_metrics(output_metrics)
+    else:
+        same_as_baseline = compare_output_metrics(output_metrics)
+        if same_as_baseline:
+            print("Passed test! Output metrics equal to baseline.")
+        else:
+            print("Failed test! Output metrics not equal to baseline.")
 
 
 def make_env(env_id, seed, rank, allow_early_resets):
