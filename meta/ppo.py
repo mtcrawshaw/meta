@@ -193,6 +193,8 @@ class Policy(nn.Module):
         elif self.distribution_cls == Normal:
             action = dist.sample()
             action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
+        else:
+            raise NotImplementedError
 
         return value_pred, action, action_log_probs
 
@@ -205,7 +207,6 @@ class Policy(nn.Module):
         dist = self.distribution_cls(**action_probs)
 
         if self.distribution_cls == Categorical:
-            action = dist.sample().unsqueeze(-1)
             action_log_probs = (
                 dist.log_prob(action.squeeze(-1))
                 .view(action.size(0), -1)
@@ -213,7 +214,6 @@ class Policy(nn.Module):
                 .unsqueeze(-1)
             )
         elif self.distribution_cls == Normal:
-            action = dist.sample()
             action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
 
         dist_entropy = dist.entropy().mean()

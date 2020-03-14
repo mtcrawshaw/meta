@@ -27,7 +27,7 @@ def train(args):
         args.env_name, args.seed, args.num_processes, args.gamma, False,
     )
 
-    actor_critic = Policy(envs.observation_space, envs.action_space,)
+    actor_critic = Policy(envs.observation_space, envs.action_space)
 
     agent = PPO(
         actor_critic,
