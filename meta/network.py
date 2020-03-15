@@ -17,26 +17,30 @@ class PolicyNetwork(nn.Module):
         self.input_size = get_space_size(observation_space)
         self.output_size = get_space_size(action_space)
 
-        # Instantiate modules.
-        init_ = lambda m: init(
+        # Initialization functions for network, init_final is only used for the last
+        # layer of the actor network.
+        init_base = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
+        )
+        init_final = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
         )
 
         # Generate layers of network.
         self.actor = nn.Sequential(
-            init_(nn.Linear(self.input_size, hidden_size)),
+            init_base(nn.Linear(self.input_size, hidden_size)),
             nn.Tanh(),
-            init_(nn.Linear(hidden_size, hidden_size)),
+            init_base(nn.Linear(hidden_size, hidden_size)),
             nn.Tanh(),
-            init_(nn.Linear(hidden_size, self.output_size)),
+            init_final(nn.Linear(hidden_size, self.output_size)),
         )
 
         self.critic = nn.Sequential(
-            init_(nn.Linear(self.input_size, hidden_size)),
+            init_base(nn.Linear(self.input_size, hidden_size)),
             nn.Tanh(),
-            init_(nn.Linear(hidden_size, hidden_size)),
+            init_base(nn.Linear(hidden_size, hidden_size)),
             nn.Tanh(),
-            init_(nn.Linear(hidden_size, 1)),
+            init_base(nn.Linear(hidden_size, 1)),
         )
 
         # Extra parameter vector for standard deviations in the case that
