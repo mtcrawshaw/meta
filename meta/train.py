@@ -1,5 +1,7 @@
 import time
 from collections import deque
+import os
+import pickle
 
 import gym
 import numpy as np
@@ -14,7 +16,7 @@ from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
 from meta.ppo import PPO, Policy
 from meta.storage import RolloutStorage
-from meta.utils import save_output_metrics, compare_output_metrics
+from meta.utils import compare_output_metrics, METRICS_DIR
 
 
 def train(args):
@@ -112,11 +114,18 @@ def train(args):
                 output_metrics["min"].append(np.min(episode_rewards))
                 output_metrics["max"].append(np.max(episode_rewards))
 
-    # Save output_metrics if necessary, otherwise compare output_metrics to baseline.
-    if args.save_output_metrics:
-        save_output_metrics(output_metrics)
-    else:
-        same_as_baseline = compare_output_metrics(output_metrics)
+    # Save output_metrics if necessary.
+    if args.output_metrics_name is not None:
+        if not os.path.isdir(METRICS_DIR):
+            os.makedirs(METRICS_DIR)
+        output_metrics_path = os.path.join(METRICS_DIR, args.output_metrics_name)
+        with open(output_metrics_path, "wb") as metrics_file:
+            pickle.dump(output_metrics, metrics_file)
+
+    # Compare output_metrics to baseline if necessary.
+    if args.baseline_metrics_name is not None:
+        baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
+        same_as_baseline = compare_output_metrics(output_metrics, baseline_metrics_path)
         if same_as_baseline:
             print("Passed test! Output metrics equal to baseline.")
         else:

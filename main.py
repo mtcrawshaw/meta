@@ -106,9 +106,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save-output-metrics",
-        action="store_true",
-        default=False,
-        help="save output metric values as future baseline for testing against",
+        dest="output_metrics_name",
+        default=None,
+        help="name to save output metric values under",
+    )
+    parser.add_argument(
+        "--compare-output-metrics",
+        dest="baseline_metrics_name",
+        default=None,
+        help="name of metrics baseline to compare against",
     )
 
     args = parser.parse_args()
