@@ -1,8 +1,6 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
---> - Remove distributions (almost there, just need to use AddBias for Box action space case)
-    - Consolidate Policy and PPO
     - Make training run on unwrapped environment
     - Make train.py run single process training
     - Restructure training loop to match develop/num-env-steps argument

@@ -7,10 +7,13 @@ from meta.network import PolicyNetwork
 from meta.utils import AddBias, init
 
 
-class PPO:
+class PPOPolicy:
+    """ A policy class for PPO. """
+
     def __init__(
         self,
-        actor_critic,
+        observation_space,
+        action_space,
         clip_param,
         ppo_epoch,
         minibatch_size,
@@ -25,27 +28,81 @@ class PPO:
         use_clipped_value_loss=True,
     ):
 
-        self.actor_critic = actor_critic
-
+        # Set policy state.
+        self.observation_space = observation_space
+        self.action_space = action_space
         self.clip_param = clip_param
         self.ppo_epoch = ppo_epoch
         self.minibatch_size = minibatch_size
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.use_proper_time_limits = use_proper_time_limits
-
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
-
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
 
-        self.optimizer = optim.Adam(actor_critic.parameters(), lr=lr, eps=eps)
+        # Initialize policy network and optimizer.
+        self.policy_network = PolicyNetwork(observation_space, action_space)
+
+        if action_space.__class__.__name__ == "Discrete":
+            self.num_outputs = action_space.n
+            self.distribution_cls = Categorical
+        elif action_space.__class__.__name__ == "Box":
+            self.num_outputs = action_space.shape[0]
+            self.distribution_cls = Normal
+        else:
+            raise NotImplementedError
+
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
+
+
+    def act(self, inputs):
+        value_pred, action_probs = self.policy_network(inputs)
+        dist = self.distribution_cls(**action_probs)
+
+        if self.distribution_cls == Categorical:
+            action = dist.sample().unsqueeze(-1)
+            action_log_probs = (
+                dist.log_prob(action.squeeze(-1))
+                .view(action.size(0), -1)
+                .sum(-1)
+                .unsqueeze(-1)
+            )
+        elif self.distribution_cls == Normal:
+            action = dist.sample()
+            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
+        else:
+            raise NotImplementedError
+
+        return value_pred, action, action_log_probs
+
+    def get_value(self, inputs):
+        value, _ = self.policy_network(inputs)
+        return value
+
+    def evaluate_actions(self, inputs, action):
+        value, action_probs = self.policy_network(inputs)
+        dist = self.distribution_cls(**action_probs)
+
+        if self.distribution_cls == Categorical:
+            action_log_probs = (
+                dist.log_prob(action.squeeze(-1))
+                .view(action.size(0), -1)
+                .sum(-1)
+                .unsqueeze(-1)
+            )
+        elif self.distribution_cls == Normal:
+            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
+
+        dist_entropy = dist.entropy().mean()
+
+        return value, action_log_probs, dist_entropy
 
     def compute_returns(self, rollouts):
 
         with torch.no_grad():
-            next_value = self.actor_critic.get_value(rollouts.obs[-1]).detach()
+            next_value = self.get_value(rollouts.obs[-1]).detach()
 
         num_steps, num_processes = rollouts.rewards.size()[0:2]
         returns = torch.zeros(num_steps + 1, num_processes, 1)
@@ -117,7 +174,7 @@ class PPO:
                     values,
                     action_log_probs,
                     dist_entropy,
-                ) = self.actor_critic.evaluate_actions(obs_batch, actions_batch)
+                ) = self.evaluate_actions(obs_batch, actions_batch)
 
                 ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
                 surr1 = ratio * advantages_batch
@@ -146,7 +203,7 @@ class PPO:
                     - dist_entropy * self.entropy_coef
                 ).backward()
                 nn.utils.clip_grad_norm_(
-                    self.actor_critic.parameters(), self.max_grad_norm
+                    self.policy_network.parameters(), self.max_grad_norm
                 )
                 self.optimizer.step()
 
@@ -162,161 +219,3 @@ class PPO:
 
         return value_loss_epoch, action_loss_epoch, dist_entropy_epoch
 
-
-class Policy(nn.Module):
-    def __init__(self, observation_space, action_space):
-        super(Policy, self).__init__()
-
-        self.base = PolicyNetwork(observation_space, action_space)
-
-        if action_space.__class__.__name__ == "Discrete":
-            self.num_outputs = action_space.n
-            self.distribution_cls = Categorical
-        elif action_space.__class__.__name__ == "Box":
-            self.num_outputs = action_space.shape[0]
-            self.distribution_cls = Normal
-        else:
-            raise NotImplementedError
-
-    def act(self, inputs):
-        value_pred, action_probs = self.base(inputs)
-        dist = self.distribution_cls(**action_probs)
-
-        if self.distribution_cls == Categorical:
-            action = dist.sample().unsqueeze(-1)
-            action_log_probs = (
-                dist.log_prob(action.squeeze(-1))
-                .view(action.size(0), -1)
-                .sum(-1)
-                .unsqueeze(-1)
-            )
-        elif self.distribution_cls == Normal:
-            action = dist.sample()
-            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
-        else:
-            raise NotImplementedError
-
-        return value_pred, action, action_log_probs
-
-    def get_value(self, inputs):
-        value, _ = self.base(inputs)
-        return value
-
-    def evaluate_actions(self, inputs, action):
-        value, action_probs = self.base(inputs)
-        dist = self.distribution_cls(**action_probs)
-
-        if self.distribution_cls == Categorical:
-            action_log_probs = (
-                dist.log_prob(action.squeeze(-1))
-                .view(action.size(0), -1)
-                .sum(-1)
-                .unsqueeze(-1)
-            )
-        elif self.distribution_cls == Normal:
-            action_log_probs = dist.log_prob(action).sum(-1, keepdim=True)
-
-        dist_entropy = dist.entropy().mean()
-
-        return value, action_log_probs, dist_entropy
-
-
-#
-# Standardize distribution interfaces
-#
-
-# Categorical
-"""
-class FixedCategorical(torch.distributions.Categorical):
-    def sample(self):
-        return super().sample().unsqueeze(-1)
-
-    def log_probs(self, actions):
-        return (
-            super()
-            .log_prob(actions.squeeze(-1))
-            .view(actions.size(0), -1)
-            .sum(-1)
-            .unsqueeze(-1)
-        )
-
-    def mode(self):
-        return self.probs.argmax(dim=-1, keepdim=True)
-
-
-# Normal
-class FixedNormal(torch.distributions.Normal):
-    def log_probs(self, actions):
-        return super().log_prob(actions).sum(-1, keepdim=True)
-
-    def entrop(self):
-        return super.entropy().sum(-1)
-
-    def mode(self):
-        return self.mean
-
-
-# Bernoulli
-class FixedBernoulli(torch.distributions.Bernoulli):
-    def log_probs(self, actions):
-        return super.log_prob(actions).view(actions.size(0), -1).sum(-1).unsqueeze(-1)
-
-    def entropy(self):
-        return super().entropy().sum(-1)
-
-    def mode(self):
-        return torch.gt(self.probs, 0.5).float()
-
-
-class Categorical(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
-        super(Categorical, self).__init__()
-
-        init_ = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
-        )
-
-        self.linear = init_(nn.Linear(num_inputs, num_outputs))
-
-    def forward(self, x):
-        x = self.linear(x)
-        return FixedCategorical(logits=x)
-
-
-class DiagGaussian(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
-        super(DiagGaussian, self).__init__()
-
-        init_ = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
-        )
-
-        self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
-        self.logstd = AddBias(torch.zeros(num_outputs))
-
-    def forward(self, x):
-        action_mean = self.fc_mean(x)
-
-        #  An ugly hack for my KFAC implementation.
-        zeros = torch.zeros(action_mean.size())
-        if x.is_cuda:
-            zeros = zeros.cuda()
-
-        action_logstd = self.logstd(zeros)
-        return FixedNormal(action_mean, action_logstd.exp())
-
-
-class Bernoulli(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
-        super(Bernoulli, self).__init__()
-
-        init_ = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
-        )
-
-        self.linear = init_(nn.Linear(num_inputs, num_outputs))
-
-    def forward(self, x):
-        x = self.linear(x)
-        return FixedBernoulli(logits=x)
-"""

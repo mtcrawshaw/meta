@@ -1,7 +1,7 @@
 import glob
 import os
 from functools import reduce
-from typing import Dict
+from typing import Dict, List
 import pickle
 
 import torch.nn as nn
@@ -73,17 +73,24 @@ def get_space_size(space: Space):
     return size
 
 
-def compare_output_metrics(output_metrics: Dict[str, float], metrics_filename: str):
-    """ Compare output_metrics against the most recently saved baseline. """
+def compare_output_metrics(output_metrics: Dict[str, List[float]], metrics_filename: str):
+    """ Compute diff of output_metrics against the most recently saved baseline. """
 
     # Load baseline metric values.
     with open(metrics_filename, "rb") as metrics_file:
         baseline_output_metrics = pickle.load(metrics_file)
 
     # Compare output_metrics against baseline.
-    same_as_baseline = True
-    same_as_baseline = same_as_baseline and set(output_metrics.keys()) == set(baseline_output_metrics.keys())
-    for metric_name in baseline_output_metrics.keys():
-        same_as_baseline = same_as_baseline and baseline_output_metrics[metric_name] == output_metrics[metric_name]
+    assert set(output_metrics.keys()) == set(baseline_output_metrics.keys())
+    diff = {key: [] for key in output_metrics}
+    for key in output_metrics:
+        assert len(output_metrics[key]) == len(baseline_output_metrics[key])
 
-    return same_as_baseline
+        for i in range(len(output_metrics[key])):
+            current_val = output_metrics[key][i]
+            baseline_val = baseline_output_metrics[key][i]
+            if current_val != baseline_val:
+                diff[key].append((i, current_val, baseline_val))
+
+    same = all(len(diff_values) == 0 for diff_values in diff.values())
+    return diff, same

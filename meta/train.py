@@ -14,7 +14,7 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
-from meta.ppo import PPO, Policy
+from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import compare_output_metrics, METRICS_DIR
 
@@ -30,18 +30,17 @@ def train(args):
         args.env_name, args.seed, args.num_processes, args.gamma, False,
     )
 
-    actor_critic = Policy(envs.observation_space, envs.action_space)
-
-    agent = PPO(
-        actor_critic,
-        args.clip_param,
-        args.ppo_epoch,
-        args.minibatch_size,
-        args.gamma,
-        args.gae_lambda,
-        args.use_proper_time_limits,
-        args.value_loss_coef,
-        args.entropy_coef,
+    policy = PPOPolicy(
+        observation_space=envs.observation_space,
+        action_space=envs.action_space,
+        clip_param=args.clip_param,
+        ppo_epoch=args.ppo_epoch,
+        minibatch_size=args.minibatch_size,
+        gamma=args.gamma,
+        gae_lambda=args.gae_lambda,
+        use_proper_time_limits=args.use_proper_time_limits,
+        value_loss_coef=args.value_loss_coef,
+        entropy_coef=args.entropy_coef,
         lr=args.lr,
         eps=args.eps,
         max_grad_norm=args.max_grad_norm,
@@ -68,7 +67,7 @@ def train(args):
         for step in range(args.num_steps):
             # Sample actions
             with torch.no_grad():
-                value, action, action_log_prob = actor_critic.act(rollouts.obs[step])
+                value, action, action_log_prob = policy.act(rollouts.obs[step])
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
@@ -86,7 +85,7 @@ def train(args):
                 obs, action, action_log_prob, value, reward, masks, bad_masks,
             )
 
-        value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        value_loss, action_loss, dist_entropy = policy.update(rollouts)
         rollouts.after_update()
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
@@ -125,11 +124,13 @@ def train(args):
     # Compare output_metrics to baseline if necessary.
     if args.baseline_metrics_name is not None:
         baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
-        same_as_baseline = compare_output_metrics(output_metrics, baseline_metrics_path)
-        if same_as_baseline:
+        metrics_diff, same = compare_output_metrics(output_metrics, baseline_metrics_path)
+        if same:
             print("Passed test! Output metrics equal to baseline.")
         else:
             print("Failed test! Output metrics not equal to baseline.")
+            earliest_diff = min(metrics_diff[key][0] for key in metrics_diff)
+            print("Earliest difference: %s" % str(earliest_diff))
 
 
 def make_env(env_id, seed, rank, allow_early_resets):
