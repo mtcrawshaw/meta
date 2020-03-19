@@ -73,7 +73,9 @@ def get_space_size(space: Space):
     return size
 
 
-def compare_output_metrics(output_metrics: Dict[str, List[float]], metrics_filename: str):
+def compare_output_metrics(
+    output_metrics: Dict[str, List[float]], metrics_filename: str
+):
     """ Compute diff of output_metrics against the most recently saved baseline. """
 
     # Load baseline metric values.

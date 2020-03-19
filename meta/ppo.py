@@ -56,7 +56,6 @@ class PPOPolicy:
 
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
-
     def act(self, inputs):
         value_pred, action_probs = self.policy_network(inputs)
         dist = self.distribution_cls(**action_probs)
@@ -170,11 +169,9 @@ class PPOPolicy:
                 advantages_batch = advantages.view(-1, 1)[batch_indices]
 
                 # Reshape to do in a single forward pass for all steps
-                (
-                    values,
-                    action_log_probs,
-                    dist_entropy,
-                ) = self.evaluate_actions(obs_batch, actions_batch)
+                (values, action_log_probs, dist_entropy,) = self.evaluate_actions(
+                    obs_batch, actions_batch
+                )
 
                 ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
                 surr1 = ratio * advantages_batch
@@ -218,4 +215,3 @@ class PPOPolicy:
         dist_entropy_epoch /= num_updates
 
         return value_loss_epoch, action_loss_epoch, dist_entropy_epoch
-
