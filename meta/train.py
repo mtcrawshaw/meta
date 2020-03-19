@@ -76,8 +76,6 @@ def train(args):
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
-            if done:
-                obs = envs.reset()
 
             if "episode" in infos.keys():
                 episode_rewards.append(infos["episode"]["r"])
@@ -415,6 +413,9 @@ class NormalizeEnv(gym.Wrapper):
     def step(self, action):
 
         obs, reward, done, info = self.env.step(action)
+        if done:
+            obs = self.env.reset()
+
         self.ret = self.ret * self.gamma + reward
         obs = self._obfilt(obs)
         self.ret_rms.update(np.array([self.ret]))
