@@ -3,16 +3,18 @@ from collections import deque
 import os
 import pickle
 
-import gym
 import numpy as np
 import torch
+import gym
 from gym.spaces.box import Box
+from gym import Env
 from baselines import bench
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
+from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
@@ -26,9 +28,12 @@ def train(args):
     torch.cuda.manual_seed_all(args.seed)
     torch.set_num_threads(1)
 
+    """
     envs = make_vec_envs(
         args.env_name, args.seed, args.num_processes, args.gamma, False,
     )
+    """
+    envs = make_env(args.env_name, args.seed, False)
 
     policy = PPOPolicy(
         observation_space=envs.observation_space,
@@ -71,15 +76,16 @@ def train(args):
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
+            if done:
+                obs = envs.reset()
 
-            for info in infos:
-                if "episode" in info.keys():
-                    episode_rewards.append(info["episode"]["r"])
+            if "episode" in infos.keys():
+                episode_rewards.append(infos["episode"]["r"])
 
             # If done then clean the history of observations.
-            masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
+            masks = torch.FloatTensor([[0.0] if done else [1.0]])
             bad_masks = torch.FloatTensor(
-                [[0.0] if "bad_transition" in info.keys() else [1.0] for info in infos]
+                [[0.0] if "bad_transition" in infos.keys() else [1.0]]
             )
             rollouts.insert(
                 obs, action, action_log_prob, value, reward, masks, bad_masks,
@@ -124,7 +130,9 @@ def train(args):
     # Compare output_metrics to baseline if necessary.
     if args.baseline_metrics_name is not None:
         baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
-        metrics_diff, same = compare_output_metrics(output_metrics, baseline_metrics_path)
+        metrics_diff, same = compare_output_metrics(
+            output_metrics, baseline_metrics_path
+        )
         if same:
             print("Passed test! Output metrics equal to baseline.")
         else:
@@ -133,6 +141,23 @@ def train(args):
             print("Earliest difference: %s" % str(earliest_diff))
 
 
+def make_env(env_id, seed, allow_early_resets):
+    """ Create and return environment object. """
+
+    env = gym.make(env_id)
+    env.seed(seed)
+
+    if str(env.__class__.__name__).find("TimeLimit") >= 0:
+        env = TimeLimitMask(env)
+
+    env = bench.Monitor(env, None, allow_early_resets=allow_early_resets,)
+    env = NormalizeEnv(env)
+    env = PyTorchEnv(env)
+
+    return env
+
+
+"""
 def make_env(env_id, seed, rank, allow_early_resets):
     def _thunk():
         env = gym.make(env_id)
@@ -168,6 +193,7 @@ def make_env(env_id, seed, rank, allow_early_resets):
         return env
 
     return _thunk
+"""
 
 
 def make_vec_envs(
@@ -329,3 +355,99 @@ class VecPyTorchFrameStack(VecEnvWrapper):
 
     def close(self):
         self.venv.close()
+
+
+class PyTorchEnv(gym.Wrapper):
+    """ Environment wrapper to convert observations and rewards to torch.Tensors. """
+
+    def reset(self):
+        obs = self.env.reset()
+        obs = torch.from_numpy(obs).float()
+        return obs
+
+    def step(self, action):
+        if isinstance(action, torch.LongTensor):
+            # Squeeze the dimension for discrete actions
+            action = action.squeeze(1)
+
+        # Convert action to numpy or singleton float/int.
+        if len(action.shape) == 1:
+            if isinstance(action, torch.LongTensor):
+                action = int(action.cpu())
+            else:
+                action = float(action.cpu())
+        else:
+            action = action.cpu().numpy()
+
+        obs, reward, done, info = self.env.step(action)
+        obs = torch.from_numpy(obs).float()
+        reward = torch.Tensor([reward]).float()
+        return obs, reward, done, info
+
+
+class NormalizeEnv(gym.Wrapper):
+    """ Environment wrapper to normalize observations and returns. """
+
+    def __init__(self, env, clip_ob=10.0, clip_rew=10.0, gamma=0.99, epsilon=1e-8):
+
+        super().__init__(env)
+
+        # Save state.
+        self.clip_ob = clip_ob
+        self.clip_rew = clip_rew
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+        # Create running estimates of observation/return mean and standard deviation,
+        # and a float to store the sum of discounted rewards.
+        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
+        self.ret_rms = RunningMeanStd(shape=())
+        self.ret = 0.0
+
+        # Start in training mode.
+        self.training = True
+
+    def reset(self):
+        self.ret = 0.0
+        obs = self.env.reset()
+        return self._obfilt(obs)
+
+    def step(self, action):
+
+        obs, reward, done, info = self.env.step(action)
+        self.ret = self.ret * self.gamma + reward
+        obs = self._obfilt(obs)
+        self.ret_rms.update(np.array([self.ret]))
+        reward = np.clip(
+            reward / np.sqrt(self.ret_rms.var + self.epsilon),
+            -self.clip_rew,
+            self.clip_rew,
+        )
+
+        if done:
+            self.ret = 0.0
+
+        return obs, reward, done, info
+
+    def _obfilt(self, obs, update=True):
+
+        # Set datatype of obs properly.
+        obs = obs.astype(np.float32)
+
+        if self.ob_rms:
+            if update:
+                self.ob_rms.update(np.expand_dims(obs, axis=0))
+            obs = np.clip(
+                (obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
+                -self.clip_ob,
+                self.clip_ob,
+            )
+            return obs
+        else:
+            return obs
+
+    def train(self):
+        self.training = True
+
+    def eval(self):
+        self.training = False
