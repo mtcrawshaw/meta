@@ -1,11 +1,12 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Make training run on unwrapped environment
+    - Catch continuous environments up with discrete ones
+    - Implement collect_rollout() in meta/train.py
     - Restructure training loop to match develop/num-env-steps argument
-    - Align function signatures for all files in meta/
     - Minimize diff for all files in meta/
 
 Conversion tasks to leave for later:
+    - Unwrap enviroment
     - Remove masks
     - Remove proper time limits option

@@ -62,10 +62,7 @@ class PPOPolicy:
         if self.distribution_cls == Categorical:
             action = dist.sample().unsqueeze(-1)
             action_log_probs = (
-                dist.log_prob(action.squeeze(-1))
-                .view(action.size(0), -1)
-                .sum(-1)
-                .unsqueeze(-1)
+                dist.log_prob(action.squeeze(-1)).view(action.size(0), -1).sum(-1)
             )
         elif self.distribution_cls == Normal:
             action = dist.sample()
@@ -102,8 +99,8 @@ class PPOPolicy:
         with torch.no_grad():
             next_value = self.get_value(rollouts.obs[-1]).detach()
 
-        num_steps, num_processes = rollouts.rewards.size()[0:2]
-        returns = torch.zeros(num_steps + 1, num_processes, 1)
+        num_steps = rollouts.rewards.size()[0]
+        returns = torch.zeros(num_steps + 1, 1)
         if self.use_proper_time_limits:
             rollouts.value_preds[-1] = next_value
             gae = 0

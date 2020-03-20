@@ -2,30 +2,26 @@ import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 
-def _flatten_helper(T, N, _tensor):
-    return _tensor.view(T * N, *_tensor.size()[2:])
-
-
 class RolloutStorage:
     def __init__(
-        self, num_steps, num_processes, obs_shape, action_space,
+        self, num_steps, obs_shape, action_space,
     ):
-        self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
-        self.rewards = torch.zeros(num_steps, num_processes, 1)
-        self.value_preds = torch.zeros(num_steps + 1, num_processes, 1)
-        self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
+        self.obs = torch.zeros(num_steps + 1, *obs_shape)
+        self.rewards = torch.zeros(num_steps, 1)
+        self.value_preds = torch.zeros(num_steps + 1, 1)
+        self.action_log_probs = torch.zeros(num_steps, 1)
         if action_space.__class__.__name__ == "Discrete":
             action_shape = 1
         else:
             action_shape = action_space.shape[0]
-        self.actions = torch.zeros(num_steps, num_processes, action_shape)
+        self.actions = torch.zeros(num_steps, action_shape)
         if action_space.__class__.__name__ == "Discrete":
             self.actions = self.actions.long()
-        self.masks = torch.ones(num_steps + 1, num_processes, 1)
+        self.masks = torch.ones(num_steps + 1, 1)
 
         # Masks that indicate whether it's a true terminal state
         # or time limit end state
-        self.bad_masks = torch.ones(num_steps + 1, num_processes, 1)
+        self.bad_masks = torch.ones(num_steps + 1, 1)
 
         self.num_steps = num_steps
         self.step = 0
@@ -49,20 +45,18 @@ class RolloutStorage:
         self.bad_masks[0].copy_(self.bad_masks[-1])
 
     def feed_forward_generator(self, minibatch_size):
-        num_steps, num_processes = self.rewards.size()[0:2]
-        batch_size = num_processes * num_steps
+        batch_size = self.rewards.size()[0]  # This is args.num_steps
         if minibatch_size > batch_size:
             raise ValueError(
                 "Minibatch size (%d) is required to be no larger than"
-                " num_processes (%d) times num_steps (%d)"
-                % (minibatch_size, num_processes, num_steps)
+                " num_steps (%d)" % (minibatch_size, num_steps)
             )
 
         sampler = BatchSampler(
             SubsetRandomSampler(range(batch_size)), minibatch_size, drop_last=True
         )
         for indices in sampler:
-            obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
+            obs_batch = self.obs[:-1].view(-1, *self.obs.size()[1:])[indices]
             actions_batch = self.actions.view(-1, self.actions.size(-1))[indices]
             value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
             masks_batch = self.masks[:-1].view(-1, 1)[indices]

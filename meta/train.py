@@ -21,11 +21,6 @@ def train(args):
     torch.cuda.manual_seed_all(args.seed)
     torch.set_num_threads(1)
 
-    """
-    envs = make_vec_envs(
-        args.env_name, args.seed, args.num_processes, args.gamma, False,
-    )
-    """
     envs = make_env(args.env_name, args.seed, False)
 
     policy = PPOPolicy(
@@ -45,10 +40,7 @@ def train(args):
     )
 
     rollouts = RolloutStorage(
-        args.num_steps,
-        args.num_processes,
-        envs.observation_space.shape,
-        envs.action_space,
+        args.num_steps, envs.observation_space.shape, envs.action_space,
     )
 
     obs = envs.reset()
@@ -59,7 +51,7 @@ def train(args):
     output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
-    num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
+    num_updates = int(args.num_env_steps) // args.num_steps
     for j in range(num_updates):
 
         for step in range(args.num_steps):
@@ -74,9 +66,9 @@ def train(args):
                 episode_rewards.append(infos["episode"]["r"])
 
             # If done then clean the history of observations.
-            masks = torch.FloatTensor([[0.0] if done else [1.0]])
+            masks = torch.FloatTensor([0.0 if done else 1.0])
             bad_masks = torch.FloatTensor(
-                [[0.0] if "bad_transition" in infos.keys() else [1.0]]
+                [0.0 if "bad_transition" in infos.keys() else 1.0]
             )
             rollouts.insert(
                 obs, action, action_log_prob, value, reward, masks, bad_masks,
@@ -86,7 +78,7 @@ def train(args):
         rollouts.after_update()
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
-            total_num_steps = (j + 1) * args.num_processes * args.num_steps
+            total_num_steps = (j + 1) * args.num_steps
             end = time.time()
             print(
                 "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
@@ -168,7 +160,7 @@ class PyTorchEnv(gym.Wrapper):
     def step(self, action):
         if isinstance(action, torch.LongTensor):
             # Squeeze the dimension for discrete actions
-            action = action.squeeze(1)
+            action = action.squeeze(0)
 
         # Convert action to numpy or singleton float/int.
         if len(action.shape) == 1:

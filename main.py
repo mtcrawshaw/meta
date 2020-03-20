@@ -55,12 +55,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=1, help="random seed (default: 1)")
     parser.add_argument(
-        "--num-processes",
-        type=int,
-        default=16,
-        help="how many training CPU processes to use (default: 16)",
-    )
-    parser.add_argument(
         "--num-steps",
         type=int,
         default=5,
