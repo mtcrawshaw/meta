@@ -6,14 +6,7 @@ import pickle
 import numpy as np
 import torch
 import gym
-from gym.spaces.box import Box
-from gym import Env
 from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
-from baselines.common.vec_env import VecEnvWrapper
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
-from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.ppo import PPOPolicy
@@ -105,17 +98,13 @@ def train(args):
                     np.median(episode_rewards),
                     np.min(episode_rewards),
                     np.max(episode_rewards),
-                    dist_entropy,
-                    value_loss,
-                    action_loss,
                 )
             )
 
-            for metric_name in metric_names:
-                output_metrics["mean"].append(np.mean(episode_rewards))
-                output_metrics["median"].append(np.median(episode_rewards))
-                output_metrics["min"].append(np.min(episode_rewards))
-                output_metrics["max"].append(np.max(episode_rewards))
+            output_metrics["mean"].append(np.mean(episode_rewards))
+            output_metrics["median"].append(np.median(episode_rewards))
+            output_metrics["min"].append(np.min(episode_rewards))
+            output_metrics["max"].append(np.max(episode_rewards))
 
     # Save output_metrics if necessary.
     if args.output_metrics_name is not None:
