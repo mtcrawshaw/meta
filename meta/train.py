@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 import torch
 import gym
+from gym.spaces import Discrete
 from baselines import bench
 from baselines.common.running_mean_std import RunningMeanStd
 
@@ -163,7 +164,7 @@ class PyTorchEnv(gym.Wrapper):
             action = action.squeeze(0)
 
         # Convert action to numpy or singleton float/int.
-        if len(action.shape) == 1:
+        if isinstance(self.action_space, Discrete):
             if isinstance(action, torch.LongTensor):
                 action = int(action.cpu())
             else:

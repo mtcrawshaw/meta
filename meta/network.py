@@ -1,8 +1,9 @@
+import torch
 import numpy as np
 import torch.nn as nn
 from gym.spaces import Box, Discrete
 
-from meta.utils import init, get_space_size
+from meta.utils import init, get_space_size, AddBias
 
 
 class PolicyNetwork(nn.Module):
@@ -46,7 +47,7 @@ class PolicyNetwork(nn.Module):
         # Extra parameter vector for standard deviations in the case that
         # the policy distribution is Gaussian.
         if isinstance(action_space, Box):
-            self.logstd = torch.zeros(self.output_size)
+            self.add_bias = nn.Parameter(torch.zeros(self.output_size))
 
         self.train()
 
@@ -60,6 +61,7 @@ class PolicyNetwork(nn.Module):
             action_probs = {"logits": actor_output}
         elif isinstance(self.action_space, Box):
             # Matches torch.distribution.Normal
-            action_probs = {"loc": actor_output, "scale": self.logstd.exp()}
+            action_logstd = self.add_bias + torch.zeros(self.output_size)
+            action_probs = {"loc": actor_output, "scale": action_logstd.exp()}
 
         return value_pred, action_probs
