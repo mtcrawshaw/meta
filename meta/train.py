@@ -40,6 +40,12 @@ def train(args):
         max_grad_norm=args.max_grad_norm,
     )
 
+    # DEBUG
+    STATE_DICT_FILENAME = "data/parameters/original_continuous_parameters.pkl"
+    with open(STATE_DICT_FILENAME, "rb") as f:
+        state_dict = pickle.load(f)
+    policy.policy_network.load_state_dict(state_dict, strict=True)
+
     rollouts = RolloutStorage(
         args.num_steps, envs.observation_space.shape, envs.action_space,
     )
