@@ -180,7 +180,11 @@ class PyTorchEnv(gym.Wrapper):
 
         obs, reward, done, info = self.env.step(action)
         obs = torch.from_numpy(obs).float()
-        reward = torch.Tensor([reward]).float()
+
+        # DEBUG
+        # reward = torch.Tensor([reward]).float()
+        reward = torch.Tensor(reward).float()
+
         return obs, reward, done, info
 
 
@@ -201,13 +205,13 @@ class NormalizeEnv(gym.Wrapper):
         # and a float to store the sum of discounted rewards.
         self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
         self.ret_rms = RunningMeanStd(shape=())
-        self.ret = 0.0
+        self.ret = np.zeros(1)
 
         # Start in training mode.
         self.training = True
 
     def reset(self):
-        self.ret = 0.0
+        self.ret = np.zeros(1)
         obs = self.env.reset()
         return self._obfilt(obs)
 
@@ -217,9 +221,12 @@ class NormalizeEnv(gym.Wrapper):
         if done:
             obs = self.env.reset()
 
+        # DEBUG
+        reward = np.array([reward], dtype=np.float32)
+
         self.ret = self.ret * self.gamma + reward
         obs = self._obfilt(obs)
-        self.ret_rms.update(np.array([self.ret]))
+        self.ret_rms.update(np.array(self.ret))
         reward = np.clip(
             reward / np.sqrt(self.ret_rms.var + self.epsilon),
             -self.clip_rew,
@@ -227,7 +234,7 @@ class NormalizeEnv(gym.Wrapper):
         )
 
         if done:
-            self.ret = 0.0
+            self.ret = np.zeros(1)
 
         return obs, reward, done, info
 
