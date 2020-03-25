@@ -47,7 +47,7 @@ class PolicyNetwork(nn.Module):
         # Extra parameter vector for standard deviations in the case that
         # the policy distribution is Gaussian.
         if isinstance(action_space, Box):
-            self.add_bias = nn.Parameter(torch.zeros(self.output_size))
+            self.logstd = AddBias(torch.zeros(self.output_size))
 
         self.train()
 
@@ -61,7 +61,7 @@ class PolicyNetwork(nn.Module):
             action_probs = {"logits": actor_output}
         elif isinstance(self.action_space, Box):
             # Matches torch.distribution.Normal
-            action_logstd = self.add_bias + torch.zeros(self.output_size)
+            action_logstd = self.logstd(torch.zeros(actor_output.size()))
             action_probs = {"loc": actor_output, "scale": action_logstd.exp()}
 
         return value_pred, action_probs
