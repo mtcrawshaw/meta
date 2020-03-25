@@ -40,12 +40,6 @@ def train(args):
         max_grad_norm=args.max_grad_norm,
     )
 
-    # DEBUG
-    STATE_DICT_FILENAME = "data/parameters/original_continuous_parameters.pkl"
-    with open(STATE_DICT_FILENAME, "rb") as f:
-        state_dict = pickle.load(f)
-    policy.policy_network.load_state_dict(state_dict, strict=True)
-
     rollouts = RolloutStorage(
         args.num_steps, envs.observation_space.shape, envs.action_space,
     )
@@ -180,10 +174,7 @@ class PyTorchEnv(gym.Wrapper):
 
         obs, reward, done, info = self.env.step(action)
         obs = torch.from_numpy(obs).float()
-
-        # DEBUG
-        # reward = torch.Tensor([reward]).float()
-        reward = torch.Tensor(reward).float()
+        reward = torch.Tensor([reward]).float()
 
         return obs, reward, done, info
 
@@ -220,9 +211,6 @@ class NormalizeEnv(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
         if done:
             obs = self.env.reset()
-
-        # DEBUG
-        reward = np.array([reward], dtype=np.float32)
 
         self.ret = self.ret * self.gamma + reward
         obs = self._obfilt(obs)
