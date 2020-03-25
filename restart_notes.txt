@@ -1,11 +1,6 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Catch continuous environments up with discrete ones
-        - Create new branch, start from 1300188
-        - Benchmark original metrics
-        - Move from 1300188 to base_restart, preserving performance on continuous
-          environments
     - Implement collect_rollout() in meta/train.py
     - Restructure training loop to match develop/num-env-steps argument
     - Minimize diff for all files in meta/
