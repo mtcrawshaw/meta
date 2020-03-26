@@ -2,10 +2,12 @@ import time
 from collections import deque
 import os
 import pickle
+from typing import List, Any
 
 import numpy as np
 import torch
 import gym
+from gym import Env
 from gym.spaces import Discrete
 from baselines import bench
 from baselines.common.running_mean_std import RunningMeanStd
@@ -15,6 +17,44 @@ from meta.storage import RolloutStorage
 from meta.utils import compare_output_metrics, METRICS_DIR
 
 
+def collect_rollout(env, policy, rollout_length, initial_entries):
+
+    initial_obs, initial_masks, initial_bad_masks = initial_entries
+
+    rollouts = RolloutStorage(
+        rollout_length, env.observation_space.shape, env.action_space,
+    )
+    rollouts.obs[0].copy_(initial_obs)
+    if initial_masks is not None:
+        rollouts.masks[0].copy_(initial_masks)
+    if initial_bad_masks is not None:
+        rollouts.bad_masks[0].copy_(initial_bad_masks)
+
+    rollout_episode_rewards = []
+
+    for step in range(rollout_length):
+
+        # Sample actions.
+        with torch.no_grad():
+            value, action, action_log_prob = policy.act(rollouts.obs[step])
+
+        # Perform step and record in ``rollouts``.
+        obs, reward, done, info = env.step(action)
+
+        if "episode" in info.keys():
+            rollout_episode_rewards.append(info["episode"]["r"])
+
+        # If done then clean the history of observations.
+        masks = torch.FloatTensor([0.0 if done else 1.0])
+        bad_masks = torch.FloatTensor([0.0 if "bad_transition" in info.keys() else 1.0])
+        rollouts.insert(
+            obs, action, action_log_prob, value, reward, masks, bad_masks,
+        )
+
+    last_entries = obs, masks, bad_masks
+    return rollouts, last_entries, rollout_episode_rewards
+
+
 def train(args):
 
     # Set random seed and number of threads.
@@ -22,11 +62,11 @@ def train(args):
     torch.cuda.manual_seed_all(args.seed)
     torch.set_num_threads(1)
 
-    envs = make_env(args.env_name, args.seed, False)
+    env = make_env(args.env_name, args.seed, allow_early_resets=False)
 
     policy = PPOPolicy(
-        observation_space=envs.observation_space,
-        action_space=envs.action_space,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
         clip_param=args.clip_param,
         ppo_epoch=args.ppo_epoch,
         minibatch_size=args.minibatch_size,
@@ -40,13 +80,11 @@ def train(args):
         max_grad_norm=args.max_grad_norm,
     )
 
-    rollouts = RolloutStorage(
-        args.num_steps, envs.observation_space.shape, envs.action_space,
-    )
+    # Initialize environment and set first observation.
+    initial_obs = env.reset()
+    last_entries = (initial_obs, None, None)
 
-    obs = envs.reset()
-    rollouts.obs[0].copy_(obs)
-
+    # Training loop.
     episode_rewards = deque(maxlen=10)
     metric_names = ["mean", "median", "min", "max"]
     output_metrics = {metric_name: [] for metric_name in metric_names}
@@ -55,28 +93,12 @@ def train(args):
     num_updates = int(args.num_env_steps) // args.num_steps
     for j in range(num_updates):
 
-        for step in range(args.num_steps):
-            # Sample actions
-            with torch.no_grad():
-                value, action, action_log_prob = policy.act(rollouts.obs[step])
-
-            # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
-
-            if "episode" in infos.keys():
-                episode_rewards.append(infos["episode"]["r"])
-
-            # If done then clean the history of observations.
-            masks = torch.FloatTensor([0.0 if done else 1.0])
-            bad_masks = torch.FloatTensor(
-                [0.0 if "bad_transition" in infos.keys() else 1.0]
-            )
-            rollouts.insert(
-                obs, action, action_log_prob, value, reward, masks, bad_masks,
-            )
+        rollouts, last_entries, rollout_episode_rewards = collect_rollout(
+            env, policy, args.num_steps, last_entries
+        )
 
         value_loss, action_loss, dist_entropy = policy.update(rollouts)
-        rollouts.after_update()
+        episode_rewards.extend(rollout_episode_rewards)
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * args.num_steps
@@ -130,7 +152,7 @@ def make_env(env_id, seed, allow_early_resets):
     if str(env.__class__.__name__).find("TimeLimit") >= 0:
         env = TimeLimitMask(env)
 
-    env = bench.Monitor(env, None, allow_early_resets=allow_early_resets,)
+    env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
     env = NormalizeEnv(env)
     env = PyTorchEnv(env)
 

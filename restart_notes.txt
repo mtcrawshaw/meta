@@ -1,8 +1,8 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Implement collect_rollout() in meta/train.py
     - Restructure training loop to match develop/num-env-steps argument
+    - Remove masks and bad_masks
     - Minimize diff for all files in meta/
 
 Conversion tasks to leave for later:
