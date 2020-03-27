@@ -74,3 +74,7 @@ Current tasks:
 - Control randomness in training with seed
 - Test to make sure rewards for episodes across updates is computed correctly
 - Fix occasional invalid multinomial distribution error
+
+After merging:
+- Fix comments, typing, and naming (episodes vs. rollouts)
+- Convert List[RolloutStorage] back to RolloutStorage

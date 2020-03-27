@@ -1,9 +1,12 @@
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
 from meta.network import PolicyNetwork
+from meta.storage import RolloutStorage, combine_rollouts
 
 
 class PPOPolicy:
@@ -113,9 +116,15 @@ class PPOPolicy:
 
         return returns
 
-    def update(self, rollouts):
+    def update(self, individual_rollouts: List[RolloutStorage]):
 
-        # Compute returns and advantages.
+        # Combine rollouts into one object and compute returns/advantages.
+        rollouts = combine_rollouts(individual_rollouts)
+        for attr in ["obs", "value_preds", "actions", "action_log_probs", "rewards", "masks"]:
+            print(attr)
+            print(getattr(rollouts, attr))
+            print("")
+        exit()
         returns = self.compute_returns(rollouts)
         advantages = returns[:-1] - rollouts.value_preds[:-1]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)

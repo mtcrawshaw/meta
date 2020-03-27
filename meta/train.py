@@ -24,7 +24,7 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
     rollouts = []
     rollouts.append(
         RolloutStorage(
-            rollout_length, env.observation_space.shape, env.action_space,
+            rollout_length, env.observation_space, env.action_space,
         )
     )
     rollouts[0].obs[0].copy_(initial_obs)
@@ -51,9 +51,12 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
         masks = torch.FloatTensor([0.0 if done else 1.0])
         rollouts[-1].insert(obs, action, action_log_prob, value, reward, masks)
 
+        rollout_step += 1
+
         if done and total_rollout_step < rollout_length - 1:
-            rollouts.append(RolloutStorage(rollout_length, env.observation_space.shape, env.action_space))
+            rollouts.append(RolloutStorage(rollout_length, env.observation_space, env.action_space))
             rollouts[-1].obs[0].copy_(obs)
+            rollout_step = 0
 
     last_entries = obs, masks
     return rollouts, last_entries, rollout_episode_rewards
@@ -93,20 +96,13 @@ def train(args):
     output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
+    torch.set_printoptions(precision=10)
     for j in range(args.num_updates):
 
         # Sample rollouts and compute update.
         rollouts, last_entries, rollout_episode_rewards = collect_rollout(
             env, policy, args.rollout_length, last_entries
         )
-        for rollout in rollouts:
-            print("obs: %s" % rollout.obs)
-            print("action: %s" % rollout.actions)
-            print("action_log_prob: %s" % rollout.action_log_probs)
-            print("value: %s" % rollout.value_preds)
-            print("reward: %s" % rollout.rewards)
-            print("masks: %s" % rollout.masks)
-        exit()
 
         value_loss, action_loss, dist_entropy = policy.update(rollouts)
         episode_rewards.extend(rollout_episode_rewards)
