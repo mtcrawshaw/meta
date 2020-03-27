@@ -24,6 +24,7 @@ class RolloutStorage:
         if action_space.__class__.__name__ == "Discrete":
             self.actions = self.actions.long()
         self.masks = torch.ones(num_steps + 1, 1)
+        self.done = False
 
         self.num_steps = num_steps
         self.step = 0

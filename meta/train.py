@@ -46,6 +46,8 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
 
         if "episode" in info.keys():
             rollout_episode_rewards.append(info["episode"]["r"])
+        if done:
+            rollouts[-1].done = True
 
         # If done then clean the history of observations.
         masks = torch.FloatTensor([0.0 if done else 1.0])
@@ -96,7 +98,6 @@ def train(args):
     output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
-    torch.set_printoptions(precision=10)
     for j in range(args.num_updates):
 
         # Sample rollouts and compute update.

@@ -39,6 +39,7 @@ class PPOPolicy:
         self.gae_lambda = gae_lambda
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
+        self.eps = eps
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
 
@@ -95,39 +96,45 @@ class PPOPolicy:
 
         return value, action_log_probs, dist_entropy
 
-    def compute_returns(self, rollouts):
+    def compute_returns_advantages(self, individual_rollouts: List[RolloutStorage]):
 
-        with torch.no_grad():
-            next_value = self.get_value(rollouts.obs[-1]).detach()
+        total_length = sum(rollout.step for rollout in individual_rollouts)
+        returns = torch.zeros(total_length, 1)
+        advantages = torch.zeros(total_length, 1)
 
-        num_steps = rollouts.rewards.size()[0]
-        returns = torch.zeros(num_steps + 1, 1)
+        for i, rollout in reversed(list(enumerate(individual_rollouts))):
 
-        rollouts.value_preds[-1] = next_value
-        gae = 0
-        for step in reversed(range(rollouts.rewards.size(0))):
-            delta = (
-                rollouts.rewards[step]
-                + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
-                - rollouts.value_preds[step]
-            )
-            gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
-            returns[step] = gae + rollouts.value_preds[step]
+            current_pos = sum(rollout.step for rollout in individual_rollouts[:i])
 
-        return returns
+            # Compute returns.
+            with torch.no_grad():
+                next_value = self.get_value(rollout.obs[rollout.step]).detach()
+
+            rollout.value_preds[rollout.step] = next_value
+            gae = 0
+            for step in reversed(range(rollout.step)):
+                delta = rollout.rewards[step]
+                if not (step == rollout.step - 1 and rollout.done):
+                    delta += self.gamma * rollout.value_preds[step + 1]
+                delta -= rollout.value_preds[step]
+
+                gae = delta + self.gamma * self.gae_lambda * gae
+                returns[current_pos + step] = gae + rollout.value_preds[step]
+
+            # Compute advantages.
+            end_pos = current_pos + rollout.step
+            advantages[current_pos: end_pos] = returns[current_pos: end_pos] - rollout.value_preds[: rollout.step]
+
+        # Normalize advantages.
+        advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
+
+        return returns, advantages
 
     def update(self, individual_rollouts: List[RolloutStorage]):
 
         # Combine rollouts into one object and compute returns/advantages.
         rollouts = combine_rollouts(individual_rollouts)
-        for attr in ["obs", "value_preds", "actions", "action_log_probs", "rewards", "masks"]:
-            print(attr)
-            print(getattr(rollouts, attr))
-            print("")
-        exit()
-        returns = self.compute_returns(rollouts)
-        advantages = returns[:-1] - rollouts.value_preds[:-1]
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
+        returns, advantages = self.compute_returns_advantages(individual_rollouts)
 
         value_loss_epoch = 0
         action_loss_epoch = 0
@@ -146,7 +153,7 @@ class PPOPolicy:
                     masks_batch,
                     old_action_log_probs_batch,
                 ) = sample
-                returns_batch = returns[:-1].view(-1, 1)[batch_indices]
+                returns_batch = returns.view(-1, 1)[batch_indices]
                 advantages_batch = advantages.view(-1, 1)[batch_indices]
 
                 # Reshape to do in a single forward pass for all steps
