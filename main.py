@@ -55,10 +55,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=1, help="random seed (default: 1)")
     parser.add_argument(
-        "--num-steps",
+        "--rollout-length",
         type=int,
         default=5,
-        help="number of forward steps in A2C (default: 5)",
+        help="number of environment steps per update (default: 5)",
     )
     parser.add_argument(
         "--ppo-epoch", type=int, default=4, help="number of ppo epochs (default: 4)"
@@ -82,10 +82,10 @@ if __name__ == "__main__":
         help="log interval, one log per n updates (default: 10)",
     )
     parser.add_argument(
-        "--num-env-steps",
+        "--num-updates",
         type=int,
-        default=15000,
-        help="number of environment steps to train (default: 15000)",
+        default=3000,
+        help="number of update steps (default: 3000)",
     )
     parser.add_argument(
         "--env-name",

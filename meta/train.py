@@ -90,18 +90,19 @@ def train(args):
     output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
-    num_updates = int(args.num_env_steps) // args.num_steps
-    for j in range(num_updates):
+    for j in range(args.num_updates):
 
+        # Sample rollouts and compute update.
         rollouts, last_entries, rollout_episode_rewards = collect_rollout(
-            env, policy, args.num_steps, last_entries
+            env, policy, args.rollout_length, last_entries
         )
 
         value_loss, action_loss, dist_entropy = policy.update(rollouts)
         episode_rewards.extend(rollout_episode_rewards)
 
+        # Update and print metrics.
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
-            total_num_steps = (j + 1) * args.num_steps
+            total_num_steps = (j + 1) * args.rollout_length
             end = time.time()
             print(
                 "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(

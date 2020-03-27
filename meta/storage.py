@@ -45,7 +45,7 @@ class RolloutStorage:
         self.bad_masks[0].copy_(self.bad_masks[-1])
 
     def feed_forward_generator(self, minibatch_size):
-        batch_size = self.rewards.size()[0]  # This is args.num_steps
+        batch_size = self.rewards.size()[0]  # This is args.rollout_length
         if minibatch_size > batch_size:
             raise ValueError(
                 "Minibatch size (%d) is required to be no larger than"
