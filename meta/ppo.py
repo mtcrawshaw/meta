@@ -18,7 +18,6 @@ class PPOPolicy:
         minibatch_size,
         gamma,
         gae_lambda,
-        use_proper_time_limits,
         value_loss_coef,
         entropy_coef,
         lr=None,
@@ -35,7 +34,6 @@ class PPOPolicy:
         self.minibatch_size = minibatch_size
         self.gamma = gamma
         self.gae_lambda = gae_lambda
-        self.use_proper_time_limits = use_proper_time_limits
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
         self.max_grad_norm = max_grad_norm
@@ -101,39 +99,17 @@ class PPOPolicy:
 
         num_steps = rollouts.rewards.size()[0]
         returns = torch.zeros(num_steps + 1, 1)
-        if self.use_proper_time_limits:
-            rollouts.value_preds[-1] = next_value
-            gae = 0
-            for step in reversed(range(rollouts.rewards.size(0))):
-                delta = (
-                    rollouts.rewards[step]
-                    + self.gamma
-                    * rollouts.value_preds[step + 1]
-                    * rollouts.masks[step + 1]
-                    - rollouts.value_preds[step]
-                )
-                gae = (
-                    delta
-                    + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
-                )
-                gae = gae * rollouts.bad_masks[step + 1]
-                returns[step] = gae + rollouts.value_preds[step]
-        else:
-            rollouts.value_preds[-1] = next_value
-            gae = 0
-            for step in reversed(range(rollouts.rewards.size(0))):
-                delta = (
-                    rollouts.rewards[step]
-                    + self.gamma
-                    * rollouts.value_preds[step + 1]
-                    * rollouts.masks[step + 1]
-                    - rollouts.value_preds[step]
-                )
-                gae = (
-                    delta
-                    + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
-                )
-                returns[step] = gae + rollouts.value_preds[step]
+
+        rollouts.value_preds[-1] = next_value
+        gae = 0
+        for step in reversed(range(rollouts.rewards.size(0))):
+            delta = (
+                rollouts.rewards[step]
+                + self.gamma * rollouts.value_preds[step + 1] * rollouts.masks[step + 1]
+                - rollouts.value_preds[step]
+            )
+            gae = delta + self.gamma * self.gae_lambda * rollouts.masks[step + 1] * gae
+            returns[step] = gae + rollouts.value_preds[step]
 
         return returns
 

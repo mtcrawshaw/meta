@@ -93,12 +93,6 @@ if __name__ == "__main__":
         help="environment to train on (default: PongNoFrameskip-v4)",
     )
     parser.add_argument(
-        "--use-proper-time-limits",
-        action="store_true",
-        default=False,
-        help="compute returns taking into account time limits",
-    )
-    parser.add_argument(
         "--save-output-metrics",
         dest="output_metrics_name",
         default=None,

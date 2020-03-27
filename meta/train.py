@@ -19,7 +19,7 @@ from meta.utils import compare_output_metrics, METRICS_DIR
 
 def collect_rollout(env, policy, rollout_length, initial_entries):
 
-    initial_obs, initial_masks, initial_bad_masks = initial_entries
+    initial_obs, initial_masks = initial_entries
 
     rollouts = RolloutStorage(
         rollout_length, env.observation_space.shape, env.action_space,
@@ -27,8 +27,6 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
     rollouts.obs[0].copy_(initial_obs)
     if initial_masks is not None:
         rollouts.masks[0].copy_(initial_masks)
-    if initial_bad_masks is not None:
-        rollouts.bad_masks[0].copy_(initial_bad_masks)
 
     rollout_episode_rewards = []
 
@@ -46,12 +44,9 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
 
         # If done then clean the history of observations.
         masks = torch.FloatTensor([0.0 if done else 1.0])
-        bad_masks = torch.FloatTensor([0.0 if "bad_transition" in info.keys() else 1.0])
-        rollouts.insert(
-            obs, action, action_log_prob, value, reward, masks, bad_masks,
-        )
+        rollouts.insert(obs, action, action_log_prob, value, reward, masks)
 
-    last_entries = obs, masks, bad_masks
+    last_entries = obs, masks
     return rollouts, last_entries, rollout_episode_rewards
 
 
@@ -72,7 +67,6 @@ def train(args):
         minibatch_size=args.minibatch_size,
         gamma=args.gamma,
         gae_lambda=args.gae_lambda,
-        use_proper_time_limits=args.use_proper_time_limits,
         value_loss_coef=args.value_loss_coef,
         entropy_coef=args.entropy_coef,
         lr=args.lr,
@@ -82,7 +76,7 @@ def train(args):
 
     # Initialize environment and set first observation.
     initial_obs = env.reset()
-    last_entries = (initial_obs, None, None)
+    last_entries = (initial_obs, None)
 
     # Training loop.
     episode_rewards = deque(maxlen=10)
@@ -168,9 +162,6 @@ class TimeLimitMask(gym.Wrapper):
             info["bad_transition"] = True
 
         return obs, rew, done, info
-
-    def reset(self, **kwargs):
-        return self.env.reset(**kwargs)
 
 
 class PyTorchEnv(gym.Wrapper):
