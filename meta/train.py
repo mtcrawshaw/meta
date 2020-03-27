@@ -21,20 +21,25 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
 
     initial_obs, initial_masks = initial_entries
 
-    rollouts = RolloutStorage(
-        rollout_length, env.observation_space.shape, env.action_space,
+    rollouts = []
+    rollouts.append(
+        RolloutStorage(
+            rollout_length, env.observation_space.shape, env.action_space,
+        )
     )
-    rollouts.obs[0].copy_(initial_obs)
+    rollouts[0].obs[0].copy_(initial_obs)
     if initial_masks is not None:
-        rollouts.masks[0].copy_(initial_masks)
+        rollouts[0].masks[0].copy_(initial_masks)
 
     rollout_episode_rewards = []
 
-    for step in range(rollout_length):
+    # Rollout loop.
+    rollout_step = 0
+    for total_rollout_step in range(rollout_length):
 
         # Sample actions.
         with torch.no_grad():
-            value, action, action_log_prob = policy.act(rollouts.obs[step])
+            value, action, action_log_prob = policy.act(rollouts[-1].obs[rollout_step])
 
         # Perform step and record in ``rollouts``.
         obs, reward, done, info = env.step(action)
@@ -44,7 +49,11 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
 
         # If done then clean the history of observations.
         masks = torch.FloatTensor([0.0 if done else 1.0])
-        rollouts.insert(obs, action, action_log_prob, value, reward, masks)
+        rollouts[-1].insert(obs, action, action_log_prob, value, reward, masks)
+
+        if done and total_rollout_step < rollout_length - 1:
+            rollouts.append(RolloutStorage(rollout_length, env.observation_space.shape, env.action_space))
+            rollouts[-1].obs[0].copy_(obs)
 
     last_entries = obs, masks
     return rollouts, last_entries, rollout_episode_rewards
@@ -90,6 +99,14 @@ def train(args):
         rollouts, last_entries, rollout_episode_rewards = collect_rollout(
             env, policy, args.rollout_length, last_entries
         )
+        for rollout in rollouts:
+            print("obs: %s" % rollout.obs)
+            print("action: %s" % rollout.actions)
+            print("action_log_prob: %s" % rollout.action_log_probs)
+            print("value: %s" % rollout.value_preds)
+            print("reward: %s" % rollout.rewards)
+            print("masks: %s" % rollout.masks)
+        exit()
 
         value_loss, action_loss, dist_entropy = policy.update(rollouts)
         episode_rewards.extend(rollout_episode_rewards)
