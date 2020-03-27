@@ -2,12 +2,10 @@ import time
 from collections import deque
 import os
 import pickle
-from typing import List, Any
 
 import numpy as np
 import torch
 import gym
-from gym import Env
 from gym.spaces import Discrete
 from baselines import bench
 from baselines.common.running_mean_std import RunningMeanStd
@@ -21,9 +19,7 @@ def collect_rollout(env, policy, rollout_length, initial_obs):
 
     rollouts = []
     rollouts.append(
-        RolloutStorage(
-            rollout_length, env.observation_space, env.action_space,
-        )
+        RolloutStorage(rollout_length, env.observation_space, env.action_space,)
     )
     rollouts[0].obs[0].copy_(initial_obs)
 
@@ -51,7 +47,9 @@ def collect_rollout(env, policy, rollout_length, initial_obs):
         rollout_step += 1
 
         if done and total_rollout_step < rollout_length - 1:
-            rollouts.append(RolloutStorage(rollout_length, env.observation_space, env.action_space))
+            rollouts.append(
+                RolloutStorage(rollout_length, env.observation_space, env.action_space)
+            )
             rollouts[-1].obs[0].copy_(obs)
             rollout_step = 0
 

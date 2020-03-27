@@ -43,15 +43,12 @@ class RolloutStorage:
 
         self.step += 1
 
-    def after_update(self):
-        self.obs[0].copy_(self.obs[-1])
-
     def feed_forward_generator(self, minibatch_size):
         batch_size = self.rewards.size()[0]  # This is args.rollout_length
         if minibatch_size > batch_size:
             raise ValueError(
                 "Minibatch size (%d) is required to be no larger than"
-                " num_steps (%d)" % (minibatch_size, num_steps)
+                " rollout_length (%d)" % (minibatch_size, batch_size)
             )
 
         sampler = BatchSampler(
@@ -75,7 +72,9 @@ class RolloutStorage:
         self.obs[pos:end] = new_rollout.obs[: new_rollout.step]
         self.value_preds[pos:end] = new_rollout.value_preds[: new_rollout.step]
         self.actions[pos:end] = new_rollout.actions[: new_rollout.step]
-        self.action_log_probs[pos:end] = new_rollout.action_log_probs[: new_rollout.step]
+        self.action_log_probs[pos:end] = new_rollout.action_log_probs[
+            : new_rollout.step
+        ]
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.step]
 
 

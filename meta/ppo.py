@@ -123,7 +123,9 @@ class PPOPolicy:
 
             # Compute advantages.
             end_pos = current_pos + rollout.step
-            advantages[current_pos: end_pos] = returns[current_pos: end_pos] - rollout.value_preds[: rollout.step]
+            advantages[current_pos:end_pos] = (
+                returns[current_pos:end_pos] - rollout.value_preds[: rollout.step]
+            )
 
         # Normalize advantages.
         advantages = (advantages - advantages.mean()) / (advantages.std() + self.eps)
