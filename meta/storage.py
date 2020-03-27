@@ -23,14 +23,13 @@ class RolloutStorage:
         self.actions = torch.zeros(num_steps, action_shape)
         if action_space.__class__.__name__ == "Discrete":
             self.actions = self.actions.long()
-        self.masks = torch.ones(num_steps + 1, 1)
         self.done = False
 
         self.num_steps = num_steps
         self.step = 0
 
     def insert(
-        self, obs, actions, action_log_probs, value_preds, rewards, masks,
+        self, obs, actions, action_log_probs, value_preds, rewards,
     ):
 
         if self.step > self.num_steps:
@@ -41,13 +40,11 @@ class RolloutStorage:
         self.action_log_probs[self.step].copy_(action_log_probs)
         self.value_preds[self.step].copy_(value_preds)
         self.rewards[self.step].copy_(rewards)
-        self.masks[self.step + 1].copy_(masks)
 
         self.step += 1
 
     def after_update(self):
         self.obs[0].copy_(self.obs[-1])
-        self.masks[0].copy_(self.masks[-1])
 
     def feed_forward_generator(self, minibatch_size):
         batch_size = self.rewards.size()[0]  # This is args.rollout_length
@@ -64,10 +61,9 @@ class RolloutStorage:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[1:])[indices]
             actions_batch = self.actions.view(-1, self.actions.size(-1))[indices]
             value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
-            masks_batch = self.masks[:-1].view(-1, 1)[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
 
-            yield indices, obs_batch, actions_batch, value_preds_batch, masks_batch, old_action_log_probs_batch
+            yield indices, obs_batch, actions_batch, value_preds_batch, old_action_log_probs_batch
 
     def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
         """
@@ -81,7 +77,6 @@ class RolloutStorage:
         self.actions[pos:end] = new_rollout.actions[: new_rollout.step]
         self.action_log_probs[pos:end] = new_rollout.action_log_probs[: new_rollout.step]
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.step]
-        self.masks[pos:end] = new_rollout.masks[: new_rollout.step]
 
 
 def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorage:

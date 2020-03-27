@@ -150,7 +150,6 @@ class PPOPolicy:
                     obs_batch,
                     actions_batch,
                     value_preds_batch,
-                    masks_batch,
                     old_action_log_probs_batch,
                 ) = sample
                 returns_batch = returns.view(-1, 1)[batch_indices]

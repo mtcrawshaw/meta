@@ -17,9 +17,7 @@ from meta.storage import RolloutStorage
 from meta.utils import compare_output_metrics, METRICS_DIR
 
 
-def collect_rollout(env, policy, rollout_length, initial_entries):
-
-    initial_obs, initial_masks = initial_entries
+def collect_rollout(env, policy, rollout_length, initial_obs):
 
     rollouts = []
     rollouts.append(
@@ -28,8 +26,6 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
         )
     )
     rollouts[0].obs[0].copy_(initial_obs)
-    if initial_masks is not None:
-        rollouts[0].masks[0].copy_(initial_masks)
 
     rollout_episode_rewards = []
 
@@ -50,8 +46,7 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
             rollouts[-1].done = True
 
         # If done then clean the history of observations.
-        masks = torch.FloatTensor([0.0 if done else 1.0])
-        rollouts[-1].insert(obs, action, action_log_prob, value, reward, masks)
+        rollouts[-1].insert(obs, action, action_log_prob, value, reward)
 
         rollout_step += 1
 
@@ -60,8 +55,7 @@ def collect_rollout(env, policy, rollout_length, initial_entries):
             rollouts[-1].obs[0].copy_(obs)
             rollout_step = 0
 
-    last_entries = obs, masks
-    return rollouts, last_entries, rollout_episode_rewards
+    return rollouts, obs, rollout_episode_rewards
 
 
 def train(args):
@@ -89,8 +83,7 @@ def train(args):
     )
 
     # Initialize environment and set first observation.
-    initial_obs = env.reset()
-    last_entries = (initial_obs, None)
+    current_obs = env.reset()
 
     # Training loop.
     episode_rewards = deque(maxlen=10)
@@ -101,8 +94,8 @@ def train(args):
     for j in range(args.num_updates):
 
         # Sample rollouts and compute update.
-        rollouts, last_entries, rollout_episode_rewards = collect_rollout(
-            env, policy, args.rollout_length, last_entries
+        rollouts, current_obs, rollout_episode_rewards = collect_rollout(
+            env, policy, args.rollout_length, current_obs
         )
 
         value_loss, action_loss, dist_entropy = policy.update(rollouts)

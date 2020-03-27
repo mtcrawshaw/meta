@@ -1,10 +1,7 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Remove masks and bad_masks
     - Minimize diff for all files in meta/
 
 Conversion tasks to leave for later:
     - Unwrap enviroment
-    - Remove masks
-    - Remove proper time limits option
