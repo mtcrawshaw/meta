@@ -78,3 +78,4 @@ Current tasks:
 After merging:
 - Fix comments, typing, and naming (episodes vs. rollouts)
 - Convert List[RolloutStorage] back to RolloutStorage
+- Make policy return distribution object, not arguments

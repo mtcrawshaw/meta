@@ -7,11 +7,12 @@ from meta.utils import init, get_space_size, AddBias
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, observation_space, action_space, hidden_size=64):
+    def __init__(self, observation_space, action_space, num_layers=3, hidden_size=64):
 
         super(PolicyNetwork, self).__init__()
         self.action_space = action_space
         self.observation_space = observation_space
+        self.num_layers = num_layers
         self.hidden_size = hidden_size
 
         # Calculate the input/output size.
@@ -28,21 +29,33 @@ class PolicyNetwork(nn.Module):
         )
 
         # Generate layers of network.
-        self.actor = nn.Sequential(
-            init_base(nn.Linear(self.input_size, hidden_size)),
-            nn.Tanh(),
-            init_base(nn.Linear(hidden_size, hidden_size)),
-            nn.Tanh(),
-            init_final(nn.Linear(hidden_size, self.output_size)),
-        )
+        actor_layers = []
+        critic_layers = []
+        for i in range(num_layers):
 
-        self.critic = nn.Sequential(
-            init_base(nn.Linear(self.input_size, hidden_size)),
-            nn.Tanh(),
-            init_base(nn.Linear(hidden_size, hidden_size)),
-            nn.Tanh(),
-            init_base(nn.Linear(hidden_size, 1)),
-        )
+            # Calcuate input and output size of layer.
+            layer_input_size = self.input_size if i == 0 else hidden_size
+            actor_output_size = self.output_size if i == num_layers - 1 else hidden_size
+            critic_output_size = 1 if i == num_layers - 1 else hidden_size
+
+            # Determine init function for actor layer. Note that all layers of critic
+            # are initialized with init_base, so we only need to do this for actor.
+            actor_init = init_base if i < num_layers - 1 else init_final
+
+            actor_layers.append(
+                actor_init(nn.Linear(layer_input_size, actor_output_size))
+            )
+            critic_layers.append(
+                init_base(nn.Linear(layer_input_size, critic_output_size))
+            )
+
+            # Activation functions.
+            if i != num_layers - 1:
+                actor_layers.append(nn.Tanh())
+                critic_layers.append(nn.Tanh())
+
+        self.actor = nn.Sequential(*actor_layers)
+        self.critic = nn.Sequential(*critic_layers)
 
         # Extra parameter vector for standard deviations in the case that
         # the policy distribution is Gaussian.

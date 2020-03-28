@@ -78,6 +78,8 @@ def train(args):
         lr=args.lr,
         eps=args.eps,
         max_grad_norm=args.max_grad_norm,
+        num_layers=args.num_layers,
+        hidden_size=args.hidden_size,
     )
 
     # Initialize environment and set first observation.

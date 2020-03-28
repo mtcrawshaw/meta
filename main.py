@@ -93,6 +93,18 @@ if __name__ == "__main__":
         help="environment to train on (default: PongNoFrameskip-v4)",
     )
     parser.add_argument(
+        "--num-layers",
+        type=int,
+        default=3,
+        help="Number of layers in actor/critic network. Default: 3",
+    )
+    parser.add_argument(
+        "--hidden-size",
+        type=int,
+        default=64,
+        help="Hidden size of actor/critic network. Default: 64",
+    )
+    parser.add_argument(
         "--save-output-metrics",
         dest="output_metrics_name",
         default=None,

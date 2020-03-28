@@ -26,6 +26,8 @@ class PPOPolicy:
         lr=None,
         eps=None,
         max_grad_norm=None,
+        num_layers=3,
+        hidden_size=64,
         use_clipped_value_loss=True,
     ):
 
@@ -41,10 +43,17 @@ class PPOPolicy:
         self.entropy_coef = entropy_coef
         self.eps = eps
         self.max_grad_norm = max_grad_norm
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
         self.use_clipped_value_loss = use_clipped_value_loss
 
         # Initialize policy network and optimizer.
-        self.policy_network = PolicyNetwork(observation_space, action_space)
+        self.policy_network = PolicyNetwork(
+            observation_space=observation_space,
+            action_space=action_space,
+            num_layers=num_layers,
+            hidden_size=hidden_size,
+        )
 
         if action_space.__class__.__name__ == "Discrete":
             self.num_outputs = action_space.n
