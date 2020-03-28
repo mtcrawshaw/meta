@@ -62,8 +62,6 @@ class PolicyNetwork(nn.Module):
         if isinstance(action_space, Box):
             self.logstd = AddBias(torch.zeros(self.output_size))
 
-        self.train()
-
     def forward(self, obs):
 
         value_pred = self.critic(obs)
