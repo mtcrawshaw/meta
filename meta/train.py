@@ -7,12 +7,10 @@ import numpy as np
 import torch
 import gym
 from gym.spaces import Discrete
-from baselines import bench
-from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import compare_output_metrics, METRICS_DIR
+from meta.utils import get_env, compare_output_metrics, METRICS_DIR
 
 
 def collect_rollout(env, policy, rollout_length, initial_obs):
@@ -63,7 +61,7 @@ def train(args):
     torch.cuda.manual_seed_all(args.seed)
     torch.set_num_threads(1)
 
-    env = make_env(args.env_name, args.seed, allow_early_resets=False)
+    env = get_env(args.env_name, args.seed, allow_early_resets=False)
 
     policy = PPOPolicy(
         observation_space=env.observation_space,
@@ -143,129 +141,3 @@ def train(args):
             print("Failed test! Output metrics not equal to baseline.")
             earliest_diff = min(metrics_diff[key][0] for key in metrics_diff)
             print("Earliest difference: %s" % str(earliest_diff))
-
-
-def make_env(env_id, seed, allow_early_resets):
-    """ Create and return environment object. """
-
-    env = gym.make(env_id)
-    env.seed(seed)
-
-    if str(env.__class__.__name__).find("TimeLimit") >= 0:
-        env = TimeLimitMask(env)
-
-    env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
-    env = NormalizeEnv(env)
-    env = PyTorchEnv(env)
-
-    return env
-
-
-# Checks whether done was caused my timit limits or not
-class TimeLimitMask(gym.Wrapper):
-    def step(self, action):
-        obs, rew, done, info = self.env.step(action)
-        if done and self.env._max_episode_steps == self.env._elapsed_steps:
-            info["bad_transition"] = True
-
-        return obs, rew, done, info
-
-
-class PyTorchEnv(gym.Wrapper):
-    """ Environment wrapper to convert observations and rewards to torch.Tensors. """
-
-    def reset(self):
-        obs = self.env.reset()
-        obs = torch.from_numpy(obs).float()
-        return obs
-
-    def step(self, action):
-        if isinstance(action, torch.LongTensor):
-            # Squeeze the dimension for discrete actions
-            action = action.squeeze(0)
-
-        # Convert action to numpy or singleton float/int.
-        if isinstance(self.action_space, Discrete):
-            if isinstance(action, torch.LongTensor):
-                action = int(action.cpu())
-            else:
-                action = float(action.cpu())
-        else:
-            action = action.cpu().numpy()
-
-        obs, reward, done, info = self.env.step(action)
-        obs = torch.from_numpy(obs).float()
-        reward = torch.Tensor([reward]).float()
-
-        return obs, reward, done, info
-
-
-class NormalizeEnv(gym.Wrapper):
-    """ Environment wrapper to normalize observations and returns. """
-
-    def __init__(self, env, clip_ob=10.0, clip_rew=10.0, gamma=0.99, epsilon=1e-8):
-
-        super().__init__(env)
-
-        # Save state.
-        self.clip_ob = clip_ob
-        self.clip_rew = clip_rew
-        self.gamma = gamma
-        self.epsilon = epsilon
-
-        # Create running estimates of observation/return mean and standard deviation,
-        # and a float to store the sum of discounted rewards.
-        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
-        self.ret_rms = RunningMeanStd(shape=())
-        self.ret = np.zeros(1)
-
-        # Start in training mode.
-        self.training = True
-
-    def reset(self):
-        self.ret = np.zeros(1)
-        obs = self.env.reset()
-        return self._obfilt(obs)
-
-    def step(self, action):
-
-        obs, reward, done, info = self.env.step(action)
-        if done:
-            obs = self.env.reset()
-
-        self.ret = self.ret * self.gamma + reward
-        obs = self._obfilt(obs)
-        self.ret_rms.update(np.array(self.ret))
-        reward = np.clip(
-            reward / np.sqrt(self.ret_rms.var + self.epsilon),
-            -self.clip_rew,
-            self.clip_rew,
-        )
-
-        if done:
-            self.ret = np.zeros(1)
-
-        return obs, reward, done, info
-
-    def _obfilt(self, obs, update=True):
-
-        # Set datatype of obs properly.
-        obs = obs.astype(np.float32)
-
-        if self.ob_rms:
-            if update:
-                self.ob_rms.update(np.expand_dims(obs, axis=0))
-            obs = np.clip(
-                (obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
-                -self.clip_ob,
-                self.clip_ob,
-            )
-            return obs
-        else:
-            return obs
-
-    def train(self):
-        self.training = True
-
-    def eval(self):
-        self.training = False

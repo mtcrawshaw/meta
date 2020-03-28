@@ -1,7 +1,6 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - make_env vs. get_env and add MetaWorld envs
     - Method definitions in ppo.py
     - Method definitions in storage.py
     - Method definitions in utils.py
@@ -9,7 +8,5 @@ Tasks to convert ikostrikov code into our format:
     - Metric formatting/output in train.py
     - Argument names/formatting in main.py (normalize advantages?)
     - Typing, comments, and docstrings
+    - Unwrap environment
     - Minimize diff for all files in meta/
-
-Conversion tasks to leave for later:
-    - Unwrap enviroment
