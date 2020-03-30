@@ -9,7 +9,7 @@ class RolloutStorage:
     """ An object to store rollout information. """
 
     def __init__(
-        self, rollout_length: int, observation_space: Space, action_space: Space,
+        self, rollout_length: int, observation_space: Space, action_space: Space
     ):
         """
         init function for RolloutStorage class.
@@ -57,12 +57,11 @@ class RolloutStorage:
         # The +1 is here because we want to store the obs/value prediction
         # from before the first step and after the last step of the rollout.
         self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
-        self.value_preds = torch.zeros(self.rollout_length + 1, 1)
+        self.value_preds = torch.zeros(self.rollout_length + 1)
         self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
-        self.action_log_probs = torch.zeros(self.rollout_length, 1)
-        self.rewards = torch.zeros(self.rollout_length, 1)
-        if self.action_space.__class__.__name__ == "Discrete":
-            self.actions = self.actions.long()
+
+        self.action_log_probs = torch.zeros(self.rollout_length)
+        self.rewards = torch.zeros(self.rollout_length)
 
         self.done = False
 
@@ -159,10 +158,10 @@ class RolloutStorage:
 
             # Yield a minibatch corresponding to indices from sampler.
             # The -1 here is to exclude the obs/value_pred from after the last step.
-            obs_batch = self.obs[:-1].view(-1, *self.obs.size()[1:])[batch_indices]
-            value_preds_batch = self.value_preds[:-1].view(-1, 1)[batch_indices]
-            actions_batch = self.actions.view(-1, self.actions.size(-1))[batch_indices]
-            action_log_probs_batch = self.action_log_probs.view(-1, 1)[batch_indices]
+            obs_batch = self.obs[:-1][batch_indices]
+            value_preds_batch = self.value_preds[:-1][batch_indices]
+            actions_batch = self.actions[batch_indices]
+            action_log_probs_batch = self.action_log_probs[batch_indices]
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
 

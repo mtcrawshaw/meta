@@ -173,11 +173,10 @@ class PPOPolicy:
                 action_dist.log_prob(actions_batch.squeeze(-1))
                 .view(actions_batch.size(0), -1)
                 .sum(-1)
-                .unsqueeze(-1)
             )
         elif isinstance(self.action_space, Box):
             action_dist = Normal(**action_probs)
-            action_log_probs = action_dist.log_prob(actions_batch).sum(-1, keepdim=True)
+            action_log_probs = action_dist.log_prob(actions_batch).sum(-1)
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
@@ -212,8 +211,8 @@ class PPOPolicy:
         """
 
         total_length = sum(rollout.rollout_step for rollout in individual_rollouts)
-        returns = torch.zeros(total_length, 1)
-        advantages = torch.zeros(total_length, 1)
+        returns = torch.zeros(total_length)
+        advantages = torch.zeros(total_length)
         current_pos = 0
 
         for rollout in individual_rollouts:
@@ -297,6 +296,13 @@ class PPOPolicy:
                     action_log_probs_batch,
                     action_dist_entropy_batch,
                 ) = self.evaluate_actions(obs_batch, actions_batch)
+
+                # This is to account for the fact that values_batch, as returned from
+                # self.evaluate_actions(), has one more dimension than
+                # value_preds_batch, since values_batch is generated from input
+                # obs_batch, which has one more dimension than obs, which is the input
+                # that generated value_preds_batch.
+                values_batch = values_batch.squeeze(-1)
 
                 # Compute action loss, value loss, and entropy loss.
                 ratio = torch.exp(action_log_probs_batch - old_action_log_probs_batch)
