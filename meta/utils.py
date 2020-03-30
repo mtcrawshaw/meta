@@ -83,7 +83,7 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
     return diff, same
 
 
-def get_env(env_name: str) -> Env:
+def get_env(env_name: str, seed: int) -> Env:
     """ Return environment object from environment name. """
 
     metaworld_env_names = get_metaworld_env_names()
@@ -106,7 +106,10 @@ def get_env(env_name: str) -> Env:
     else:
         env = gym.make(env_name)
 
-    # Environment wrappers.
+    # Set environment seed.
+    env.seed(seed)
+
+    # Add environment wrappers.
     env = bench.Monitor(env, None)
 
     return env

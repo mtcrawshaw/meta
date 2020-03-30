@@ -106,6 +106,7 @@ if __name__ == "__main__":
         default=0.95,
         help="Alpha value for exponential moving averages.",
     )
+    parser.add_argument("--seed", type=int, default=1, help="random seed (default: 1)")
     parser.add_argument(
         "--print_freq",
         type=int,

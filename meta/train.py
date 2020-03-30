@@ -95,12 +95,13 @@ def collect_rollout(
 def train(args: argparse.Namespace):
     """ Main function for train.py. """
 
-    # Set environment.
-    env = get_env(args.env_name)
+    # Set random seed and number of threads.
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    torch.set_num_threads(1)
 
-    # Create policy and rollout storage. ``rollouts`` is a list of RolloutStorage.
-    # Each RolloutStorage object holds state, action, reward, etc. for a single
-    # episode.
+    # Set environment and policy.
+    env = get_env(args.env_name, args.seed)
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
