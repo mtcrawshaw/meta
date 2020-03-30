@@ -60,7 +60,7 @@ class RolloutStorage:
             value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
 
-            yield indices, obs_batch, actions_batch, value_preds_batch, old_action_log_probs_batch
+            yield indices, obs_batch, value_preds_batch, actions_batch, old_action_log_probs_batch
 
     def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
         """

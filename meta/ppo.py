@@ -222,7 +222,7 @@ class PPOPolicy:
             with torch.no_grad():
                 rollout.value_preds[rollout.step] = self.get_value(
                     rollout.obs[rollout.step]
-                ).detach()
+                )
             gae = 0
             for t in reversed(range(rollout.step)):
                 delta = rollout.rewards[t]
@@ -275,53 +275,59 @@ class PPOPolicy:
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
-            data_generator = rollouts.feed_forward_generator(self.minibatch_size)
+            minibatch_generator = rollouts.feed_forward_generator(self.minibatch_size)
 
-            for sample in data_generator:
+            for minibatch in minibatch_generator:
+
+                # Get batch of rollout data and construct corresponding batch of returns
+                # and advantages.
                 (
                     batch_indices,
                     obs_batch,
-                    actions_batch,
                     value_preds_batch,
+                    actions_batch,
                     old_action_log_probs_batch,
-                ) = sample
-                returns_batch = returns.view(-1, 1)[batch_indices]
-                advantages_batch = advantages.view(-1, 1)[batch_indices]
+                ) = minibatch
+                returns_batch = returns[batch_indices]
+                advantages_batch = advantages[batch_indices]
 
-                # Reshape to do in a single forward pass for all steps
+                # Compute new values, action log probs, and dist entropies.
                 (
-                    values,
-                    action_log_probs,
-                    action_dist_entropy,
+                    values_batch,
+                    action_log_probs_batch,
+                    action_dist_entropy_batch,
                 ) = self.evaluate_actions(obs_batch, actions_batch)
 
-                ratio = torch.exp(action_log_probs - old_action_log_probs_batch)
-                surr1 = ratio * advantages_batch
-                surr2 = (
+                # Compute action loss, value loss, and entropy loss.
+                ratio = torch.exp(action_log_probs_batch - old_action_log_probs_batch)
+                surrogate1 = ratio * advantages_batch
+                surrogate2 = (
                     torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
                     * advantages_batch
                 )
-                action_loss = -torch.min(surr1, surr2).mean()
+                action_loss = torch.min(surrogate1, surrogate2).mean()
 
                 if self.clip_value_loss:
-                    value_pred_clipped = value_preds_batch + (
-                        values - value_preds_batch
-                    ).clamp(-self.clip_param, self.clip_param)
-                    value_losses = (values - returns_batch).pow(2)
-                    value_losses_clipped = (value_pred_clipped - returns_batch).pow(2)
+                    value_losses = (returns_batch - values_batch).pow(2)
+                    clipped_value_preds = value_preds_batch + torch.clamp(
+                        values_batch - value_preds_batch,
+                        -self.clip_param,
+                        self.clip_param,
+                    )
+                    clipped_value_losses = (returns_batch - clipped_value_preds).pow(2)
                     value_loss = (
-                        0.5 * torch.max(value_losses, value_losses_clipped).mean()
+                        0.5 * torch.max(value_losses, clipped_value_losses).mean()
                     )
                 else:
-                    value_loss = 0.5 * (returns_batch - values).pow(2).mean()
-                entropy_loss = action_dist_entropy.mean()
+                    value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
+                entropy_loss = action_dist_entropy_batch.mean()
 
                 # Optimizer step.
                 self.optimizer.zero_grad()
-                loss = (
-                    value_loss * self.value_loss_coeff
-                    + action_loss
-                    - entropy_loss * self.entropy_loss_coeff
+                loss = - (
+                    action_loss
+                    - self.value_loss_coeff * value_loss
+                    + self.entropy_loss_coeff * entropy_loss
                 )
                 loss.backward()
                 if self.max_grad_norm is not None:
