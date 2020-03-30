@@ -1,5 +1,4 @@
 import argparse
-import time
 from collections import deque
 import os
 import pickle
@@ -12,7 +11,7 @@ from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_env, compare_output_metrics, METRICS_DIR
+from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
 def collect_rollout(
@@ -80,7 +79,7 @@ def collect_rollout(
                 RolloutStorage(
                     rollout_length=rollout_length,
                     observation_space=env.observation_space,
-                    action_space=env.action_space
+                    action_space=env.action_space,
                 )
             )
             rollouts[-1].set_initial_obs(obs)
@@ -124,9 +123,8 @@ def train(args: argparse.Namespace):
     # Training loop.
     episode_rewards = deque(maxlen=10)
     metric_names = ["mean", "median", "min", "max"]
-    output_metrics = {metric_name: [] for metric_name in metric_names}
+    metrics = {metric_name: [] for metric_name in metric_names}
 
-    start = time.time()
     for update_iteration in range(args.num_updates):
 
         # Sample rollouts and compute update.
@@ -138,25 +136,24 @@ def train(args: argparse.Namespace):
 
         # Update and print metrics.
         if update_iteration % args.log_interval == 0 and len(episode_rewards) > 1:
-            total_num_steps = (update_iteration + 1) * args.rollout_length
-            end = time.time()
-            print(
-                "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
-                    update_iteration,
-                    total_num_steps,
-                    int(total_num_steps / (end - start)),
-                    len(episode_rewards),
-                    np.mean(episode_rewards),
-                    np.median(episode_rewards),
-                    np.min(episode_rewards),
-                    np.max(episode_rewards),
-                )
-            )
+            metrics["mean"].append(np.mean(episode_rewards))
+            metrics["median"].append(np.median(episode_rewards))
+            metrics["min"].append(np.min(episode_rewards))
+            metrics["max"].append(np.max(episode_rewards))
 
-            output_metrics["mean"].append(np.mean(episode_rewards))
-            output_metrics["median"].append(np.median(episode_rewards))
-            output_metrics["min"].append(np.min(episode_rewards))
-            output_metrics["max"].append(np.max(episode_rewards))
+            message = "Update %d" % update_iteration
+            message += " | Last %d episodes" % len(episode_rewards)
+            message += " mean, median, min, max reward: %.5f, %.5f, %.5f, %.5f" % (
+                metrics["mean"][-1],
+                metrics["median"][-1],
+                metrics["min"][-1],
+                metrics["max"][-1],
+            )
+            print(message, end="\r")
+
+        # This is to ensure that printed out values don't get overwritten.
+        if update_iteration == args.num_updates - 1:
+            print("")
 
     # Save output_metrics if necessary.
     if args.output_metrics_name is not None:
@@ -164,14 +161,12 @@ def train(args: argparse.Namespace):
             os.makedirs(METRICS_DIR)
         output_metrics_path = os.path.join(METRICS_DIR, args.output_metrics_name)
         with open(output_metrics_path, "wb") as metrics_file:
-            pickle.dump(output_metrics, metrics_file)
+            pickle.dump(metrics, metrics_file)
 
     # Compare output_metrics to baseline if necessary.
     if args.baseline_metrics_name is not None:
         baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
-        metrics_diff, same = compare_output_metrics(
-            output_metrics, baseline_metrics_path
-        )
+        metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
         if same:
             print("Passed test! Output metrics equal to baseline.")
         else:

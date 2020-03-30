@@ -47,24 +47,22 @@ def get_space_size(space: Space):
     return size
 
 
-def compare_output_metrics(
-    output_metrics: Dict[str, List[float]], metrics_filename: str
-):
-    """ Compute diff of output_metrics against the most recently saved baseline. """
+def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
+    """ Compute diff of metrics against the most recently saved baseline. """
 
     # Load baseline metric values.
     with open(metrics_filename, "rb") as metrics_file:
-        baseline_output_metrics = pickle.load(metrics_file)
+        baseline_metrics = pickle.load(metrics_file)
 
-    # Compare output_metrics against baseline.
-    assert set(output_metrics.keys()) == set(baseline_output_metrics.keys())
-    diff = {key: [] for key in output_metrics}
-    for key in output_metrics:
-        assert len(output_metrics[key]) == len(baseline_output_metrics[key])
+    # Compare metrics against baseline.
+    assert set(metrics.keys()) == set(baseline_metrics.keys())
+    diff = {key: [] for key in metrics}
+    for key in metrics:
+        assert len(metrics[key]) == len(baseline_metrics[key])
 
-        for i in range(len(output_metrics[key])):
-            current_val = output_metrics[key][i]
-            baseline_val = baseline_output_metrics[key][i]
+        for i in range(len(metrics[key])):
+            current_val = metrics[key][i]
+            baseline_val = baseline_metrics[key][i]
             if current_val != baseline_val:
                 diff[key].append((i, current_val, baseline_val))
 

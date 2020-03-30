@@ -1,7 +1,7 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Metric formatting/output in train.py
+    - Add metric saving/comparison to develop
     - Argument names/formatting in main.py
     - Method definitions in utils.py
     - Typing, comments, and docstrings
