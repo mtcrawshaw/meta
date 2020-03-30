@@ -66,18 +66,20 @@ def train(args):
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        clip_param=args.clip_param,
-        ppo_epoch=args.ppo_epoch,
         minibatch_size=args.minibatch_size,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
-        value_loss_coef=args.value_loss_coef,
-        entropy_coef=args.entropy_coef,
+        num_ppo_epochs=args.num_ppo_epochs,
         lr=args.lr,
         eps=args.eps,
+        value_loss_coeff=args.value_loss_coeff,
+        entropy_loss_coeff=args.entropy_loss_coeff,
+        gamma=args.gamma,
+        gae_lambda=args.gae_lambda,
+        clip_param=args.clip_param,
         max_grad_norm=args.max_grad_norm,
+        clip_value_loss=args.clip_value_loss,
         num_layers=args.num_layers,
         hidden_size=args.hidden_size,
+        normalize_advantages=args.normalize_advantages,
     )
 
     # Initialize environment and set first observation.
@@ -96,7 +98,7 @@ def train(args):
             env, policy, args.rollout_length, current_obs
         )
 
-        value_loss, action_loss, dist_entropy = policy.update(rollouts)
+        loss_items = policy.update(rollouts)
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.

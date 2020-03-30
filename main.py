@@ -36,16 +36,16 @@ if __name__ == "__main__":
         help="gae lambda parameter (default: 0.95)",
     )
     parser.add_argument(
-        "--entropy-coef",
+        "--entropy_loss_coeff",
         type=float,
         default=0.01,
-        help="entropy term coefficient (default: 0.01)",
+        help="PPO entropy loss coefficient Default: 0.01",
     )
     parser.add_argument(
-        "--value-loss-coef",
+        "--value_loss_coeff",
         type=float,
         default=0.5,
-        help="value loss coefficient (default: 0.5)",
+        help="PPO value loss coefficient. Default: 0.5",
     )
     parser.add_argument(
         "--max-grad-norm",
@@ -61,7 +61,10 @@ if __name__ == "__main__":
         help="number of environment steps per update (default: 5)",
     )
     parser.add_argument(
-        "--ppo-epoch", type=int, default=4, help="number of ppo epochs (default: 4)"
+        "--num_ppo_epochs", 
+        type=int,
+        default=4,
+        help="Number of ppo epochs per update. Default: 4",
     )
     parser.add_argument(
         "--minibatch-size",
@@ -103,6 +106,20 @@ if __name__ == "__main__":
         type=int,
         default=64,
         help="Hidden size of actor/critic network. Default: 64",
+    )
+    parser.add_argument(
+        "--no_value_loss_clipping",
+        dest="clip_value_loss",
+        action="store_false",
+        default=True,
+        help="don't clip the value loss in PPO. Default: False",
+    )
+    parser.add_argument(
+        "--no_advantage_normalization",
+        dest="normalize_advantages",
+        action="store_false",
+        default=True,
+        help="Don't normalize advantages. Default: False",
     )
     parser.add_argument(
         "--save-output-metrics",

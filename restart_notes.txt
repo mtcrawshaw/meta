@@ -4,7 +4,6 @@ Tasks to convert ikostrikov code into our format:
     - Method definitions in ppo.py
     - Method definitions in storage.py
     - Method definitions in utils.py
-    - Call to .train() in network?
     - Metric formatting/output in train.py
     - Argument names/formatting in main.py (normalize advantages?)
     - Typing, comments, and docstrings
