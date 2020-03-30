@@ -1,25 +1,57 @@
+import argparse
 import time
 from collections import deque
 import os
 import pickle
+from typing import Any, List, Tuple
 
 import numpy as np
 import torch
 import gym
-from gym.spaces import Discrete
+from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import get_env, compare_output_metrics, METRICS_DIR
 
 
-def collect_rollout(env, policy, rollout_length, initial_obs):
+def collect_rollout(
+    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
+) -> Tuple[List[RolloutStorage], Any]:
+    """
+    Run environment and collect rollout information (observations, rewards, actions,
+    etc.) into a RolloutStorage object, one for each episode.
+
+    Parameters
+    ----------
+    env : Env
+        Environment to run.
+    policy : PPOPolicy
+        Policy to sample actions with.
+    rollout_length : int
+        Combined length of episodes in rollout (i.e. number of steps for a single
+        update).
+    initial_obs : Any
+        Initial observation returned from call to env.reset().
+
+    Returns
+    -------
+    rollouts : List[RolloutStorage]
+        List of RolloutStorage objects, one for each episode.
+    obs : Any
+        Last observation from rollout, to be used as the initial observation for the
+        next rollout.
+    """
 
     rollouts = []
     rollouts.append(
-        RolloutStorage(rollout_length, env.observation_space, env.action_space,)
+        RolloutStorage(
+            rollout_length=rollout_length,
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+        )
     )
-    rollouts[0].obs[0].copy_(initial_obs)
+    rollouts[0].set_initial_obs(initial_obs)
 
     rollout_episode_rewards = []
 
@@ -33,36 +65,40 @@ def collect_rollout(env, policy, rollout_length, initial_obs):
 
         # Perform step and record in ``rollouts``.
         obs, reward, done, info = env.step(action)
+        rollouts[-1].add_step(obs, action, action_log_prob, value, reward)
+        rollout_step += 1
 
+        # Get total episode reward, if it is given, and check for done.
         if "episode" in info.keys():
             rollout_episode_rewards.append(info["episode"]["r"])
         if done:
             rollouts[-1].done = True
 
-        # If done then clean the history of observations.
-        rollouts[-1].add_step(obs, action, action_log_prob, value, reward)
-
-        rollout_step += 1
-
+        # Create new RolloutStorage and set first observation, if finished.
         if done and total_rollout_step < rollout_length - 1:
             rollouts.append(
-                RolloutStorage(rollout_length, env.observation_space, env.action_space)
+                RolloutStorage(
+                    rollout_length=rollout_length,
+                    observation_space=env.observation_space,
+                    action_space=env.action_space
+                )
             )
-            rollouts[-1].obs[0].copy_(obs)
+            rollouts[-1].set_initial_obs(obs)
             rollout_step = 0
 
     return rollouts, obs, rollout_episode_rewards
 
 
-def train(args):
+def train(args: argparse.Namespace):
+    """ Main function for train.py. """
 
     # Set random seed and number of threads.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     torch.set_num_threads(1)
 
+    # Set environment and policy.
     env = get_env(args.env_name, args.seed, allow_early_resets=False)
-
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -91,23 +127,22 @@ def train(args):
     output_metrics = {metric_name: [] for metric_name in metric_names}
 
     start = time.time()
-    for j in range(args.num_updates):
+    for update_iteration in range(args.num_updates):
 
         # Sample rollouts and compute update.
         rollouts, current_obs, rollout_episode_rewards = collect_rollout(
             env, policy, args.rollout_length, current_obs
         )
-
         loss_items = policy.update(rollouts)
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
-        if j % args.log_interval == 0 and len(episode_rewards) > 1:
-            total_num_steps = (j + 1) * args.rollout_length
+        if update_iteration % args.log_interval == 0 and len(episode_rewards) > 1:
+            total_num_steps = (update_iteration + 1) * args.rollout_length
             end = time.time()
             print(
                 "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
-                    j,
+                    update_iteration,
                     total_num_steps,
                     int(total_num_steps / (end - start)),
                     len(episode_rewards),
