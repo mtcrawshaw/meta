@@ -1,3 +1,5 @@
+import os
+import pickle
 import copy
 from functools import reduce
 from typing import Union, List, Dict
@@ -7,8 +9,12 @@ import torch
 import gym
 from gym import Env
 from gym.spaces import Space, Box, Discrete
+from baselines import bench
 
 from meta.tests.envs import ParityEnv, UniqueEnv
+
+
+METRICS_DIR = os.path.join("data", "metrics")
 
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):
@@ -41,18 +47,6 @@ def init(module, weight_init, bias_init, gain=1):
     return module
 
 
-def print_metrics(metrics: Dict[str, float], iteration: int) -> None:
-    """ Prints values of metrics from input dictionary ``metrics``. """
-
-    msg = "Iteration: %d" % iteration
-    for metric_name, metric_val in metrics.items():
-        if metric_val is not None:
-            msg += " | %s: %.6f" % (metric_name, metric_val)
-        else:
-            msg += " | %s: %s" % (metric_name, metric_val)
-    print(msg, end="\r")
-
-
 def get_space_size(space: Space):
     """ Get the input/output size of an MLP whose input/output space is ``space``. """
 
@@ -64,6 +58,29 @@ def get_space_size(space: Space):
         raise ValueError("Unsupported space type: %s." % type(space))
 
     return size
+
+
+def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
+    """ Compute diff of metrics against the most recently saved baseline. """
+
+    # Load baseline metric values.
+    with open(metrics_filename, "rb") as metrics_file:
+        baseline_metrics = pickle.load(metrics_file)
+
+    # Compare metrics against baseline.
+    assert set(metrics.keys()) == set(baseline_metrics.keys())
+    diff = {key: [] for key in metrics}
+    for key in metrics:
+        assert len(metrics[key]) == len(baseline_metrics[key])
+
+        for i in range(len(metrics[key])):
+            current_val = metrics[key][i]
+            baseline_val = baseline_metrics[key][i]
+            if current_val != baseline_val:
+                diff[key].append((i, current_val, baseline_val))
+
+    same = all(len(diff_values) == 0 for diff_values in diff.values())
+    return diff, same
 
 
 def get_env(env_name: str) -> Env:
@@ -88,6 +105,9 @@ def get_env(env_name: str) -> Env:
 
     else:
         env = gym.make(env_name)
+
+    # Environment wrappers.
+    env = bench.Monitor(env, None)
 
     return env
 

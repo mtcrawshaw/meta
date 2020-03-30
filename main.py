@@ -112,6 +112,18 @@ if __name__ == "__main__":
         default=10,
         help="Number of training iterations between metric printing.",
     )
+    parser.add_argument(
+        "--save-metrics",
+        dest="metrics_name",
+        default=None,
+        help="Name to save metric values under.",
+    )
+    parser.add_argument(
+        "--compare-metrics",
+        dest="baseline_metrics_name",
+        default=None,
+        help="Name of metrics baseline file to compare against.",
+    )
 
     args = parser.parse_args()
 

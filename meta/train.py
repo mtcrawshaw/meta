@@ -1,4 +1,7 @@
+import os
+import pickle
 import argparse
+from collections import deque
 from typing import Any, List
 
 import numpy as np
@@ -8,7 +11,7 @@ from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_env, print_metrics
+from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
 def collect_rollout(
@@ -49,6 +52,8 @@ def collect_rollout(
     )
     rollouts[-1].set_initial_obs(initial_obs)
 
+    rollout_episode_rewards = []
+
     # Rollout loop.
     rollout_step = 0
     for total_rollout_step in range(rollout_length):
@@ -66,6 +71,10 @@ def collect_rollout(
         rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
         rollout_step += 1
 
+        # Get total episode reward, if it is given.
+        if "episode" in info.keys():
+            rollout_episode_rewards.append(info["episode"]["r"])
+
         # Reinitialize environment and set first observation, if finished.
         if done:
             obs = env.reset()
@@ -80,7 +89,7 @@ def collect_rollout(
                 rollouts[-1].set_initial_obs(obs)
                 rollout_step = 0
 
-    return rollouts, obs, done
+    return rollouts, obs, rollout_episode_rewards
 
 
 def train(args: argparse.Namespace):
@@ -113,49 +122,60 @@ def train(args: argparse.Namespace):
     )
 
     # Initialize environment and set first observation.
-    initial_obs = env.reset()
+    current_obs = env.reset()
 
     # Training loop.
-    metric_keys = ["action", "value", "entropy", "total", "reward"]
-    metrics = {key: None for key in metric_keys}
-
-    def update_metric(current_metric, new_val, alpha):
-        if current_metric is None:
-            return new_val
-        else:
-            return current_metric * alpha + new_val * (1 - alpha)
+    episode_rewards = deque(maxlen=10)
+    metric_names = ["mean", "median", "min", "max"]
+    metrics = {metric_name: [] for metric_name in metric_names}
 
     last_episode_reward = 0
 
-    for iteration in range(args.num_iterations):
+    for update_iteration in range(args.num_iterations):
 
         # Sample rollouts and compute update.
-        rollouts, last_obs, done = collect_rollout(
-            env, policy, args.rollout_length, initial_obs
+        rollouts, current_obs, rollout_episode_rewards = collect_rollout(
+            env, policy, args.rollout_length, current_obs
         )
-        initial_obs = last_obs
         loss_items = policy.update(rollouts)
+        episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
-        episode_rewards = [float(torch.sum(rollout.rewards)) for rollout in rollouts]
-        episode_rewards[0] += last_episode_reward
-        if done:
-            last_episode_reward = 0
-        else:
-            last_episode_reward = episode_rewards[-1]
-            episode_rewards = episode_rewards[:-1]
-        if len(episode_rewards) > 0:
-            avg_episode_reward = np.mean(episode_rewards)
-            metrics["reward"] = update_metric(
-                metrics["reward"], avg_episode_reward, args.ema_alpha
+        if update_iteration % args.print_freq == 0 and len(episode_rewards) > 1:
+            metrics["mean"].append(np.mean(episode_rewards))
+            metrics["median"].append(np.median(episode_rewards))
+            metrics["min"].append(np.min(episode_rewards))
+            metrics["max"].append(np.max(episode_rewards))
+
+            message = "Update %d" % update_iteration
+            message += " | Last %d episodes" % len(episode_rewards)
+            message += " mean, median, min, max reward: %.5f, %.5f, %.5f, %.5f" % (
+                metrics["mean"][-1],
+                metrics["median"][-1],
+                metrics["min"][-1],
+                metrics["max"][-1],
             )
-        for loss_key, loss_item in loss_items.items():
-            metrics[loss_key] = update_metric(
-                metrics[loss_key], loss_item, args.ema_alpha
-            )
-        if iteration % args.print_freq == 0:
-            print_metrics(metrics, iteration)
+            print(message, end="\r")
 
         # This is to ensure that printed out values don't get overwritten.
-        if iteration == args.num_iterations - 1:
+        if update_iteration == args.num_iterations - 1:
             print("")
+
+    # Save metrics if necessary.
+    if args.metrics_name is not None:
+        if not os.path.isdir(METRICS_DIR):
+            os.makedirs(METRICS_DIR)
+        metrics_path = os.path.join(METRICS_DIR, args.metrics_name)
+        with open(metrics_path, "wb") as metrics_file:
+            pickle.dump(metrics, metrics_file)
+
+    # Compare output_metrics to baseline if necessary.
+    if args.baseline_metrics_name is not None:
+        baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
+        metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
+        if same:
+            print("Passed test! Output metrics equal to baseline.")
+        else:
+            print("Failed test! Output metrics not equal to baseline.")
+            earliest_diff = min(metrics_diff[key][0] for key in metrics_diff)
+            print("Earliest difference: %s" % str(earliest_diff))
