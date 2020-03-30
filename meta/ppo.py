@@ -211,7 +211,7 @@ class PPOPolicy:
         each rollout in ``invidial_rollouts``.
         """
 
-        total_length = sum(rollout.step for rollout in individual_rollouts)
+        total_length = sum(rollout.rollout_step for rollout in individual_rollouts)
         returns = torch.zeros(total_length, 1)
         advantages = torch.zeros(total_length, 1)
         current_pos = 0
@@ -220,13 +220,13 @@ class PPOPolicy:
 
             # Compute returns.
             with torch.no_grad():
-                rollout.value_preds[rollout.step] = self.get_value(
-                    rollout.obs[rollout.step]
+                rollout.value_preds[rollout.rollout_step] = self.get_value(
+                    rollout.obs[rollout.rollout_step]
                 )
             gae = 0
-            for t in reversed(range(rollout.step)):
+            for t in reversed(range(rollout.rollout_step)):
                 delta = rollout.rewards[t]
-                if not (t == rollout.step - 1 and rollout.done):
+                if not (t == rollout.rollout_step - 1 and rollout.done):
                     delta += self.gamma * rollout.value_preds[t + 1]
                 delta -= rollout.value_preds[t]
 
@@ -234,12 +234,12 @@ class PPOPolicy:
                 returns[t + current_pos] = gae + rollout.value_preds[t]
 
             # Compute advantages.
-            end_pos = current_pos + rollout.step
+            end_pos = current_pos + rollout.rollout_step
             advantages[current_pos:end_pos] = (
-                returns[current_pos:end_pos] - rollout.value_preds[: rollout.step]
+                returns[current_pos:end_pos] - rollout.value_preds[: rollout.rollout_step]
             )
 
-            current_pos += rollout.step
+            current_pos += rollout.rollout_step
 
         # Normalize advantages.
         if self.normalize_advantages:
@@ -275,7 +275,7 @@ class PPOPolicy:
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
-            minibatch_generator = rollouts.feed_forward_generator(self.minibatch_size)
+            minibatch_generator = rollouts.minibatch_generator(self.minibatch_size)
 
             for minibatch in minibatch_generator:
 

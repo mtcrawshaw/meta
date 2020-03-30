@@ -40,7 +40,7 @@ def collect_rollout(env, policy, rollout_length, initial_obs):
             rollouts[-1].done = True
 
         # If done then clean the history of observations.
-        rollouts[-1].insert(obs, action, action_log_prob, value, reward)
+        rollouts[-1].add_step(obs, action, action_log_prob, value, reward)
 
         rollout_step += 1
 
