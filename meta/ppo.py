@@ -235,7 +235,8 @@ class PPOPolicy:
             # Compute advantages.
             end_pos = current_pos + rollout.rollout_step
             advantages[current_pos:end_pos] = (
-                returns[current_pos:end_pos] - rollout.value_preds[: rollout.rollout_step]
+                returns[current_pos:end_pos]
+                - rollout.value_preds[: rollout.rollout_step]
             )
 
             current_pos += rollout.rollout_step
@@ -330,7 +331,7 @@ class PPOPolicy:
 
                 # Optimizer step.
                 self.optimizer.zero_grad()
-                loss = - (
+                loss = -(
                     action_loss
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss

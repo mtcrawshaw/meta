@@ -1,7 +1,6 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Method definitions in storage.py
     - Method definitions in utils.py
     - Metric formatting/output in train.py
     - Argument names/formatting in main.py
