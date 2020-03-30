@@ -1,15 +1,14 @@
 Goal: Minimize diff with develop branch while keeping performance
 
 Tasks to convert ikostrikov code into our format:
-    - Method definitions in utils.py
     - Metric formatting/output in train.py
     - Argument names/formatting in main.py
+    - Method definitions in utils.py
     - Typing, comments, and docstrings
-    - Unwrap environment
     - Minimize diff for all files in meta/
 
 
 Differences to keep/toggle to search for bugs:
 - Computation of action, action_log_probs in PPOPolicy act() and evaluate_actions()
 - Delta computation in PPOPolicy update()
-- Observation normalization
+- Observation normalization + other wrapped functionality

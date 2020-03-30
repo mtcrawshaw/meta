@@ -80,3 +80,7 @@ After merging:
 - Convert List[RolloutStorage] back to RolloutStorage
 - Make policy return distribution object, not arguments
 - Wrap up tensor conversion and observation normalization in environment wrappers
+- Remove AddBias hack
+- Add GPU support
+- Add multiprocessing
+- Add support for multiprocessing

@@ -1,4 +1,3 @@
-import glob
 import os
 from functools import reduce
 from typing import Dict, List
@@ -27,14 +26,9 @@ class AddBias(nn.Module):
         return x + self._bias
 
 
-def update_linear_schedule(optimizer, epoch, total_num_epochs, initial_lr):
-    """Decreases the learning rate linearly"""
-    lr = initial_lr - (initial_lr * (epoch / float(total_num_epochs)))
-    for param_group in optimizer.param_groups:
-        param_group["lr"] = lr
-
-
 def init(module, weight_init, bias_init, gain=1):
+    """ Helper function to initialize network weights. """
+
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
