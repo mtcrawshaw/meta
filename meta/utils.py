@@ -223,8 +223,6 @@ class NormalizeEnv(gym.Wrapper):
 
     def _obfilt(self, obs, update=True):
 
-        obs = obs.astype(np.float32)
-
         if self.ob_rms:
             if update:
                 self.ob_rms.update(np.expand_dims(obs, axis=0))
