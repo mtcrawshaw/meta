@@ -68,8 +68,8 @@ class UniqueEnv:
         """
 
         reward = float(self.timestep)
-        DONE_TEMP = 10.
-        done_prob = 1. - DONE_TEMP / (self.timestep + DONE_TEMP - 1)
+        DONE_TEMP = 10.0
+        done_prob = 1.0 - DONE_TEMP / (self.timestep + DONE_TEMP - 1)
         done = random.random() < done_prob
         self.timestep += 1
         obs = float(self.timestep)

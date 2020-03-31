@@ -21,6 +21,7 @@ DEFAULT_SETTINGS = {
     "num_layers": 3,
     "hidden_size": 64,
     "normalize_advantages": True,
+    "seed": 1,
 }
 
 
@@ -30,7 +31,6 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        rollout_length=settings["rollout_length"],
         num_ppo_epochs=settings["num_ppo_epochs"],
         lr=settings["lr"],
         eps=settings["eps"],

@@ -1,12 +1,8 @@
-import copy
-from typing import Union, List
+from typing import List
 
-import numpy as np
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space, Discrete, Box
-
-from meta.utils import convert_to_tensor
 
 
 class RolloutStorage:
@@ -63,21 +59,24 @@ class RolloutStorage:
         self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
         self.value_preds = torch.zeros(self.rollout_length + 1)
         self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
+
         self.action_log_probs = torch.zeros(self.rollout_length)
         self.rewards = torch.zeros(self.rollout_length)
 
+        self.done = False
+
     def add_step(
         self,
-        obs: Union[np.ndarray, int, float],
-        action: Union[np.ndarray, int, float],
+        obs: torch.Tensor,
+        action: torch.Tensor,
         action_log_prob: torch.Tensor,
         value_pred: torch.Tensor,
-        reward: float,
+        reward: torch.Tensor,
     ):
         """
         Add an environment step to storage.
 
-        obs : Union[np.ndarray, int],
+        obs : torch.Tensor
             Observation returned from environment after step was taken.
         action : torch.Tensor,
             Action taken in environment step.
@@ -85,17 +84,14 @@ class RolloutStorage:
             Log probs of action distribution output by policy network.
         value_pred : torch.Tensor,
             Value prediction from policy at step.
-        reward : float,
+        reward : torch.Tensor,
             Reward earned from environment step.
         """
 
-        if self.rollout_step == self.rollout_length:
-            raise ValueError(
-                "Rollout storage is already full, call RolloutStorage.clear() "
-                "to clear storage before calling add_step()."
-            )
+        if self.rollout_step >= self.rollout_length:
+            raise ValueError("RolloutStorage object is full.")
 
-        self.obs[self.rollout_step + 1].copy_(convert_to_tensor(obs))
+        self.obs[self.rollout_step + 1] = obs
         self.actions[self.rollout_step] = action
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
@@ -118,18 +114,17 @@ class RolloutStorage:
         # Reset rollout step.
         self.rollout_step = 0
 
-    def set_initial_obs(self, obs: Union[np.ndarray, int]):
+    def set_initial_obs(self, obs: torch.Tensor):
         """
         Set the first observation in storage.
 
         Arguments
         ---------
-        obs : np.ndarray or int
+        obs : torch.Tensor
             Observation returned from the environment.
         """
 
-        tensor_obs = convert_to_tensor(obs)
-        self.obs[0].copy_(tensor_obs)
+        self.obs[0].copy_(obs)
 
     def minibatch_generator(self, minibatch_size: int):
         """
@@ -148,6 +143,12 @@ class RolloutStorage:
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
+        if minibatch_size > self.rollout_length:
+            raise ValueError(
+                "Minibatch size (%d) is required to be no larger than"
+                " rollout_length (%d)" % (minibatch_size, self.rollout_length)
+            )
+
         sampler = BatchSampler(
             sampler=SubsetRandomSampler(range(self.rollout_length)),
             batch_size=minibatch_size,
@@ -156,20 +157,17 @@ class RolloutStorage:
         for batch_indices in sampler:
 
             # Yield a minibatch corresponding to indices from sampler.
-
-            # The -1 is here in order to exclude the observation resulting after the
-            # last step.
+            # The -1 here is to exclude the obs/value_pred from after the last step.
             obs_batch = self.obs[:-1][batch_indices]
             value_preds_batch = self.value_preds[:-1][batch_indices]
             actions_batch = self.actions[batch_indices]
             action_log_probs_batch = self.action_log_probs[batch_indices]
-            rewards_batch = self.rewards[batch_indices]
 
-            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, rewards_batch
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
 
     def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
         """
-        Insert the values from one RolloutStorage object into ``self`` as position
+        Insert the values from one RolloutStorage object into ``self`` at position
         ``pos``, ignoring the values from after the last step.
 
         new_rollout : RolloutStorage

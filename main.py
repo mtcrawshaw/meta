@@ -25,7 +25,7 @@ if __name__ == "__main__":
         help="Number of environment steps per rollout. Default: 5",
     )
     parser.add_argument(
-        "--num_ppo_epochs", 
+        "--num_ppo_epochs",
         type=int,
         default=4,
         help="Number of ppo epochs per update. Default: 4",

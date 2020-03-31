@@ -1,7 +1,5 @@
-from functools import reduce
-from typing import Union, Tuple, Dict, List
+from typing import List, Tuple, Dict
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,7 +8,6 @@ from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
 from meta.storage import RolloutStorage, combine_rollouts
-from meta.utils import convert_to_tensor, init
 
 
 class PPOPolicy:
@@ -20,21 +17,20 @@ class PPOPolicy:
         self,
         observation_space: Space,
         action_space: Space,
-        rollout_length: int,
-        num_ppo_epochs: int,
-        lr: float,
-        eps: float,
-        value_loss_coeff: float,
-        entropy_loss_coeff: float,
-        gamma: float,
-        gae_lambda: float,
         minibatch_size: int,
-        clip_param: float,
-        max_grad_norm: float,
-        clip_value_loss: bool,
-        num_layers: int,
-        hidden_size: int,
-        normalize_advantages: float,
+        num_ppo_epochs: int = 4,
+        lr: float = 7e-4,
+        eps: float = 1e-5,
+        value_loss_coeff: float = 0.5,
+        entropy_loss_coeff: float = 0.01,
+        gamma: float = 0.99,
+        gae_lambda: float = 0.95,
+        clip_param: float = 0.2,
+        max_grad_norm: float = 0.5,
+        clip_value_loss: bool = True,
+        num_layers: int = 3,
+        hidden_size: int = 64,
+        normalize_advantages: float = True,
     ):
         """
         init function for PPOPolicy.
@@ -45,9 +41,8 @@ class PPOPolicy:
             Environment's observation space.
         action_space : Space
             Environment's action space.
-        rollout_length: int
-            Total number of environent timesteps (possibly over multiple episodes) per
-            update.
+        minibatch_size : int
+            Size of minibatches for training on rollout data.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr : float
@@ -62,8 +57,6 @@ class PPOPolicy:
             Discount factor.
         gae_lambda : float
             Lambda parameter for GAE (used in equation (11) in PPO paper).
-        minibatch_size : int
-            Size of minibatches for training on rollout data.
         clip_param : float
             Clipping parameter for PPO surrogate loss.
         max_grad_norm : float
@@ -81,7 +74,7 @@ class PPOPolicy:
         # Set policy state.
         self.observation_space = observation_space
         self.action_space = action_space
-        self.rollout_length = rollout_length
+        self.minibatch_size = minibatch_size
         self.num_ppo_epochs = num_ppo_epochs
         self.lr = lr
         self.eps = eps
@@ -89,7 +82,6 @@ class PPOPolicy:
         self.entropy_loss_coeff = entropy_loss_coeff
         self.gamma = gamma
         self.gae_lambda = gae_lambda
-        self.minibatch_size = minibatch_size
         self.clip_param = clip_param
         self.max_grad_norm = max_grad_norm
         self.clip_value_loss = clip_value_loss
@@ -97,22 +89,22 @@ class PPOPolicy:
         self.hidden_size = hidden_size
         self.normalize_advantages = normalize_advantages
 
-        # Instantiate policy network and optimizer.
+        # Initialize policy network and optimizer.
         self.policy_network = PolicyNetwork(
-            observation_space,
-            action_space,
-            num_layers=self.num_layers,
-            hidden_size=self.hidden_size,
+            observation_space=observation_space,
+            action_space=action_space,
+            num_layers=num_layers,
+            hidden_size=hidden_size,
         )
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
-    def act(self, obs: Union[np.ndarray, int, float]):
+    def act(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample action from policy.
 
         Arguments
         ---------
-        obs : np.ndarray or int or float
+        obs : torch.Tensor
             Observation to sample action from.
 
         Returns
@@ -126,36 +118,50 @@ class PPOPolicy:
         """
 
         # Pass through network to get value prediction and action probabilities.
-        tensor_obs = convert_to_tensor(obs)
-        value_pred, action_probs = self.policy_network(tensor_obs)
+        value_pred, action_probs = self.policy_network(obs)
 
         # Create action distribution object from probabilities and sample action.
         if isinstance(self.action_space, Discrete):
 
             action_dist = Categorical(**action_probs)
+            # HERE
             action = action_dist.sample()
             action_log_prob = action_dist.log_prob(action)
+            # HERE
 
+            """
+            # HERE
+            action = action_dist.sample().unsqueeze(-1)
+            action_log_probs = (
+                action_dist.log_prob(action.squeeze(-1))
+                .view(action.size(0), -1)
+                .sum(-1)
+            )
+            # HERE
+            """
         elif isinstance(self.action_space, Box):
 
             action_dist = Normal(**action_probs)
             action = action_dist.sample()
-            action_log_prob = action_dist.log_prob(action)
 
             # We sum over ``action_log_prob`` to convert element-wise log probs into a
             # joint log prob.
-            action_log_prob = action_log_prob.sum(-1, keepdim=True)
+            action_log_prob = action_dist.log_prob(action).sum(-1, keepdim=True)
 
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
+        # HERE
         # Keep sizes consistent.
         if action_log_prob.shape == torch.Size([]):
             action_log_prob = action_log_prob.view(1)
+        # HERE
 
         return value_pred, action, action_log_prob
 
-    def evaluate_actions(self, obs_batch: torch.Tensor, actions_batch: torch.Tensor):
+    def evaluate_actions(
+        self, obs_batch: torch.Tensor, actions_batch: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get values, log probabilities, and action distribution entropies for a batch of
         observations and actions.
@@ -184,27 +190,30 @@ class PPOPolicy:
         # probabilities.
         if isinstance(self.action_space, Discrete):
             action_dist = Categorical(**action_probs)
-            actions_batch = torch.squeeze(actions_batch)
-            action_log_probs = action_dist.log_prob(actions_batch)
+            action_log_probs = action_dist.log_prob(actions_batch.squeeze(-1))
         elif isinstance(self.action_space, Box):
             action_dist = Normal(**action_probs)
-            # actions_batch = torch.squeeze(actions_batch)
             action_log_probs = action_dist.log_prob(actions_batch).sum(-1)
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
         action_dist_entropy = action_dist.entropy()
-        value = torch.squeeze(value)
+
+        # This is to account for the fact that value has one more dimension than
+        # value_preds_batch in update(), since value is generated from input obs_batch,
+        # which has one more dimension than obs, which is the input that generated
+        # value_preds_batch.
+        value = torch.squeeze(value, -1)
 
         return value, action_log_probs, action_dist_entropy
 
-    def get_value(self, obs: Union[np.ndarray, int, float]):
+    def get_value(self, obs: torch.Tensor) -> torch.Tensor:
         """
         Get value prediction from an observation.
 
         Arguments
         ---------
-        obs : np.ndarray or int or float
+        obs : torch.Tensor
             Observation to get value prediction for.
 
         Returns
@@ -213,8 +222,7 @@ class PPOPolicy:
             Value prediction from critic portion of policy.
         """
 
-        tensor_obs = convert_to_tensor(obs)
-        value_pred, _ = self.policy_network(tensor_obs)
+        value_pred, _ = self.policy_network(obs)
         return value_pred
 
     def compute_returns_advantages(
@@ -229,6 +237,7 @@ class PPOPolicy:
         returns = torch.zeros(total_length)
         advantages = torch.zeros(total_length)
         current_pos = 0
+
         for rollout in individual_rollouts:
 
             # Compute returns.
@@ -238,11 +247,11 @@ class PPOPolicy:
                 )
             gae = 0
             for t in reversed(range(rollout.rollout_step)):
-                delta = (
-                    rollout.rewards[t]
-                    + self.gamma * rollout.value_preds[t + 1]
-                    - rollout.value_preds[t]
-                )
+                delta = rollout.rewards[t]
+                if not (t == rollout.rollout_step - 1 and rollout.done):
+                    delta += self.gamma * rollout.value_preds[t + 1]
+                delta -= rollout.value_preds[t]
+
                 gae = self.gamma * self.gae_lambda * gae + delta
                 returns[t + current_pos] = gae + rollout.value_preds[t]
 
@@ -255,6 +264,7 @@ class PPOPolicy:
 
             current_pos += rollout.rollout_step
 
+        # Normalize advantages.
         if self.normalize_advantages:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps
@@ -262,7 +272,7 @@ class PPOPolicy:
 
         return returns, advantages
 
-    def update(self, individual_rollouts: List[RolloutStorage]):
+    def update(self, individual_rollouts: List[RolloutStorage]) -> Dict[str, float]:
         """
         Train policy with PPO from rollout information in ``individual rollouts``.
 
@@ -288,19 +298,18 @@ class PPOPolicy:
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
-
             minibatch_generator = rollouts.minibatch_generator(self.minibatch_size)
+
             for minibatch in minibatch_generator:
 
-                # Get batch of rollout data and construct corresponding batch of
-                # returns and advantages.
+                # Get batch of rollout data and construct corresponding batch of returns
+                # and advantages.
                 (
                     batch_indices,
                     obs_batch,
                     value_preds_batch,
                     actions_batch,
                     old_action_log_probs_batch,
-                    rewards_batch,
                 ) = minibatch
                 returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
@@ -312,6 +321,8 @@ class PPOPolicy:
                     action_dist_entropy_batch,
                 ) = self.evaluate_actions(obs_batch, actions_batch)
 
+                values_batch = values_batch.squeeze(-1)
+
                 # Compute action loss, value loss, and entropy loss.
                 ratio = torch.exp(action_log_probs_batch - old_action_log_probs_batch)
                 surrogate1 = ratio * advantages_batch
@@ -320,6 +331,7 @@ class PPOPolicy:
                     * advantages_batch
                 )
                 action_loss = torch.min(surrogate1, surrogate2).mean()
+
                 if self.clip_value_loss:
                     value_losses = (returns_batch - values_batch).pow(2)
                     clipped_value_preds = value_preds_batch + torch.clamp(

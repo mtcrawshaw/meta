@@ -2,7 +2,7 @@ import os
 import pickle
 import argparse
 from collections import deque
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import numpy as np
 import torch
@@ -16,7 +16,7 @@ from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 def collect_rollout(
     env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
-) -> List[RolloutStorage]:
+) -> Tuple[List[RolloutStorage], Any]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
     etc.) into a RolloutStorage object, one for each episode.
@@ -50,7 +50,7 @@ def collect_rollout(
             action_space=env.action_space,
         )
     )
-    rollouts[-1].set_initial_obs(initial_obs)
+    rollouts[0].set_initial_obs(initial_obs)
 
     rollout_episode_rewards = []
 
@@ -60,36 +60,30 @@ def collect_rollout(
 
         # Sample actions.
         with torch.no_grad():
-            value_pred, action, action_log_prob = policy.act(
-                rollouts[-1].obs[rollout_step]
-            )
+            value, action, action_log_prob = policy.act(rollouts[-1].obs[rollout_step])
 
         # Perform step and record in ``rollouts``.
-        # We cast the action to a numpy array here because policy.act() returns
-        # it as a torch.Tensor. Less conversion back and forth this way.
-        obs, reward, done, info = env.step(action.numpy())
-        if done:
-            obs = env.reset()
-
-        rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
+        obs, reward, done, info = env.step(action)
+        rollouts[-1].add_step(obs, action, action_log_prob, value, reward)
         rollout_step += 1
 
-        # Get total episode reward, if it is given.
+        # Get total episode reward, if it is given, and check for done.
         if "episode" in info.keys():
             rollout_episode_rewards.append(info["episode"]["r"])
+        if done:
+            rollouts[-1].done = True
 
         # Create new RolloutStorage and set first observation, if finished.
-        if done:
-            if total_rollout_step < rollout_length - 1:
-                rollouts.append(
-                    RolloutStorage(
-                        rollout_length=rollout_length,
-                        observation_space=env.observation_space,
-                        action_space=env.action_space,
-                    )
+        if done and total_rollout_step < rollout_length - 1:
+            rollouts.append(
+                RolloutStorage(
+                    rollout_length=rollout_length,
+                    observation_space=env.observation_space,
+                    action_space=env.action_space,
                 )
-                rollouts[-1].set_initial_obs(obs)
-                rollout_step = 0
+            )
+            rollouts[-1].set_initial_obs(obs)
+            rollout_step = 0
 
     return rollouts, obs, rollout_episode_rewards
 
@@ -107,7 +101,7 @@ def train(args: argparse.Namespace):
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        rollout_length=args.rollout_length,
+        minibatch_size=args.minibatch_size,
         num_ppo_epochs=args.num_ppo_epochs,
         lr=args.lr,
         eps=args.eps,
@@ -115,7 +109,6 @@ def train(args: argparse.Namespace):
         entropy_loss_coeff=args.entropy_loss_coeff,
         gamma=args.gamma,
         gae_lambda=args.gae_lambda,
-        minibatch_size=args.minibatch_size,
         clip_param=args.clip_param,
         max_grad_norm=args.max_grad_norm,
         clip_value_loss=args.clip_value_loss,
@@ -131,8 +124,6 @@ def train(args: argparse.Namespace):
     episode_rewards = deque(maxlen=10)
     metric_names = ["mean", "median", "min", "max"]
     metrics = {metric_name: [] for metric_name in metric_names}
-
-    last_episode_reward = 0
 
     for update_iteration in range(args.num_updates):
 

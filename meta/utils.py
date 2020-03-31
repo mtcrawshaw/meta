@@ -1,8 +1,7 @@
 import os
-import pickle
-import copy
 from functools import reduce
-from typing import Union, List, Dict
+from typing import Dict, List
+import pickle
 
 import numpy as np
 import torch
@@ -11,6 +10,7 @@ import gym
 from gym import Env
 from gym.spaces import Space, Box, Discrete
 from baselines import bench
+from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.tests.envs import ParityEnv, UniqueEnv
 
@@ -28,30 +28,8 @@ class AddBias(nn.Module):
         return x + self._bias
 
 
-def convert_to_tensor(val: Union[np.ndarray, int, float]):
-    """
-    Converts a value (observation or action) from environment to a tensor.
-
-    Arguments
-    ---------
-    val: np.ndarray or int
-        Observation or action returned from the environment.
-    """
-
-    if isinstance(val, int) or isinstance(val, float):
-        return torch.Tensor([val])
-    elif isinstance(val, np.ndarray):
-        return torch.Tensor(val)
-    elif isinstance(val, torch.Tensor):
-        return val
-    else:
-        raise ValueError(
-            "Cannot convert value of type '%r' to torch.Tensor." % type(val)
-        )
-
-
 def init(module, weight_init, bias_init, gain=1):
-    """ Helper function it initialize network weights. """
+    """ Helper function to initialize network weights. """
 
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
@@ -94,9 +72,10 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
     return diff, same
 
 
-def get_env(env_name: str, seed: int) -> Env:
+def get_env(env_name: str, seed: int = 1) -> Env:
     """ Return environment object from environment name. """
 
+    # Make environment object from either MetaWorld or Gym.
     metaworld_env_names = get_metaworld_env_names()
     if env_name in metaworld_env_names:
 
@@ -108,10 +87,10 @@ def get_env(env_name: str, seed: int) -> Env:
         tasks = env.sample_tasks(1)
         env.set_task(tasks[0])
 
-    elif env_name == "parity-env":
+    elif env_name == "unique-env":
         env = ParityEnv()
 
-    elif env_name == "unique-env":
+    elif env_name == "parity-env":
         env = UniqueEnv()
 
     else:
@@ -121,9 +100,125 @@ def get_env(env_name: str, seed: int) -> Env:
     env.seed(seed)
 
     # Add environment wrappers.
+    if str(env.__class__.__name__).find("TimeLimit") >= 0:
+        env = TimeLimitMask(env)
     env = bench.Monitor(env, None)
+    env = NormalizeEnv(env)
+    env = PyTorchEnv(env)
 
     return env
+
+
+# Checks whether done was caused my timit limits or not
+class TimeLimitMask(gym.Wrapper):
+    def step(self, action):
+        obs, rew, done, info = self.env.step(action)
+        if done and self.env._max_episode_steps == self.env._elapsed_steps:
+            info["bad_transition"] = True
+
+        return obs, rew, done, info
+
+
+class PyTorchEnv(gym.Wrapper):
+    """
+    Environment wrapper to convert observations, actions and rewards to torch.Tensors.
+    """
+
+    def reset(self):
+        obs = self.env.reset()
+        obs = torch.from_numpy(obs).float()
+        return obs
+
+    def step(self, action):
+        if isinstance(action, torch.LongTensor):
+            # Squeeze the dimension for discrete actions
+            action = action.squeeze(0)
+
+        # Convert action to numpy or singleton float/int.
+        if isinstance(self.action_space, Discrete):
+            if isinstance(action, torch.LongTensor):
+                action = int(action.cpu())
+            else:
+                action = float(action.cpu())
+        else:
+            action = action.cpu().numpy()
+
+        obs, reward, done, info = self.env.step(action)
+        obs = torch.from_numpy(obs).float()
+        reward = torch.Tensor([reward]).float()
+
+        return obs, reward, done, info
+
+
+class NormalizeEnv(gym.Wrapper):
+    """ Environment wrapper to normalize observations and returns. """
+
+    def __init__(self, env, clip_ob=10.0, clip_rew=10.0, gamma=0.99, epsilon=1e-8):
+
+        super().__init__(env)
+
+        # Save state.
+        self.clip_ob = clip_ob
+        self.clip_rew = clip_rew
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+        # Create running estimates of observation/return mean and standard deviation,
+        # and a float to store the sum of discounted rewards.
+        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
+        self.ret_rms = RunningMeanStd(shape=())
+        self.ret = np.zeros(1)
+
+        # Start in training mode.
+        self.training = True
+
+    def reset(self):
+        self.ret = np.zeros(1)
+        obs = self.env.reset()
+        return self._obfilt(obs)
+
+    def step(self, action):
+
+        obs, reward, done, info = self.env.step(action)
+        if done:
+            obs = self.env.reset()
+
+        self.ret = self.ret * self.gamma + reward
+        obs = self._obfilt(obs)
+        self.ret_rms.update(np.array(self.ret))
+        reward = np.clip(
+            reward / np.sqrt(self.ret_rms.var + self.epsilon),
+            -self.clip_rew,
+            self.clip_rew,
+        )
+
+        if done:
+            self.ret = np.zeros(1)
+
+        return obs, reward, done, info
+
+    def _obfilt(self, obs, update=True):
+
+        # Set datatype of obs properly.
+        obs = obs.astype(np.float32)
+
+        if self.ob_rms:
+            if update:
+                self.ob_rms.update(np.expand_dims(obs, axis=0))
+            obs = np.clip(
+                (obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
+                -self.clip_ob,
+                self.clip_ob,
+            )
+            return obs
+        else:
+            return obs
+
+    def train(self):
+        self.training = True
+
+    def eval(self):
+        self.training = False
 
 
 def get_metaworld_env_names() -> List[str]:

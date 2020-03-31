@@ -1,34 +1,15 @@
 from typing import Tuple, Dict
 
-import numpy as np
 import torch
+import numpy as np
 import torch.nn as nn
-from gym.spaces import Space, Box, Discrete
+from gym.spaces import Box, Discrete
 
 from meta.utils import get_space_size, init, AddBias
 
 
 class PolicyNetwork(nn.Module):
-    """ MLP network parameterizing the policy. """
-
-    def __init__(
-        self,
-        observation_space: Space,
-        action_space: Space,
-        num_layers: int = 3,
-        hidden_size: int = 64,
-    ):
-        """
-        init function for PolicyNetwork.
-
-        Arguments
-        ---------
-        observation_space : Space
-            Environment's observation space.
-        action_space : Space
-            Environment's action space.
-        hidden_size : int
-        """
+    def __init__(self, observation_space, action_space, num_layers=3, hidden_size=64):
 
         super(PolicyNetwork, self).__init__()
         self.action_space = action_space
@@ -83,7 +64,9 @@ class PolicyNetwork(nn.Module):
         if isinstance(action_space, Box):
             self.logstd = AddBias(torch.zeros(self.output_size))
 
-    def forward(self, obs: torch.Tensor) -> Tuple[float, Dict[str, torch.Tensor]]:
+    def forward(
+        self, obs: torch.Tensor
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Forward pass definition for PolicyNetwork.
 
