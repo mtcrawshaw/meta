@@ -135,7 +135,7 @@ def train(args: argparse.Namespace):
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
-        if update_iteration % args.log_interval == 0 and len(episode_rewards) > 1:
+        if update_iteration % args.print_freq == 0 and len(episode_rewards) > 1:
             metrics["mean"].append(np.mean(episode_rewards))
             metrics["median"].append(np.median(episode_rewards))
             metrics["min"].append(np.min(episode_rewards))
@@ -156,10 +156,10 @@ def train(args: argparse.Namespace):
             print("")
 
     # Save output_metrics if necessary.
-    if args.output_metrics_name is not None:
+    if args.metrics_name is not None:
         if not os.path.isdir(METRICS_DIR):
             os.makedirs(METRICS_DIR)
-        output_metrics_path = os.path.join(METRICS_DIR, args.output_metrics_name)
+        output_metrics_path = os.path.join(METRICS_DIR, args.metrics_name)
         with open(output_metrics_path, "wb") as metrics_file:
             pickle.dump(metrics, metrics_file)
 
