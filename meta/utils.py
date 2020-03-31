@@ -6,6 +6,7 @@ from typing import Union, List, Dict
 
 import numpy as np
 import torch
+import torch.nn as nn
 import gym
 from gym import Env
 from gym.spaces import Space, Box, Discrete
@@ -15,6 +16,16 @@ from meta.tests.envs import ParityEnv, UniqueEnv
 
 
 METRICS_DIR = os.path.join("data", "metrics")
+
+
+# Hacky fix for Gaussian policies.
+class AddBias(nn.Module):
+    def __init__(self, bias):
+        super(AddBias, self).__init__()
+        self._bias = nn.Parameter(bias)
+
+    def forward(self, x):
+        return x + self._bias
 
 
 def convert_to_tensor(val: Union[np.ndarray, int, float]):

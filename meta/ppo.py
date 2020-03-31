@@ -129,25 +129,29 @@ class PPOPolicy:
         tensor_obs = convert_to_tensor(obs)
         value_pred, action_probs = self.policy_network(tensor_obs)
 
-        # Create action distribution object from probabilities.
+        # Create action distribution object from probabilities and sample action.
         if isinstance(self.action_space, Discrete):
+
             action_dist = Categorical(**action_probs)
+            action = action_dist.sample()
+            action_log_prob = action_dist.log_prob(action)
+
         elif isinstance(self.action_space, Box):
+
             action_dist = Normal(**action_probs)
+            action = action_dist.sample()
+            action_log_prob = action_dist.log_prob(action)
+
+            # We sum over ``action_log_prob`` to convert element-wise log probs into a
+            # joint log prob.
+            action_log_prob = action_log_prob.sum(-1, keepdim=True)
+
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
-        # Sample action.
-        action = action_dist.sample()
-
-        # Compute log probability of action. We sum over ``element_log_probs``
-        # to convert element-wise log probs into a joint log prob.
-        action_log_prob = action_dist.log_prob(action)
+        # Keep sizes consistent.
         if action_log_prob.shape == torch.Size([]):
             action_log_prob = action_log_prob.view(1)
-        else:
-            pass
-            # action_log_prob = action_log_prob.sum(-1)
 
         return value_pred, action, action_log_prob
 
@@ -176,21 +180,21 @@ class PPOPolicy:
 
         value, action_probs = self.policy_network(obs_batch)
 
-        # Create action distribution object from probabilities.
+        # Create action distribution object from probabilities and compute log
+        # probabilities.
         if isinstance(self.action_space, Discrete):
             action_dist = Categorical(**action_probs)
+            actions_batch = torch.squeeze(actions_batch)
+            action_log_probs = action_dist.log_prob(actions_batch)
         elif isinstance(self.action_space, Box):
             action_dist = Normal(**action_probs)
+            # actions_batch = torch.squeeze(actions_batch)
+            action_log_probs = action_dist.log_prob(actions_batch).sum(-1)
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
-        # Compute log probabilities and action distribution entropies. We sum over
-        # ``element_log_probs`` here to convert element-wise log probs into a joint
-        # log prob.
-        actions_batch = torch.squeeze(actions_batch)
-        value = torch.squeeze(value)
-        action_log_probs = action_dist.log_prob(actions_batch)
         action_dist_entropy = action_dist.entropy()
+        value = torch.squeeze(value)
 
         return value, action_log_probs, action_dist_entropy
 

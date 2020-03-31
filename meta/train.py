@@ -68,6 +68,9 @@ def collect_rollout(
         # We cast the action to a numpy array here because policy.act() returns
         # it as a torch.Tensor. Less conversion back and forth this way.
         obs, reward, done, info = env.step(action.numpy())
+        if done:
+            obs = env.reset()
+
         rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
         rollout_step += 1
 
@@ -75,9 +78,8 @@ def collect_rollout(
         if "episode" in info.keys():
             rollout_episode_rewards.append(info["episode"]["r"])
 
-        # Reinitialize environment and set first observation, if finished.
+        # Create new RolloutStorage and set first observation, if finished.
         if done:
-            obs = env.reset()
             if total_rollout_step < rollout_length - 1:
                 rollouts.append(
                     RolloutStorage(
