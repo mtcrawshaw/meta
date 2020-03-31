@@ -132,7 +132,7 @@ def train(args: argparse.Namespace):
 
     last_episode_reward = 0
 
-    for update_iteration in range(args.num_iterations):
+    for update_iteration in range(args.num_updates):
 
         # Sample rollouts and compute update.
         rollouts, current_obs, rollout_episode_rewards = collect_rollout(
@@ -159,7 +159,7 @@ def train(args: argparse.Namespace):
             print(message, end="\r")
 
         # This is to ensure that printed out values don't get overwritten.
-        if update_iteration == args.num_iterations - 1:
+        if update_iteration == args.num_updates - 1:
             print("")
 
     # Save metrics if necessary.
