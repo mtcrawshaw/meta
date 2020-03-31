@@ -5,7 +5,6 @@ import torch
 from meta.train import collect_rollout
 from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
-from meta.tests.envs import UniquePolicy
 
 
 def test_collect_rollout_values():
@@ -16,8 +15,8 @@ def test_collect_rollout_values():
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "unique-env"
 
-    env = get_env(settings["env_name"])
-    policy = UniquePolicy()
+    env = get_env(settings["env_name"], normalize=False, allow_early_resets=True)
+    policy = get_policy(env, settings)
     initial_obs = env.reset()
     rollouts, _, _ = collect_rollout(
         env, policy, settings["rollout_length"], initial_obs
@@ -43,11 +42,5 @@ def test_collect_rollout_values():
 
             # Check consistency of values.
             assert float(obs) == float(step + 1)
-            assert float(obs) == float(value_pred)
             assert float(action) - int(action) == 0 and int(action) in env.action_space
-            assert (
-                float(action_log_prob)
-                - log(policy.policy_network.action_probs(float(obs))[int(action)])
-                < TOL
-            )
             assert float(obs) == float(reward)

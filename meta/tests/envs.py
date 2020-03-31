@@ -5,13 +5,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
+from gym import Env
 from gym.spaces import Box, Discrete
 
 
-class ParityEnv:
+class ParityEnv(Env):
     """ Environment for testing. Only has two states, and two actions.  """
 
-    def __init__(self) -> None:
+    def __init__(self):
         """ Init function for ParityEnv. """
 
         self.states = [np.array([1, 0]), np.array([0, 1])]
@@ -44,7 +45,7 @@ class ParityEnv:
         return self.state, reward, done, info
 
 
-class UniqueEnv:
+class UniqueEnv(Env):
     """ Environment for testing. Each step returns a unique observation and reward. """
 
     def __init__(self) -> None:
@@ -58,7 +59,7 @@ class UniqueEnv:
         """ Reset environment to initial state. """
 
         self.timestep = 1
-        return float(self.timestep)
+        return np.array(float(self.timestep))
 
     def step(self, action: float) -> Tuple[float, float, bool, dict]:
         """
@@ -68,63 +69,9 @@ class UniqueEnv:
         """
 
         reward = float(self.timestep)
-        DONE_TEMP = 10.0
-        done_prob = 1.0 - DONE_TEMP / (self.timestep + DONE_TEMP - 1)
-        done = random.random() < done_prob
+        done = False
         self.timestep += 1
         obs = float(self.timestep)
         info = {}
 
-        return obs, reward, done, info
-
-
-class UniquePolicy:
-    """
-    Policy for testing. Returns a unique action distribution for each observation.
-    """
-
-    def __init__(self):
-        """ Init function for UniquePolicy. """
-        self.policy_network = UniquePolicyNetwork()
-
-    def act(self, obs: float):
-        """ Sample action from policy. """
-
-        tensor_obs = torch.Tensor(obs)
-        value_pred, action_probs = self.policy_network(tensor_obs)
-        action_dist = Categorical(**action_probs)
-
-        action = action_dist.sample()
-        action_log_prob = action_dist.log_prob(action)
-
-        # Reshape action_log_prob as in meta/tests/ppo.py.
-        if action_log_prob.shape == torch.Size([]):
-            action_log_prob = action_log_prob.view(1)
-        else:
-            pass
-            # action_log_prob = action_log_prob.sum(-1)
-
-        return value_pred, action, action_log_prob
-
-
-class UniquePolicyNetwork(nn.Module):
-    """
-    Policy network for testing. Returns a unique action distribution for each
-    observation.
-    """
-
-    def __init__(self):
-        """ Init function for UniquePolicyNetwork. """
-
-        super().__init__()
-        self.action_probs = lambda obs: [1 / (obs + 1), 1 - 1 / (obs + 1)]
-
-    def forward(self, obs: torch.Tensor) -> Tuple[float, Dict[str, torch.Tensor]]:
-        """ Forward pass definition for UniquePolicyNetwork. """
-
-        value_pred = torch.zeros(obs.shape)
-        value_pred.copy_(obs)
-        probs = torch.cat(self.action_probs(obs))
-        action_probs = {"probs": probs}
-
-        return value_pred, action_probs
+        return np.array(obs), reward, done, info

@@ -7,10 +7,9 @@ import gym
 from gym import Env
 
 from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage, combine_rollouts
+from meta.storage import RolloutStorage
 from meta.utils import get_env
-from meta.tests.utils import get_policy, DEFAULT_SETTINGS
-from meta.tests.envs import UniquePolicy
+from meta.tests.utils import get_policy, get_rollouts, DEFAULT_SETTINGS
 
 
 TOL = 1e-6
@@ -20,9 +19,9 @@ def test_act_sizes():
     """ Test the sizes of returned tensors from ppo.act(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"])
+    env = get_env(settings["env_name"], normalize=False)
     policy = get_policy(env, settings)
-    obs = env.observation_space.sample()
+    obs = torch.Tensor(env.observation_space.sample())
 
     value_pred, action, action_log_prob = policy.act(obs)
 
@@ -34,35 +33,11 @@ def test_act_sizes():
     assert action_log_prob.shape == torch.Size([1])
 
 
-def test_act_values():
-    """ Test the values in the returned tensors from ppo.act(). """
-
-    settings = dict(DEFAULT_SETTINGS)
-    env = get_env("unique-env")
-    policy = UniquePolicy()
-    obs = env.observation_space.sample()
-
-    value_pred, action, action_log_prob = policy.act(obs)
-
-    assert isinstance(value_pred, torch.Tensor)
-    assert float(value_pred) == obs
-    assert isinstance(action, torch.Tensor)
-    assert float(action) - int(action) == 0.0 and int(action) in env.action_space
-    assert isinstance(action_log_prob, torch.Tensor)
-    assert (
-        abs(
-            float(action_log_prob)
-            - log(float(policy.policy_network.action_probs(obs)[int(action)]))
-        )
-        < TOL
-    )
-
-
 def test_evaluate_actions_sizes():
     """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"])
+    env = get_env(settings["env_name"], normalize=False)
     policy = get_policy(env, settings)
     obs_list = [
         torch.Tensor(env.observation_space.sample())
@@ -96,9 +71,9 @@ def test_get_value_sizes():
     """ Test the sizes of returned tensors from ppo.get_value(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"])
+    env = get_env(settings["env_name"], normalize=False)
     policy = get_policy(env, settings)
-    obs = env.observation_space.sample()
+    obs = torch.Tensor(env.observation_space.sample())
 
     value_pred = policy.get_value(obs)
 
@@ -109,73 +84,6 @@ def test_get_value_sizes():
 def get_value_values():
     """ Test the values of returned tensors from ppo.get_value(). """
     raise NotImplementedError
-
-
-def test_combine_rollouts_values():
-    """
-    Tests the values of the rollout information returned from combine_rollouts().
-    """
-
-    # Initialize environment and policy.
-    settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "unique-env"
-    env = get_env(settings["env_name"])
-    policy = UniquePolicy()
-
-    # Initialize policy and rollout storage.
-    num_episodes = 4
-    episode_len = 8
-    individual_rollouts = get_rollouts(env, policy, num_episodes, episode_len)
-
-    # Combine rollouts.
-    rollouts = combine_rollouts(individual_rollouts)
-
-    # Test values.
-    total_step = 0
-    for e in range(num_episodes):
-        for t in range(episode_len):
-
-            # Check that ``rollouts`` contains the same information as
-            # ``individual_rollouts``.
-            assert individual_rollouts[e].obs[t] == rollouts.obs[total_step]
-            assert (
-                individual_rollouts[e].value_preds[t]
-                == rollouts.value_preds[total_step]
-            )
-            assert individual_rollouts[e].actions[t] == rollouts.actions[total_step]
-            assert (
-                individual_rollouts[e].action_log_probs[t]
-                == rollouts.action_log_probs[total_step]
-            )
-            assert individual_rollouts[e].rewards[t] == rollouts.rewards[total_step]
-
-            # Check that ``rollouts`` contains transitions from UniqueEnv.
-            assert float(rollouts.obs[total_step]) == float(
-                rollouts.value_preds[total_step]
-            )
-            assert (
-                float(rollouts.actions[total_step]) - int(rollouts.actions[total_step])
-                == 0
-                and int(rollouts.actions[total_step]) in env.action_space
-            )
-            assert (
-                float(rollouts.action_log_probs[total_step])
-                - log(
-                    policy.policy_network.action_probs(float(rollouts.obs[total_step]))[
-                        int(rollouts.actions[total_step])
-                    ]
-                )
-                < TOL
-            )
-            assert float(rollouts.obs[total_step]) == float(
-                rollouts.rewards[total_step]
-            )
-
-            total_step += 1
-
-    # Check to make sure that the length of ``rollouts`` is the combined length of
-    # ``individual_rollouts``.
-    assert total_step == rollouts.rollout_step
 
 
 def compute_returns_advantages_values():
@@ -194,7 +102,7 @@ def test_update_values():
     # Initialize environment and policy.
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "parity-env"
-    env = get_env(settings["env_name"])
+    env = get_env(settings["env_name"], normalize=False, allow_early_resets=True)
     policy = get_policy(env, settings)
 
     # Initialize policy and rollout storage.
@@ -216,41 +124,6 @@ def test_update_values():
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
     assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
-
-
-def get_rollouts(
-    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
-) -> List[RolloutStorage]:
-    """
-    Collects ``num_episodes`` rollouts of size ``episode_len`` from ``env`` using
-    ``policy``.
-    """
-
-    rollout_len = num_episodes * episode_len
-    rollouts = []
-
-    # Generate rollout.
-    for episode in range(num_episodes):
-
-        rollouts.append(
-            RolloutStorage(
-                rollout_length=episode_len,
-                observation_space=env.observation_space,
-                action_space=env.action_space,
-            )
-        )
-        obs = env.reset()
-        rollouts[-1].set_initial_obs(obs)
-
-        for rollout_step in range(episode_len):
-            with torch.no_grad():
-                value_pred, action, action_log_prob = policy.act(
-                    rollouts[-1].obs[rollout_step]
-                )
-            obs, reward, done, info = env.step(action.numpy())
-            rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
-
-    return rollouts
 
 
 def get_losses(

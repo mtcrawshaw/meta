@@ -1,8 +1,10 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 
+import torch
 from gym import Env
 
 from meta.ppo import PPOPolicy
+from meta.storage import RolloutStorage
 
 DEFAULT_SETTINGS = {
     "env_name": "CartPole-v1",
@@ -47,3 +49,40 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
         normalize_advantages=settings["normalize_advantages"],
     )
     return policy
+
+
+def get_rollouts(
+    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
+) -> List[RolloutStorage]:
+    """
+    Collects ``num_episodes`` rollouts of size ``episode_len`` from ``env`` using
+    ``policy``. Note that we explicitly call env.reset() here assuming that the
+    environment will never return done=True, so this function should not be used with an
+    environment which may return done=True.
+    """
+
+    rollout_len = num_episodes * episode_len
+    rollouts = []
+
+    # Generate rollout.
+    for episode in range(num_episodes):
+
+        rollouts.append(
+            RolloutStorage(
+                rollout_length=episode_len,
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+            )
+        )
+        obs = env.reset()
+        rollouts[-1].set_initial_obs(obs)
+
+        for rollout_step in range(episode_len):
+            with torch.no_grad():
+                value_pred, action, action_log_prob = policy.act(
+                    rollouts[-1].obs[rollout_step]
+                )
+            obs, reward, done, info = env.step(action)
+            rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
+
+    return rollouts

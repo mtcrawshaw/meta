@@ -72,8 +72,31 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
     return diff, same
 
 
-def get_env(env_name: str, seed: int = 1) -> Env:
-    """ Return environment object from environment name. """
+def get_env(
+    env_name: str,
+    seed: int = 1,
+    normalize: bool = True,
+    allow_early_resets: bool = False,
+) -> Env:
+    """
+    Return environment object from environment name.
+
+    Parameters
+    ----------
+    env_name : str
+        Name of environment to create.
+    seed : int
+        Random seed for environment.
+    normalize : bool
+        Whether or not to add environment wrapper to normalize observations and rewards.
+    allow_early_resets: bool
+        Whether or not to allow environments before done=True is returned.
+
+    Returns
+    -------
+    env : Env
+        Environment object.
+    """
 
     # Make environment object from either MetaWorld or Gym.
     metaworld_env_names = get_metaworld_env_names()
@@ -88,10 +111,10 @@ def get_env(env_name: str, seed: int = 1) -> Env:
         env.set_task(tasks[0])
 
     elif env_name == "unique-env":
-        env = ParityEnv()
+        env = UniqueEnv()
 
     elif env_name == "parity-env":
-        env = UniqueEnv()
+        env = ParityEnv()
 
     else:
         env = gym.make(env_name)
@@ -102,8 +125,9 @@ def get_env(env_name: str, seed: int = 1) -> Env:
     # Add environment wrappers.
     if str(env.__class__.__name__).find("TimeLimit") >= 0:
         env = TimeLimitMask(env)
-    env = bench.Monitor(env, None)
-    env = NormalizeEnv(env)
+    env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
+    if normalize:
+        env = NormalizeEnv(env)
     env = PyTorchEnv(env)
 
     return env
@@ -199,7 +223,6 @@ class NormalizeEnv(gym.Wrapper):
 
     def _obfilt(self, obs, update=True):
 
-        # Set datatype of obs properly.
         obs = obs.astype(np.float32)
 
         if self.ob_rms:
