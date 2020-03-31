@@ -6,7 +6,8 @@ Tasks to convert ikostrikov code into our format:
     - Minimize diff for all files in meta/
 
 
-Differences to keep/toggle to search for bugs:
-- Computation of action, action_log_probs in PPOPolicy act() and evaluate_actions()
-- Delta computation in PPOPolicy update()
-- Observation normalization + other wrapped functionality
+Differences in implementations:
+- Delta computation
+- Observation + reward normalization
+- Last actor layer initialization
+- Not resetting obs before adding to rollouts in develop:meta/train.py

@@ -83,4 +83,4 @@ After merging:
 - Remove AddBias hack
 - Add GPU support
 - Add multiprocessing
-- Add support for multiprocessing
+- Add support for recurrent policies?
