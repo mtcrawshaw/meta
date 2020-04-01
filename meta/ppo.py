@@ -7,7 +7,7 @@ from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
-from meta.storage import RolloutStorage, combine_rollouts
+from meta.storage import RolloutStorage
 
 
 class PPOPolicy:
@@ -226,45 +226,49 @@ class PPOPolicy:
         return value_pred
 
     def compute_returns_advantages(
-        self, individual_rollouts: List[RolloutStorage]
+        self, rollout: RolloutStorage
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute returns corresponding to equations (11) and (12) in the PPO paper, for
-        each rollout in ``invidial_rollouts``.
+        each episode in ``rollouts``.
+
+        Parameters
+        ----------
+        rollout : RolloutStorage
+            Storage container for rollout information.
+
+        Returns
+        -------
+        returns : torch.Tensor
+            Tensor holding returns.
+        advantages : torch.Tensor
+            Tensor holding advantage estimates using GAE.
         """
 
-        total_length = sum(rollout.rollout_step for rollout in individual_rollouts)
-        returns = torch.zeros(total_length)
-        advantages = torch.zeros(total_length)
+        returns = torch.zeros(rollout.rollout_step)
+        advantages = torch.zeros(rollout.rollout_step)
         current_pos = 0
 
-        for rollout in individual_rollouts:
-
-            # Compute returns.
-            with torch.no_grad():
-                rollout.value_preds[rollout.rollout_step] = self.get_value(
-                    rollout.obs[rollout.rollout_step]
-                )
-            gae = 0
-            for t in reversed(range(rollout.rollout_step)):
-                delta = rollout.rewards[t]
-                if not (t == rollout.rollout_step - 1 and rollout.done):
-                    delta += self.gamma * rollout.value_preds[t + 1]
-                delta -= rollout.value_preds[t]
-
-                gae = self.gamma * self.gae_lambda * gae + delta
-                returns[t + current_pos] = gae + rollout.value_preds[t]
-
-            # Compute advantages.
-            end_pos = current_pos + rollout.rollout_step
-            advantages[current_pos:end_pos] = (
-                returns[current_pos:end_pos]
-                - rollout.value_preds[: rollout.rollout_step]
+        # Get value prediction of very last observation.
+        with torch.no_grad():
+            rollout.value_preds[rollout.rollout_step] = self.get_value(
+                rollout.obs[rollout.rollout_step]
             )
 
-            current_pos += rollout.rollout_step
+        # Compute returns.
+        gae = 0
+        for t in reversed(range(rollout.rollout_step)):
+            delta = rollout.rewards[t]
+            delta += self.gamma * rollout.value_preds[t + 1] * (1 - rollout.dones[t])
+            delta -= rollout.value_preds[t]
 
-        # Normalize advantages.
+            gae = (1 - rollout.dones[t]) * self.gamma * self.gae_lambda * gae + delta
+            returns[t] = gae + rollout.value_preds[t]
+
+        # Compute advantages.
+        advantages = returns - rollout.value_preds[: rollout.rollout_step]
+
+        # Normalize advantages if necessary.
         if self.normalize_advantages:
             advantages = (advantages - advantages.mean()) / (
                 advantages.std() + self.eps
@@ -272,16 +276,15 @@ class PPOPolicy:
 
         return returns, advantages
 
-    def update(self, individual_rollouts: List[RolloutStorage]) -> Dict[str, float]:
+    def update(self, rollout: RolloutStorage) -> Dict[str, float]:
         """
-        Train policy with PPO from rollout information in ``individual rollouts``.
+        Train policy with PPO from rollout information in ``rollouts``.
 
         Arguments
         ---------
-        individual_rollouts : List[RolloutStorage]
-            List of storage containers holding rollout information to train from. Each
-            RolloutStorage object holds observation, action, reward, etc. from a single
-            episode.
+        rollouts : RolloutStorage
+            Storage container holding rollout information to train from. Contains
+            observations, actions, rewards, etc. for one or more episodes.
 
         Returns
         -------
@@ -290,15 +293,14 @@ class PPOPolicy:
         """
 
         # Combine rollouts into one object and compute returns/advantages.
-        rollouts = combine_rollouts(individual_rollouts)
-        returns, advantages = self.compute_returns_advantages(individual_rollouts)
+        returns, advantages = self.compute_returns_advantages(rollout)
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
-            minibatch_generator = rollouts.minibatch_generator(self.minibatch_size)
+            minibatch_generator = rollout.minibatch_generator(self.minibatch_size)
 
             for minibatch in minibatch_generator:
 

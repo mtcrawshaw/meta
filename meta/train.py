@@ -14,80 +14,6 @@ from meta.storage import RolloutStorage
 from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
-def collect_rollout(
-    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
-) -> Tuple[List[RolloutStorage], Any]:
-    """
-    Run environment and collect rollout information (observations, rewards, actions,
-    etc.) into a RolloutStorage object, one for each episode.
-
-    Parameters
-    ----------
-    env : Env
-        Environment to run.
-    policy : PPOPolicy
-        Policy to sample actions with.
-    rollout_length : int
-        Combined length of episodes in rollout (i.e. number of steps for a single
-        update).
-    initial_obs : Any
-        Initial observation returned from call to env.reset().
-
-    Returns
-    -------
-    rollouts : List[RolloutStorage]
-        List of RolloutStorage objects, one for each episode.
-    obs : Any
-        Last observation from rollout, to be used as the initial observation for the
-        next rollout.
-    """
-
-    rollouts = []
-    rollouts.append(
-        RolloutStorage(
-            rollout_length=rollout_length,
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-        )
-    )
-    rollouts[0].set_initial_obs(initial_obs)
-
-    rollout_episode_rewards = []
-
-    # Rollout loop.
-    rollout_step = 0
-    for total_rollout_step in range(rollout_length):
-
-        # Sample actions.
-        with torch.no_grad():
-            value, action, action_log_prob = policy.act(rollouts[-1].obs[rollout_step])
-
-        # Perform step and record in ``rollouts``.
-        obs, reward, done, info = env.step(action)
-        rollouts[-1].add_step(obs, action, action_log_prob, value, reward)
-        rollout_step += 1
-
-        # Get total episode reward, if it is given, and check for done.
-        if "episode" in info.keys():
-            rollout_episode_rewards.append(info["episode"]["r"])
-        if done:
-            rollouts[-1].done = True
-
-        # Create new RolloutStorage and set first observation, if finished.
-        if done and total_rollout_step < rollout_length - 1:
-            rollouts.append(
-                RolloutStorage(
-                    rollout_length=rollout_length,
-                    observation_space=env.observation_space,
-                    action_space=env.action_space,
-                )
-            )
-            rollouts[-1].set_initial_obs(obs)
-            rollout_step = 0
-
-    return rollouts, obs, rollout_episode_rewards
-
-
 def train(args: argparse.Namespace):
     """ Main function for train.py. """
 
@@ -127,11 +53,11 @@ def train(args: argparse.Namespace):
 
     for update_iteration in range(args.num_updates):
 
-        # Sample rollouts and compute update.
-        rollouts, current_obs, rollout_episode_rewards = collect_rollout(
+        # Sample rollout and compute update.
+        rollout, current_obs, rollout_episode_rewards = collect_rollout(
             env, policy, args.rollout_length, current_obs
         )
-        loss_items = policy.update(rollouts)
+        loss_items = policy.update(rollout)
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
@@ -173,3 +99,63 @@ def train(args: argparse.Namespace):
             print("Failed test! Output metrics not equal to baseline.")
             earliest_diff = min(metrics_diff[key][0] for key in metrics_diff)
             print("Earliest difference: %s" % str(earliest_diff))
+
+
+def collect_rollout(
+    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
+) -> Tuple[RolloutStorage, Any, List[float]]:
+    """
+    Run environment and collect rollout information (observations, rewards, actions,
+    etc.) into a RolloutStorage object, possibly for multiple episodes.
+
+    Parameters
+    ----------
+    env : Env
+        Environment to run.
+    policy : PPOPolicy
+        Policy to sample actions with.
+    rollout_length : int
+        Combined length of episodes in rollout (i.e. number of steps for a single
+        update).
+    initial_obs : Any
+        Initial observation returned from call to env.reset().
+
+    Returns
+    -------
+    rollout : RolloutStorage
+        Rollout storage object containing rollout information from one or more episodes.
+    obs : Any
+        Last observation from rollout, to be used as the initial observation for the
+        next rollout.
+    rollout_episode_rewards : List[float]
+        Each element of is the total reward over an episode which ended during the
+        collected rollout.
+    """
+
+    rollout = RolloutStorage(
+        rollout_length=rollout_length,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
+    rollout_episode_rewards = []
+    rollout.set_initial_obs(initial_obs)
+
+    # for total_rollout_step in range(rollout_length):
+    # Rollout loop.
+    for rollout_step in range(rollout_length):
+
+        # Sample actions.
+        with torch.no_grad():
+            value, action, action_log_prob = policy.act(rollout.obs[rollout_step])
+
+        # Perform step and record in ``rollout``.
+        obs, reward, done, info = env.step(action)
+        rollout.add_step(obs, action, done, action_log_prob, value, reward)
+
+        # Get total episode reward, if it is given, and check for done.
+        if "episode" in info.keys():
+            rollout_episode_rewards.append(info["episode"]["r"])
+        if done:
+            rollout.done = True
+
+    return rollout, obs, rollout_episode_rewards

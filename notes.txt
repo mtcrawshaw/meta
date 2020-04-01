@@ -10,15 +10,19 @@ Road map:
     Tests of statistical significance
 
 Current sprint:
-- Convert List[RolloutStorage] back to RolloutStorage
-- Fix comments, typing, and naming (episodes vs. rollouts)
-- Make policy return distribution object, not arguments
-- Remove AddBias hack
-- Move to settings file
-- Move run_discrete and run_continuous into tests
-- Add GPU support
-- Add multiprocessing
-- Add support for recurrent policies
+--> Convert List[RolloutStorage] back to RolloutStorage (Ready for refactoring)
+    Move to settings file
+    Move run_discrete and run_continuous into tests
+    Fix comments, typing, and naming (episodes vs. rollouts)
+    Make policy return distribution object, not arguments
+    Remove AddBias hack
+    Add GPU support
+    Add multiprocessing
+    Add support for recurrent policies
+
+Before merging to master:
+- Use black, pylint, and mypy to clean up
+- Make sure "pytest meta/" passes
 
 PPO training settings to add/consider:
 - Network architecture hyperparameters

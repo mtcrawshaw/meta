@@ -51,6 +51,20 @@ class RolloutStorage:
         # Initialize rollout information.
         self.init_rollout_info()
 
+    def __repr__(self):
+        """ String representation of RolloutStorage. """
+
+        attrs = [
+            "obs",
+            "value_preds",
+            "actions",
+            "action_log_probs",
+            "rewards",
+            "dones",
+        ]
+        state = {attr: getattr(self, attr) for attr in attrs}
+        return str(state)
+
     def init_rollout_info(self):
         """ Initialize rollout information. """
 
@@ -59,16 +73,16 @@ class RolloutStorage:
         self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
         self.value_preds = torch.zeros(self.rollout_length + 1)
         self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
+        self.dones = torch.zeros(self.rollout_length)
 
         self.action_log_probs = torch.zeros(self.rollout_length)
         self.rewards = torch.zeros(self.rollout_length)
-
-        self.done = False
 
     def add_step(
         self,
         obs: torch.Tensor,
         action: torch.Tensor,
+        done: bool,
         action_log_prob: torch.Tensor,
         value_pred: torch.Tensor,
         reward: torch.Tensor,
@@ -80,6 +94,8 @@ class RolloutStorage:
             Observation returned from environment after step was taken.
         action : torch.Tensor,
             Action taken in environment step.
+        done : bool,
+            Whether or not step was terminal (done value returned from env.step()).
         action_log_prob : torch.Tensor,
             Log probs of action distribution output by policy network.
         value_pred : torch.Tensor,
@@ -93,6 +109,7 @@ class RolloutStorage:
 
         self.obs[self.rollout_step + 1] = obs
         self.actions[self.rollout_step] = action
+        self.dones[self.rollout_step] = 1 if done else 0
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
         self.rewards[self.rollout_step] = reward
@@ -186,12 +203,15 @@ class RolloutStorage:
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
 
 
+"""
 def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorage:
-    """
-    Given a list of individual RolloutStorage objects, returns a single combined
-    RolloutStorage object.
-    """
+"""
+"""
+Given a list of individual RolloutStorage objects, returns a single combined
+RolloutStorage object.
+"""
 
+"""
     if len(individual_rollouts) == 0:
         raise ValueError("Received empty list of rollouts.")
 
@@ -211,3 +231,4 @@ def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorag
     rollouts.rollout_step = current_pos
 
     return rollouts
+"""

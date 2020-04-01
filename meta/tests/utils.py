@@ -24,6 +24,8 @@ DEFAULT_SETTINGS = {
     "hidden_size": 64,
     "normalize_advantages": True,
     "seed": 1,
+    "num_episodes": 4,
+    "episode_len": 8,
 }
 
 
@@ -51,38 +53,39 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
     return policy
 
 
-def get_rollouts(
+def get_rollout(
     env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
-) -> List[RolloutStorage]:
+) -> RolloutStorage:
     """
-    Collects ``num_episodes`` rollouts of size ``episode_len`` from ``env`` using
+    Collects ``num_episodes`` episodes of size ``episode_len`` from ``env`` using
     ``policy``. Note that we explicitly call env.reset() here assuming that the
     environment will never return done=True, so this function should not be used with an
     environment which may return done=True.
     """
 
     rollout_len = num_episodes * episode_len
-    rollouts = []
+    rollout = RolloutStorage(
+        rollout_length=rollout_len,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+    )
+    rollout.set_initial_obs(env.reset())
 
     # Generate rollout.
     for episode in range(num_episodes):
 
-        rollouts.append(
-            RolloutStorage(
-                rollout_length=episode_len,
-                observation_space=env.observation_space,
-                action_space=env.action_space,
-            )
-        )
-        obs = env.reset()
-        rollouts[-1].set_initial_obs(obs)
-
         for rollout_step in range(episode_len):
             with torch.no_grad():
                 value_pred, action, action_log_prob = policy.act(
-                    rollouts[-1].obs[rollout_step]
+                    rollout.obs[rollout_step]
                 )
             obs, reward, done, info = env.step(action)
-            rollouts[-1].add_step(obs, action, action_log_prob, value_pred, reward)
 
-    return rollouts
+            # Putting this here so that obs and done get set before adding to rollout.
+            if rollout_step == episode_len - 1:
+                obs = env.reset()
+                done = True
+
+            rollout.add_step(obs, action, done, action_log_prob, value_pred, reward)
+
+    return rollout

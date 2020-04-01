@@ -9,7 +9,7 @@ from gym import Env
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.utils import get_env
-from meta.tests.utils import get_policy, get_rollouts, DEFAULT_SETTINGS
+from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
 
 
 TOL = 1e-6
@@ -106,15 +106,15 @@ def test_update_values():
     policy = get_policy(env, settings)
 
     # Initialize policy and rollout storage.
-    num_episodes = 4
-    episode_len = 8
-    rollouts = get_rollouts(env, policy, num_episodes, episode_len)
+    rollout = get_rollout(
+        env, policy, settings["num_episodes"], settings["episode_len"]
+    )
 
     # Compute expected losses.
-    expected_loss_items = get_losses(rollouts, policy, settings)
+    expected_loss_items = get_losses(rollout, policy, settings)
 
     # Compute actual losses.
-    loss_items = policy.update(rollouts)
+    loss_items = policy.update(rollout)
 
     # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
@@ -127,15 +127,15 @@ def test_update_values():
 
 
 def get_losses(
-    rollouts: List[RolloutStorage], policy: PPOPolicy, settings: Dict[str, Any]
+    rollout: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any]
 ) -> Dict[str, float]:
     """
-    Computes action, value, entropy, and total loss from rollouts, assuming that we
+    Computes action, value, entropy, and total loss from rollout, assuming that we
     aren't performing value loss clipping.
 
     Parameters
     ----------
-    rollouts : List[RolloutStorage}
+    rollout : RolloutStorage
         Rollout information such as observations, actions, rewards, etc for each
         episode.
     policy : PPOPolicy
@@ -154,27 +154,33 @@ def get_losses(
     loss_items = {}
 
     # Compute returns and advantages.
-    num_episodes = len(rollouts)
-    episode_len = rollouts[0].rollout_step
-    returns = np.zeros((num_episodes, episode_len))
-    advantages = np.zeros((num_episodes, episode_len))
-    for e in range(num_episodes):
+    returns = np.zeros((settings["num_episodes"], settings["episode_len"]))
+    advantages = np.zeros((settings["num_episodes"], settings["episode_len"]))
+    for e in range(settings["num_episodes"]):
 
+        episode_start = e * settings["episode_len"]
+        episode_end = (e + 1) * settings["episode_len"]
         with torch.no_grad():
-            rollouts[e].value_preds[rollouts[e].rollout_step] = policy.get_value(
-                rollouts[e].obs[rollouts[e].rollout_step]
+            rollout.value_preds[episode_end] = policy.get_value(
+                rollout.obs[episode_end]
             )
 
-        for t in range(episode_len):
-            for i in range(t, episode_len):
-                delta = float(rollouts[e].rewards[i])
-                delta += settings["gamma"] * float(rollouts[e].value_preds[i + 1])
-                delta -= float(rollouts[e].value_preds[i])
+        for t in range(settings["episode_len"]):
+            for i in range(t, settings["episode_len"]):
+                delta = float(rollout.rewards[episode_start + i])
+                delta += (
+                    settings["gamma"]
+                    * float(rollout.value_preds[episode_start + i + 1])
+                    * (1 - rollout.dones[episode_start + i])
+                )
+                delta -= float(rollout.value_preds[episode_start + i])
                 returns[e][t] += delta * (
                     settings["gamma"] * settings["gae_lambda"]
                 ) ** (i - t)
-            returns[e][t] += float(rollouts[e].value_preds[t])
-            advantages[e][t] = returns[e][t] - float(rollouts[e].value_preds[t])
+            returns[e][t] += float(rollout.value_preds[episode_start + t])
+            advantages[e][t] = returns[e][t] - float(
+                rollout.value_preds[episode_start + t]
+            )
 
     if settings["normalize_advantages"]:
         advantage_std = np.std(advantages, ddof=1)
@@ -187,16 +193,19 @@ def get_losses(
     loss_items["entropy"] = 0.0
     entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
-    for e in range(len(rollouts)):
-        for t in range(episode_len):
+    for e in range(settings["num_episodes"]):
+        for t in range(settings["episode_len"]):
+            step = e * settings["episode_len"] + t
             with torch.no_grad():
                 (
                     new_value_pred,
                     new_action_log_probs,
                     new_entropy,
-                ) = policy.evaluate_actions(rollouts[e].obs[t], rollouts[e].actions[t])
+                ) = policy.evaluate_actions(
+                    rollout.obs[step].unsqueeze(0), rollout.actions[step].unsqueeze(0)
+                )
             new_probs = new_action_log_probs.detach().numpy()
-            old_probs = rollouts[e].action_log_probs[t].detach().numpy()
+            old_probs = rollout.action_log_probs[step].detach().numpy()
             ratio = np.exp(new_probs - old_probs)
             surrogate1 = ratio * advantages[e][t]
             surrogate2 = (
