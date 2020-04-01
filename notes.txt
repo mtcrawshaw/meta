@@ -11,7 +11,8 @@ Road map:
 
 Current sprint:
     Convert List[RolloutStorage] back to RolloutStorage
---> Move to settings file
+--> Set new continuous environment benchmark and test for Box((n1, n2))
+    Move to settings file
     Move run_discrete and run_continuous into tests
     Fix comments, typing, and naming (episodes vs. rollouts)
     Make policy return distribution object, not arguments
