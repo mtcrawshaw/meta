@@ -7,7 +7,7 @@ from typing import Tuple, Dict
 import torch
 import torch.nn as nn
 import numpy as np
-from gym.spaces import Box, Discrete
+from gym.spaces import Space, Box, Discrete
 
 from meta.utils import get_space_size, init, AddBias
 
@@ -15,7 +15,13 @@ from meta.utils import get_space_size, init, AddBias
 class PolicyNetwork(nn.Module):
     """ Module used to parameterize an actor/critic policy. """
 
-    def __init__(self, observation_space, action_space, num_layers=3, hidden_size=64):
+    def __init__(
+        self,
+        observation_space: Space,
+        action_space: Space,
+        num_layers: int = 3,
+        hidden_size: int = 64,
+    ) -> None:
 
         super(PolicyNetwork, self).__init__()
         self.action_space = action_space

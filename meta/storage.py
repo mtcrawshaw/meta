@@ -2,6 +2,8 @@
 Definition of RolloutStorage, an object to hold rollout information for one or more episodes.
 """
 
+from typing import Dict, Tuple, Generator
+
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space, Discrete, Box
@@ -12,7 +14,7 @@ class RolloutStorage:
 
     def __init__(
         self, rollout_length: int, observation_space: Space, action_space: Space
-    ):
+    ) -> None:
         """
         init function for RolloutStorage class.
 
@@ -29,7 +31,7 @@ class RolloutStorage:
         # Get observation and action shape.
         self.observation_space = observation_space
         self.action_space = action_space
-        self.space_shapes = {}
+        self.space_shapes: Dict[str, Tuple[int]] = {}
         spaces = {"obs": observation_space, "action": action_space}
         for space_name, space in spaces.items():
             if isinstance(space, Discrete):
@@ -53,7 +55,7 @@ class RolloutStorage:
         # Initialize rollout information.
         self.init_rollout_info()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """ String representation of RolloutStorage. """
 
         attrs = [
@@ -67,7 +69,7 @@ class RolloutStorage:
         state = {attr: getattr(self, attr) for attr in attrs}
         return str(state)
 
-    def init_rollout_info(self):
+    def init_rollout_info(self) -> None:
         """ Initialize rollout information. """
 
         # The +1 is here because we want to store the obs/value prediction
@@ -88,7 +90,7 @@ class RolloutStorage:
         action_log_prob: torch.Tensor,
         value_pred: torch.Tensor,
         reward: torch.Tensor,
-    ):
+    ) -> None:
         """
         Add an environment step to storage.
 
@@ -118,22 +120,7 @@ class RolloutStorage:
 
         self.rollout_step += 1
 
-    def clear(self):
-        """ Clear the stored rollout. """
-
-        # Store last observation to bring it into next rollout.
-        last_obs = self.obs[-1]
-
-        # Initialize rollout information.
-        self.init_rollout_info()
-
-        # Bring last observation into next rollout.
-        self.obs[0].copy_(last_obs)
-
-        # Reset rollout step.
-        self.rollout_step = 0
-
-    def set_initial_obs(self, obs: torch.Tensor):
+    def set_initial_obs(self, obs: torch.Tensor) -> None:
         """
         Set the first observation in storage.
 
@@ -145,7 +132,7 @@ class RolloutStorage:
 
         self.obs[0].copy_(obs)
 
-    def minibatch_generator(self, minibatch_size: int):
+    def minibatch_generator(self, minibatch_size: int) -> Generator:
         """
         Generates minibatches from rollout to train on. Note that this samples from the
         entire RolloutStorage object, even if only a small portion of it has been
@@ -158,7 +145,7 @@ class RolloutStorage:
 
         Yields
         ------
-        minibatch: Tuple[List[int], Tensor, ...]
+        minibatch: Tuple[List[int], torch.Tensor, ...]
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
@@ -184,7 +171,7 @@ class RolloutStorage:
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
 
-    def insert_rollout(self, new_rollout: "RolloutStorage", pos: int):
+    def insert_rollout(self, new_rollout: "RolloutStorage", pos: int) -> None:
         """
         Insert the values from one RolloutStorage object into ``self`` at position
         ``pos``, ignoring the values from after the last step.

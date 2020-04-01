@@ -1,6 +1,6 @@
 """ Test environments for meta. """
 
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 from gym import Env
@@ -10,7 +10,7 @@ from gym.spaces import Box, Discrete
 class ParityEnv(Env):
     """ Environment for testing. Only has two states, and two actions.  """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """ Init function for ParityEnv. """
 
         self.states = [np.array([1, 0]), np.array([0, 1])]
@@ -20,7 +20,7 @@ class ParityEnv(Env):
         self.state_index = self.initial_state_index
         self.state = self.states[self.state_index]
 
-    def reset(self) -> int:
+    def reset(self) -> np.ndarray:
         """ Reset environment to initial state. """
 
         self.state_index = self.initial_state_index
@@ -38,7 +38,7 @@ class ParityEnv(Env):
         self.state_index = (self.state_index + 1) % len(self.states)
         self.state = self.states[self.state_index]
         done = False
-        info = {}
+        info: Dict = {}
 
         return self.state, reward, done, info
 
@@ -53,7 +53,7 @@ class UniqueEnv(Env):
         self.action_space = Discrete(2)
         self.timestep = 1
 
-    def reset(self) -> float:
+    def reset(self) -> np.ndarray:
         """ Reset environment to initial state. """
 
         self.timestep = 1
@@ -70,6 +70,6 @@ class UniqueEnv(Env):
         done = False
         self.timestep += 1
         obs = float(self.timestep)
-        info = {}
+        info: Dict = {}
 
         return np.array(obs), reward, done, info

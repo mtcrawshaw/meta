@@ -4,7 +4,7 @@ import os
 import pickle
 import argparse
 from collections import deque
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
 import numpy as np
 import torch
@@ -15,7 +15,7 @@ from meta.storage import RolloutStorage
 from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
-def train(args: argparse.Namespace):
+def train(args: argparse.Namespace) -> None:
     """ Main function for train.py. """
 
     # Set random seed and number of threads.
@@ -48,9 +48,9 @@ def train(args: argparse.Namespace):
     current_obs = env.reset()
 
     # Training loop.
-    episode_rewards = deque(maxlen=10)
+    episode_rewards: deque = deque(maxlen=10)
     metric_names = ["mean", "median", "min", "max"]
-    metrics = {metric_name: [] for metric_name in metric_names}
+    metrics: Dict[str, List[float]] = {metric_name: [] for metric_name in metric_names}
 
     for update_iteration in range(args.num_updates):
 

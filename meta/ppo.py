@@ -33,7 +33,7 @@ class PPOPolicy:
         num_layers: int = 3,
         hidden_size: int = 64,
         normalize_advantages: float = True,
-    ):
+    ) -> None:
         """
         init function for PPOPolicy.
 

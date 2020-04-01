@@ -16,7 +16,7 @@ from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
 TOL = 1e-6
 
 
-def test_act_sizes():
+def test_act_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.act(). """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -34,7 +34,7 @@ def test_act_sizes():
     assert action_log_prob.shape == torch.Size([1])
 
 
-def test_evaluate_actions_sizes():
+def test_evaluate_actions_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -63,12 +63,12 @@ def test_evaluate_actions_sizes():
     assert action_dist_entropy.shape == torch.Size([settings["minibatch_size"]])
 
 
-def evaluate_actions_values():
+def evaluate_actions_values() -> None:
     """ Test the values in the returned tensors from ppo.evaluate_actions(). """
     raise NotImplementedError
 
 
-def test_get_value_sizes():
+def test_get_value_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.get_value(). """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -82,19 +82,19 @@ def test_get_value_sizes():
     assert value_pred.shape == torch.Size([1])
 
 
-def get_value_values():
+def get_value_values() -> None:
     """ Test the values of returned tensors from ppo.get_value(). """
     raise NotImplementedError
 
 
-def compute_returns_advantages_values():
+def compute_returns_advantages_values() -> None:
     """
     Tests the computed values of returns and advantages in PPO loss computation.
     """
     raise NotImplementedError
 
 
-def test_update_values():
+def test_update_values() -> None:
     """
     Tests whether PPOPolicy.update() calculates correct updates in the case of
     a linear actor/critic network and a dummy environment.

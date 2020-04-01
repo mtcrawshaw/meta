@@ -9,7 +9,7 @@ from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 
-def test_collect_rollout_values():
+def test_collect_rollout_values() -> None:
     """
     Test the values of the returned RolloutStorage objects from train.collect_rollout().
     """

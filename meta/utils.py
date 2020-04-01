@@ -2,7 +2,7 @@
 
 import os
 from functools import reduce
-from typing import Dict, List
+from typing import Dict, List, Union, Tuple, Any
 import pickle
 
 import numpy as np
@@ -23,15 +23,17 @@ METRICS_DIR = os.path.join("data", "metrics")
 class AddBias(nn.Module):
     """ Hacky fix for Gaussian policies. """
 
-    def __init__(self, bias):
+    def __init__(self, bias: torch.Tensor) -> None:
         super(AddBias, self).__init__()
         self._bias = nn.Parameter(bias)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self._bias
 
 
-def init(module, weight_init, bias_init, gain=1):
+def init(
+    module: nn.Module, weight_init: Any, bias_init: Any, gain: Union[float, int] = 1
+) -> nn.Module:
     """ Helper function to initialize network weights. """
 
     weight_init(module.weight.data, gain=gain)
@@ -39,9 +41,10 @@ def init(module, weight_init, bias_init, gain=1):
     return module
 
 
-def get_space_size(space: Space):
+def get_space_size(space: Space) -> int:
     """ Get the input/output size of an MLP whose input/output space is ``space``. """
 
+    size: int = 0
     if isinstance(space, Discrete):
         size = space.n
     elif isinstance(space, Box):
@@ -52,7 +55,9 @@ def get_space_size(space: Space):
     return size
 
 
-def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
+def compare_metrics(
+    metrics: Dict[str, List[float]], metrics_filename: str
+) -> Tuple[Any, bool]:
     """ Compute diff of metrics against the most recently saved baseline. """
 
     # Load baseline metric values.
@@ -61,7 +66,7 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str):
 
     # Compare metrics against baseline.
     assert set(metrics.keys()) == set(baseline_metrics.keys())
-    diff = {key: [] for key in metrics}
+    diff: Dict[str, List[Any]] = {key: [] for key in metrics}
     for key in metrics:
         assert len(metrics[key]) == len(baseline_metrics[key])
 
@@ -139,12 +144,14 @@ class PyTorchEnv(gym.Wrapper):
     Environment wrapper to convert observations, actions and rewards to torch.Tensors.
     """
 
-    def reset(self):
+    def reset(self) -> torch.Tensor:
         obs = self.env.reset()
         obs = torch.from_numpy(obs).float()
         return obs
 
-    def step(self, action):
+    def step(
+        self, action: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, bool, Dict[str, Any]]:
         if isinstance(action, torch.LongTensor):
             # Squeeze the dimension for discrete actions
             action = action.squeeze(0)
@@ -168,7 +175,14 @@ class PyTorchEnv(gym.Wrapper):
 class NormalizeEnv(gym.Wrapper):
     """ Environment wrapper to normalize observations and returns. """
 
-    def __init__(self, env, clip_ob=10.0, clip_rew=10.0, gamma=0.99, epsilon=1e-8):
+    def __init__(
+        self,
+        env: Env,
+        clip_ob: float = 10.0,
+        clip_rew: float = 10.0,
+        gamma: float = 0.99,
+        epsilon: float = 1e-8,
+    ) -> None:
 
         super().__init__(env)
 
@@ -187,12 +201,14 @@ class NormalizeEnv(gym.Wrapper):
         # Start in training mode.
         self.training = True
 
-    def reset(self):
+    def reset(self) -> np.ndarray:
         self.ret = np.zeros(1)
         obs = self.env.reset()
         return self._obfilt(obs)
 
-    def step(self, action):
+    def step(
+        self, action: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, bool, Dict[str, Any]]:
 
         obs, reward, done, info = self.env.step(action)
         if done:
@@ -212,7 +228,7 @@ class NormalizeEnv(gym.Wrapper):
 
         return obs, reward, done, info
 
-    def _obfilt(self, obs, update=True):
+    def _obfilt(self, obs: np.ndarray, update: bool = True) -> np.ndarray:
 
         if self.ob_rms:
             if update:
@@ -224,12 +240,6 @@ class NormalizeEnv(gym.Wrapper):
             )
 
         return obs
-
-    def train(self):
-        self.training = True
-
-    def eval(self):
-        self.training = False
 
 
 def get_metaworld_env_names() -> List[str]:
