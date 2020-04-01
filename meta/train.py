@@ -156,7 +156,5 @@ def collect_rollout(
         # Get total episode reward, if it is given, and check for done.
         if "episode" in info.keys():
             rollout_episode_rewards.append(info["episode"]["r"])
-        if done:
-            rollout.done = True
 
     return rollout, obs, rollout_episode_rewards
