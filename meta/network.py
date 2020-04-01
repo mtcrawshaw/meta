@@ -1,14 +1,20 @@
+"""
+Definition of PolicyNetwork, the module used to parameterize an actor/critic policy.
+"""
+
 from typing import Tuple, Dict
 
 import torch
-import numpy as np
 import torch.nn as nn
+import numpy as np
 from gym.spaces import Box, Discrete
 
 from meta.utils import get_space_size, init, AddBias
 
 
 class PolicyNetwork(nn.Module):
+    """ Module used to parameterize an actor/critic policy. """
+
     def __init__(self, observation_space, action_space, num_layers=3, hidden_size=64):
 
         super(PolicyNetwork, self).__init__()

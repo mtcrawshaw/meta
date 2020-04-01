@@ -1,4 +1,6 @@
-from math import log
+"""
+Unit tests for meta/train.py.
+"""
 
 import torch
 
@@ -23,7 +25,6 @@ def test_collect_rollout_values():
     )
 
     # Check if rollout info came from UniqueEnv.
-    TOL = 1e-6
     for step in range(rollout.rollout_step):
 
         obs = rollout.obs[step]

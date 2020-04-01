@@ -1,4 +1,6 @@
-from typing import List, Tuple, Dict
+""" Definition of PPOPolicy, an object to perform acting and training with PPO. """
+
+from typing import Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -124,21 +126,9 @@ class PPOPolicy:
         if isinstance(self.action_space, Discrete):
 
             action_dist = Categorical(**action_probs)
-            # HERE
             action = action_dist.sample()
             action_log_prob = action_dist.log_prob(action)
-            # HERE
 
-            """
-            # HERE
-            action = action_dist.sample().unsqueeze(-1)
-            action_log_probs = (
-                action_dist.log_prob(action.squeeze(-1))
-                .view(action.size(0), -1)
-                .sum(-1)
-            )
-            # HERE
-            """
         elif isinstance(self.action_space, Box):
 
             action_dist = Normal(**action_probs)
@@ -151,11 +141,9 @@ class PPOPolicy:
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
-        # HERE
         # Keep sizes consistent.
         if action_log_prob.shape == torch.Size([]):
             action_log_prob = action_log_prob.view(1)
-        # HERE
 
         return value_pred, action, action_log_prob
 
@@ -247,7 +235,6 @@ class PPOPolicy:
 
         returns = torch.zeros(rollout.rollout_step)
         advantages = torch.zeros(rollout.rollout_step)
-        current_pos = 0
 
         # Get value prediction of very last observation.
         with torch.no_grad():

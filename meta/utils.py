@@ -1,3 +1,5 @@
+""" Utility functions and objects for training pipeline. """
+
 import os
 from functools import reduce
 from typing import Dict, List
@@ -18,8 +20,9 @@ from meta.tests.envs import ParityEnv, UniqueEnv
 METRICS_DIR = os.path.join("data", "metrics")
 
 
-# Hacky fix for Gaussian policies.
 class AddBias(nn.Module):
+    """ Hacky fix for Gaussian policies. """
+
     def __init__(self, bias):
         super(AddBias, self).__init__()
         self._bias = nn.Parameter(bias)
@@ -123,24 +126,12 @@ def get_env(
     env.seed(seed)
 
     # Add environment wrappers.
-    if str(env.__class__.__name__).find("TimeLimit") >= 0:
-        env = TimeLimitMask(env)
     env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
     if normalize:
         env = NormalizeEnv(env)
     env = PyTorchEnv(env)
 
     return env
-
-
-# Checks whether done was caused my timit limits or not
-class TimeLimitMask(gym.Wrapper):
-    def step(self, action):
-        obs, rew, done, info = self.env.step(action)
-        if done and self.env._max_episode_steps == self.env._elapsed_steps:
-            info["bad_transition"] = True
-
-        return obs, rew, done, info
 
 
 class PyTorchEnv(gym.Wrapper):
@@ -231,9 +222,8 @@ class NormalizeEnv(gym.Wrapper):
                 -self.clip_ob,
                 self.clip_ob,
             )
-            return obs
-        else:
-            return obs
+
+        return obs
 
     def train(self):
         self.training = True

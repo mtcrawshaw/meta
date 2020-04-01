@@ -1,3 +1,5 @@
+""" Run PPO training on OpenAI Gym/MetaWorld environment. """
+
 import os
 import pickle
 import argparse
@@ -6,7 +8,6 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import torch
-import gym
 from gym import Env
 
 from meta.ppo import PPOPolicy
@@ -57,7 +58,7 @@ def train(args: argparse.Namespace):
         rollout, current_obs, rollout_episode_rewards = collect_rollout(
             env, policy, args.rollout_length, current_obs
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.

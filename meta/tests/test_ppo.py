@@ -1,10 +1,11 @@
-from math import exp, log
-from typing import Dict, Any, List
+"""
+Unit tests for meta/ppo.py.
+"""
+
+from typing import Dict, Any
 
 import torch
 import numpy as np
-import gym
-from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
@@ -183,7 +184,6 @@ def get_losses(
             )
 
     if settings["normalize_advantages"]:
-        advantage_std = np.std(advantages, ddof=1)
         advantages -= np.mean(advantages)
         advantages /= np.std(advantages, ddof=1) + settings["eps"]
 
@@ -191,7 +191,6 @@ def get_losses(
     loss_items["action"] = 0.0
     loss_items["value"] = 0.0
     loss_items["entropy"] = 0.0
-    entropy = lambda log_probs: sum(-log_prob * exp(log_prob) for log_prob in log_probs)
     clamp = lambda val, min_val, max_val: max(min(val, max_val), min_val)
     for e in range(settings["num_episodes"]):
         for t in range(settings["episode_len"]):

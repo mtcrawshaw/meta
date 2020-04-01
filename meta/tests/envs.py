@@ -1,10 +1,8 @@
-import random
-from typing import Tuple, Dict
+""" Test environments for meta. """
+
+from typing import Tuple
 
 import numpy as np
-import torch
-import torch.nn as nn
-from torch.distributions import Categorical
 from gym import Env
 from gym.spaces import Box, Discrete
 

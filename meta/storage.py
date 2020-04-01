@@ -1,4 +1,6 @@
-from typing import List
+"""
+Definition of RolloutStorage, an object to hold rollout information for one or more episodes.
+"""
 
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
@@ -201,34 +203,3 @@ class RolloutStorage:
             : new_rollout.rollout_step
         ]
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
-
-
-"""
-def combine_rollouts(individual_rollouts: List[RolloutStorage]) -> RolloutStorage:
-"""
-"""
-Given a list of individual RolloutStorage objects, returns a single combined
-RolloutStorage object.
-"""
-
-"""
-    if len(individual_rollouts) == 0:
-        raise ValueError("Received empty list of rollouts.")
-
-    rollout_length = sum([rollout.rollout_step for rollout in individual_rollouts])
-    rollouts = RolloutStorage(
-        rollout_length=rollout_length,
-        observation_space=individual_rollouts[0].observation_space,
-        action_space=individual_rollouts[0].action_space,
-    )
-
-    current_pos = 0
-    for rollout in individual_rollouts:
-        rollouts.insert_rollout(rollout, current_pos)
-        current_pos += rollout.rollout_step
-
-    # Set combined rollout_step.
-    rollouts.rollout_step = current_pos
-
-    return rollouts
-"""

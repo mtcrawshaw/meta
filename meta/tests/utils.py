@@ -1,4 +1,6 @@
-from typing import Dict, Any, List
+""" Utilities for meta/tests. """
+
+from typing import Dict, Any
 
 import torch
 from gym import Env
@@ -72,14 +74,14 @@ def get_rollout(
     rollout.set_initial_obs(env.reset())
 
     # Generate rollout.
-    for episode in range(num_episodes):
+    for _ in range(num_episodes):
 
         for rollout_step in range(episode_len):
             with torch.no_grad():
                 value_pred, action, action_log_prob = policy.act(
                     rollout.obs[rollout_step]
                 )
-            obs, reward, done, info = env.step(action)
+            obs, reward, done, _ = env.step(action)
 
             # Putting this here so that obs and done get set before adding to rollout.
             if rollout_step == episode_len - 1:
