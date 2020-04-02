@@ -22,7 +22,6 @@ METRICS_DIR = os.path.join("data", "metrics")
 
 class AddBias(nn.Module):
     """ Hacky fix for Gaussian policies. """
-
     def __init__(self, bias: torch.Tensor) -> None:
         super(AddBias, self).__init__()
         self._bias = nn.Parameter(bias)
@@ -70,7 +69,13 @@ def compare_metrics(
     for key in metrics:
         assert len(metrics[key]) == len(baseline_metrics[key])
 
-        for i in range(len(metrics[key])):
+        for i in range(max(len(metrics[key]), len(baseline_metrics[key]))):
+
+            if i >= len(metrics[key]):
+                diff[key].append((i, None, baseline_metrics[key][i]))
+            if i >= len(baseline_metrics[key]):
+                diff[key].append((i, metrics[key][i], None))
+
             current_val = metrics[key][i]
             baseline_val = baseline_metrics[key][i]
             if current_val != baseline_val:

@@ -15,8 +15,7 @@ Current sprint:
     Move to settings file
     Move run_discrete and run_continuous into tests
     Make policy return distribution object, not arguments
---> Remove AddBias hack
-    Add GPU support
+--> Add GPU support
     Add multiprocessing
     Add support for recurrent policies
     Test for Box((n1, n2))
