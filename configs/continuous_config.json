@@ -1,9 +1,9 @@
 {
     "env_name": "LunarLanderContinuous-v2",
-    "num_updates": 250,
-    "rollout_length": 128,
+    "num_updates": 100,
+    "rollout_length": 64,
     "num_ppo_epochs": 4,
-    "minibatch_size": 32,
+    "minibatch_size": 16,
     "lr": 7e-4,
     "eps": 1e-5,
     "value_loss_coeff": 0.5,

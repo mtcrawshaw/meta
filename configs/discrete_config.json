@@ -1,6 +1,6 @@
 {
     "env_name": "CartPole-v1",
-    "num_updates": 3000,
+    "num_updates": 1000,
     "rollout_length": 5,
     "num_ppo_epochs": 4,
     "minibatch_size": 5,

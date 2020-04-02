@@ -2,11 +2,36 @@
 Unit tests for meta/train.py.
 """
 
+import os
+import json
+
 import torch
 
-from meta.train import collect_rollout
+from meta.train import collect_rollout, train
 from meta.utils import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
+
+
+def test_train_discrete() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space.
+    """
+    config_path = os.path.join("configs", "discrete_config.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_continuous() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space.
+    """
+    config_path = os.path.join("configs", "continuous_config.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
 
 
 def test_collect_rollout_values() -> None:
