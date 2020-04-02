@@ -2,10 +2,11 @@
 Definition of PolicyNetwork, the module used to parameterize an actor/critic policy.
 """
 
-from typing import Tuple, Dict
+from typing import Tuple
 
 import torch
 import torch.nn as nn
+from torch.distributions import Distribution, Categorical, Normal
 import numpy as np
 from gym.spaces import Space, Box, Discrete
 
@@ -76,9 +77,7 @@ class PolicyNetwork(nn.Module):
         if isinstance(action_space, Box):
             self.logstd = AddBias(torch.zeros(self.output_size))
 
-    def forward(
-        self, obs: torch.Tensor
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def forward(self, obs: torch.Tensor) -> Tuple[torch.Tensor, Distribution]:
         """
         Forward pass definition for PolicyNetwork.
 
@@ -92,20 +91,21 @@ class PolicyNetwork(nn.Module):
         -------
         value_pred : torch.Tensor
             Predicted value output from critic.
-        action_probs : Dict[str, torch.Tensor]
-            Parameterization of policy distribution. Keys and values match
-            argument structure for init functions of torch.Distribution.
+        action_dist : torch.distributions.Distribution
+            Distribution over action space to sample from.
         """
 
         value_pred = self.critic(obs)
         actor_output = self.actor(obs)
 
         if isinstance(self.action_space, Discrete):
-            # Matches torch.distribution.Categorical
-            action_probs = {"logits": actor_output}
+            # Discrete action space uses Categorical distribution.
+            action_dist = Categorical(logits=actor_output)
         elif isinstance(self.action_space, Box):
-            # Matches torch.distribution.Normal
+            # Continuous action space uses Gaussian distribution.
             action_logstd = self.logstd(torch.zeros(actor_output.size()))
-            action_probs = {"loc": actor_output, "scale": action_logstd.exp()}
+            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
+        else:
+            raise NotImplementedError
 
-        return value_pred, action_probs
+        return value_pred, action_dist

@@ -5,7 +5,6 @@ from typing import Tuple, Dict
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
@@ -120,25 +119,17 @@ class PPOPolicy:
         """
 
         # Pass through network to get value prediction and action probabilities.
-        value_pred, action_probs = self.policy_network(obs)
+        value_pred, action_dist = self.policy_network(obs)
 
-        # Create action distribution object from probabilities and sample action.
-        if isinstance(self.action_space, Discrete):
+        # Sample action and compute log probabilities.
+        action = action_dist.sample()
+        action_log_prob = action_dist.log_prob(action)
 
-            action_dist = Categorical(**action_probs)
-            action = action_dist.sample()
-            action_log_prob = action_dist.log_prob(action)
-
-        elif isinstance(self.action_space, Box):
-
-            action_dist = Normal(**action_probs)
-            action = action_dist.sample()
-
-            # We sum over ``action_log_prob`` to convert element-wise log probs into a
-            # joint log prob.
-            action_log_prob = action_dist.log_prob(action).sum(-1, keepdim=True)
-
-        else:
+        # We sum over ``action_log_prob`` to convert element-wise log probs into a joint
+        # log prob, if the action is a vector.
+        if isinstance(self.action_space, Box):
+            action_log_prob = action_log_prob.sum(-1, keepdim=True)
+        elif not isinstance(self.action_space, Discrete):
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
         # Keep sizes consistent.
@@ -172,15 +163,13 @@ class PPOPolicy:
             Entropies of action distributions resulting from ``obs_batch``.
         """
 
-        value, action_probs = self.policy_network(obs_batch)
+        value, action_dist = self.policy_network(obs_batch)
 
         # Create action distribution object from probabilities and compute log
         # probabilities.
         if isinstance(self.action_space, Discrete):
-            action_dist = Categorical(**action_probs)
             action_log_probs = action_dist.log_prob(actions_batch.squeeze(-1))
         elif isinstance(self.action_space, Box):
-            action_dist = Normal(**action_probs)
             action_log_probs = action_dist.log_prob(actions_batch).sum(-1)
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))

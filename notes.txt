@@ -13,9 +13,9 @@ Current sprint:
     Convert List[RolloutStorage] back to RolloutStorage
     Set new continuous environment benchmark
     Move to settings file
---> Move run_discrete and run_continuous into tests
+    Move run_discrete and run_continuous into tests
     Make policy return distribution object, not arguments
-    Remove AddBias hack
+--> Remove AddBias hack
     Add GPU support
     Add multiprocessing
     Add support for recurrent policies
