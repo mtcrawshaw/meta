@@ -15,33 +15,33 @@ from meta.storage import RolloutStorage
 from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
-def train(args: argparse.Namespace) -> None:
+def train(config: Dict[str, Any]) -> None:
     """ Main function for train.py. """
 
     # Set random seed and number of threads.
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
+    torch.manual_seed(config["seed"])
+    torch.cuda.manual_seed_all(config["seed"])
     torch.set_num_threads(1)
 
     # Set environment and policy.
-    env = get_env(args.env_name, args.seed)
+    env = get_env(config["env_name"], config["seed"])
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        minibatch_size=args.minibatch_size,
-        num_ppo_epochs=args.num_ppo_epochs,
-        lr=args.lr,
-        eps=args.eps,
-        value_loss_coeff=args.value_loss_coeff,
-        entropy_loss_coeff=args.entropy_loss_coeff,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
-        clip_param=args.clip_param,
-        max_grad_norm=args.max_grad_norm,
-        clip_value_loss=args.clip_value_loss,
-        num_layers=args.num_layers,
-        hidden_size=args.hidden_size,
-        normalize_advantages=args.normalize_advantages,
+        minibatch_size=config["minibatch_size"],
+        num_ppo_epochs=config["num_ppo_epochs"],
+        lr=config["lr"],
+        eps=config["eps"],
+        value_loss_coeff=config["value_loss_coeff"],
+        entropy_loss_coeff=config["entropy_loss_coeff"],
+        gamma=config["gamma"],
+        gae_lambda=config["gae_lambda"],
+        clip_param=config["clip_param"],
+        max_grad_norm=config["max_grad_norm"],
+        clip_value_loss=config["clip_value_loss"],
+        num_layers=config["num_layers"],
+        hidden_size=config["hidden_size"],
+        normalize_advantages=config["normalize_advantages"],
     )
 
     # Initialize environment and set first observation.
@@ -52,17 +52,17 @@ def train(args: argparse.Namespace) -> None:
     metric_names = ["mean", "median", "min", "max"]
     metrics: Dict[str, List[float]] = {metric_name: [] for metric_name in metric_names}
 
-    for update_iteration in range(args.num_updates):
+    for update_iteration in range(config["num_updates"]):
 
         # Sample rollout and compute update.
         rollout, current_obs, rollout_episode_rewards = collect_rollout(
-            env, policy, args.rollout_length, current_obs
+            env, policy, config["rollout_length"], current_obs
         )
         _ = policy.update(rollout)
         episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
-        if update_iteration % args.print_freq == 0 and len(episode_rewards) > 1:
+        if update_iteration % config["print_freq"] == 0 and len(episode_rewards) > 1:
             metrics["mean"].append(np.mean(episode_rewards))
             metrics["median"].append(np.median(episode_rewards))
             metrics["min"].append(np.min(episode_rewards))
@@ -79,20 +79,20 @@ def train(args: argparse.Namespace) -> None:
             print(message, end="\r")
 
         # This is to ensure that printed out values don't get overwritten.
-        if update_iteration == args.num_updates - 1:
+        if update_iteration == config["num_updates"] - 1:
             print("")
 
     # Save metrics if necessary.
-    if args.metrics_name is not None:
+    if config["metrics_filename"] is not None:
         if not os.path.isdir(METRICS_DIR):
             os.makedirs(METRICS_DIR)
-        metrics_path = os.path.join(METRICS_DIR, args.metrics_name)
+        metrics_path = os.path.join(METRICS_DIR, config["metrics_filename"])
         with open(metrics_path, "wb") as metrics_file:
             pickle.dump(metrics, metrics_file)
 
     # Compare output_metrics to baseline if necessary.
-    if args.baseline_metrics_name is not None:
-        baseline_metrics_path = os.path.join(METRICS_DIR, args.baseline_metrics_name)
+    if config["baseline_metrics_filename"] is not None:
+        baseline_metrics_path = os.path.join(METRICS_DIR, config["baseline_metrics_filename"])
         metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
         if same:
             print("Passed test! Output metrics equal to baseline.")

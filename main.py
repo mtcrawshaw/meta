@@ -1,10 +1,12 @@
 import argparse
+import json
 
 from meta.train import train
 
 
 if __name__ == "__main__":
 
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--env_name",
@@ -125,7 +127,19 @@ if __name__ == "__main__":
         default=None,
         help="Name of metrics baseline file to compare against. Default: None",
     )
+    """
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "config_filename",
+        type=str,
+        help="Name of config file to load from.",
+    )
     args = parser.parse_args()
 
-    train(args)
+    # Load config file.
+    with open(args.config_filename, "r") as config_file:
+        config = json.load(config_file)
+    print(config)
+
+    train(config)
