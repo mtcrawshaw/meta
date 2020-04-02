@@ -148,12 +148,6 @@ def train(config: Dict[str, Any]) -> None:
             METRICS_DIR, config["baseline_metrics_filename"]
         )
         metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
-        if same:
-            print("Passed test! Output metrics equal to baseline.")
-        else:
-            print("Failed test! Output metrics not equal to baseline.")
-            earliest_diff = min(metrics_diff[key][0] for key in metrics_diff)
-            print("Earliest difference: %s" % str(earliest_diff))
 
 
 def collect_rollout(

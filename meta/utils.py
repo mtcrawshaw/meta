@@ -76,8 +76,8 @@ def compare_metrics(
             if current_val != baseline_val:
                 diff[key].append((i, current_val, baseline_val))
 
-    same = all(len(diff_values) == 0 for diff_values in diff.values())
-    return diff, same
+    print("Metrics diff: %s" % diff)
+    assert all(len(diff_values) == 0 for diff_values in diff.values())
 
 
 def get_env(
