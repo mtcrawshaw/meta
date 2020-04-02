@@ -147,7 +147,7 @@ def train(config: Dict[str, Any]) -> None:
         baseline_metrics_path = os.path.join(
             METRICS_DIR, config["baseline_metrics_filename"]
         )
-        metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
+        compare_metrics(metrics, baseline_metrics_path)
 
 
 def collect_rollout(
