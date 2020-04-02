@@ -22,6 +22,7 @@ METRICS_DIR = os.path.join("data", "metrics")
 
 class AddBias(nn.Module):
     """ Hacky fix for Gaussian policies. """
+
     def __init__(self, bias: torch.Tensor) -> None:
         super(AddBias, self).__init__()
         self._bias = nn.Parameter(bias)
@@ -54,9 +55,7 @@ def get_space_size(space: Space) -> int:
     return size
 
 
-def compare_metrics(
-    metrics: Dict[str, List[float]], metrics_filename: str
-) -> Tuple[Any, bool]:
+def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> None:
     """ Compute diff of metrics against the most recently saved baseline. """
 
     # Load baseline metric values.
