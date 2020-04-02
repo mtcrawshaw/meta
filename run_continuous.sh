@@ -1,1 +1,1 @@
-python3 main.py settings/continuous_settings.json
+python3 main.py configs/continuous_config.json

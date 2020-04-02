@@ -8,6 +8,7 @@ from typing import Any, List, Tuple, Dict
 
 import numpy as np
 import torch
+import gym
 from gym import Env
 
 from meta.ppo import PPOPolicy
@@ -15,8 +16,60 @@ from meta.storage import RolloutStorage
 from meta.utils import get_env, compare_metrics, METRICS_DIR
 
 
+# Suppress gym warnings.
+gym.logger.set_level(40)
+
+
 def train(config: Dict[str, Any]) -> None:
-    """ Main function for train.py. """
+    """
+    Main function for train.py, runs PPO training using settings from ``config``.
+    The expected entries of ``config`` are documented below.
+
+    Parameters
+    ----------
+    env_name : str
+        Environment to train on.
+    num_updates : int
+        Number of update steps.
+    rollout_length : int
+        Number of environment steps per rollout.
+    num_ppo_epochs : int
+        Number of ppo epochs per update.
+    minibatch_size : int
+        Minibatch size for ppo.
+    lr : float
+        Learning rate.
+    eps : float
+        Epsilon value for numerical stability.
+    value_loss_coeff : float
+        PPO value loss coefficient.
+    entropy_loss_coeff : float
+        PPO entropy loss coefficient
+    gamma : float
+        Discount factor for rewards.
+    gae_lambda : float
+        Lambda parameter for GAE (used in equation (11) of PPO paper).
+    max_grad_norm : float
+        Max norm of gradients
+    clip_param : float
+        Clipping parameter for PPO surrogate loss.
+    clip_value_loss : False
+        Whether or not to clip the value loss.
+    num_layers : int
+        Number of layers in actor/critic network.
+    hidden_size : int
+        Hidden size of actor/critic network.
+    normalize_advantages : bool
+        Whether or not to normalize advantages after computation.
+    seed : int
+        Random seed.
+    print_freq : int
+        Number of training iterations between metric printing.
+    save_metrics : bool
+        Name to save metric values under.
+    compare_metrics : bool
+        Name of metrics baseline file to compare against.
+    """
 
     # Set random seed and number of threads.
     torch.manual_seed(config["seed"])
@@ -92,7 +145,9 @@ def train(config: Dict[str, Any]) -> None:
 
     # Compare output_metrics to baseline if necessary.
     if config["baseline_metrics_filename"] is not None:
-        baseline_metrics_path = os.path.join(METRICS_DIR, config["baseline_metrics_filename"])
+        baseline_metrics_path = os.path.join(
+            METRICS_DIR, config["baseline_metrics_filename"]
+        )
         metrics_diff, same = compare_metrics(metrics, baseline_metrics_path)
         if same:
             print("Passed test! Output metrics equal to baseline.")

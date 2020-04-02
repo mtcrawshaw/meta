@@ -1,5 +1,5 @@
 {
-    "env_name": "CartPole-v1",
+    "env_name": "LunarLanderContinuous-v2",
     "num_updates": 250,
     "rollout_length": 128,
     "num_ppo_epochs": 4,
