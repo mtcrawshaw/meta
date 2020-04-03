@@ -9,7 +9,7 @@ import numpy as np
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_env
+from meta.env import get_env
 from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
 
 

@@ -12,7 +12,8 @@ from gym import Env
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
-from meta.utils import get_env, compare_metrics, METRICS_DIR
+from meta.env import get_env
+from meta.utils import compare_metrics, METRICS_DIR
 
 
 # Suppress gym warnings.
@@ -36,6 +37,8 @@ def train(config: Dict[str, Any]) -> None:
         Number of ppo epochs per update.
     minibatch_size : int
         Minibatch size for ppo.
+    num_processes : int
+        Number of asynchronous environments to run at once.
     lr : float
         Learning rate.
     eps : float
@@ -54,12 +57,12 @@ def train(config: Dict[str, Any]) -> None:
         Clipping parameter for PPO surrogate loss.
     clip_value_loss : False
         Whether or not to clip the value loss.
+    normalize_advantages : bool
+        Whether or not to normalize advantages after computation.
     num_layers : int
         Number of layers in actor/critic network.
     hidden_size : int
         Hidden size of actor/critic network.
-    normalize_advantages : bool
-        Whether or not to normalize advantages after computation.
     seed : int
         Random seed.
     print_freq : int
@@ -76,7 +79,7 @@ def train(config: Dict[str, Any]) -> None:
     torch.set_num_threads(1)
 
     # Set environment and policy.
-    env = get_env(config["env_name"], config["seed"])
+    env = get_env(config["env_name"], config["num_processes"], config["seed"])
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
