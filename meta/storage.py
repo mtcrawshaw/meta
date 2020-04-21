@@ -13,7 +13,11 @@ class RolloutStorage:
     """ An object to store rollout information. """
 
     def __init__(
-        self, rollout_length: int, observation_space: Space, action_space: Space
+        self,
+        rollout_length: int,
+        observation_space: Space,
+        action_space: Space,
+        num_processes: int,
     ) -> None:
         """
         init function for RolloutStorage class.
@@ -26,6 +30,8 @@ class RolloutStorage:
             Environment's observation space.
         action_space : Space
             Environment's action space.
+        num_processes : int
+            Number of processes to run in the environment.
         """
 
         # Get observation and action shape.
@@ -50,6 +56,7 @@ class RolloutStorage:
 
         # Misc state.
         self.rollout_length = rollout_length
+        self.num_processes = num_processes
         self.rollout_step = 0
 
         # Initialize rollout information.
@@ -74,13 +81,13 @@ class RolloutStorage:
 
         # The +1 is here because we want to store the obs/value prediction
         # from before the first step and after the last step of the rollout.
-        self.obs = torch.zeros(self.rollout_length + 1, *self.space_shapes["obs"])
-        self.value_preds = torch.zeros(self.rollout_length + 1)
-        self.actions = torch.zeros(self.rollout_length, *self.space_shapes["action"])
-        self.dones = torch.zeros(self.rollout_length)
+        self.obs = torch.zeros(self.rollout_length + 1, self.num_processes, *self.space_shapes["obs"])
+        self.value_preds = torch.zeros(self.rollout_length + 1, self.num_processes)
+        self.actions = torch.zeros(self.rollout_length, self.num_processes, *self.space_shapes["action"])
+        self.dones = torch.zeros(self.rollout_length, self.num_processes)
 
-        self.action_log_probs = torch.zeros(self.rollout_length)
-        self.rewards = torch.zeros(self.rollout_length)
+        self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes)
+        self.rewards = torch.zeros(self.rollout_length, self.num_processes)
 
     def add_step(
         self,
@@ -155,19 +162,28 @@ class RolloutStorage:
                 " rollout_length (%d)" % (minibatch_size, self.rollout_length)
             )
 
+        total_steps = self.rollout_length * self.num_processes
         sampler = BatchSampler(
-            sampler=SubsetRandomSampler(range(self.rollout_length)),
+            sampler=SubsetRandomSampler(range(total_steps)),
             batch_size=minibatch_size,
             drop_last=True,
         )
+
+        # Here we aggregate the obs, value_preds, etc. from each process into one
+        # dimension.
+        agg_obs = self.obs[:-1].view(total_steps, *self.space_shapes["obs"])
+        agg_value_preds = self.value_preds[:-1].view(total_steps)
+        agg_actions = self.actions.view(total_steps, *self.space_shapes["action"])
+        agg_action_log_probs = self.action_log_probs.view(total_steps)
+
         for batch_indices in sampler:
 
             # Yield a minibatch corresponding to indices from sampler.
             # The -1 here is to exclude the obs/value_pred from after the last step.
-            obs_batch = self.obs[:-1][batch_indices]
-            value_preds_batch = self.value_preds[:-1][batch_indices]
-            actions_batch = self.actions[batch_indices]
-            action_log_probs_batch = self.action_log_probs[batch_indices]
+            obs_batch = agg_obs[batch_indices]
+            value_preds_batch = agg_value_preds[batch_indices]
+            actions_batch = agg_actions[batch_indices]
+            action_log_probs_batch = agg_action_log_probs[batch_indices]
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
 

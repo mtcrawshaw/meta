@@ -111,7 +111,7 @@ def train(config: Dict[str, Any]) -> None:
 
         # Sample rollout and compute update.
         rollout, current_obs, rollout_episode_rewards = collect_rollout(
-            env, policy, config["rollout_length"], current_obs
+            env, policy, config["rollout_length"], current_obs, config["num_processes"]
         )
         _ = policy.update(rollout)
         episode_rewards.extend(rollout_episode_rewards)
@@ -154,7 +154,7 @@ def train(config: Dict[str, Any]) -> None:
 
 
 def collect_rollout(
-    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any
+    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any, num_processes: int
 ) -> Tuple[RolloutStorage, Any, List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
@@ -171,6 +171,8 @@ def collect_rollout(
         update).
     initial_obs : Any
         Initial observation returned from call to env.reset().
+    num_processes : int
+        Number of processes in which to run environment asynchronously.
 
     Returns
     -------
@@ -188,24 +190,25 @@ def collect_rollout(
         rollout_length=rollout_length,
         observation_space=env.observation_space,
         action_space=env.action_space,
+        num_processes=num_processes,
     )
     rollout_episode_rewards = []
     rollout.set_initial_obs(initial_obs)
 
-    # for total_rollout_step in range(rollout_length):
     # Rollout loop.
     for rollout_step in range(rollout_length):
 
         # Sample actions.
         with torch.no_grad():
-            value, action, action_log_prob = policy.act(rollout.obs[rollout_step])
+            values, actions, action_log_probs = policy.act(rollout.obs[rollout_step])
 
         # Perform step and record in ``rollout``.
-        obs, reward, done, info = env.step(action)
-        rollout.add_step(obs, action, done, action_log_prob, value, reward)
+        obs, rewards, dones, infos = env.step(actions)
+        rollout.add_step(obs, actions, dones, action_log_probs, values, rewards)
 
         # Get total episode reward, if it is given, and check for done.
-        if "episode" in info.keys():
-            rollout_episode_rewards.append(info["episode"]["r"])
+        for info in infos:
+            if "episode" in info.keys():
+                rollout_episode_rewards.append(info["episode"]["r"])
 
     return rollout, obs, rollout_episode_rewards

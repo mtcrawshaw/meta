@@ -83,7 +83,7 @@ def get_single_env_creator(
     Returns
     -------
     env_creator : Callable[..., Env]
-        Environment object.
+        Function that returns environment object.
     """
 
     def env_creator():
@@ -128,6 +128,7 @@ class VecPyTorchEnv(VecEnvWrapper):
 
     def reset(self) -> torch.Tensor:
         """ Environment reset function. """
+
         obs = self.venv.reset()
         obs = torch.from_numpy(obs).float()
         return obs
@@ -135,9 +136,6 @@ class VecPyTorchEnv(VecEnvWrapper):
     def step_async(self, actions: torch.Tensor) -> None:
         """ Asynchronous portion of step. """
 
-        if isinstance(actions, torch.LongTensor):
-            # Squeeze the dimension for discrete actions
-            actions = actions.squeeze(1)
         actions = actions.cpu().numpy()
         self.venv.step_async(actions)
 
