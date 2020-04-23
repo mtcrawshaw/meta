@@ -1,11 +1,11 @@
 {
-    "env_name": "CartPole-v1",
+    "env_name": "LunarLanderContinuous-v2",
 
-    "num_updates": 1000,
-    "rollout_length": 5,
+    "num_updates": 50,
+    "rollout_length": 128,
     "num_ppo_epochs": 4,
-    "minibatch_size": 5,
-    "num_processes": 1,
+    "minibatch_size": 160,
+    "num_processes": 5,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -24,5 +24,5 @@
     "seed": 1,
     "print_freq": 10,
     "metrics_filename": null,
-    "baseline_metrics_filename": "discrete.pkl"
+    "baseline_metrics_filename": "multi_continuous.pkl"
 }

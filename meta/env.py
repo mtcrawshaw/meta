@@ -8,7 +8,12 @@ import gym
 from gym import Env
 from gym.spaces import Discrete
 from baselines import bench
-from baselines.common.vec_env import ShmemVecEnv, DummyVecEnv, VecEnvWrapper, VecNormalize as VecNormalizeEnv
+from baselines.common.vec_env import (
+    ShmemVecEnv,
+    DummyVecEnv,
+    VecEnvWrapper,
+    VecNormalize as VecNormalizeEnv,
+)
 from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.tests.envs import ParityEnv, UniqueEnv
@@ -45,9 +50,12 @@ def get_env(
     """
 
     # Create vectorized environment.
-    env_creators = [get_single_env_creator(env_name, seed + i, allow_early_resets) for i in range(num_processes)]
+    env_creators = [
+        get_single_env_creator(env_name, seed + i, allow_early_resets)
+        for i in range(num_processes)
+    ]
     if num_processes > 1:
-        env = ShmemVecEnv(env_creators, context='fork')
+        env = ShmemVecEnv(env_creators, context="fork")
     elif num_processes == 1:
         # Use DummyVecEnv if num_processes is 1 to avoid multiprocessing overhead.
         env = DummyVecEnv(env_creators)
@@ -61,10 +69,9 @@ def get_env(
 
     return env
 
+
 def get_single_env_creator(
-    env_name: str,
-    seed: int = 1,
-    allow_early_resets: bool = False,
+    env_name: str, seed: int = 1, allow_early_resets: bool = False,
 ) -> Callable[..., Env]:
     """
     Return a function that returns environment object with given env name. Used to
@@ -144,7 +151,7 @@ class VecPyTorchEnv(VecEnvWrapper):
 
         obs, reward, done, info = self.venv.step_wait()
         obs = torch.from_numpy(obs).float()
-        reward = torch.Tensor([reward]).float()
+        reward = torch.Tensor(reward).float().unsqueeze(-1)
         return obs, reward, done, info
 
 

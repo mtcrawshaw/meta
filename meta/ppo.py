@@ -133,8 +133,8 @@ class PPOPolicy:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
         # Keep sizes consistent.
-        if action_log_prob.shape == torch.Size([]):
-            action_log_prob = action_log_prob.view(1)
+        if action_log_prob.shape[1:] == torch.Size([]):
+            action_log_prob = action_log_prob.view(-1, 1)
 
         return value_pred, action, action_log_prob
 

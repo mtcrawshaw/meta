@@ -154,7 +154,11 @@ def train(config: Dict[str, Any]) -> None:
 
 
 def collect_rollout(
-    env: Env, policy: PPOPolicy, rollout_length: int, initial_obs: Any, num_processes: int
+    env: Env,
+    policy: PPOPolicy,
+    rollout_length: int,
+    initial_obs: Any,
+    num_processes: int,
 ) -> Tuple[RolloutStorage, Any, List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,

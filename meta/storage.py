@@ -84,12 +84,16 @@ class RolloutStorage:
         # length 1 on the end of certain members is for convenience; this is how tensors
         # are shaped when they come out of the network. The choice is either to have 1's
         # here, or use squeezes in many places through the training pipeline.
-        self.obs = torch.zeros(self.rollout_length + 1, self.num_processes, *self.space_shapes["obs"])
+        self.obs = torch.zeros(
+            self.rollout_length + 1, self.num_processes, *self.space_shapes["obs"]
+        )
         self.value_preds = torch.zeros(self.rollout_length + 1, self.num_processes, 1)
-        self.actions = torch.zeros(self.rollout_length, self.num_processes, *self.space_shapes["action"])
+        self.actions = torch.zeros(
+            self.rollout_length, self.num_processes, *self.space_shapes["action"]
+        )
         self.dones = torch.zeros(self.rollout_length, self.num_processes, 1)
 
-        self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes)
+        self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes, 1)
         self.rewards = torch.zeros(self.rollout_length, self.num_processes, 1)
 
     def add_step(
@@ -128,12 +132,12 @@ class RolloutStorage:
 
         self.obs[self.rollout_step + 1] = obs
         self.actions[self.rollout_step] = action
-        self.dones[self.rollout_step] = torch.Tensor([[1.] if done else [0.] for done in dones])
+        self.dones[self.rollout_step] = torch.Tensor(
+            [[1.0] if done else [0.0] for done in dones]
+        )
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
-
-        # The unsqueeze here is for the same reason as above.
-        self.rewards[self.rollout_step] = reward.unsqueeze(-1)
+        self.rewards[self.rollout_step] = reward
 
         self.rollout_step += 1
 
@@ -170,7 +174,8 @@ class RolloutStorage:
         if minibatch_size > total_steps:
             raise ValueError(
                 "Minibatch size (%d) is required to be no larger than"
-                " rollout_length (%d) * num_processes (%d)" % (minibatch_size, self.rollout_length, self.num_processes)
+                " rollout_length (%d) * num_processes (%d)"
+                % (minibatch_size, self.rollout_length, self.num_processes)
             )
 
         sampler = BatchSampler(
