@@ -2,7 +2,7 @@
 Definition of RolloutStorage, an object to hold rollout information for one or more episodes.
 """
 
-from typing import Dict, Tuple, Generator
+from typing import Dict, Tuple, Generator, List
 
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
@@ -79,21 +79,24 @@ class RolloutStorage:
     def init_rollout_info(self) -> None:
         """ Initialize rollout information. """
 
-        # The +1 is here because we want to store the obs/value prediction
-        # from before the first step and after the last step of the rollout.
+        # The +1 is here because we want to store the obs/value prediction from before
+        # the first step and after the last step of the rollout. The dimensions of
+        # length 1 on the end of certain members is for convenience; this is how tensors
+        # are shaped when they come out of the network. The choice is either to have 1's
+        # here, or use squeezes in many places through the training pipeline.
         self.obs = torch.zeros(self.rollout_length + 1, self.num_processes, *self.space_shapes["obs"])
-        self.value_preds = torch.zeros(self.rollout_length + 1, self.num_processes)
+        self.value_preds = torch.zeros(self.rollout_length + 1, self.num_processes, 1)
         self.actions = torch.zeros(self.rollout_length, self.num_processes, *self.space_shapes["action"])
-        self.dones = torch.zeros(self.rollout_length, self.num_processes)
+        self.dones = torch.zeros(self.rollout_length, self.num_processes, 1)
 
         self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes)
-        self.rewards = torch.zeros(self.rollout_length, self.num_processes)
+        self.rewards = torch.zeros(self.rollout_length, self.num_processes, 1)
 
     def add_step(
         self,
         obs: torch.Tensor,
         action: torch.Tensor,
-        done: bool,
+        dones: List[bool],
         action_log_prob: torch.Tensor,
         value_pred: torch.Tensor,
         reward: torch.Tensor,
@@ -118,12 +121,19 @@ class RolloutStorage:
         if self.rollout_step >= self.rollout_length:
             raise ValueError("RolloutStorage object is full.")
 
+        # This is to ensure that, in the case of a discrete action space, ``action`` has
+        # shape [num_processes, 1] and not [num_processes].
+        if action.shape == torch.Size([self.num_processes]):
+            action = action.unsqueeze(-1)
+
         self.obs[self.rollout_step + 1] = obs
         self.actions[self.rollout_step] = action
-        self.dones[self.rollout_step] = 1 if done else 0
+        self.dones[self.rollout_step] = torch.Tensor([[1.] if done else [0.] for done in dones])
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
-        self.rewards[self.rollout_step] = reward
+
+        # The unsqueeze here is for the same reason as above.
+        self.rewards[self.rollout_step] = reward.unsqueeze(-1)
 
         self.rollout_step += 1
 
@@ -156,13 +166,13 @@ class RolloutStorage:
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
-        if minibatch_size > self.rollout_length:
+        total_steps = self.rollout_length * self.num_processes
+        if minibatch_size > total_steps:
             raise ValueError(
                 "Minibatch size (%d) is required to be no larger than"
-                " rollout_length (%d)" % (minibatch_size, self.rollout_length)
+                " rollout_length (%d) * num_processes (%d)" % (minibatch_size, self.rollout_length, self.num_processes)
             )
 
-        total_steps = self.rollout_length * self.num_processes
         sampler = BatchSampler(
             sampler=SubsetRandomSampler(range(total_steps)),
             batch_size=minibatch_size,

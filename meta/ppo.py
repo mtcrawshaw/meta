@@ -222,8 +222,8 @@ class PPOPolicy:
             Tensor holding advantage estimates using GAE.
         """
 
-        returns = torch.zeros(rollout.rollout_step, rollout.num_processes)
-        advantages = torch.zeros(rollout.rollout_step, rollout.num_processes)
+        returns = torch.zeros(rollout.rollout_step, rollout.num_processes, 1)
+        advantages = torch.zeros(rollout.rollout_step, rollout.num_processes, 1)
 
         # Get value prediction of very last observation.
         with torch.no_grad():
