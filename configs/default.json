@@ -2,10 +2,10 @@
     "env_name": "CartPole-v1",
 
     "num_updates": 1000,
-    "rollout_length": 1024,
+    "rollout_length": 256,
     "num_ppo_epochs": 4,
-    "minibatch_size": 256,
-    "num_processes": 1,
+    "num_minibatch": 4,
+    "num_processes": 4,
 
     "lr": 7e-4,
     "eps": 1e-5,
