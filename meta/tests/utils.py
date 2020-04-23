@@ -18,7 +18,7 @@ DEFAULT_SETTINGS = {
     "entropy_loss_coeff": 0.01,
     "gamma": 0.99,
     "gae_lambda": 0.95,
-    "minibatch_size": 32,
+    "num_minibatch": 1,
     "clip_param": 0.2,
     "max_grad_norm": 0.5,
     "clip_value_loss": False,
@@ -28,6 +28,7 @@ DEFAULT_SETTINGS = {
     "seed": 1,
     "num_episodes": 4,
     "episode_len": 8,
+    "num_processes": 1,
 }
 
 
@@ -44,7 +45,7 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
         entropy_loss_coeff=settings["entropy_loss_coeff"],
         gamma=settings["gamma"],
         gae_lambda=settings["gae_lambda"],
-        minibatch_size=settings["minibatch_size"],
+        num_minibatch=settings["num_minibatch"],
         clip_param=settings["clip_param"],
         max_grad_norm=settings["max_grad_norm"],
         clip_value_loss=settings["clip_value_loss"],
@@ -56,7 +57,7 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
 
 
 def get_rollout(
-    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int
+    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int, num_processes: int
 ) -> RolloutStorage:
     """
     Collects ``num_episodes`` episodes of size ``episode_len`` from ``env`` using
@@ -70,6 +71,7 @@ def get_rollout(
         rollout_length=rollout_len,
         observation_space=env.observation_space,
         action_space=env.action_space,
+        num_processes=num_processes,
     )
     rollout.set_initial_obs(env.reset())
 
@@ -86,7 +88,7 @@ def get_rollout(
             # Putting this here so that obs and done get set before adding to rollout.
             if rollout_step == episode_len - 1:
                 obs = env.reset()
-                done = True
+                done = [True]
 
             rollout.add_step(obs, action, done, action_log_prob, value_pred, reward)
 

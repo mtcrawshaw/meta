@@ -15,8 +15,8 @@ Current sprint:
     Move to settings file
     Move run_discrete and run_continuous into tests
     Make policy return distribution object, not arguments
---> Add multiprocessing
-    Add GPU support
+    Add multiprocessing
+--> Add GPU support
     Add support for recurrent policies
     Test for Box((n1, n2))
     Fix comments, typing, and naming (episodes vs. rollouts)

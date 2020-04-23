@@ -12,23 +12,45 @@ from meta.env import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 
-def test_train_discrete() -> None:
+def test_train_discrete_single() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
-    with a discrete action space.
+    with a discrete action space, running a single process.
     """
-    config_path = os.path.join("configs", "discrete_config.json")
+    config_path = os.path.join("configs", "test_discrete_config.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)
 
 
-def test_train_continuous() -> None:
+def test_train_discrete_multi() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
-    with a continuous action space.
+    with a discrete action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "continuous_config.json")
+    config_path = os.path.join("configs", "test_discrete_multi_config.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_continuous_single() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process.
+    """
+    config_path = os.path.join("configs", "test_continuous_config.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_continuous_multi() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes.
+    """
+    config_path = os.path.join("configs", "test_continuous_multi_config.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)
@@ -46,7 +68,7 @@ def test_collect_rollout_values() -> None:
     policy = get_policy(env, settings)
     initial_obs = env.reset()
     rollout, _, _ = collect_rollout(
-        env, policy, settings["rollout_length"], initial_obs
+        env, policy, settings["rollout_length"], initial_obs, settings["num_processes"]
     )
 
     # Check if rollout info came from UniqueEnv.
@@ -59,11 +81,11 @@ def test_collect_rollout_values() -> None:
         reward = rollout.rewards[step]
 
         # Check shapes.
-        assert obs.shape == torch.Size([1])
-        assert value_pred.shape == torch.Size([])
-        assert action.shape == torch.Size([1])
-        assert action_log_prob.shape == torch.Size([])
-        assert reward.shape == torch.Size([])
+        assert obs.shape == torch.Size([settings["num_processes"], 1])
+        assert value_pred.shape == torch.Size([settings["num_processes"], 1])
+        assert action.shape == torch.Size([settings["num_processes"], 1])
+        assert action_log_prob.shape == torch.Size([settings["num_processes"], 1])
+        assert reward.shape == torch.Size([settings["num_processes"], 1])
 
         # Check consistency of values.
         assert float(obs) == float(step + 1)

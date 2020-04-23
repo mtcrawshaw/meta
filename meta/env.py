@@ -64,7 +64,8 @@ def get_env(
 
     # Add environment wrappers to normalize observations/rewards and convert between
     # numpy arrays and torch.Tensors.
-    env = VecNormalizeEnv(env)
+    if normalize:
+        env = VecNormalizeEnv(env)
     env = VecPyTorchEnv(env)
 
     return env

@@ -20,7 +20,7 @@ def test_act_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.act(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"], normalize=False)
+    env = get_env(settings["env_name"], settings["num_processes"])
     policy = get_policy(env, settings)
     obs = torch.Tensor(env.observation_space.sample())
 
@@ -31,23 +31,26 @@ def test_act_sizes() -> None:
     assert isinstance(action, torch.Tensor)
     assert action.shape == torch.Size(env.action_space.shape)
     assert isinstance(action_log_prob, torch.Tensor)
-    assert action_log_prob.shape == torch.Size([1])
+    assert action_log_prob.shape == torch.Size([settings["num_processes"], 1])
 
 
 def test_evaluate_actions_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.evaluate_actions(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"], normalize=False)
+    env = get_env(settings["env_name"], settings["num_processes"])
     policy = get_policy(env, settings)
+    minibatch_size = (
+        settings["rollout_length"]
+        * settings["num_processes"]
+        // settings["num_minibatch"]
+    )
     obs_list = [
-        torch.Tensor(env.observation_space.sample())
-        for _ in range(settings["minibatch_size"])
+        torch.Tensor(env.observation_space.sample()) for _ in range(minibatch_size)
     ]
     obs_batch = torch.stack(obs_list)
     actions_list = [
-        torch.Tensor([float(env.action_space.sample())])
-        for _ in range(settings["minibatch_size"])
+        torch.Tensor([float(env.action_space.sample())]) for _ in range(minibatch_size)
     ]
     actions_batch = torch.stack(actions_list)
 
@@ -56,11 +59,11 @@ def test_evaluate_actions_sizes() -> None:
     )
 
     assert isinstance(value_pred, torch.Tensor)
-    assert value_pred.shape == torch.Size([settings["minibatch_size"]])
+    assert value_pred.shape == torch.Size([minibatch_size])
     assert isinstance(action_log_prob, torch.Tensor)
-    assert action_log_prob.shape == torch.Size([settings["minibatch_size"]])
+    assert action_log_prob.shape == torch.Size([minibatch_size])
     assert isinstance(action_log_prob, torch.Tensor)
-    assert action_dist_entropy.shape == torch.Size([settings["minibatch_size"]])
+    assert action_dist_entropy.shape == torch.Size([minibatch_size])
 
 
 def evaluate_actions_values() -> None:
@@ -72,7 +75,7 @@ def test_get_value_sizes() -> None:
     """ Test the sizes of returned tensors from ppo.get_value(). """
 
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(settings["env_name"], normalize=False)
+    env = get_env(settings["env_name"], settings["num_processes"])
     policy = get_policy(env, settings)
     obs = torch.Tensor(env.observation_space.sample())
 
@@ -102,13 +105,18 @@ def test_update_values() -> None:
 
     # Initialize environment and policy.
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "parity-env"
-    env = get_env(settings["env_name"], normalize=False, allow_early_resets=True)
+    env = get_env(
+        settings["env_name"], settings["num_processes"], allow_early_resets=True
+    )
     policy = get_policy(env, settings)
 
     # Initialize policy and rollout storage.
     rollout = get_rollout(
-        env, policy, settings["num_episodes"], settings["episode_len"]
+        env,
+        policy,
+        settings["num_episodes"],
+        settings["episode_len"],
+        settings["num_processes"],
     )
 
     # Compute expected losses.
@@ -152,6 +160,7 @@ def get_losses(
 
     assert not settings["clip_value_loss"]
     assert settings["num_ppo_epochs"] == 1
+    assert settings["num_processes"] == 1
     loss_items = {}
 
     # Compute returns and advantages.

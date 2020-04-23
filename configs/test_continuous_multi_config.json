@@ -1,11 +1,11 @@
 {
     "env_name": "LunarLanderContinuous-v2",
 
-    "num_updates": 250,
-    "rollout_length": 128,
+    "num_updates": 25,
+    "rollout_length": 32,
     "num_ppo_epochs": 4,
     "num_minibatch": 4,
-    "num_processes": 1,
+    "num_processes": 5,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -22,7 +22,7 @@
     "hidden_size": 64,
 
     "seed": 1,
-    "print_freq": 10,
-    "metrics_filename": null,
-    "baseline_metrics_filename": "continuous.pkl"
+    "print_freq": 5,
+    "metrics_filename": "multi_continuous.pkl",
+    "baseline_metrics_filename": null
 }
