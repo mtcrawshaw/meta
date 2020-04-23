@@ -16,7 +16,6 @@ Current sprint:
     Move run_discrete and run_continuous into tests
     Make policy return distribution object, not arguments
 --> Add multiprocessing
-    Convert minibatch_size to num_minibatch
     Add GPU support
     Add support for recurrent policies
     Test for Box((n1, n2))

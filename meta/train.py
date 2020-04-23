@@ -35,8 +35,8 @@ def train(config: Dict[str, Any]) -> None:
         Number of environment steps per rollout.
     num_ppo_epochs : int
         Number of ppo epochs per update.
-    minibatch_size : int
-        Minibatch size for ppo.
+    num_minibatch : int
+        Number of mini batches per update step for PPO.
     num_processes : int
         Number of asynchronous environments to run at once.
     lr : float
@@ -83,7 +83,7 @@ def train(config: Dict[str, Any]) -> None:
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        minibatch_size=config["minibatch_size"],
+        num_minibatch=config["num_minibatch"],
         num_ppo_epochs=config["num_ppo_epochs"],
         lr=config["lr"],
         eps=config["eps"],

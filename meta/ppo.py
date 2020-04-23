@@ -18,7 +18,7 @@ class PPOPolicy:
         self,
         observation_space: Space,
         action_space: Space,
-        minibatch_size: int,
+        num_minibatch: int,
         num_ppo_epochs: int = 4,
         lr: float = 7e-4,
         eps: float = 1e-5,
@@ -42,8 +42,8 @@ class PPOPolicy:
             Environment's observation space.
         action_space : Space
             Environment's action space.
-        minibatch_size : int
-            Size of minibatches for training on rollout data.
+        num_minibatch : int
+            Number of minibatches for training on rollout data.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr : float
@@ -75,7 +75,7 @@ class PPOPolicy:
         # Set policy state.
         self.observation_space = observation_space
         self.action_space = action_space
-        self.minibatch_size = minibatch_size
+        self.num_minibatch = num_minibatch
         self.num_ppo_epochs = num_ppo_epochs
         self.lr = lr
         self.eps = eps
@@ -280,7 +280,7 @@ class PPOPolicy:
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
-            minibatch_generator = rollout.minibatch_generator(self.minibatch_size)
+            minibatch_generator = rollout.minibatch_generator(self.num_minibatch)
 
             for minibatch in minibatch_generator:
 

@@ -153,7 +153,7 @@ class RolloutStorage:
 
         self.obs[0].copy_(obs)
 
-    def minibatch_generator(self, minibatch_size: int) -> Generator:
+    def minibatch_generator(self, num_minibatch: int) -> Generator:
         """
         Generates minibatches from rollout to train on. Note that this samples from the
         entire RolloutStorage object, even if only a small portion of it has been
@@ -161,8 +161,8 @@ class RolloutStorage:
 
         Arguments
         ---------
-        minibatch_size : int
-            Size of minibatches to return.
+        num_minibatch : int
+            Number of minibatches to return.
 
         Yields
         ------
@@ -171,11 +171,12 @@ class RolloutStorage:
         """
 
         total_steps = self.rollout_length * self.num_processes
-        if minibatch_size > total_steps:
+        minibatch_size = total_steps // num_minibatch
+        if minibatch_size == 0:
             raise ValueError(
-                "Minibatch size (%d) is required to be no larger than"
+                "The number of minibatches (%d) is required to be no larger than"
                 " rollout_length (%d) * num_processes (%d)"
-                % (minibatch_size, self.rollout_length, self.num_processes)
+                % (num_minibatch, self.rollout_length, self.num_processes)
             )
 
         sampler = BatchSampler(
