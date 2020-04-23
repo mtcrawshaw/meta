@@ -170,6 +170,7 @@ class RolloutStorage:
             Tuple of batch indices with tensors containing rollout minibatch info.
         """
 
+        # Compute minibatch size.
         total_steps = self.rollout_length * self.num_processes
         minibatch_size = total_steps // num_minibatch
         if minibatch_size == 0:

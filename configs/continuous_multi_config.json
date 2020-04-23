@@ -4,7 +4,7 @@
     "num_updates": 50,
     "rollout_length": 128,
     "num_ppo_epochs": 4,
-    "minibatch_size": 160,
+    "num_minibatch": 4,
     "num_processes": 5,
 
     "lr": 7e-4,
