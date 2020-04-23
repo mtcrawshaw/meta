@@ -2,12 +2,12 @@
 
 import os
 from functools import reduce
-from gym.spaces import Space, Box, Discrete
 from typing import Dict, List, Union, Any
 import pickle
 
 import torch
 import torch.nn as nn
+from gym.spaces import Space, Box, Discrete
 
 
 METRICS_DIR = os.path.join("data", "metrics")

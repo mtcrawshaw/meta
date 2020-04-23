@@ -2,11 +2,9 @@
 
 from typing import Dict, Tuple, List, Any, Callable
 
-import numpy as np
 import torch
 import gym
 from gym import Env
-from gym.spaces import Discrete
 from baselines import bench
 from baselines.common.vec_env import (
     ShmemVecEnv,
@@ -14,7 +12,6 @@ from baselines.common.vec_env import (
     VecEnvWrapper,
     VecNormalize as VecNormalizeEnv,
 )
-from baselines.common.running_mean_std import RunningMeanStd
 
 from meta.tests.envs import ParityEnv, UniqueEnv
 
@@ -94,7 +91,7 @@ def get_single_env_creator(
         Function that returns environment object.
     """
 
-    def env_creator():
+    def env_creator() -> Env:
 
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
