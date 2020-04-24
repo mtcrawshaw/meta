@@ -21,6 +21,7 @@
     "num_layers": 3,
     "hidden_size": 64,
 
+    "cuda": true,
     "seed": 1,
     "print_freq": 10,
     "metrics_filename": null,

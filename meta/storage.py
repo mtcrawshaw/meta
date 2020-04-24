@@ -18,6 +18,7 @@ class RolloutStorage:
         observation_space: Space,
         action_space: Space,
         num_processes: int,
+        device: torch.device = None,
     ) -> None:
         """
         init function for RolloutStorage class.
@@ -32,6 +33,8 @@ class RolloutStorage:
             Environment's action space.
         num_processes : int
             Number of processes to run in the environment.
+        device : torch.device
+            Which device to store rollout on.
         """
 
         # Get observation and action shape.
@@ -57,15 +60,9 @@ class RolloutStorage:
         # Misc state.
         self.rollout_length = rollout_length
         self.num_processes = num_processes
+        self.device = device if device is not None else torch.device("cpu")
         self.rollout_step = 0
-
-        # Initialize rollout information.
-        self.init_rollout_info()
-
-    def __repr__(self) -> str:
-        """ String representation of RolloutStorage. """
-
-        attrs = [
+        self.members = [
             "obs",
             "value_preds",
             "actions",
@@ -73,7 +70,17 @@ class RolloutStorage:
             "rewards",
             "dones",
         ]
-        state = {attr: getattr(self, attr) for attr in attrs}
+
+        # Initialize rollout information.
+        self.init_rollout_info()
+
+        # Set device.
+        self.to(device)
+
+    def __repr__(self) -> str:
+        """ String representation of RolloutStorage. """
+
+        state = {member: getattr(self, member) for member in self.members}
         return str(state)
 
     def init_rollout_info(self) -> None:
@@ -204,6 +211,12 @@ class RolloutStorage:
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
 
+    def to(self, device: torch.device) -> None:
+        """ Move tensor members to ``device``. """
+        for member in self.members:
+            tensor = getattr(self, member)
+            setattr(self, member, tensor.to(device))
+
     def insert_rollout(self, new_rollout: "RolloutStorage", pos: int) -> None:
         """
         Insert the values from one RolloutStorage object into ``self`` at position
@@ -223,3 +236,8 @@ class RolloutStorage:
             : new_rollout.rollout_step
         ]
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
+
+    def print_devices(self) -> None:
+        """ Print devices of tensor members. """
+        for member in self.members:
+            print("%s device: %s" % (member, getattr(self, member).device))

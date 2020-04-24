@@ -63,6 +63,8 @@ def train(config: Dict[str, Any]) -> None:
         Number of layers in actor/critic network.
     hidden_size : int
         Hidden size of actor/critic network.
+    cuda : bool
+        Whether or not to train on GPU.
     seed : int
         Random seed.
     print_freq : int
@@ -73,10 +75,21 @@ def train(config: Dict[str, Any]) -> None:
         Name of metrics baseline file to compare against.
     """
 
-    # Set random seed and number of threads.
+    # Set random seed, number of threads, and device.
     torch.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])
     torch.set_num_threads(1)
+    if config["cuda"]:
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+        else:
+            device = torch.device("cpu")
+            print(
+                'Warning: config["cuda"] = True but torch.cuda.is_available() = '
+                "False. Using CPU for training."
+            )
+    else:
+        device = torch.device("cpu")
 
     # Set environment and policy.
     env = get_env(config["env_name"], config["num_processes"], config["seed"])
@@ -97,6 +110,7 @@ def train(config: Dict[str, Any]) -> None:
         num_layers=config["num_layers"],
         hidden_size=config["hidden_size"],
         normalize_advantages=config["normalize_advantages"],
+        device=device,
     )
 
     # Initialize environment and set first observation.
@@ -111,12 +125,17 @@ def train(config: Dict[str, Any]) -> None:
 
         # Sample rollout and compute update.
         rollout, current_obs, rollout_episode_rewards = collect_rollout(
-            env, policy, config["rollout_length"], current_obs, config["num_processes"]
+            env,
+            policy,
+            config["rollout_length"],
+            current_obs,
+            config["num_processes"],
+            device,
         )
         _ = policy.update(rollout)
-        episode_rewards.extend(rollout_episode_rewards)
 
         # Update and print metrics.
+        episode_rewards.extend(rollout_episode_rewards)
         if update_iteration % config["print_freq"] == 0 and len(episode_rewards) > 1:
             metrics["mean"].append(np.mean(episode_rewards))
             metrics["median"].append(np.median(episode_rewards))
@@ -159,6 +178,7 @@ def collect_rollout(
     rollout_length: int,
     initial_obs: Any,
     num_processes: int,
+    device: torch.device,
 ) -> Tuple[RolloutStorage, Any, List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
@@ -177,6 +197,8 @@ def collect_rollout(
         Initial observation returned from call to env.reset().
     num_processes : int
         Number of processes in which to run environment asynchronously.
+    device : torch.device
+        Device to collect rollout on.
 
     Returns
     -------
@@ -195,6 +217,7 @@ def collect_rollout(
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=num_processes,
+        device=device,
     )
     rollout_episode_rewards = []
     rollout.set_initial_obs(initial_obs)

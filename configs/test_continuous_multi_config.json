@@ -21,8 +21,9 @@
     "num_layers": 3,
     "hidden_size": 64,
 
+    "cuda": true,
     "seed": 1,
     "print_freq": 5,
-    "metrics_filename": "multi_continuous.pkl",
-    "baseline_metrics_filename": null
+    "metrics_filename": null,
+    "baseline_metrics_filename": "multi_continuous.pkl"
 }

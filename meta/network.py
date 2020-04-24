@@ -22,6 +22,7 @@ class PolicyNetwork(nn.Module):
         action_space: Space,
         num_layers: int = 3,
         hidden_size: int = 64,
+        device: torch.device = None,
     ) -> None:
 
         super(PolicyNetwork, self).__init__()
@@ -77,6 +78,10 @@ class PolicyNetwork(nn.Module):
         if isinstance(action_space, Box):
             self.logstd = AddBias(torch.zeros(self.output_size))
 
+        # Set device.
+        self.device = device if device is not None else torch.device("cpu")
+        self.to(device)
+
     def forward(self, obs: torch.Tensor) -> Tuple[torch.Tensor, Distribution]:
         """
         Forward pass definition for PolicyNetwork.
@@ -103,7 +108,9 @@ class PolicyNetwork(nn.Module):
             action_dist = Categorical(logits=actor_output)
         elif isinstance(self.action_space, Box):
             # Continuous action space uses Gaussian distribution.
-            action_logstd = self.logstd(torch.zeros(actor_output.size()))
+            action_logstd = self.logstd(
+                torch.zeros(actor_output.size(), device=self.device)
+            )
             action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
         else:
             raise NotImplementedError

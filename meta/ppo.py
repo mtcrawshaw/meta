@@ -32,6 +32,7 @@ class PPOPolicy:
         num_layers: int = 3,
         hidden_size: int = 64,
         normalize_advantages: float = True,
+        device: torch.device = None,
     ) -> None:
         """
         init function for PPOPolicy.
@@ -70,6 +71,8 @@ class PPOPolicy:
             Hidden size of actor/critic network.
         normalize_advantages : float
             Whether or not to normalize advantages.
+        device : torch.device
+            Which device to perform update on (forward pass is always on CPU).
         """
 
         # Set policy state.
@@ -89,6 +92,7 @@ class PPOPolicy:
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.normalize_advantages = normalize_advantages
+        self.device = device if device is not None else torch.device("cpu")
 
         # Initialize policy network and optimizer.
         self.policy_network = PolicyNetwork(
@@ -96,6 +100,7 @@ class PPOPolicy:
             action_space=action_space,
             num_layers=num_layers,
             hidden_size=hidden_size,
+            device=device,
         )
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
@@ -222,10 +227,14 @@ class PPOPolicy:
             Tensor holding advantage estimates using GAE.
         """
 
-        returns = torch.zeros(rollout.rollout_step, rollout.num_processes, 1)
-        advantages = torch.zeros(rollout.rollout_step, rollout.num_processes, 1)
+        returns = torch.zeros(
+            rollout.rollout_step, rollout.num_processes, 1, device=self.device
+        )
+        advantages = torch.zeros(
+            rollout.rollout_step, rollout.num_processes, 1, device=self.device
+        )
 
-        # Get value prediction of very last observation.
+        # Get value prediction of very last observation for return computation.
         with torch.no_grad():
             rollout.value_preds[rollout.rollout_step] = self.get_value(
                 rollout.obs[rollout.rollout_step]
