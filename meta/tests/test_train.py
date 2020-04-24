@@ -68,7 +68,12 @@ def test_collect_rollout_values() -> None:
     policy = get_policy(env, settings)
     initial_obs = env.reset()
     rollout, _, _ = collect_rollout(
-        env, policy, settings["rollout_length"], initial_obs, settings["num_processes"]
+        env,
+        policy,
+        settings["rollout_length"],
+        initial_obs,
+        settings["num_processes"],
+        settings["device"],
     )
 
     # Check if rollout info came from UniqueEnv.

@@ -117,6 +117,7 @@ def test_update_values() -> None:
         settings["num_episodes"],
         settings["episode_len"],
         settings["num_processes"],
+        settings["device"],
     )
 
     # Compute expected losses.

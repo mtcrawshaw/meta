@@ -25,9 +25,10 @@ Before merging to master:
 - Use black, pylint, and mypy to clean up
 - Make sure "pytest meta/" passes
 
-PPO training settings to add/consider:
-- Network architecture hyperparameters
-- Choice of optimizer and optimizer hyperparameters
-- Parameter sharing between actor and critic
-- Deterministic acting (i.e. always choose action with highest prob)
-
+Future additions:
+- PPO training settings to add/consider:
+    - Network architecture hyperparameters
+    - Choice of optimizer and optimizer hyperparameters
+    - Parameter sharing between actor and critic
+    - Deterministic acting (i.e. always choose action with highest prob)
+- Optimize data transfer to GPU

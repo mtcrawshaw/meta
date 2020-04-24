@@ -29,6 +29,7 @@ DEFAULT_SETTINGS = {
     "num_episodes": 4,
     "episode_len": 8,
     "num_processes": 1,
+    "device": torch.device("cpu"),
 }
 
 
@@ -52,12 +53,18 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
         normalize_advantages=settings["normalize_advantages"],
+        device=settings["device"],
     )
     return policy
 
 
 def get_rollout(
-    env: Env, policy: PPOPolicy, num_episodes: int, episode_len: int, num_processes: int
+    env: Env,
+    policy: PPOPolicy,
+    num_episodes: int,
+    episode_len: int,
+    num_processes: int,
+    device: torch.device,
 ) -> RolloutStorage:
     """
     Collects ``num_episodes`` episodes of size ``episode_len`` from ``env`` using
@@ -72,6 +79,7 @@ def get_rollout(
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=num_processes,
+        device=device,
     )
     rollout.set_initial_obs(env.reset())
 

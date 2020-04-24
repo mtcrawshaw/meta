@@ -56,12 +56,9 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
         baseline_metrics = pickle.load(metrics_file)
 
     # Compare metrics against baseline.
-    assert set(metrics.keys()) == set(baseline_metrics.keys())
     diff: Dict[str, List[Any]] = {key: [] for key in metrics}
-    for key in metrics:
-        assert len(metrics[key]) == len(baseline_metrics[key])
-
-        for i in range(max(len(metrics[key]), len(baseline_metrics[key]))):
+    for key in set(metrics.keys()).intersection(set(baseline_metrics.keys())):
+        for i in range(min(len(metrics[key]), len(baseline_metrics[key]))):
 
             if i >= len(metrics[key]):
                 diff[key].append((i, None, baseline_metrics[key][i]))
@@ -74,4 +71,7 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
                 diff[key].append((i, current_val, baseline_val))
 
     print("Metrics diff: %s" % diff)
+    assert set(metrics.keys()) == set(baseline_metrics.keys())
+    for key in metrics:
+        assert len(metrics[key]) == len(baseline_metrics[key])
     assert all(len(diff_values) == 0 for diff_values in diff.values())
