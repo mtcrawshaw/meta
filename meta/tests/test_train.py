@@ -12,45 +12,89 @@ from meta.env import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 
-def test_train_discrete_single() -> None:
+def test_train_cartpole() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_discrete_config.json")
+    config_path = os.path.join("configs", "test_configs", "discrete.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)
 
 
-def test_train_discrete_multi() -> None:
+def test_train_cartpole_multi() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_discrete_multi_config.json")
+    config_path = os.path.join("configs", "test_configs", "discrete_multi.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)
 
 
-def test_train_continuous_single() -> None:
+def test_train_cartpole_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process.
+    """
+    config_path = os.path.join("configs", "test_configs", "discrete_gpu.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_cartpole_multi_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running multiple processes.
+    """
+    config_path = os.path.join("configs", "test_configs", "discrete_multi_gpu.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_lunar_lander() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_continuous_config.json")
+    config_path = os.path.join("configs", "test_configs", "continuous.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)
 
 
-def test_train_continuous_multi() -> None:
+def test_train_lunar_lander_multi() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_continuous_multi_config.json")
+    config_path = os.path.join("configs", "test_configs", "continuous_multi.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_lunar_lander_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process.
+    """
+    config_path = os.path.join("configs", "test_configs", "continuous_gpu.json")
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+    train(config)
+
+
+def test_train_lunar_lander_multi_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes.
+    """
+    config_path = os.path.join("configs", "test_configs", "continuous_multi_gpu.json")
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
     train(config)

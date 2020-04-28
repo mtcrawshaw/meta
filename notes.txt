@@ -17,6 +17,7 @@ Current sprint:
     Make policy return distribution object, not arguments
     Add multiprocessing
 --> Add GPU support
+    Add tests for MetaWorld environments
     Add support for recurrent policies
     Test for Box((n1, n2))
     Fix comments, typing, and naming (episodes vs. rollouts)
@@ -32,3 +33,12 @@ Future additions:
     - Parameter sharing between actor and critic
     - Deterministic acting (i.e. always choose action with highest prob)
 - Optimize data transfer to GPU
+
+For tomorrow:
+- Tests don't pass for GPU version because CPU and GPU forward pass differ slightly. A
+  different action is chosen right off the bat, despite the same initial parameters and
+  observation. Try comparing against ikostrikov GPU version, the saved baselines right
+  now are just copies of the CPU baselines.
+- Combine all discrete settings files into one, all continuous settings files into one
+- Make tests shorter
+- Suppress warnings
