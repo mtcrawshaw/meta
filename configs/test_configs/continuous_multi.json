@@ -24,6 +24,7 @@
     "cuda": false,
     "seed": 1,
     "print_freq": 5,
+    "time_limit": null,
     "metrics_filename": null,
     "baseline_metrics_filename": "continuous_multi.pkl"
 }

@@ -92,7 +92,12 @@ def train(config: Dict[str, Any]) -> None:
         device = torch.device("cpu")
 
     # Set environment and policy.
-    env = get_env(config["env_name"], config["num_processes"], config["seed"])
+    env = get_env(
+        config["env_name"],
+        config["num_processes"],
+        config["seed"],
+        config["time_limit"],
+    )
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,

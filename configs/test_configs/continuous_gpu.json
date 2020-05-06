@@ -24,6 +24,7 @@
     "cuda": true,
     "seed": 1,
     "print_freq": 10,
+    "time_limit": null,
     "metrics_filename": null,
     "baseline_metrics_filename": "continuous_gpu.pkl"
 }

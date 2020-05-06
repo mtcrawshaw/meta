@@ -1,11 +1,11 @@
 {
-    "env_name": "LunarLanderContinuous-v2",
+    "env_name": "bin-picking-v1",
 
-    "num_updates": 25,
-    "rollout_length": 32,
+    "num_updates": 1000,
+    "rollout_length": 128,
     "num_ppo_epochs": 4,
     "num_minibatch": 4,
-    "num_processes": 5,
+    "num_processes": 8,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -23,8 +23,8 @@
 
     "cuda": true,
     "seed": 1,
-    "print_freq": 5,
-    "time_limit": null,
+    "print_freq": 10,
+    "time_limit": 150,
     "metrics_filename": null,
-    "baseline_metrics_filename": "continuous_multi_gpu.pkl"
+    "baseline_metrics_filename": null
 }

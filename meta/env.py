@@ -20,6 +20,7 @@ def get_env(
     env_name: str,
     num_processes: int = 1,
     seed: int = 1,
+    time_limit: int = None,
     normalize: bool = True,
     allow_early_resets: bool = False,
 ) -> Env:
@@ -35,6 +36,8 @@ def get_env(
         Number of asynchronous copies of the environment to run simultaneously.
     seed : int
         Random seed for environment.
+    time_limit : int
+        Limit on number of steps for environment.
     normalize : bool
         Whether or not to add environment wrapper to normalize observations and rewards.
     allow_early_resets: bool
@@ -48,7 +51,7 @@ def get_env(
 
     # Create vectorized environment.
     env_creators = [
-        get_single_env_creator(env_name, seed + i, allow_early_resets)
+        get_single_env_creator(env_name, seed + i, time_limit, allow_early_resets)
         for i in range(num_processes)
     ]
     if num_processes > 1:
@@ -69,7 +72,10 @@ def get_env(
 
 
 def get_single_env_creator(
-    env_name: str, seed: int = 1, allow_early_resets: bool = False,
+    env_name: str,
+    seed: int = 1,
+    time_limit: int = None,
+    allow_early_resets: bool = False,
 ) -> Callable[..., Env]:
     """
     Return a function that returns environment object with given env name. Used to
@@ -82,6 +88,8 @@ def get_single_env_creator(
         Name of environment to create.
     seed : int
         Random seed for environment.
+    time_limit : int
+        Limit on number of steps for environment.
     allow_early_resets: bool
         Whether or not to allow environments before done=True is returned.
 
@@ -117,7 +125,9 @@ def get_single_env_creator(
         # Set environment seed.
         env.seed(seed)
 
-        # Add environment wrapper to monitor rewards.
+        # Add environment wrapper to reset at time limit and monitor rewards.
+        if time_limit is not None:
+            env = TimeLimitEnv(env, time_limit)
         env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
 
         return env
@@ -151,6 +161,30 @@ class VecPyTorchEnv(VecEnvWrapper):
         obs = torch.from_numpy(obs).float()
         reward = torch.Tensor(reward).float().unsqueeze(-1)
         return obs, reward, done, info
+
+
+class TimeLimitEnv(gym.Wrapper):
+    """ Environment wrapper to reset environment when it hits time limit. """
+
+    def __init__(self, env, time_limit) -> None:
+        """ Init function for TimeLimitEnv. """
+
+        super(TimeLimitEnv, self).__init__(env)
+        self._time_limit = time_limit
+        self._elapsed_steps = None
+
+    def step(self, action):
+        assert self._elapsed_steps is not None
+        observation, reward, done, info = self.env.step(action)
+        self._elapsed_steps += 1
+        if self._elapsed_steps >= self._time_limit:
+            info["time_limit_hit"] = True
+            done = True
+        return observation, reward, done, info
+
+    def reset(self, **kwargs):
+        self._elapsed_steps = 0
+        return self.env.reset(**kwargs)
 
 
 def get_metaworld_env_names() -> List[str]:
