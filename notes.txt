@@ -42,3 +42,8 @@ For tomorrow:
 - Combine all discrete settings files into one, all continuous settings files into one
 - Make tests shorter
 - Suppress warnings
+
+For presentation:
+- Get multi-task training to work
+- Record results
+- Consider adding group indices to compare
