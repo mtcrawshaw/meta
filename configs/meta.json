@@ -1,5 +1,5 @@
 {
-    "env_name": "bin-picking-v1",
+    "env_name": "MT10",
 
     "num_updates": 1000,
     "rollout_length": 128,

@@ -44,6 +44,7 @@ For tomorrow:
 - Suppress warnings
 
 For presentation:
-- Get multi-task training to work
-- Record results
-- Consider adding group indices to compare
+- Save out results file with EMA rewards
+- Make plots from results file
+- Compare against single-task networks?
+- Add group indices to compare against one-hot task indices?

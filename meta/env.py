@@ -103,6 +103,7 @@ def get_single_env_creator(
 
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
+        metaworld_benchmark_names = get_metaworld_benchmark_names()
         if env_name in metaworld_env_names:
 
             # We import here so that we avoid importing metaworld if possible, since it is
@@ -112,6 +113,18 @@ def get_single_env_creator(
             env = ML1.get_train_tasks(env_name)
             tasks = env.sample_tasks(1)
             env.set_task(tasks[0])
+
+        elif env_name in metaworld_benchmark_names:
+
+            # Again, import here so that we avoid importing metaworld if possible.
+            from metaworld.benchmarks import MT10, MT50
+
+            if env_name == "MT10":
+                env = MT10.get_train_tasks()
+            elif env_name == "MT50":
+                env = MT50.get_train_tasks()
+            else:
+                raise NotImplementedError
 
         elif env_name == "unique-env":
             env = UniqueEnv()
@@ -185,6 +198,12 @@ class TimeLimitEnv(gym.Wrapper):
     def reset(self, **kwargs):
         self._elapsed_steps = 0
         return self.env.reset(**kwargs)
+
+
+def get_metaworld_benchmark_names() -> List[str]:
+    """ Returns a list of Metaworld benchmark names. """
+
+    return ["MT10", "MT50"]
 
 
 def get_metaworld_env_names() -> List[str]:
