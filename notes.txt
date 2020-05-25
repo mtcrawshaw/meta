@@ -1,13 +1,12 @@
 Road map:
 --> PPO for single task
-    Multitask PPO for multi task learning
-    Shared architecture for multi task learning
-    PCGrad, sparse sharing, soft-layer ordering, and other baselines for multi task learning
-    Learned loss convexity regularization for multi task learning
-    MAML and other baselines for meta learning single task distribution
-    Shared architecture for meta learning
+    Splitting networks for MTL
+    PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
+    Splitting networks for meta learning
+    MAML and other baselines for meta learning
     Hyperparameter optimization
     Tests of statistical significance
+    Learned loss convexity regularization for MTL
 
 Current sprint:
     Convert List[RolloutStorage] back to RolloutStorage
@@ -17,8 +16,8 @@ Current sprint:
     Make policy return distribution object, not arguments
     Add multiprocessing
 --> Add GPU support
-    Add tests for MetaWorld environments
     Add support for recurrent policies
+    Add tests for MetaWorld environments
     Test for Box((n1, n2))
     Fix comments, typing, and naming (episodes vs. rollouts)
 
@@ -34,7 +33,9 @@ Future additions:
     - Deterministic acting (i.e. always choose action with highest prob)
 - Optimize data transfer to GPU
 
-For tomorrow:
+----------------------------------------------------------------------------------------
+
+For right now:
 - Tests don't pass for GPU version because CPU and GPU forward pass differ slightly. A
   different action is chosen right off the bat, despite the same initial parameters and
   observation. Try comparing against ikostrikov GPU version, the saved baselines right
@@ -43,8 +44,3 @@ For tomorrow:
 - Make tests shorter
 - Suppress warnings
 
-For presentation:
-- Save out results file with EMA rewards
-- Make plots from results file
-- Compare against single-task networks?
-- Add group indices to compare against one-hot task indices?
