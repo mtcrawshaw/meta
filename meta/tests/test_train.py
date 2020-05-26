@@ -12,14 +12,25 @@ from meta.env import get_env
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 
+MP_FACTOR = 4
+CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole_default.json")
+LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander_default.json")
+
+
 def test_train_cartpole() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_configs", "discrete.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "cartpole.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -28,9 +39,17 @@ def test_train_cartpole_multi() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_configs", "discrete_multi.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["baseline_metrics_filename"] = "cartpole_multi.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -39,9 +58,16 @@ def test_train_cartpole_gpu() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_configs", "discrete_gpu.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "cartpole_gpu.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -50,9 +76,18 @@ def test_train_cartpole_multi_gpu() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a discrete action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_configs", "discrete_multi_gpu.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "cartpole_multi_gpu.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -61,9 +96,15 @@ def test_train_lunar_lander() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_configs", "continuous.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "lunar_lander.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -72,9 +113,17 @@ def test_train_lunar_lander_multi() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_configs", "continuous_multi.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["baseline_metrics_filename"] = "lunar_lander_multi.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -83,9 +132,16 @@ def test_train_lunar_lander_gpu() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running a single process.
     """
-    config_path = os.path.join("configs", "test_configs", "continuous_gpu.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "lunar_lander_gpu.pkl"
+
+    # Run training.
     train(config)
 
 
@@ -94,9 +150,18 @@ def test_train_lunar_lander_multi_gpu() -> None:
     Runs training and compares reward curve against saved baseline for an environment
     with a continuous action space, running multiple processes.
     """
-    config_path = os.path.join("configs", "test_configs", "continuous_multi_gpu.json")
-    with open(config_path, "r") as config_file:
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "lunar_lander_multi_gpu.pkl"
+
+    # Run training.
     train(config)
 
 

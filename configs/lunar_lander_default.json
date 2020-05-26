@@ -1,11 +1,11 @@
 {
     "env_name": "LunarLanderContinuous-v2",
 
-    "num_updates": 25,
+    "num_updates": 100,
     "rollout_length": 32,
     "num_ppo_epochs": 4,
     "num_minibatch": 4,
-    "num_processes": 5,
+    "num_processes": 1,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -21,10 +21,10 @@
     "num_layers": 3,
     "hidden_size": 64,
 
-    "cuda": true,
+    "cuda": false,
     "seed": 1,
-    "print_freq": 5,
+    "print_freq": 10,
     "time_limit": null,
     "metrics_filename": null,
-    "baseline_metrics_filename": "continuous_multi_gpu.pkl"
+    "baseline_metrics_filename": null
 }

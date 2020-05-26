@@ -118,6 +118,15 @@ def train(config: Dict[str, Any]) -> None:
         device=device,
     )
 
+    # Set initial policy weights.
+    if config["env_name"] == "CartPole-v1":
+        state_dict_name = "original_discrete_parameters.pkl"
+    elif config["env_name"] == "LunarLanderContinuous-v2":
+        state_dict_name = "original_continuous_parameters.pkl"
+    with open(os.path.join("data", "parameters", state_dict_name), "rb") as f:
+        state_dict = pickle.load(f)
+    policy.policy_network.load_state_dict(state_dict)
+
     # Initialize environment and set first observation.
     current_obs = env.reset()
 
