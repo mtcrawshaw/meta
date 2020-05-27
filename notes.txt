@@ -1,5 +1,6 @@
 Road map:
 --> PPO for single task
+    Add MetaWorld support
     Splitting networks for MTL
     PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
     Splitting networks for meta learning
@@ -17,7 +18,6 @@ Current sprint:
     Add multiprocessing
 --> Add GPU support
     Add support for recurrent policies
-    Add tests for MetaWorld environments
     Test for Box((n1, n2))
     Fix comments, typing, and naming (episodes vs. rollouts)
 
@@ -36,11 +36,15 @@ Future additions:
 ----------------------------------------------------------------------------------------
 
 For right now:
-- Tests don't pass for GPU version because CPU and GPU forward pass differ slightly. A
-  different action is chosen right off the bat, despite the same initial parameters and
-  observation. Try comparing against ikostrikov GPU version, the saved baselines right
-  now are just copies of the CPU baselines.
-- Combine all discrete settings files into one, all continuous settings files into one
+- Get GPU tests to pass
 - Make tests shorter
 - Suppress warnings
 
+Debugging:
+So I've put in a shit ton of print statements through the training pipeline in this
+branch and also in the original_benchmark branch, to try to spot the difference. It
+seems that the call to nn.utils.clip_grad_norm_ returns different results for the two
+versions. I am guessing that this is happening because the parameterization between the
+two models is slightly different, so when the gradient gets rescaled by some
+multiplicative factor in the two versions, each new parameter is slightly off.
+Investigate this next time.
