@@ -284,8 +284,10 @@ class PPOPolicy:
 
         # Combine rollouts into one object and compute returns/advantages.
         returns, advantages = self.compute_returns_advantages(rollout)
+        """
         print("returns: %s" % returns)
         print("advantages: %s" % advantages)
+        """
 
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
@@ -295,6 +297,8 @@ class PPOPolicy:
             minibatch_generator = rollout.minibatch_generator(self.num_minibatch)
 
             for minibatch in minibatch_generator:
+
+                # print("update %d" % num_updates)
 
                 # Get batch of rollout data and construct corresponding batch of returns
                 # and advantages.
@@ -307,8 +311,10 @@ class PPOPolicy:
                 ) = minibatch
                 returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
+                """
                 print("returns_batch: %s" % returns_batch.data)
                 print("advantages_batch: %s" % advantages_batch.data)
+                """
 
                 # Compute new values, action log probs, and dist entropies.
                 (
@@ -319,9 +325,11 @@ class PPOPolicy:
 
                 values_batch = values_batch.squeeze(-1)
 
+                """
                 print("values_batch: %s" % values_batch.data)
                 print("action_log_probs_batch: %s" % action_log_probs_batch.data)
                 print("action_dist_entropy_batch: %s" % action_dist_entropy_batch.mean().data)
+                """
 
                 # Compute action loss, value loss, and entropy loss.
                 ratio = torch.exp(action_log_probs_batch - old_action_log_probs_batch)
@@ -331,10 +339,12 @@ class PPOPolicy:
                     * advantages_batch
                 )
                 action_loss = torch.min(surrogate1, surrogate2).mean()
+                """
                 print("ratio: %s" % ratio.data)
                 print("surrogate1: %s" % surrogate1.data)
                 print("surrogate2: %s" % surrogate2.data)
                 print("action_loss: %s" % action_loss.data)
+                """
 
                 if self.clip_value_loss:
                     value_losses = (returns_batch - values_batch).pow(2)
@@ -350,8 +360,10 @@ class PPOPolicy:
                 else:
                     value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
                 entropy_loss = action_dist_entropy_batch.mean()
+                """
                 print("value_loss: %s" % value_loss.data)
                 print("entropy_loss: %s" % entropy_loss.data)
+                """
 
                 # Optimizer step.
                 self.optimizer.zero_grad()
@@ -360,26 +372,27 @@ class PPOPolicy:
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss
                 )
-                print("loss: %s" % loss.data)
+                # print("loss: %s" % loss.data)
                 loss.backward()
-                get_param = lambda m, name: dict(m.named_parameters())[name]
-                old_actor_grad = copy.deepcopy(get_param(self.policy_network, "actor.0.weight").grad.data)
-                old_critic_grad = copy.deepcopy(get_param(self.policy_network, "critic.0.weight").grad.data)
-                print("actor 0 unclipped grad: %s" % old_actor_grad)
-                print("critic 0 unclipped grad: %s" % old_critic_grad)
+                # print("\nPre-clip grad:")
+                # print_model(self.policy_network, grad=True)
+
+                # Rearrange parameter order for debugging.
+                rearrange_list = lambda l, order: [l[i] for i in order]
+                new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5]
+                rearranged_params = rearrange_list(list(self.policy_network.parameters()), new_order)
                 if self.max_grad_norm is not None:
                     nn.utils.clip_grad_norm_(
-                        self.policy_network.parameters(), self.max_grad_norm
+                        rearranged_params, self.max_grad_norm
                     )
-                new_actor_grad = get_param(self.policy_network, "actor.0.weight").grad.data
-                new_critic_grad = get_param(self.policy_network, "critic.0.weight").grad.data
-                print("actor 0 grad: %s" % new_actor_grad)
-                print("critic 0 grad: %s" % new_critic_grad)
-                print("actor 0 grad difference: %s" % (new_actor_grad / old_actor_grad))
-                print("critic 0 grad difference: %s" % (new_critic_grad / old_critic_grad))
+                # print("\nPost-clip grad:")
+                # print_model(self.policy_network, grad=True)
                 self.optimizer.step()
-                print("actor 0: %s" % self.policy_network.state_dict()["actor.0.weight"].data)
-                print("critic 0: %s" % self.policy_network.state_dict()["critic.0.weight"].data)
+                """
+                print("\nPost-update params:")
+                print_model(self.policy_network)
+                print("")
+                """
 
                 # Get loss values.
                 loss_items["action"] += action_loss.item()
@@ -393,3 +406,11 @@ class PPOPolicy:
             loss_items[loss_name] /= num_updates
 
         return loss_items
+
+def print_model(policy_network, grad=False):
+
+    for name, param in policy_network.named_parameters():
+        if grad:
+            print("%s: %s" % (name, param.grad))
+        else:
+            print("%s: %s" % (name, param))

@@ -48,3 +48,12 @@ versions. I am guessing that this is happening because the parameterization betw
 two models is slightly different, so when the gradient gets rescaled by some
 multiplicative factor in the two versions, each new parameter is slightly off.
 Investigate this next time.
+
+Found the cause of this: The norm rescaling is different for each of the models despite
+the fact that they have the exact same parameters. Apparently the return value of
+torch.norm is dependent on the order of the elements of the passed in tensor (MWE in
+scripts/torch_norm_mwe.py). I put in a hard-coded rearrangement of the parameters in
+update() in ppo.py, and this produces the correct result for some cases. The
+rearrangement will only work for cases with a discrete action space. Next time, we
+should create similar hard-codings for the other cases, to make sure that it works, then
+remove then and save new baselines without the rearrangement.
