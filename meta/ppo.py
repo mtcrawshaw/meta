@@ -374,19 +374,38 @@ class PPOPolicy:
                 )
                 # print("loss: %s" % loss.data)
                 loss.backward()
-                # print("\nPre-clip grad:")
-                # print_model(self.policy_network, grad=True)
+                """
+                print("\nPre-clip grad:")
+                print_model(self.policy_network, grad=True)
+                """
 
-                # Rearrange parameter order for debugging.
+                # Clip gradient.
+
+                # HARDCODE: cartpole, cartpole_multi
+                # new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5]
+
+                # HARDCODE: lunar_lander
+                new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5, 12]
+
+                # Rearrange order of parameters and clip gradient.
                 rearrange_list = lambda l, order: [l[i] for i in order]
-                new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5]
                 rearranged_params = rearrange_list(list(self.policy_network.parameters()), new_order)
                 if self.max_grad_norm is not None:
                     nn.utils.clip_grad_norm_(
                         rearranged_params, self.max_grad_norm
                     )
-                # print("\nPost-clip grad:")
-                # print_model(self.policy_network, grad=True)
+
+                """
+                if self.max_grad_norm is not None:
+                    nn.utils.clip_grad_norm_(
+                        self.policy_network.parameters(), self.max_grad_norm
+                    )
+                """
+
+                """
+                print("\nPost-clip grad:")
+                print_model(self.policy_network, grad=True)
+                """
                 self.optimizer.step()
                 """
                 print("\nPost-update params:")
@@ -408,6 +427,8 @@ class PPOPolicy:
         return loss_items
 
 def print_model(policy_network, grad=False):
+
+    return
 
     for name, param in policy_network.named_parameters():
         if grad:
