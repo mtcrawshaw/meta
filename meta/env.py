@@ -179,14 +179,16 @@ class VecPyTorchEnv(VecEnvWrapper):
 class TimeLimitEnv(gym.Wrapper):
     """ Environment wrapper to reset environment when it hits time limit. """
 
-    def __init__(self, env, time_limit) -> None:
+    def __init__(self, env: Env, time_limit: int) -> None:
         """ Init function for TimeLimitEnv. """
 
         super(TimeLimitEnv, self).__init__(env)
         self._time_limit = time_limit
         self._elapsed_steps = None
 
-    def step(self, action):
+    def step(self, action: Any) -> Any:
+        """ Step function for environment wrapper. """
+
         assert self._elapsed_steps is not None
         observation, reward, done, info = self.env.step(action)
         self._elapsed_steps += 1
@@ -196,6 +198,8 @@ class TimeLimitEnv(gym.Wrapper):
         return observation, reward, done, info
 
     def reset(self, **kwargs):
+        """ Reset function for environment wrapper. """
+
         self._elapsed_steps = 0
         return self.env.reset(**kwargs)
 
