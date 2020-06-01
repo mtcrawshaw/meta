@@ -139,12 +139,6 @@ def train(config: Dict[str, Any]) -> None:
 
     for update_iteration in range(config["num_updates"]):
 
-        """
-        if update_iteration >= 10:
-            exit()
-        print("update_iteration: %d\n" % update_iteration)
-        """
-
         # Sample rollout and compute update.
         rollout, current_obs, rollout_episode_rewards = collect_rollout(
             env,
@@ -254,16 +248,6 @@ def collect_rollout(
         # Perform step and record in ``rollout``.
         obs, rewards, dones, infos = env.step(actions)
         rollout.add_step(obs, actions, dones, action_log_probs, values, rewards)
-
-        """
-        print("step: %s" % rollout_step)
-        print("value: %s" % values)
-        print("action: %s" % actions)
-        print("action_log_prob: %s" % action_log_probs)
-        print("obs: %s" % obs)
-        print("reward: %s" % rewards)
-        print("")
-        """
 
         # Get total episode reward, if it is given, and check for done.
         for info in infos:
