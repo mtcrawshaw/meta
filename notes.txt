@@ -19,7 +19,7 @@ Current sprint:
 --> Add GPU support
     Add support for recurrent policies
     Test for Box((n1, n2))
-    Fix comments, typing, and naming (episodes vs. rollouts)
+    Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -35,25 +35,3 @@ Future additions:
 
 ----------------------------------------------------------------------------------------
 
-For right now:
-- Get GPU tests to pass
-- Make tests shorter
-- Suppress warnings
-
-Debugging:
-So I've put in a shit ton of print statements through the training pipeline in this
-branch and also in the original_benchmark branch, to try to spot the difference. It
-seems that the call to nn.utils.clip_grad_norm_ returns different results for the two
-versions. I am guessing that this is happening because the parameterization between the
-two models is slightly different, so when the gradient gets rescaled by some
-multiplicative factor in the two versions, each new parameter is slightly off.
-Investigate this next time.
-
-Found the cause of this: The norm rescaling is different for each of the models despite
-the fact that they have the exact same parameters. Apparently the return value of
-torch.norm is dependent on the order of the elements of the passed in tensor (MWE in
-scripts/torch_norm_mwe.py). I put in a hard-coded rearrangement of the parameters in
-update() in ppo.py, and this produces the correct result for some cases. The
-rearrangement will only work for cases with a discrete action space. Next time, we
-should create similar hard-codings for the other cases, to make sure that it works, then
-remove then and save new baselines without the rearrangement.

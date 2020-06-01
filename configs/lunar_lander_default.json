@@ -1,7 +1,7 @@
 {
     "env_name": "LunarLanderContinuous-v2",
 
-    "num_updates": 100,
+    "num_updates": 10,
     "rollout_length": 32,
     "num_ppo_epochs": 4,
     "num_minibatch": 4,

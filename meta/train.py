@@ -135,8 +135,6 @@ def train(config: Dict[str, Any]) -> None:
     metric_names = ["mean", "median", "min", "max"]
     metrics: Dict[str, List[float]] = {metric_name: [] for metric_name in metric_names}
 
-    torch.set_printoptions(precision=20)
-
     for update_iteration in range(config["num_updates"]):
 
         # Sample rollout and compute update.
