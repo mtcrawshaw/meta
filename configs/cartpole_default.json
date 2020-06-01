@@ -23,7 +23,7 @@
 
     "cuda": false,
     "seed": 1,
-    "print_freq": 10,
+    "print_freq": 1,
     "time_limit": null,
     "metrics_filename": null,
     "baseline_metrics_filename": null
