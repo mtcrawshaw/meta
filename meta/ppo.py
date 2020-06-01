@@ -1,7 +1,6 @@
 """ Definition of PPOPolicy, an object to perform acting and training with PPO. """
 
 from typing import Tuple, Dict
-import copy
 
 import torch
 import torch.nn as nn
@@ -339,7 +338,7 @@ class PPOPolicy:
                     value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
                 entropy_loss = action_dist_entropy_batch.mean()
 
-                # Optimizer step.
+                # Backward pass.
                 self.optimizer.zero_grad()
                 loss = -(
                     action_loss
@@ -348,36 +347,13 @@ class PPOPolicy:
                 )
                 loss.backward()
 
-                # Rearrange order of parameters and clip gradient. This is a weird hack
-                # to get our version to match the original ikostrikov implementation.
-                # For some reason the result of the call to clip_grad_norm is dependent
-                # on the order of the parameters which are passed in (it comes down to
-                # the fact that the result of torch.norm() is dependent on the order of
-                # the elements in the tensor which is passed in, somehow).
-                num_params = len(list(self.policy_network.parameters()))
-                if num_params == 12:
-                    # HARDCODE: cartpole
-                    new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5]
-                elif num_params == 13:
-                    # HARDCODE: lunar_lander
-                    new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5, 12]
-                else:
-                    new_order = list(range(num_params))
-
-                rearrange_list = lambda l, order: [l[i] for i in order]
-                rearranged_params = rearrange_list(list(self.policy_network.parameters()), new_order)
-                if self.max_grad_norm is not None:
-                    nn.utils.clip_grad_norm_(
-                        rearranged_params, self.max_grad_norm
-                    )
-
-                """
+                # Clip gradient.
                 if self.max_grad_norm is not None:
                     nn.utils.clip_grad_norm_(
                         self.policy_network.parameters(), self.max_grad_norm
                     )
-                """
 
+                # Optimizer step.
                 self.optimizer.step()
 
                 # Get loss values.
