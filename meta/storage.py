@@ -18,6 +18,7 @@ class RolloutStorage:
         observation_space: Space,
         action_space: Space,
         num_processes: int,
+        hidden_state_size: int,
         device: torch.device = None,
     ) -> None:
         """
@@ -33,6 +34,8 @@ class RolloutStorage:
             Environment's action space.
         num_processes : int
             Number of processes to run in the environment.
+        hidden_state_size: int,
+            Size of hidden state of recurrent layer of policy.
         device : torch.device
             Which device to store rollout on.
         """
@@ -60,6 +63,7 @@ class RolloutStorage:
         # Misc state.
         self.rollout_length = rollout_length
         self.num_processes = num_processes
+        self.hidden_state_size = hidden_state_size
         self.device = device if device is not None else torch.device("cpu")
         self.rollout_step = 0
         self.members = [
@@ -68,6 +72,7 @@ class RolloutStorage:
             "actions",
             "action_log_probs",
             "rewards",
+            "hidden_states",
             "dones",
         ]
 
@@ -102,6 +107,9 @@ class RolloutStorage:
 
         self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes, 1)
         self.rewards = torch.zeros(self.rollout_length, self.num_processes, 1)
+        self.hidden_states = torch.zeros(
+            self.rollout_length + 1, self.num_processes, self.hidden_state_size
+        )
 
     def add_step(
         self,
@@ -111,6 +119,7 @@ class RolloutStorage:
         action_log_prob: torch.Tensor,
         value_pred: torch.Tensor,
         reward: torch.Tensor,
+        hidden_state: torch.Tensor,
     ) -> None:
         """
         Add an environment step to storage.
@@ -127,6 +136,8 @@ class RolloutStorage:
             Value prediction from policy at step.
         reward : torch.Tensor,
             Reward earned from environment step.
+        hidden_state : torch.Tensor,
+            Hidden state of recurrent layer of policy at step.
         """
 
         if self.rollout_step >= self.rollout_length:
@@ -145,6 +156,7 @@ class RolloutStorage:
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
         self.rewards[self.rollout_step] = reward
+        self.hidden_states[self.rollout_step] = hidden_state
 
         self.rollout_step += 1
 
@@ -236,6 +248,7 @@ class RolloutStorage:
             : new_rollout.rollout_step
         ]
         self.rewards[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
+        self.hidden_states[pos:end] = new_rollout.rewards[: new_rollout.rollout_step]
 
     def print_devices(self) -> None:
         """ Print devices of tensor members. """

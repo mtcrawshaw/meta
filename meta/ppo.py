@@ -31,6 +31,7 @@ class PPOPolicy:
         clip_value_loss: bool = True,
         num_layers: int = 3,
         hidden_size: int = 64,
+        recurrent: bool = False,
         normalize_advantages: float = True,
         device: torch.device = None,
     ) -> None:
@@ -69,6 +70,8 @@ class PPOPolicy:
             Number of layers in actor/critic network.
         hidden_size : int
             Hidden size of actor/critic network.
+        recurrent : bool
+            Whether or not to add recurrent layer to policy network.
         normalize_advantages : float
             Whether or not to normalize advantages.
         device : torch.device
@@ -90,6 +93,7 @@ class PPOPolicy:
         self.max_grad_norm = max_grad_norm
         self.clip_value_loss = clip_value_loss
         self.num_layers = num_layers
+        self.recurrent = recurrent
         self.hidden_size = hidden_size
         self.normalize_advantages = normalize_advantages
         self.device = device if device is not None else torch.device("cpu")
@@ -100,11 +104,14 @@ class PPOPolicy:
             action_space=action_space,
             num_layers=num_layers,
             hidden_size=hidden_size,
+            recurrent=recurrent,
             device=device,
         )
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
-    def act(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def act(
+        self, obs: torch.Tensor, hidden_state: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample action from policy.
 
@@ -112,6 +119,8 @@ class PPOPolicy:
         ---------
         obs : torch.Tensor
             Observation to sample action from.
+        hidden_state : torch.Tensor
+            Hidden state to use for recurrent layer of policy, if necessary.
 
         Returns
         -------
@@ -124,7 +133,7 @@ class PPOPolicy:
         """
 
         # Pass through network to get value prediction and action probabilities.
-        value_pred, action_dist = self.policy_network(obs)
+        value_pred, action_dist, hidden_state = self.policy_network(obs, hidden_state)
 
         # Sample action and compute log probabilities.
         action = action_dist.sample()
@@ -141,10 +150,13 @@ class PPOPolicy:
         if action_log_prob.shape[1:] == torch.Size([]):
             action_log_prob = action_log_prob.view(-1, 1)
 
-        return value_pred, action, action_log_prob
+        return value_pred, action, action_log_prob, hidden_state
 
     def evaluate_actions(
-        self, obs_batch: torch.Tensor, actions_batch: torch.Tensor
+        self,
+        obs_batch: torch.Tensor,
+        hidden_states_batch: torch.Tensor,
+        actions_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get values, log probabilities, and action distribution entropies for a batch of
@@ -156,6 +168,8 @@ class PPOPolicy:
             Observations to compute action distribution for.
         actions_batch : torch.Tensor
             Actions to compute log probability of under computed distribution.
+        hidden_states_batch : torch.Tensor
+            Hidden states to use for recurrent layer of policy, if necessary.
 
         Returns
         -------
@@ -168,7 +182,9 @@ class PPOPolicy:
             Entropies of action distributions resulting from ``obs_batch``.
         """
 
-        value, action_dist = self.policy_network(obs_batch)
+        value, action_dist, hidden_states_batch = self.policy_network(
+            obs_batch, hidden_states_batch
+        )
 
         # Create action distribution object from probabilities and compute log
         # probabilities.
@@ -187,9 +203,9 @@ class PPOPolicy:
         # value_preds_batch.
         value = torch.squeeze(value, -1)
 
-        return value, action_log_probs, action_dist_entropy
+        return value, action_log_probs, action_dist_entropy, hidden_states_batch
 
-    def get_value(self, obs: torch.Tensor) -> torch.Tensor:
+    def get_value(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> torch.Tensor:
         """
         Get value prediction from an observation.
 
@@ -197,6 +213,7 @@ class PPOPolicy:
         ---------
         obs : torch.Tensor
             Observation to get value prediction for.
+        hidden_state : torch.Tensor
 
         Returns
         -------
@@ -204,7 +221,7 @@ class PPOPolicy:
             Value prediction from critic portion of policy.
         """
 
-        value_pred, _ = self.policy_network(obs)
+        value_pred, _, _ = self.policy_network(obs, hidden_state)
         return value_pred
 
     def compute_returns_advantages(
@@ -237,7 +254,8 @@ class PPOPolicy:
         # Get value prediction of very last observation for return computation.
         with torch.no_grad():
             rollout.value_preds[rollout.rollout_step] = self.get_value(
-                rollout.obs[rollout.rollout_step]
+                rollout.obs[rollout.rollout_step],
+                rollout.hidden_states[rollout.rollout_step],
             )
 
         # Compute returns.
@@ -289,6 +307,11 @@ class PPOPolicy:
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
+
+            # TEMP
+            num_updates += 1
+            continue
+
             minibatch_generator = rollout.minibatch_generator(self.num_minibatch)
 
             for minibatch in minibatch_generator:

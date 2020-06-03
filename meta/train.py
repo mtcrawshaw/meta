@@ -63,6 +63,8 @@ def train(config: Dict[str, Any]) -> None:
         Number of layers in actor/critic network.
     hidden_size : int
         Hidden size of actor/critic network.
+    recurrent : bool
+        Whether or not to add recurrent layer to policy network.
     cuda : bool
         Whether or not to train on GPU.
     seed : int
@@ -114,6 +116,7 @@ def train(config: Dict[str, Any]) -> None:
         clip_value_loss=config["clip_value_loss"],
         num_layers=config["num_layers"],
         hidden_size=config["hidden_size"],
+        recurrent=config["recurrent"],
         normalize_advantages=config["normalize_advantages"],
         device=device,
     )
@@ -222,6 +225,7 @@ def collect_rollout(
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=num_processes,
+        hidden_state_size=policy.hidden_size if policy.recurrent else 1,
         device=device,
     )
     rollout_episode_rewards = []
@@ -232,11 +236,15 @@ def collect_rollout(
 
         # Sample actions.
         with torch.no_grad():
-            values, actions, action_log_probs = policy.act(rollout.obs[rollout_step])
+            values, actions, action_log_probs, hidden_states = policy.act(
+                rollout.obs[rollout_step], rollout.hidden_states[rollout_step]
+            )
 
         # Perform step and record in ``rollout``.
         obs, rewards, dones, infos = env.step(actions)
-        rollout.add_step(obs, actions, dones, action_log_probs, values, rewards)
+        rollout.add_step(
+            obs, actions, dones, action_log_probs, values, rewards, hidden_states
+        )
 
         # Get total episode reward, if it is given, and check for done.
         for info in infos:

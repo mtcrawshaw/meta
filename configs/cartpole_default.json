@@ -5,7 +5,7 @@
     "rollout_length": 5,
     "num_ppo_epochs": 4,
     "num_minibatch": 1,
-    "num_processes": 1,
+    "num_processes": 2,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -20,6 +20,7 @@
 
     "num_layers": 3,
     "hidden_size": 64,
+    "recurrent": false,
 
     "cuda": false,
     "seed": 1,

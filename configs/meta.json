@@ -20,6 +20,7 @@
 
     "num_layers": 3,
     "hidden_size": 64,
+    "recurrent": false,
 
     "cuda": true,
     "seed": 1,

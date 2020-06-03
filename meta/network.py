@@ -22,6 +22,7 @@ class PolicyNetwork(nn.Module):
         action_space: Space,
         num_layers: int = 3,
         hidden_size: int = 64,
+        recurrent: bool = False,
         device: torch.device = None,
     ) -> None:
 
@@ -30,27 +31,38 @@ class PolicyNetwork(nn.Module):
         self.observation_space = observation_space
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.recurrent = recurrent
 
         # Calculate the input/output size.
         self.input_size = get_space_size(observation_space)
         self.output_size = get_space_size(action_space)
 
         # Initialization functions for network, init_final is only used for the last
-        # layer of the actor network.
+        # layer of the actor network, init_base is used for all other layers in
+        # actor/critic networks, init_recurrent is used for recurrent layer.
         init_base = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
         )
         init_final = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
         )
+        init_recurrent = lambda m: init(
+            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.0
+        )
 
         # Generate layers of network.
+        if self.recurrent:
+            self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
+            self.hidden_state = torch.zeros(self.hidden_size)
+
         actor_layers = []
         critic_layers = []
         for i in range(num_layers):
 
             # Calcuate input and output size of layer.
-            layer_input_size = self.input_size if i == 0 else hidden_size
+            layer_input_size = (
+                self.input_size if i == 0 and not self.recurrent else hidden_size
+            )
             actor_output_size = self.output_size if i == num_layers - 1 else hidden_size
             critic_output_size = 1 if i == num_layers - 1 else hidden_size
 
@@ -82,7 +94,9 @@ class PolicyNetwork(nn.Module):
         self.device = device if device is not None else torch.device("cpu")
         self.to(device)
 
-    def forward(self, obs: torch.Tensor) -> Tuple[torch.Tensor, Distribution]:
+    def forward(
+        self, obs: torch.Tensor, hidden_state: torch.Tensor
+    ) -> Tuple[torch.Tensor, Distribution, torch.Tensor]:
         """
         Forward pass definition for PolicyNetwork.
 
@@ -91,6 +105,8 @@ class PolicyNetwork(nn.Module):
         obs : torch.Tensor
             Observation to be used as input to policy network. If the observation space
             is discrete, this function expects ``obs`` to be a one-hot vector.
+        hidden_state : torch.Tensor
+            Hidden state to use for recurrent layer, if necessary.
 
         Returns
         -------
@@ -98,11 +114,21 @@ class PolicyNetwork(nn.Module):
             Predicted value output from critic.
         action_dist : torch.distributions.Distribution
             Distribution over action space to sample from.
+        hidden_state : torch.Tensor
+            New hidden state after forward pass.
         """
 
-        value_pred = self.critic(obs)
-        actor_output = self.actor(obs)
+        x = obs
 
+        # Pass through recurrent layer, if necessary.
+        if self.recurrent:
+            x, hidden_state = self.recurrent_forward(x, hidden_state)
+
+        # Pass through actor and critic networks.
+        value_pred = self.critic(x)
+        actor_output = self.actor(x)
+
+        # Construct action distribution from actor_output.
         if isinstance(self.action_space, Discrete):
             # Discrete action space uses Categorical distribution.
             action_dist = Categorical(logits=actor_output)
@@ -115,4 +141,33 @@ class PolicyNetwork(nn.Module):
         else:
             raise NotImplementedError
 
-        return value_pred, action_dist
+        return value_pred, action_dist, hidden_state
+
+    def recurrent_forward(
+        self, inputs: torch.Tensor, hidden_state: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass through recurrent layer of PolicyNetwork.
+
+        Arguments
+        ---------
+        inputs : torch.Tensor
+            Input to recurrent layer.
+        hidden_state : torch.Tensor
+            Hidden state to use for recurrent layer, if necessary.
+
+        Returns
+        -------
+        outputs : torch.Tensor
+            Output of recurrent layer.
+        hidden_state : torch.Tensor
+            New hidden state of recurrent layer.
+        """
+
+        # The squeeze and unsqueeze here is to create a temporal dimension for the
+        # recurrent module. The input is technically a sequence of length 1.
+        x, hidden_state = self.gru(inputs.unsqueeze(0), hidden_state.unsqueeze(0))
+        x = x.squeeze(0)
+        hidden_state = hidden_state.squeeze(0)
+
+        return x, hidden_state
