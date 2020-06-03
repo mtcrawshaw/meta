@@ -237,7 +237,9 @@ def collect_rollout(
         # Sample actions.
         with torch.no_grad():
             values, actions, action_log_probs, hidden_states = policy.act(
-                rollout.obs[rollout_step], rollout.hidden_states[rollout_step]
+                rollout.obs[rollout_step],
+                rollout.hidden_states[rollout_step],
+                rollout.dones[rollout_step],
             )
 
         # Perform step and record in ``rollout``.

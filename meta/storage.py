@@ -103,7 +103,7 @@ class RolloutStorage:
         self.actions = torch.zeros(
             self.rollout_length, self.num_processes, *self.space_shapes["action"]
         )
-        self.dones = torch.zeros(self.rollout_length, self.num_processes, 1)
+        self.dones = torch.zeros(self.rollout_length + 1, self.num_processes, 1)
 
         self.action_log_probs = torch.zeros(self.rollout_length, self.num_processes, 1)
         self.rewards = torch.zeros(self.rollout_length, self.num_processes, 1)
@@ -150,7 +150,7 @@ class RolloutStorage:
 
         self.obs[self.rollout_step + 1] = obs
         self.actions[self.rollout_step] = action
-        self.dones[self.rollout_step] = torch.Tensor(
+        self.dones[self.rollout_step + 1] = torch.Tensor(
             [[1.0] if done else [0.0] for done in dones]
         )
         self.action_log_probs[self.rollout_step] = action_log_prob

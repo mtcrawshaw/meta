@@ -110,7 +110,7 @@ class PPOPolicy:
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=lr, eps=eps)
 
     def act(
-        self, obs: torch.Tensor, hidden_state: torch.Tensor
+        self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample action from policy.
@@ -121,6 +121,9 @@ class PPOPolicy:
             Observation to sample action from.
         hidden_state : torch.Tensor
             Hidden state to use for recurrent layer of policy, if necessary.
+        done : torch.Tensor
+            Whether or not the previous environment step was terminal. We use this to
+            clear the hidden state of the policy when necessary, if it is recurrent.
 
         Returns
         -------
@@ -133,7 +136,7 @@ class PPOPolicy:
         """
 
         # Pass through network to get value prediction and action probabilities.
-        value_pred, action_dist, hidden_state = self.policy_network(obs, hidden_state)
+        value_pred, action_dist, hidden_state = self.policy_network(obs, hidden_state, done)
 
         # Sample action and compute log probabilities.
         action = action_dist.sample()
@@ -205,7 +208,7 @@ class PPOPolicy:
 
         return value, action_log_probs, action_dist_entropy, hidden_states_batch
 
-    def get_value(self, obs: torch.Tensor, hidden_state: torch.Tensor) -> torch.Tensor:
+    def get_value(self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor) -> torch.Tensor:
         """
         Get value prediction from an observation.
 
@@ -214,6 +217,10 @@ class PPOPolicy:
         obs : torch.Tensor
             Observation to get value prediction for.
         hidden_state : torch.Tensor
+            Hidden state to use for recurrent layer of policy, if necessary.
+        done : torch.Tensor
+            Whether or not the previous environment step was terminal. We use this to
+            clear the hidden state when necessary.
 
         Returns
         -------
@@ -221,7 +228,7 @@ class PPOPolicy:
             Value prediction from critic portion of policy.
         """
 
-        value_pred, _, _ = self.policy_network(obs, hidden_state)
+        value_pred, _, _ = self.policy_network(obs, hidden_state, done)
         return value_pred
 
     def compute_returns_advantages(
@@ -256,6 +263,7 @@ class PPOPolicy:
             rollout.value_preds[rollout.rollout_step] = self.get_value(
                 rollout.obs[rollout.rollout_step],
                 rollout.hidden_states[rollout.rollout_step],
+                rollout.dones[rollout.rollout_step]
             )
 
         # Compute returns.

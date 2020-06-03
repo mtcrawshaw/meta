@@ -95,7 +95,7 @@ class PolicyNetwork(nn.Module):
         self.to(device)
 
     def forward(
-        self, obs: torch.Tensor, hidden_state: torch.Tensor
+        self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
     ) -> Tuple[torch.Tensor, Distribution, torch.Tensor]:
         """
         Forward pass definition for PolicyNetwork.
@@ -107,6 +107,9 @@ class PolicyNetwork(nn.Module):
             is discrete, this function expects ``obs`` to be a one-hot vector.
         hidden_state : torch.Tensor
             Hidden state to use for recurrent layer, if necessary.
+        done : torch.Tensor
+            Whether or not the last step was a terminal step. We use this to clear the
+            hidden state of the network when necessary, if it is recurrent.
 
         Returns
         -------
@@ -122,7 +125,7 @@ class PolicyNetwork(nn.Module):
 
         # Pass through recurrent layer, if necessary.
         if self.recurrent:
-            x, hidden_state = self.recurrent_forward(x, hidden_state)
+            x, hidden_state = self.recurrent_forward(x, hidden_state, done)
 
         # Pass through actor and critic networks.
         value_pred = self.critic(x)
@@ -144,7 +147,7 @@ class PolicyNetwork(nn.Module):
         return value_pred, action_dist, hidden_state
 
     def recurrent_forward(
-        self, inputs: torch.Tensor, hidden_state: torch.Tensor
+        self, inputs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through recurrent layer of PolicyNetwork.
@@ -155,6 +158,9 @@ class PolicyNetwork(nn.Module):
             Input to recurrent layer.
         hidden_state : torch.Tensor
             Hidden state to use for recurrent layer, if necessary.
+        done : torch.Tensor
+            Whether or not the previous environment step was terminal. We use this to
+            clear the hidden state when necessary.
 
         Returns
         -------
@@ -163,6 +169,10 @@ class PolicyNetwork(nn.Module):
         hidden_state : torch.Tensor
             New hidden state of recurrent layer.
         """
+
+        # Clear the hidden state for any processes for which the environment just
+        # finished.
+        hidden_state = hidden_state * (1.0 - done)
 
         # The squeeze and unsqueeze here is to create a temporal dimension for the
         # recurrent module. The input is technically a sequence of length 1.
