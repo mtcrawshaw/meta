@@ -121,8 +121,18 @@ def train(config: Dict[str, Any]) -> None:
         device=device,
     )
 
+    # Construct object to store rollout information.
+    rollout = RolloutStorage(
+        rollout_length=config["rollout_length"],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        num_processes=config["num_processes"],
+        hidden_state_size=config["hidden_size"] if policy.recurrent else 1,
+        device=device,
+    )
+
     # Initialize environment and set first observation.
-    current_obs = env.reset()
+    rollout.set_initial_obs(env.reset())
 
     # Training loop.
     episode_rewards: deque = deque(maxlen=10)
@@ -131,16 +141,14 @@ def train(config: Dict[str, Any]) -> None:
 
     for update_iteration in range(config["num_updates"]):
 
-        # Sample rollout and compute update.
-        rollout, current_obs, rollout_episode_rewards = collect_rollout(
+        # Sample rollout, compute update, and reset rollout storage.
+        rollout, rollout_episode_rewards = collect_rollout(
+            rollout,
             env,
             policy,
-            config["rollout_length"],
-            current_obs,
-            config["num_processes"],
-            device,
         )
         _ = policy.update(rollout)
+        rollout.reset()
 
         # Update and print metrics.
         episode_rewards.extend(rollout_episode_rewards)
@@ -181,58 +189,36 @@ def train(config: Dict[str, Any]) -> None:
 
 
 def collect_rollout(
+    rollout: RolloutStorage,
     env: Env,
     policy: PPOPolicy,
-    rollout_length: int,
-    initial_obs: Any,
-    num_processes: int,
-    device: torch.device,
-) -> Tuple[RolloutStorage, Any, List[float]]:
+) -> Tuple[RolloutStorage, List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
     etc.) into a RolloutStorage object, possibly for multiple episodes.
 
     Parameters
     ----------
+    rollout : RolloutStorage
+        Object to hold rollout information like observations, actions, etc.
     env : Env
         Environment to run.
     policy : PPOPolicy
         Policy to sample actions with.
-    rollout_length : int
-        Combined length of episodes in rollout (i.e. number of steps for a single
-        update).
-    initial_obs : Any
-        Initial observation returned from call to env.reset().
-    num_processes : int
-        Number of processes in which to run environment asynchronously.
-    device : torch.device
-        Device to collect rollout on.
 
     Returns
     -------
     rollout : RolloutStorage
         Rollout storage object containing rollout information from one or more episodes.
-    obs : Any
-        Last observation from rollout, to be used as the initial observation for the
-        next rollout.
     rollout_episode_rewards : List[float]
         Each element of is the total reward over an episode which ended during the
         collected rollout.
     """
 
-    rollout = RolloutStorage(
-        rollout_length=rollout_length,
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        num_processes=num_processes,
-        hidden_state_size=policy.hidden_size if policy.recurrent else 1,
-        device=device,
-    )
     rollout_episode_rewards = []
-    rollout.set_initial_obs(initial_obs)
 
     # Rollout loop.
-    for rollout_step in range(rollout_length):
+    for rollout_step in range(rollout.rollout_length):
 
         # Sample actions.
         with torch.no_grad():
@@ -253,4 +239,4 @@ def collect_rollout(
             if "episode" in info.keys():
                 rollout_episode_rewards.append(info["episode"]["r"])
 
-    return rollout, obs, rollout_episode_rewards
+    return rollout, rollout_episode_rewards

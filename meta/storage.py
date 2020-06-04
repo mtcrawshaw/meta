@@ -156,7 +156,7 @@ class RolloutStorage:
         self.action_log_probs[self.rollout_step] = action_log_prob
         self.value_preds[self.rollout_step] = value_pred
         self.rewards[self.rollout_step] = reward
-        self.hidden_states[self.rollout_step] = hidden_state
+        self.hidden_states[self.rollout_step + 1] = hidden_state
 
         self.rollout_step += 1
 
@@ -171,6 +171,17 @@ class RolloutStorage:
         """
 
         self.obs[0].copy_(obs)
+
+    def reset(self) -> None:
+        """
+        Bring obs, hidden state, and done from last step into first step for next
+        rollout.
+        """
+
+        self.obs[0].copy_(self.obs[self.rollout_step])
+        self.hidden_states[0].copy_(self.hidden_states[self.rollout_step])
+        self.dones[0].copy_(self.dones[self.rollout_step])
+        self.rollout_step = 0
 
     def minibatch_generator(self, num_minibatch: int) -> Generator:
         """
