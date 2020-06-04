@@ -35,3 +35,7 @@ Future additions:
 
 ----------------------------------------------------------------------------------------
 
+Tomorrow:
+Output step info (obs, action, log probs, etc) and compare with ikostrikov (make sure to
+add back in initial state dict loading)
+Once everything works except training, implement training

@@ -136,7 +136,9 @@ class PPOPolicy:
         """
 
         # Pass through network to get value prediction and action probabilities.
-        value_pred, action_dist, hidden_state = self.policy_network(obs, hidden_state, done)
+        value_pred, action_dist, hidden_state = self.policy_network(
+            obs, hidden_state, done
+        )
 
         # Sample action and compute log probabilities.
         action = action_dist.sample()
@@ -208,7 +210,9 @@ class PPOPolicy:
 
         return value, action_log_probs, action_dist_entropy, hidden_states_batch
 
-    def get_value(self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor) -> torch.Tensor:
+    def get_value(
+        self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor
+    ) -> torch.Tensor:
         """
         Get value prediction from an observation.
 
@@ -263,7 +267,7 @@ class PPOPolicy:
             rollout.value_preds[rollout.rollout_step] = self.get_value(
                 rollout.obs[rollout.rollout_step],
                 rollout.hidden_states[rollout.rollout_step],
-                rollout.dones[rollout.rollout_step]
+                rollout.dones[rollout.rollout_step],
             )
 
         # Compute returns.

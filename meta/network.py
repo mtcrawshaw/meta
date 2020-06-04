@@ -133,10 +133,8 @@ class PolicyNetwork(nn.Module):
 
         # Construct action distribution from actor_output.
         if isinstance(self.action_space, Discrete):
-            # Discrete action space uses Categorical distribution.
             action_dist = Categorical(logits=actor_output)
         elif isinstance(self.action_space, Box):
-            # Continuous action space uses Gaussian distribution.
             action_logstd = self.logstd(
                 torch.zeros(actor_output.size(), device=self.device)
             )

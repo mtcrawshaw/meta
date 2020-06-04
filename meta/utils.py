@@ -29,8 +29,18 @@ def init(
 ) -> nn.Module:
     """ Helper function to initialize network weights. """
 
-    weight_init(module.weight.data, gain=gain)
-    bias_init(module.bias.data)
+    # This is a somewhat gross way to handle both Linear/Conv modules and GRU modules.
+    # It can probably be cleaned up.
+    if hasattr(module, "weight") and hasattr(module, "bias"):
+        weight_init(module.weight.data, gain=gain)
+        bias_init(module.bias.data)
+    else:
+        for name, param in module.named_parameters():
+            if "weight" in name:
+                weight_init(param)
+            elif "bias" in name:
+                bias_init(param)
+
     return module
 
 
