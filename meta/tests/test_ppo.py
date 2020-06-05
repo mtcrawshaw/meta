@@ -24,7 +24,7 @@ def test_act_sizes() -> None:
     policy = get_policy(env, settings)
     obs = torch.Tensor(env.observation_space.sample())
 
-    value_pred, action, action_log_prob = policy.act(obs)
+    value_pred, action, action_log_prob, _ = policy.act(obs, None, None)
 
     assert isinstance(value_pred, torch.Tensor)
     assert value_pred.shape == torch.Size([1])
@@ -54,8 +54,8 @@ def test_evaluate_actions_sizes() -> None:
     ]
     actions_batch = torch.stack(actions_list)
 
-    value_pred, action_log_prob, action_dist_entropy = policy.evaluate_actions(
-        obs_batch, actions_batch
+    value_pred, action_log_prob, action_dist_entropy, _ = policy.evaluate_actions(
+        obs_batch, None, actions_batch, None
     )
 
     assert isinstance(value_pred, torch.Tensor)
@@ -79,7 +79,7 @@ def test_get_value_sizes() -> None:
     policy = get_policy(env, settings)
     obs = torch.Tensor(env.observation_space.sample())
 
-    value_pred = policy.get_value(obs)
+    value_pred = policy.get_value(obs, None, None)
 
     assert isinstance(value_pred, torch.Tensor)
     assert value_pred.shape == torch.Size([1])
@@ -173,7 +173,7 @@ def get_losses(
         episode_end = (e + 1) * settings["episode_len"]
         with torch.no_grad():
             rollout.value_preds[episode_end] = policy.get_value(
-                rollout.obs[episode_end]
+                rollout.obs[episode_end], None, None
             )
 
         for t in range(settings["episode_len"]):
@@ -182,7 +182,7 @@ def get_losses(
                 delta += (
                     settings["gamma"]
                     * float(rollout.value_preds[episode_start + i + 1])
-                    * (1 - rollout.dones[episode_start + i])
+                    * (1 - rollout.dones[episode_start + i + 1])
                 )
                 delta -= float(rollout.value_preds[episode_start + i])
                 returns[e][t] += delta * (
@@ -210,8 +210,9 @@ def get_losses(
                     new_value_pred,
                     new_action_log_probs,
                     new_entropy,
+                    _,
                 ) = policy.evaluate_actions(
-                    rollout.obs[step].unsqueeze(0), rollout.actions[step].unsqueeze(0)
+                    rollout.obs[step].unsqueeze(0), None, rollout.actions[step].unsqueeze(0), None
                 )
             new_probs = new_action_log_probs.detach().numpy()
             old_probs = rollout.action_log_probs[step].detach().numpy()

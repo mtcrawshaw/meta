@@ -7,8 +7,9 @@ import json
 
 import torch
 
-from meta.train import collect_rollout, train
 from meta.env import get_env
+from meta.train import collect_rollout, train
+from meta.storage import RolloutStorage
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 
@@ -175,14 +176,19 @@ def test_collect_rollout_values() -> None:
 
     env = get_env(settings["env_name"], normalize=False, allow_early_resets=True)
     policy = get_policy(env, settings)
-    initial_obs = env.reset()
-    rollout, _, _ = collect_rollout(
+    rollout = RolloutStorage(
+        rollout_length=settings["rollout_length"],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        num_processes=settings["num_processes"],
+        hidden_state_size=1,
+        device=settings["device"],
+    )
+    rollout.set_initial_obs(env.reset())
+    rollout, _, = collect_rollout(
+        rollout,
         env,
         policy,
-        settings["rollout_length"],
-        initial_obs,
-        settings["num_processes"],
-        settings["device"],
     )
 
     # Check if rollout info came from UniqueEnv.

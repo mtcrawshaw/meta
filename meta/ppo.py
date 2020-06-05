@@ -111,7 +111,7 @@ class PPOPolicy:
 
     def act(
         self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample action from policy.
 
@@ -133,6 +133,8 @@ class PPOPolicy:
             Action sampled from distribution defined by policy output.
         action_log_prob : torch.Tensor
             Log probability of sampled action.
+        hidden_state : torch.Tensor
+            New hidden state after forward pass.
         """
 
         # Pass through network to get value prediction and action probabilities.
@@ -163,7 +165,7 @@ class PPOPolicy:
         hidden_states_batch: torch.Tensor,
         actions_batch: torch.Tensor,
         dones_batch: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get values, log probabilities, and action distribution entropies for a batch of
         observations and actions.
@@ -188,6 +190,8 @@ class PPOPolicy:
             from ``obs_batch``.
         action_dist_entropy : torch.Tensor
             Entropies of action distributions resulting from ``obs_batch``.
+        hidden_states_batch : torch.Tensor
+            Updated hidden states after forward pass.
         """
 
         value, action_dist, hidden_states_batch = self.policy_network(

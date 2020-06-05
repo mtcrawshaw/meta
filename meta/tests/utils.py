@@ -79,17 +79,19 @@ def get_rollout(
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=num_processes,
+        hidden_state_size=1,
         device=device,
     )
     rollout.set_initial_obs(env.reset())
 
     # Generate rollout.
+    hidden_state = torch.zeros(1)
     for _ in range(num_episodes):
 
         for rollout_step in range(episode_len):
             with torch.no_grad():
-                value_pred, action, action_log_prob = policy.act(
-                    rollout.obs[rollout_step]
+                value_pred, action, action_log_prob, hidden_state = policy.act(
+                    rollout.obs[rollout_step], hidden_state, None
                 )
             obs, reward, done, _ = env.step(action)
 
@@ -98,6 +100,6 @@ def get_rollout(
                 obs = env.reset()
                 done = [True]
 
-            rollout.add_step(obs, action, done, action_log_prob, value_pred, reward)
+            rollout.add_step(obs, action, done, action_log_prob, value_pred, reward, hidden_state)
 
     return rollout

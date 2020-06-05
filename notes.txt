@@ -36,6 +36,9 @@ Future additions:
 ----------------------------------------------------------------------------------------
 
 Tomorrow:
-Output step info (obs, action, log probs, etc) and compare with ikostrikov (make sure to
-add back in initial state dict loading)
-Once everything works except training, implement training
+I had to add a +1 to the index used to access an element of rollout.dones in the
+computation of returns and advantages in order to get our numbers to line up with the
+ikostrikov numbers. This is strange though, because they lined up before the changes to
+accommodate a recurrent policy. Now the update values tests don't pass, but they do pass
+if I make that +1 change to the index to done. What is going on here? The test_train
+cases also fail now.
