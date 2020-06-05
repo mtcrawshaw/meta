@@ -183,11 +183,11 @@ class RolloutStorage:
         self.dones[0].copy_(self.dones[self.rollout_step])
         self.rollout_step = 0
 
-    def minibatch_generator(self, num_minibatch: int) -> Generator:
+    def feedforward_minibatch_generator(self, num_minibatch: int) -> Generator:
         """
-        Generates minibatches from rollout to train on. Note that this samples from the
-        entire RolloutStorage object, even if only a small portion of it has been
-        filled. The remaining values default to zero.
+        Generates minibatches from rollout to train a feedforward policy network. Note
+        that this samples from the entire RolloutStorage object, even if only a small
+        portion of it has been filled. The remaining values default to zero.
 
         Arguments
         ---------
@@ -222,6 +222,10 @@ class RolloutStorage:
         agg_value_preds = self.value_preds[:-1].view(total_steps)
         agg_actions = self.actions.view(total_steps, *self.space_shapes["action"])
         agg_action_log_probs = self.action_log_probs.view(total_steps)
+        agg_dones = self.dones[:-1].view(total_steps)
+
+        # We need to return some hidden state, so just return zeros every time.
+        hidden_states_batch = torch.zeros(total_steps, self.hidden_state_size)
 
         for batch_indices in sampler:
 
@@ -231,11 +235,14 @@ class RolloutStorage:
             value_preds_batch = agg_value_preds[batch_indices]
             actions_batch = agg_actions[batch_indices]
             action_log_probs_batch = agg_action_log_probs[batch_indices]
+            dones_batch = agg_dones[batch_indices]
 
-            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, \
+                action_log_probs_batch, dones_batch, hidden_states_batch
 
     def to(self, device: torch.device) -> None:
         """ Move tensor members to ``device``. """
+
         for member in self.members:
             tensor = getattr(self, member)
             setattr(self, member, tensor.to(device))

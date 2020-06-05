@@ -162,6 +162,7 @@ class PPOPolicy:
         obs_batch: torch.Tensor,
         hidden_states_batch: torch.Tensor,
         actions_batch: torch.Tensor,
+        dones_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get values, log probabilities, and action distribution entropies for a batch of
@@ -175,6 +176,8 @@ class PPOPolicy:
             Actions to compute log probability of under computed distribution.
         hidden_states_batch : torch.Tensor
             Hidden states to use for recurrent layer of policy, if necessary.
+        dones_batch : torch.Tensor
+            Whether or not each environment step in the batch is terminal.
 
         Returns
         -------
@@ -188,7 +191,7 @@ class PPOPolicy:
         """
 
         value, action_dist, hidden_states_batch = self.policy_network(
-            obs_batch, hidden_states_batch
+            obs_batch, hidden_states_batch, dones_batch
         )
 
         # Create action distribution object from probabilities and compute log
@@ -273,11 +276,15 @@ class PPOPolicy:
         # Compute returns.
         gae = 0
         for t in reversed(range(rollout.rollout_step)):
-            delta = rollout.rewards[t]
-            delta += self.gamma * rollout.value_preds[t + 1] * (1 - rollout.dones[t])
+
+            # We initially set delta = 0 to avoid setting delta = rollout.rewards[t],
+            # and coupling delta with rollout.rewards[t].
+            delta = 0
+            delta += rollout.rewards[t]
+            delta += self.gamma * rollout.value_preds[t + 1] * (1 - rollout.dones[t + 1])
             delta -= rollout.value_preds[t]
 
-            gae = (1 - rollout.dones[t]) * self.gamma * self.gae_lambda * gae + delta
+            gae = (1 - rollout.dones[t + 1]) * self.gamma * self.gae_lambda * gae + delta
             returns[t] = gae + rollout.value_preds[t]
 
         # Compute advantages.
@@ -320,11 +327,12 @@ class PPOPolicy:
         num_updates = 0
         for _ in range(self.num_ppo_epochs):
 
-            # TEMP
-            num_updates += 1
-            continue
-
-            minibatch_generator = rollout.minibatch_generator(self.num_minibatch)
+            # Set minibatch generator based on whether or not are training a recurrent
+            # policy.
+            if self.recurrent:
+                minibatch_generator = rollout.recurrent_minibatch_generator(self.num_minibatch)
+            else:
+                minibatch_generator = rollout.feedforward_minibatch_generator(self.num_minibatch)
 
             for minibatch in minibatch_generator:
 
@@ -336,6 +344,8 @@ class PPOPolicy:
                     value_preds_batch,
                     actions_batch,
                     old_action_log_probs_batch,
+                    dones_batch,
+                    hidden_states_batch,
                 ) = minibatch
                 returns_batch = returns[batch_indices]
                 advantages_batch = advantages[batch_indices]
@@ -345,7 +355,8 @@ class PPOPolicy:
                     values_batch,
                     action_log_probs_batch,
                     action_dist_entropy_batch,
-                ) = self.evaluate_actions(obs_batch, actions_batch)
+                    _,
+                ) = self.evaluate_actions(obs_batch, hidden_states_batch, actions_batch, dones_batch)
 
                 values_batch = values_batch.squeeze(-1)
 
