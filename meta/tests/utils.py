@@ -40,6 +40,8 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_ppo_epochs=settings["num_ppo_epochs"],
+        num_processes=settings["num_processes"],
+        rollout_length=settings["rollout_length"],
         lr=settings["lr"],
         eps=settings["eps"],
         value_loss_coeff=settings["value_loss_coeff"],

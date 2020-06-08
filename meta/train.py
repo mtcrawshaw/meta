@@ -104,6 +104,8 @@ def train(config: Dict[str, Any]) -> None:
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_minibatch=config["num_minibatch"],
+        num_processes=config["num_processes"],
+        rollout_length=config["rollout_length"],
         num_ppo_epochs=config["num_ppo_epochs"],
         lr=config["lr"],
         eps=config["eps"],

@@ -8,7 +8,7 @@ import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space, Discrete, Box
 
-from meta.utils import combine_first_two_dims
+from meta.utils import get_space_shape, combine_first_two_dims
 
 
 class RolloutStorage:
@@ -48,19 +48,7 @@ class RolloutStorage:
         self.space_shapes: Dict[str, Tuple[int]] = {}
         spaces = {"obs": observation_space, "action": action_space}
         for space_name, space in spaces.items():
-            if isinstance(space, Discrete):
-                if space_name == "obs":
-                    self.space_shapes[space_name] = (space.n,)
-                elif space_name == "action":
-                    self.space_shapes[space_name] = (1,)
-                else:
-                    raise ValueError("Unrecognized space '%s'." % space_name)
-            elif isinstance(space, Box):
-                self.space_shapes[space_name] = space.shape
-            else:
-                raise ValueError(
-                    "'%r' not a supported %s space." % (type(space), space_name)
-                )
+            self.space_shapes[space_name] = get_space_shape(space, space_name)
 
         # Misc state.
         self.rollout_length = rollout_length

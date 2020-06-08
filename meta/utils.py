@@ -2,7 +2,7 @@
 
 import os
 from functools import reduce
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Tuple
 import pickle
 
 import torch
@@ -58,6 +58,26 @@ def get_space_size(space: Space) -> int:
     return size
 
 
+def get_space_shape(space: Space, space_name: str) -> Tuple[int, ...]:
+    """ Get the tensor shape of a sample from ``space``. """
+
+    shape: Tuple[int, ...] = (-1)
+
+    if isinstance(space, Discrete):
+        if space_name == "obs":
+            shape = (space.n,)
+        elif space_name == "action":
+            shape = (1,)
+        else:
+            raise ValueError("Unrecognized space '%s'." % space_name)
+    elif isinstance(space, Box):
+        shape = space.shape
+    else:
+        raise ValueError("'%r' not a supported %s space." % (type(space), space_name))
+
+    return shape
+
+
 def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> None:
     """ Compute diff of metrics against the most recently saved baseline. """
 
@@ -93,11 +113,7 @@ def combine_first_two_dims(t: torch.Tensor):
     if len(t.shape) < 2:
         raise ValueError(
             "Can't combine first two dimensions of tensor which has less than two "
-            "dimensions: %s"
-            % t
+            "dimensions: %s" % t
         )
 
-    if len(t.shape) == 2:
-        return t.view(t.shape[0] * t.shape[1])
-    else:
-        return t.view(t.shape[0] * t.shape[1], *t.shape[2:])
+    return t.view(t.shape[0] * t.shape[1], *t.shape[2:])

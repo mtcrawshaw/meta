@@ -10,7 +10,7 @@ from torch.distributions import Distribution, Categorical, Normal
 import numpy as np
 from gym.spaces import Space, Box, Discrete
 
-from meta.utils import get_space_size, init, AddBias
+from meta.utils import get_space_size, get_space_shape, init, AddBias
 
 
 class PolicyNetwork(nn.Module):
@@ -20,6 +20,8 @@ class PolicyNetwork(nn.Module):
         self,
         observation_space: Space,
         action_space: Space,
+        num_processes: int,
+        rollout_length: int,
         num_layers: int = 3,
         hidden_size: int = 64,
         recurrent: bool = False,
@@ -27,8 +29,10 @@ class PolicyNetwork(nn.Module):
     ) -> None:
 
         super(PolicyNetwork, self).__init__()
-        self.action_space = action_space
         self.observation_space = observation_space
+        self.action_space = action_space
+        self.num_processes = num_processes
+        self.rollout_length = rollout_length
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.recurrent = recurrent
@@ -168,14 +172,65 @@ class PolicyNetwork(nn.Module):
             New hidden state of recurrent layer.
         """
 
-        # Clear the hidden state for any processes for which the environment just
-        # finished.
-        hidden_state = hidden_state * (1.0 - done)
+        # Handle cases separately: temporal dimension has length 1, and temporal
+        # dimension has length greater than 1. ``inputs`` holds a sequence of
+        # observations, though if the sequence has length 1 then there is simply no
+        # temporal dimension. To test for this then, we have to test the size of inputs
+        # against the size of a single batch of observations. If a sequence is given,
+        # the first two dimensions will be combined (this happens in the recurrent
+        # minibatch generator).
+        observation_shape = get_space_shape(self.observation_space, "obs")
+        if inputs.shape == (self.num_processes, *observation_shape):
 
-        # The squeeze and unsqueeze here is to create a temporal dimension for the
-        # recurrent module. The input is technically a sequence of length 1.
-        x, hidden_state = self.gru(inputs.unsqueeze(0), hidden_state.unsqueeze(0))
-        x = x.squeeze(0)
-        hidden_state = hidden_state.squeeze(0)
+            # Clear the hidden state for any processes for which the environment just
+            # finished.
+            hidden_state = hidden_state * (1.0 - done)
 
-        return x, hidden_state
+            # The squeeze and unsqueeze here is to create a temporal dimension for the
+            # recurrent module. The input is technically a sequence of length 1.
+            output, hidden_state = self.gru(
+                inputs.unsqueeze(0), hidden_state.unsqueeze(0)
+            )
+            output = output.squeeze(0)
+            hidden_state = hidden_state.squeeze(0)
+
+        elif inputs.shape == (
+            self.num_processes * self.rollout_length,
+            *observation_shape,
+        ):
+
+            # Flatten inputs and dones, and give hidden_state a temporal dimension.
+            inputs = inputs.view(
+                self.rollout_length, self.num_processes, *observation_shape
+            )
+            hidden_state = hidden_state.unsqueeze(0)
+            done = done.view(self.rollout_length, self.num_processes)
+
+            # Forward pass for each step in the sequence.
+            outputs: List[torch.Tensor] = []
+            for step in range(self.rollout_length):
+
+                # Clear the hidden state for any processes for which the environment just
+                # finished. We have to create a view of done to make it compatible with
+                # hidden_state.
+                hidden_state = hidden_state * (1.0 - done[step]).view(
+                    1, self.num_processes, 1
+                )
+
+                # Forward pass for a single timestep. We use this indexing on step to
+                # preserve the first dimension.
+                x, hidden_state = self.gru(inputs[step : step + 1], hidden_state)
+                outputs.append(x)
+
+            # Combine outputs from each step into a single tensor, and remove temporal
+            # dimension from hidden_state.
+            output: torch.Tensor = torch.cat(outputs, dim=0)
+            output = output.view(self.num_processes * self.rollout_length, -1)
+            hidden_state = hidden_state.squeeze(0)
+
+        else:
+            raise ValueError(
+                "Invalid input tensor shape, can't perform recurrent forward pass."
+            )
+
+        return output, hidden_state

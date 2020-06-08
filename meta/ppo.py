@@ -20,6 +20,8 @@ class PPOPolicy:
         observation_space: Space,
         action_space: Space,
         num_minibatch: int,
+        num_processes: int,
+        rollout_length: int,
         num_ppo_epochs: int = 4,
         lr: float = 7e-4,
         eps: float = 1e-5,
@@ -47,6 +49,10 @@ class PPOPolicy:
             Environment's action space.
         num_minibatch : int
             Number of minibatches for training on rollout data.
+        num_processes : int
+            Number of processes to simultaneously gather training data.
+        rollout_length: int
+            Length of the rollout between each update.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr : float
@@ -83,6 +89,7 @@ class PPOPolicy:
         self.observation_space = observation_space
         self.action_space = action_space
         self.num_minibatch = num_minibatch
+        self.num_processes = num_processes
         self.num_ppo_epochs = num_ppo_epochs
         self.lr = lr
         self.eps = eps
@@ -103,6 +110,8 @@ class PPOPolicy:
         self.policy_network = PolicyNetwork(
             observation_space=observation_space,
             action_space=action_space,
+            num_processes=num_processes,
+            rollout_length=rollout_length,
             num_layers=num_layers,
             hidden_size=hidden_size,
             recurrent=recurrent,
