@@ -206,20 +206,41 @@ class PolicyNetwork(nn.Module):
             hidden_state = hidden_state.unsqueeze(0)
             done = done.view(self.rollout_length, self.num_processes)
 
-            # Forward pass for each step in the sequence.
+            # Compute which steps of the sequence were terminal for some environment
+            # process. This is to perform an optimization with the calls to self.gru. If
+            # two consecutive steps both have all zeros in the corresponding rows of
+            # ``done``, then there is no need to have two separate calls to self.gru,
+            # one for each step. Instead, we could make one call, passing in a sequence
+            # of both of them, since there is no need to reset the hidden state between
+            # these steps. Leveraging this information, we can make one call to self.gru
+            # for each timestep interval in which no process received a done=True from
+            # the environment. We add 0 and self.rollout_length to this list to ensure
+            # that the union of all intervals covers the entire input.
+            interval_endpoints = (
+                (done == 1.0).any(dim=1).nonzero().squeeze().cpu().tolist()
+            )
+            if interval_endpoints == [] or interval_endpoints[0] != 0:
+                interval_endpoints = [0] + interval_endpoints
+            interval_endpoints += [self.rollout_length]
+
+            # Forward pass for each interval with done=False.
             outputs: List[torch.Tensor] = []
-            for step in range(self.rollout_length):
+            for endpoint_index in range(len(interval_endpoints) - 1):
+
+                # Get endpoints of current interval.
+                start = interval_endpoints[endpoint_index]
+                end = interval_endpoints[endpoint_index + 1]
 
                 # Clear the hidden state for any processes for which the environment just
                 # finished. We have to create a view of done to make it compatible with
                 # hidden_state.
-                hidden_state = hidden_state * (1.0 - done[step]).view(
+                hidden_state = hidden_state * (1.0 - done[start]).view(
                     1, self.num_processes, 1
                 )
 
                 # Forward pass for a single timestep. We use this indexing on step to
                 # preserve the first dimension.
-                x, hidden_state = self.gru(inputs[step : step + 1], hidden_state)
+                x, hidden_state = self.gru(inputs[start:end], hidden_state)
                 outputs.append(x)
 
             # Combine outputs from each step into a single tensor, and remove temporal
