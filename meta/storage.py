@@ -8,6 +8,8 @@ import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space, Discrete, Box
 
+from meta.utils import combine_first_two_dims
+
 
 class RolloutStorage:
     """ An object to store rollout information. """
@@ -237,8 +239,83 @@ class RolloutStorage:
             action_log_probs_batch = agg_action_log_probs[batch_indices]
             dones_batch = agg_dones[batch_indices]
 
-            yield batch_indices, obs_batch, value_preds_batch, actions_batch, \
-                action_log_probs_batch, dones_batch, hidden_states_batch
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, dones_batch, hidden_states_batch
+
+    def recurrent_minibatch_generator(self, num_minibatch: int) -> Generator:
+        """
+        Generates minibatches from rollout to train a recurrent policy network. Note
+        that this samples from the entire RolloutStorage object, even if only a small
+        portion of it has been filled. The remaining values default to zero.
+
+        Arguments
+        ---------
+        num_minibatch : int
+            Number of minibatches to return.
+
+        Yields
+        ------
+        minibatch: Tuple[List[int], torch.Tensor, ...]
+            Tuple of batch indices with tensors containing rollout minibatch info.
+        """
+
+        # Compute number trajectories (single process rollout) per minibatch.
+        trajectory_per_minibatch = self.num_processes // num_minibatch
+        if trajectory_per_minibatch == 0:
+            raise ValueError(
+                "The number of minibatches (%d) is required to be no larger than"
+                " num_processes (%d)"
+                % (num_minibatch, self.rollout_length, self.num_processes)
+            )
+
+        # Randomly permute trajectories.
+        trajectory_permutation = torch.randperm(self.num_processes)
+
+        # Each loop iteration constructs one minibatch.
+        for minibatch in range(num_minibatch):
+            batch_indices = []
+            obs_batch_list = []
+            value_preds_batch_list = []
+            actions_batch_list = []
+            action_log_probs_batch_list = []
+            dones_batch_list = []
+            hidden_states_batch_list = []
+
+            # Add trajectory info to list. We only take the first hidden_state from each
+            # trajectory, since hidden states for later steps will be computed during
+            # the training step.
+            for trajectory_index in range(trajectory_per_minibatch):
+                process = trajectory_permutation[
+                    minibatch * trajectory_per_minibatch + trajectory_index
+                ]
+                batch_indices.append(process)
+                obs_batch_list.append(self.obs[: self.rollout_step, process])
+                value_preds_batch_list.append(
+                    self.value_preds[: self.rollout_step, process]
+                )
+                actions_batch_list.append(self.actions[:, process])
+                action_log_probs_batch_list.append(self.action_log_probs[:, process])
+                dones_batch_list.append(self.dones[: self.rollout_step, process])
+                hidden_states_batch_list.append(self.hidden_states[0:1, process])
+
+            # Stack each list into a single tensor of size (self.rollout_step,
+            # trajectory_per_minibatch, ...).
+            obs_batch = torch.stack(obs_batch_list, 1)
+            value_preds_batch = torch.stack(value_preds_batch_list, 1)
+            actions_batch = torch.stack(actions_batch_list, 1)
+            action_log_probs_batch = torch.stack(action_log_probs_batch_list, 1)
+            dones_batch = torch.stack(dones_batch_list, 1)
+            hidden_states_batch = torch.stack(hidden_states_batch_list, 1)
+
+            # Combine first two dimensions of each tensor, so that they are each of size
+            # (self.rollout_step * trajectory_per_minibatch, ...).
+            obs_batch = combine_first_two_dims(obs_batch)
+            value_preds_batch = combine_first_two_dims(value_preds_batch)
+            actions_batch = combine_first_two_dims(actions_batch)
+            action_log_probs_batch = combine_first_two_dims(action_log_probs_batch)
+            dones_batch = combine_first_two_dims(dones_batch)
+            hidden_states_batch = combine_first_two_dims(hidden_states_batch)
+
+            yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, dones_batch, hidden_states_batch
 
     def to(self, device: torch.device) -> None:
         """ Move tensor members to ``device``. """

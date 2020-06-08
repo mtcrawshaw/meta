@@ -9,6 +9,7 @@ from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
 from meta.storage import RolloutStorage
+from meta.utils import combine_first_two_dims
 
 
 class PPOPolicy:
@@ -285,10 +286,14 @@ class PPOPolicy:
             # and coupling delta with rollout.rewards[t].
             delta = 0
             delta += rollout.rewards[t]
-            delta += self.gamma * rollout.value_preds[t + 1] * (1 - rollout.dones[t + 1])
+            delta += (
+                self.gamma * rollout.value_preds[t + 1] * (1 - rollout.dones[t + 1])
+            )
             delta -= rollout.value_preds[t]
 
-            gae = (1 - rollout.dones[t + 1]) * self.gamma * self.gae_lambda * gae + delta
+            gae = (
+                1 - rollout.dones[t + 1]
+            ) * self.gamma * self.gae_lambda * gae + delta
             returns[t] = gae + rollout.value_preds[t]
 
         # Compute advantages.
@@ -300,9 +305,14 @@ class PPOPolicy:
                 advantages.std() + self.eps
             )
 
-        # Eliminate process dimension in returns/advantages.
-        returns = returns.view(rollout.rollout_step * rollout.num_processes)
-        advantages = advantages.view(rollout.rollout_step * rollout.num_processes)
+        # Reshape returns and advantages. In the feedforward case, we
+        # completely flatten returns and advantages to match the rest of the data.
+        # In the recurrent case, we have to preserve the temporal dimension.
+        if self.recurrent:
+            pass
+        else:
+            returns = returns.view(rollout.rollout_step * rollout.num_processes)
+            advantages = advantages.view(rollout.rollout_step * rollout.num_processes)
 
         return returns, advantages
 
@@ -334,14 +344,22 @@ class PPOPolicy:
             # Set minibatch generator based on whether or not are training a recurrent
             # policy.
             if self.recurrent:
-                minibatch_generator = rollout.recurrent_minibatch_generator(self.num_minibatch)
+                minibatch_generator = rollout.recurrent_minibatch_generator(
+                    self.num_minibatch
+                )
             else:
-                minibatch_generator = rollout.feedforward_minibatch_generator(self.num_minibatch)
+                minibatch_generator = rollout.feedforward_minibatch_generator(
+                    self.num_minibatch
+                )
 
             for minibatch in minibatch_generator:
 
                 # Get batch of rollout data and construct corresponding batch of returns
-                # and advantages.
+                # and advantages. Since returns and advantages still have a temporal
+                # dimension in the recurrent case, we have to do some more manipulation
+                # to construct their batches. They are each of size (T * N), where T is
+                # the length of each rollout and N is the number of trajectories per
+                # batch.
                 (
                     batch_indices,
                     obs_batch,
@@ -351,8 +369,14 @@ class PPOPolicy:
                     dones_batch,
                     hidden_states_batch,
                 ) = minibatch
-                returns_batch = returns[batch_indices]
-                advantages_batch = advantages[batch_indices]
+                if self.recurrent:
+                    returns_batch = combine_first_two_dims(returns[:, batch_indices])
+                    advantages_batch = combine_first_two_dims(
+                        advantages[:, batch_indices]
+                    )
+                else:
+                    returns_batch = returns[batch_indices]
+                    advantages_batch = advantages[batch_indices]
 
                 # Compute new values, action log probs, and dist entropies.
                 (
@@ -360,7 +384,9 @@ class PPOPolicy:
                     action_log_probs_batch,
                     action_dist_entropy_batch,
                     _,
-                ) = self.evaluate_actions(obs_batch, hidden_states_batch, actions_batch, dones_batch)
+                ) = self.evaluate_actions(
+                    obs_batch, hidden_states_batch, actions_batch, dones_batch
+                )
 
                 values_batch = values_batch.squeeze(-1)
 

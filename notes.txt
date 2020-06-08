@@ -32,13 +32,8 @@ Future additions:
     - Parameter sharing between actor and critic
     - Deterministic acting (i.e. always choose action with highest prob)
 - Optimize data transfer to GPU
+- Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
+  indexing to construct the batches instead of looping and stacking?
 
 ----------------------------------------------------------------------------------------
 
-Tomorrow:
-I had to add a +1 to the index used to access an element of rollout.dones in the
-computation of returns and advantages in order to get our numbers to line up with the
-ikostrikov numbers. This is strange though, because they lined up before the changes to
-accommodate a recurrent policy. Now the update values tests don't pass, but they do pass
-if I make that +1 change to the index to done. What is going on here? The test_train
-cases also fail now.

@@ -85,3 +85,19 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
     for key in metrics:
         assert len(metrics[key]) == len(baseline_metrics[key])
     assert all(len(diff_values) == 0 for diff_values in diff.values())
+
+
+def combine_first_two_dims(t: torch.Tensor):
+    """ Flattens the first two dimensions of ``t`` into a single dimension. """
+
+    if len(t.shape) < 2:
+        raise ValueError(
+            "Can't combine first two dimensions of tensor which has less than two "
+            "dimensions: %s"
+            % t
+        )
+
+    if len(t.shape) == 2:
+        return t.view(t.shape[0] * t.shape[1])
+    else:
+        return t.view(t.shape[0] * t.shape[1], *t.shape[2:])
