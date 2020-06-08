@@ -100,6 +100,8 @@ def get_rollout(
                 obs = env.reset()
                 done = [True]
 
-            rollout.add_step(obs, action, done, action_log_prob, value_pred, reward, hidden_state)
+            rollout.add_step(
+                obs, action, done, action_log_prob, value_pred, reward, hidden_state
+            )
 
     return rollout

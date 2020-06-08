@@ -142,11 +142,7 @@ def train(config: Dict[str, Any]) -> None:
     for update_iteration in range(config["num_updates"]):
 
         # Sample rollout, compute update, and reset rollout storage.
-        rollout, rollout_episode_rewards = collect_rollout(
-            rollout,
-            env,
-            policy,
-        )
+        rollout, rollout_episode_rewards = collect_rollout(rollout, env, policy,)
         _ = policy.update(rollout)
         rollout.reset()
 
@@ -189,9 +185,7 @@ def train(config: Dict[str, Any]) -> None:
 
 
 def collect_rollout(
-    rollout: RolloutStorage,
-    env: Env,
-    policy: PPOPolicy,
+    rollout: RolloutStorage, env: Env, policy: PPOPolicy,
 ) -> Tuple[RolloutStorage, List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,

@@ -212,7 +212,10 @@ def get_losses(
                     new_entropy,
                     _,
                 ) = policy.evaluate_actions(
-                    rollout.obs[step].unsqueeze(0), None, rollout.actions[step].unsqueeze(0), None
+                    rollout.obs[step].unsqueeze(0),
+                    None,
+                    rollout.actions[step].unsqueeze(0),
+                    None,
                 )
             new_probs = new_action_log_probs.detach().numpy()
             old_probs = rollout.action_log_probs[step].detach().numpy()
