@@ -219,6 +219,9 @@ class PolicyNetwork(nn.Module):
             interval_endpoints = (
                 (done == 1.0).any(dim=1).nonzero().squeeze().cpu().tolist()
             )
+            if not isinstance(interval_endpoints, list):
+                # If there is only one nonzero entry, interval_endpoints will be an int.
+                interval_endpoints = [interval_endpoints]
             if interval_endpoints == [] or interval_endpoints[0] != 0:
                 interval_endpoints = [0] + interval_endpoints
             interval_endpoints += [self.rollout_length]

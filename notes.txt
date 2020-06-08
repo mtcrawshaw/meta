@@ -19,7 +19,7 @@ Current sprint:
     Add GPU support
 --> Add support for recurrent policies
     Test for Box((n1, n2))
-    Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings
+    Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings, clean up train.py
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -27,7 +27,7 @@ Before merging to master:
 
 Future additions:
 - PPO training settings to add/consider:
-    - Network architecture hyperparameters
+    - Network architecture hyperparameters (more customized architectures)
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
     - Deterministic acting (i.e. always choose action with highest prob)
@@ -37,3 +37,5 @@ Future additions:
 
 ----------------------------------------------------------------------------------------
 
+Tomorrow:
+Run ``pytest meta/``, go from there.

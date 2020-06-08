@@ -35,6 +35,24 @@ def test_train_cartpole() -> None:
     train(config)
 
 
+def test_train_cartpole_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "cartpole_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
 def test_train_cartpole_multi() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
@@ -54,6 +72,26 @@ def test_train_cartpole_multi() -> None:
     train(config)
 
 
+def test_train_cartpole_multi_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "cartpole_multi_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
 def test_train_cartpole_gpu() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
@@ -67,6 +105,25 @@ def test_train_cartpole_gpu() -> None:
     # Modify default training config.
     config["cuda"] = True
     config["baseline_metrics_filename"] = "cartpole_gpu.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_cartpole_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "cartpole_gpu_recurrent.pkl"
 
     # Run training.
     train(config)
@@ -92,6 +149,27 @@ def test_train_cartpole_multi_gpu() -> None:
     train(config)
 
 
+def test_train_cartpole_multi_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "cartpole_multi_gpu_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
 def test_train_lunar_lander() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
@@ -104,6 +182,25 @@ def test_train_lunar_lander() -> None:
 
     # Modify default training config.
     config["baseline_metrics_filename"] = "lunar_lander.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_lunar_lander_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["recurrent"] = True
+    config["num_minibatch"] = 1
+    config["baseline_metrics_filename"] = "lunar_lander_recurrent.pkl"
 
     # Run training.
     train(config)
@@ -128,6 +225,26 @@ def test_train_lunar_lander_multi() -> None:
     train(config)
 
 
+def test_train_lunar_lander_multi_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "lunar_lander_multi_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
 def test_train_lunar_lander_gpu() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment
@@ -141,6 +258,26 @@ def test_train_lunar_lander_gpu() -> None:
     # Modify default training config.
     config["cuda"] = True
     config["baseline_metrics_filename"] = "lunar_lander_gpu.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_lunar_lander_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["num_minibatch"] = 1
+    config["baseline_metrics_filename"] = "lunar_lander_gpu_recurrent.pkl"
 
     # Run training.
     train(config)
@@ -161,6 +298,27 @@ def test_train_lunar_lander_multi_gpu() -> None:
     config["num_processes"] *= MP_FACTOR
     config["cuda"] = True
     config["baseline_metrics_filename"] = "lunar_lander_multi_gpu.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_lunar_lander_multi_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(LUNAR_LANDER_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "lunar_lander_multi_gpu_recurrent.pkl"
 
     # Run training.
     train(config)

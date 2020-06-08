@@ -252,7 +252,7 @@ class RolloutStorage:
             raise ValueError(
                 "The number of minibatches (%d) is required to be no larger than"
                 " num_processes (%d)"
-                % (num_minibatch, self.rollout_length, self.num_processes)
+                % (num_minibatch, self.rollout_length)
             )
 
         # Randomly permute trajectories.
