@@ -2,7 +2,7 @@
 Definition of PolicyNetwork, the module used to parameterize an actor/critic policy.
 """
 
-from typing import Tuple
+from typing import Tuple, List
 
 import torch
 import torch.nn as nn

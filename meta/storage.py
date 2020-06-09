@@ -6,7 +6,7 @@ from typing import Dict, Tuple, Generator, List
 
 import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from gym.spaces import Space, Discrete, Box
+from gym.spaces import Space
 
 from meta.utils import get_space_shape, combine_first_two_dims
 

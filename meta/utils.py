@@ -61,7 +61,7 @@ def get_space_size(space: Space) -> int:
 def get_space_shape(space: Space, space_name: str) -> Tuple[int, ...]:
     """ Get the tensor shape of a sample from ``space``. """
 
-    shape: Tuple[int, ...] = (-1)
+    shape: Tuple[int, ...] = (-1,)
 
     if isinstance(space, Discrete):
         if space_name == "obs":
@@ -107,7 +107,7 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
     assert all(len(diff_values) == 0 for diff_values in diff.values())
 
 
-def combine_first_two_dims(t: torch.Tensor):
+def combine_first_two_dims(t: torch.Tensor) -> torch.Tensor:
     """ Flattens the first two dimensions of ``t`` into a single dimension. """
 
     if len(t.shape) < 2:

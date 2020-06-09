@@ -9,7 +9,6 @@ import numpy as np
 import torch
 import gym
 from gym import Env
-from gym.spaces import Discrete
 
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
