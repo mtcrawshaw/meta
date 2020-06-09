@@ -36,6 +36,3 @@ Future additions:
   indexing to construct the batches instead of looping and stacking?
 
 ----------------------------------------------------------------------------------------
-
-Tomorrow:
-Run ``pytest meta/``, go from there.

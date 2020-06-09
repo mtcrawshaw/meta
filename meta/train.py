@@ -124,19 +124,6 @@ def train(config: Dict[str, Any]) -> None:
         device=device,
     )
 
-    # Temp
-    parameters_filename = "data/parameters/original"
-    if isinstance(env.action_space, Discrete):
-        parameters_filename += "_discrete"
-    else:
-        parameters_filename += "_continuous"
-    if config["recurrent"]:
-        parameters_filename += "_recurrent"
-    parameters_filename += "_parameters.pkl"
-    with open(parameters_filename, "rb") as f:
-        state_dict = pickle.load(f)
-    policy.policy_network.load_state_dict(state_dict)
-
     # Construct object to store rollout information.
     rollout = RolloutStorage(
         rollout_length=config["rollout_length"],
