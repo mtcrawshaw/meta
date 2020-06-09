@@ -379,10 +379,12 @@ class PPOPolicy:
                     hidden_states_batch,
                 ) = minibatch
                 if self.recurrent:
-                    returns_batch = combine_first_two_dims(returns[:, batch_indices])
+                    returns_batch = combine_first_two_dims(
+                        returns[:, batch_indices]
+                    ).squeeze(-1)
                     advantages_batch = combine_first_two_dims(
                         advantages[:, batch_indices]
-                    )
+                    ).squeeze(-1)
                 else:
                     returns_batch = returns[batch_indices]
                     advantages_batch = advantages[batch_indices]
@@ -439,24 +441,42 @@ class PPOPolicy:
                 # the fact that the result of torch.norm() is dependent on the order of
                 # the elements in the tensor which is passed in, somehow).
                 discrete = isinstance(self.action_space, Discrete)
-                recurrent = hasattr(self.policy_network, "gru")
+                recurrent = self.recurrent
                 if discrete and recurrent:
                     new_order = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 8, 9]
                 elif discrete and not recurrent:
                     new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5]
                 elif not discrete and recurrent:
-                    new_order = [4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 8, 9, 16]
+                    new_order = [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        8,
+                        9,
+                        16,
+                    ]
                 elif not discrete and not recurrent:
                     new_order = [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 4, 5, 12]
                 else:
                     assert False
 
                 rearrange_list = lambda l, order: [l[i] for i in order]
-                rearranged_params = rearrange_list(list(self.policy_network.parameters()), new_order)
+                rearranged_params = rearrange_list(
+                    list(self.policy_network.parameters()), new_order
+                )
                 if self.max_grad_norm is not None:
-                    nn.utils.clip_grad_norm_(
-                        rearranged_params, self.max_grad_norm
-                    )
+                    nn.utils.clip_grad_norm_(rearranged_params, self.max_grad_norm)
 
                 """
                 # Clip gradient.

@@ -251,8 +251,7 @@ class RolloutStorage:
         if trajectory_per_minibatch == 0:
             raise ValueError(
                 "The number of minibatches (%d) is required to be no larger than"
-                " num_processes (%d)"
-                % (num_minibatch, self.rollout_length)
+                " num_processes (%d)" % (num_minibatch, self.rollout_length)
             )
 
         # Randomly permute trajectories.
@@ -302,6 +301,12 @@ class RolloutStorage:
             action_log_probs_batch = combine_first_two_dims(action_log_probs_batch)
             dones_batch = combine_first_two_dims(dones_batch)
             hidden_states_batch = combine_first_two_dims(hidden_states_batch)
+
+            # Reshape tensors whose elements are necessarily single numbers (like value
+            # preds) by squeezing the singleton dimension.
+            value_preds_batch = value_preds_batch.squeeze(-1)
+            action_log_probs_batch = action_log_probs_batch.squeeze(-1)
+            dones_batch = dones_batch.squeeze(-1)
 
             yield batch_indices, obs_batch, value_preds_batch, actions_batch, action_log_probs_batch, dones_batch, hidden_states_batch
 

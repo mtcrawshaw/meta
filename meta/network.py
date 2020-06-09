@@ -194,17 +194,21 @@ class PolicyNetwork(nn.Module):
             output = output.squeeze(0)
             hidden_state = hidden_state.squeeze(0)
 
-        elif inputs.shape == (
-            self.num_processes * self.rollout_length,
-            *observation_shape,
-        ):
+        elif inputs.shape[1:] == observation_shape:
+
+            # The first dimension should be made of concatenated trajectories from
+            # mutiple processes, so that the length of this dimension should be a
+            # multiple of the rollout length.
+            if inputs.shape[0] % self.rollout_length != 0:
+                raise ValueError("Invalid tensor shape, can't process input.")
+            num_trajectories = inputs.shape[0] // self.rollout_length
 
             # Flatten inputs and dones, and give hidden_state a temporal dimension.
             inputs = inputs.view(
-                self.rollout_length, self.num_processes, *observation_shape
+                self.rollout_length, num_trajectories, *observation_shape
             )
             hidden_state = hidden_state.unsqueeze(0)
-            done = done.view(self.rollout_length, self.num_processes)
+            done = done.view(self.rollout_length, num_trajectories)
 
             # Compute which steps of the sequence were terminal for some environment
             # process. This is to perform an optimization with the calls to self.gru. If
@@ -238,7 +242,7 @@ class PolicyNetwork(nn.Module):
                 # finished. We have to create a view of done to make it compatible with
                 # hidden_state.
                 hidden_state = hidden_state * (1.0 - done[start]).view(
-                    1, self.num_processes, 1
+                    1, num_trajectories, 1
                 )
 
                 # Forward pass for a single timestep. We use this indexing on step to
@@ -249,7 +253,7 @@ class PolicyNetwork(nn.Module):
             # Combine outputs from each step into a single tensor, and remove temporal
             # dimension from hidden_state.
             output: torch.Tensor = torch.cat(outputs, dim=0)
-            output = output.view(self.num_processes * self.rollout_length, -1)
+            output = output.view(num_trajectories * self.rollout_length, -1)
             hidden_state = hidden_state.squeeze(0)
 
         else:
