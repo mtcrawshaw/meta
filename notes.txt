@@ -10,8 +10,9 @@ Road map:
     Learned loss convexity regularization for MTL
 
 Current sprint:
---> Add support for single MetaWorld environments
-    Add support for multi-task MetaWorld benchmarks
+    Add support for single (fixed) MetaWorld environments
+--> Add support for multi-task MetaWorld benchmarks
+    Reconcile one-hot observations being normalized
     Add tests for MetaWorld environments
     Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings, clean up train.py
 
@@ -26,9 +27,18 @@ Future additions:
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
     - Deterministic acting (i.e. always choose action with highest prob)
-- Optimize data transfer to GPU
 - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
   indexing to construct the batches instead of looping and stacking?
 - Make tests deterministic
+- Move tests outside of package
+
+Possible additions:
+- Optimize data transfer to GPU
+- Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
+  one, randomly pick one that is different from previous.
 
 ----------------------------------------------------------------------------------------
+
+Tomorrow:
+Training seems to work with the multi task benchmarks, but I'm not entirely convinced.
+Maybe print out rollout information and inspect it to try to verify it.

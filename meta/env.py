@@ -1,5 +1,6 @@
 """ Environment wrappers + functionality. """
 
+import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import torch
@@ -138,9 +139,15 @@ def get_single_env_creator(
         # Set environment seed.
         env.seed(seed)
 
-        # Add environment wrapper to reset at time limit and monitor rewards.
+        # Add environment wrapper to reset at time limit.
         if time_limit is not None:
             env = TimeLimitEnv(env, time_limit)
+
+        # Add environment wrapper to change task when done for multi-task environments.
+        if env_name in metaworld_benchmark_names:
+            env = MultiTaskEnv(env)
+
+        # Add environment wrapper to monitor rewards.
         env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
 
         return env
@@ -202,6 +209,34 @@ class TimeLimitEnv(gym.Wrapper):
 
         self._elapsed_steps = 0
         return self.env.reset(**kwargs)
+
+
+class MultiTaskEnv(gym.Wrapper):
+    """
+    Environment wrapper to change task when done=True, and randomly choose a task
+    when first instantiated.
+    """
+
+    def __init__(self, env: Env) -> None:
+        """ Init function for MultiTaskEnv. """
+
+        super(MultiTaskEnv, self).__init__(env)
+        self.set_random_task()
+
+    def step(self, action: Any) -> Any:
+        """ Step function for environment wrapper. """
+
+        observation, reward, done, info = self.env.step(action)
+        if done:
+            self.set_random_task()
+
+        return observation, reward, done, info
+
+    def set_random_task(self) -> Any:
+        """ Change environment task to a random task. """
+
+        new_task = random.randrange(self.num_tasks)
+        self.set_task(new_task)
 
 
 def get_metaworld_benchmark_names() -> List[str]:
