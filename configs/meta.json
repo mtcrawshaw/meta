@@ -15,7 +15,7 @@
     "gae_lambda": 0.95,
     "max_grad_norm": 0.5,
     "clip_param": 0.2,
-    "clip_value_loss": false,
+    "clip_value_loss": true,
     "normalize_advantages": true,
 
     "num_layers": 3,

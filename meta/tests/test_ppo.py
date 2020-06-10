@@ -129,7 +129,7 @@ def test_update_values() -> None:
     # Compare expected vs. actual.
     for loss_name in ["action", "value", "entropy", "total"]:
         diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
-        print("%s diff: %.5f" % (loss_name, diff))
+        print("%s diff: %.8f" % (loss_name, diff))
     assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
     assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
     assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
@@ -140,8 +140,8 @@ def get_losses(
     rollout: RolloutStorage, policy: PPOPolicy, settings: Dict[str, Any]
 ) -> Dict[str, float]:
     """
-    Computes action, value, entropy, and total loss from rollout, assuming that we
-    aren't performing value loss clipping.
+    Computes action, value, entropy, and total loss from rollout, assuming a single PPO
+    epoch and a single rollout collection process.
 
     Parameters
     ----------
@@ -159,7 +159,6 @@ def get_losses(
         Dictionary holding action, value, entropy, and total loss.
     """
 
-    assert not settings["clip_value_loss"]
     assert settings["num_ppo_epochs"] == 1
     assert settings["num_processes"] == 1
     loss_items = {}
@@ -205,6 +204,8 @@ def get_losses(
     for e in range(settings["num_episodes"]):
         for t in range(settings["episode_len"]):
             step = e * settings["episode_len"] + t
+
+            # Compute new log probs, value prediction, and entropy.
             with torch.no_grad():
                 (
                     new_value_pred,
@@ -219,6 +220,8 @@ def get_losses(
                 )
             new_probs = new_action_log_probs.detach().numpy()
             old_probs = rollout.action_log_probs[step].detach().numpy()
+
+            # Compute action loss.
             ratio = np.exp(new_probs - old_probs)
             surrogate1 = ratio * advantages[e][t]
             surrogate2 = (
@@ -226,7 +229,25 @@ def get_losses(
                 * advantages[e][t]
             )
             loss_items["action"] += min(surrogate1, surrogate2)
-            loss_items["value"] += 0.5 * (returns[e][t] - float(new_value_pred)) ** 2
+
+            # Compute value loss.
+            if settings["clip_value_loss"]:
+                unclipped_value_loss = (returns[e][t] - float(new_value_pred)) ** 2
+                clipped_value_pred = rollout.value_preds[step] + clamp(
+                    rollout.value_preds[step],
+                    -settings["clip_param"],
+                    settings["clip_param"],
+                )
+                clipped_value_loss = (returns[e][t] - clipped_value_pred) ** 2
+                loss_items["value"] += 0.5 * max(
+                    unclipped_value_loss, clipped_value_loss
+                )
+            else:
+                loss_items["value"] += (
+                    0.5 * (returns[e][t] - float(new_value_pred)) ** 2
+                )
+
+            # Compute entropy loss.
             loss_items["entropy"] += float(new_entropy)
 
     # Divide to find average.

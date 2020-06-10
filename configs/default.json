@@ -1,11 +1,11 @@
 {
-    "env_name": "CartPole-v1",
+    "env_name": "LunarLanderContinuous-v2",
 
     "num_updates": 1000,
-    "rollout_length": 256,
+    "rollout_length": 64,
     "num_ppo_epochs": 4,
-    "num_minibatch": 4,
-    "num_processes": 4,
+    "num_minibatch": 2,
+    "num_processes": 16,
 
     "lr": 7e-4,
     "eps": 1e-5,
@@ -15,7 +15,7 @@
     "gae_lambda": 0.95,
     "max_grad_norm": 0.5,
     "clip_param": 0.2,
-    "clip_value_loss": false,
+    "clip_value_loss": true,
     "normalize_advantages": true,
 
     "num_layers": 3,

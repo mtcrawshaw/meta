@@ -1,6 +1,6 @@
 Road map:
---> PPO for single task
-    Add MetaWorld support
+    PPO for single task
+--> Add MetaWorld support
     Splitting networks for MTL
     PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
     Splitting networks for meta learning
@@ -10,16 +10,9 @@ Road map:
     Learned loss convexity regularization for MTL
 
 Current sprint:
-    Convert List[RolloutStorage] back to RolloutStorage
-    Set new continuous environment benchmark
-    Move to settings file
-    Move run_discrete and run_continuous into tests
-    Make policy return distribution object, not arguments
-    Add multiprocessing
-    Add GPU support
-    Add support for recurrent policies
---> Change default arguments to match PPO paper (value loss clipping, ?)
-    Test for Box((n1, n2))
+--> Add support for single MetaWorld environments
+    Add support for multi-task MetaWorld benchmarks
+    Add tests for MetaWorld environments
     Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings, clean up train.py
 
 Before merging to master:
@@ -27,6 +20,7 @@ Before merging to master:
 - Make sure "pytest meta/" passes
 
 Future additions:
+- Test PPO for environments with action space Box((n1, n2))
 - PPO training settings to add/consider:
     - Network architecture hyperparameters (more customized architectures)
     - Choice of optimizer and optimizer hyperparameters
@@ -35,5 +29,6 @@ Future additions:
 - Optimize data transfer to GPU
 - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
   indexing to construct the batches instead of looping and stacking?
+- Make tests deterministic
 
 ----------------------------------------------------------------------------------------
