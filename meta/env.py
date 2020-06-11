@@ -22,7 +22,7 @@ def get_env(
     num_processes: int = 1,
     seed: int = 1,
     time_limit: int = None,
-    normalize: bool = True,
+    normalize_transition: bool = True,
     allow_early_resets: bool = False,
 ) -> Env:
     """
@@ -39,7 +39,7 @@ def get_env(
         Random seed for environment.
     time_limit : int
         Limit on number of steps for environment.
-    normalize : bool
+    normalize_transition : bool
         Whether or not to add environment wrapper to normalize observations and rewards.
     allow_early_resets: bool
         Whether or not to allow environments before done=True is returned.
@@ -65,7 +65,7 @@ def get_env(
 
     # Add environment wrappers to normalize observations/rewards and convert between
     # numpy arrays and torch.Tensors.
-    if normalize:
+    if normalize_transition:
         env = VecNormalizeEnv(env)
     env = VecPyTorchEnv(env)
 

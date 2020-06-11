@@ -1,7 +1,7 @@
 {
     "env_name": "MT10",
 
-    "num_updates": 1000,
+    "num_updates": 10,
     "rollout_length": 128,
     "num_ppo_epochs": 4,
     "num_minibatch": 4,
@@ -17,6 +17,7 @@
     "clip_param": 0.2,
     "clip_value_loss": true,
     "normalize_advantages": true,
+    "normalize_transition": false,
 
     "num_layers": 3,
     "hidden_size": 64,

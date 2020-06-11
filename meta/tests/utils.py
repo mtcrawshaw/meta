@@ -25,6 +25,7 @@ DEFAULT_SETTINGS = {
     "num_layers": 3,
     "hidden_size": 64,
     "normalize_advantages": True,
+    "normalize_transition": False,
     "seed": 1,
     "num_episodes": 4,
     "episode_len": 8,

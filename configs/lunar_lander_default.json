@@ -17,6 +17,7 @@
     "clip_param": 0.2,
     "clip_value_loss": true,
     "normalize_advantages": true,
+    "normalize_transition": true,
 
     "num_layers": 3,
     "hidden_size": 64,

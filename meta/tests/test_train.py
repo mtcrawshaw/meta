@@ -332,7 +332,11 @@ def test_collect_rollout_values() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "unique-env"
 
-    env = get_env(settings["env_name"], normalize=False, allow_early_resets=True)
+    env = get_env(
+        settings["env_name"],
+        normalize_transition=settings["normalize_transition"],
+        allow_early_resets=True,
+    )
     policy = get_policy(env, settings)
     rollout = RolloutStorage(
         rollout_length=settings["rollout_length"],
