@@ -13,7 +13,7 @@ from meta.env import get_env
 from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
 
 
-TOL = 1e-6
+TOL = 5e-6
 
 
 def test_act_sizes() -> None:

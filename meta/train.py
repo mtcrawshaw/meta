@@ -2,6 +2,7 @@
 
 import os
 import pickle
+import random
 from collections import deque
 from typing import Any, List, Tuple, Dict
 
@@ -80,6 +81,7 @@ def train(config: Dict[str, Any]) -> None:
     """
 
     # Set random seed, number of threads, and device.
+    random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])
     torch.set_num_threads(1)

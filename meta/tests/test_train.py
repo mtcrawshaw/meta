@@ -16,6 +16,7 @@ from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 MP_FACTOR = 4
 CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole_default.json")
 LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander_default.json")
+MT10_CONFIG_PATH = os.path.join("configs", "mt10_default.json")
 
 
 def test_train_cartpole() -> None:
@@ -319,6 +320,160 @@ def test_train_lunar_lander_multi_gpu_recurrent() -> None:
     config["cuda"] = True
     config["recurrent"] = True
     config["baseline_metrics_filename"] = "lunar_lander_multi_gpu_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "MT10.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["recurrent"] = True
+    config["num_minibatch"] = 1
+    config["baseline_metrics_filename"] = "MT10_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_multi() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["baseline_metrics_filename"] = "MT10_multi.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_multi_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "MT10_multi_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "MT10_gpu.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["num_minibatch"] = 1
+    config["baseline_metrics_filename"] = "MT10_gpu_recurrent.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_multi_gpu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["baseline_metrics_filename"] = "MT10_multi_gpu.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_multi_gpu_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running multiple processes, with a recurrent policy.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    config["cuda"] = True
+    config["recurrent"] = True
+    config["baseline_metrics_filename"] = "MT10_multi_gpu_recurrent.pkl"
 
     # Run training.
     train(config)

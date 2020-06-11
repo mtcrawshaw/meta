@@ -39,3 +39,6 @@ Possible additions:
   indexing to construct the batches instead of looping and stacking?
 
 ----------------------------------------------------------------------------------------
+
+Tomorrow:
+Add tests for verifying observations coming from MetaWorld benchmarks
