@@ -12,8 +12,8 @@ Road map:
 Current sprint:
     Add support for single (fixed) MetaWorld environments
     Add support for multi-task MetaWorld benchmarks
---> Reconcile one-hot observations being normalized
-    Add tests for MetaWorld environments
+    Reconcile one-hot observations being normalized
+--> Add tests for MetaWorld environments
     Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings, clean up train.py
 
 Before merging to master:

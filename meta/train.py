@@ -146,8 +146,6 @@ def train(config: Dict[str, Any]) -> None:
 
     for update_iteration in range(config["num_updates"]):
 
-        print("update_iteration: %d" % update_iteration)
-
         # Sample rollout, compute update, and reset rollout storage.
         rollout, rollout_episode_rewards = collect_rollout(rollout, env, policy,)
         _ = policy.update(rollout)
@@ -234,22 +232,6 @@ def collect_rollout(
         rollout.add_step(
             obs, actions, dones, action_log_probs, values, rewards, hidden_states
         )
-
-        from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
-
-        print("step: %d" % rollout_step)
-        print("obs: %s" % obs)
-        print("actions: %s" % actions)
-        print("dones: %s" % dones)
-        print("action_log_probs: %s" % action_log_probs)
-        print("values: %s" % values)
-        print("rewards: %s" % rewards)
-        task_indices = obs[:, 9:]
-        rows = task_indices.nonzero()[:, 0].tolist()
-        assert len(rows) == len(set(rows))
-        tasks = task_indices.nonzero()[:, 1].tolist()
-        print("task indices: %s" % tasks)
-        print("")
 
         # Get total episode reward, if it is given, and check for done.
         for info in infos:
