@@ -524,3 +524,94 @@ def test_collect_rollout_values() -> None:
         assert float(obs) == float(step + 1)
         assert float(action) - int(action) == 0 and int(action) in env.action_space
         assert float(obs) == float(reward)
+
+
+def test_collect_rollout_MT10_single() -> None:
+    """
+    Test the values of the returned RolloutStorage objects from train.collect_rollout()
+    on the MetaWorld environment, to ensure that the task indices are returned
+    correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 150
+    assert settings["normalize_transition"] == False
+
+    check_metaworld_obs(settings)
+
+
+def test_collect_rollout_MT10_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects from train.collect_rollout()
+    on the MetaWorld environment, to ensure that the task indices are returned
+    correctly, when running a multi-process environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 150
+    assert settings["normalize_transition"] == False
+
+    check_metaworld_obs(settings)
+
+
+def check_metaworld_obs(settings):
+
+    env = get_env(
+        settings["env_name"],
+        num_processes=settings["num_processes"],
+        seed=settings["seed"],
+        time_limit=settings["time_limit"],
+        normalize_transition=settings["normalize_transition"],
+        allow_early_resets=True,
+    )
+    policy = get_policy(env, settings)
+    rollout = RolloutStorage(
+        rollout_length=settings["rollout_length"],
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        num_processes=settings["num_processes"],
+        hidden_state_size=1,
+        device=settings["device"],
+    )
+    rollout.set_initial_obs(env.reset())
+
+    # Get the tasks indexed by the one-hot vectors in the latter part of the observation
+    # from each environment.
+    def get_task_indices(obs):
+        index_obs = obs[:, 9:]
+
+        # Make sure that each observation has exactly one non-zero entry.
+        nonzero_obs = index_obs.nonzero()[:, 0].tolist()
+        assert nonzero_obs == list(range(obs.shape[0]))
+
+        task_indices = index_obs.nonzero()[:, 1].tolist()
+        return task_indices
+
+    # Get initial task indices.
+    task_indices = get_task_indices(rollout.obs[0])
+
+    # Collect rollout.
+    rollout, _, = collect_rollout(rollout, env, policy)
+
+    # Check if rollout info came from UniqueEnv.
+    for step in range(rollout.rollout_step):
+
+        obs = rollout.obs[step]
+        dones = rollout.dones[step]
+        new_task_indices = get_task_indices(obs)
+
+        # Make sure that task indices are the same if we haven't reached a done.
+        # Otherwise set new task indices.
+        assert len(obs) == len(dones)
+        for process in range(len(obs)):
+            done = dones[process]
+            if done:
+                task_indices[process] = new_task_indices[process]
+            else:
+                assert task_indices[process] == new_task_indices[process]
