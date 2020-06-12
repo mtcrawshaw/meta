@@ -5,6 +5,10 @@ import pickle
 import random
 from collections import deque
 from typing import Any, List, Tuple, Dict
+import warnings
+
+# This is to ignore warnings about tensorflow using deprecated Numpy code.
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 import numpy as np
 import torch

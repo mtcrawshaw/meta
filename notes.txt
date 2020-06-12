@@ -15,8 +15,8 @@ Current sprint:
     Reconcile one-hot observations being normalized
     Add tests for MetaWorld environments
     Clean up train.py
+    Suppress warnings
 --> Create plots showing learning for single tasks in MetaWorld
-    Clean up naming + suppress warnings
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -39,5 +39,7 @@ Possible additions:
   one, randomly pick one that is different from previous.
 - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
   indexing to construct the batches instead of looping and stacking?
+- Refactor naming in PPO implementation to clarify between episodes, rollouts, and
+  trajectories
 
 ----------------------------------------------------------------------------------------
