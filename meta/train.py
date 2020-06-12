@@ -14,6 +14,7 @@ from gym import Env
 from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.env import get_env
+from meta.metrics import Metrics
 from meta.utils import compare_metrics, METRICS_DIR
 
 
@@ -142,9 +143,8 @@ def train(config: Dict[str, Any]) -> None:
     rollout.set_initial_obs(env.reset())
 
     # Training loop.
-    episode_rewards: deque = deque(maxlen=10)
-    metric_names = ["mean", "median", "min", "max"]
-    metrics: Dict[str, List[float]] = {metric_name: [] for metric_name in metric_names}
+    episode_rewards: deque = deque(maxlen=50)
+    metrics = Metrics()
 
     for update_iteration in range(config["num_updates"]):
 
@@ -156,22 +156,15 @@ def train(config: Dict[str, Any]) -> None:
         # Update and print metrics.
         episode_rewards.extend(rollout_episode_rewards)
         if update_iteration % config["print_freq"] == 0 and len(episode_rewards) > 1:
-            metrics["mean"].append(np.mean(episode_rewards))
-            metrics["median"].append(np.median(episode_rewards))
-            metrics["min"].append(np.min(episode_rewards))
-            metrics["max"].append(np.max(episode_rewards))
-
+            metrics.update(episode_rewards)
+            current_metrics = metrics.current_values()
             message = "Update %d" % update_iteration
-            message += " | Last %d episodes" % len(episode_rewards)
-            message += " mean, median, min, max reward: %.5f, %.5f, %.5f, %.5f" % (
-                metrics["mean"][-1],
-                metrics["median"][-1],
-                metrics["min"][-1],
-                metrics["max"][-1],
-            )
+            message += " | Last %d episodes " % len(episode_rewards)
+            message += str(metrics)
             print(message, end="\r")
 
-        # This is to ensure that printed out values don't get overwritten.
+        # This is to ensure that printed out values don't get overwritten after we
+        # finish.
         if update_iteration == config["num_updates"] - 1:
             print("")
 
@@ -181,14 +174,14 @@ def train(config: Dict[str, Any]) -> None:
             os.makedirs(METRICS_DIR)
         metrics_path = os.path.join(METRICS_DIR, config["metrics_filename"])
         with open(metrics_path, "wb") as metrics_file:
-            pickle.dump(metrics, metrics_file)
+            pickle.dump(metrics.history(), metrics_file)
 
     # Compare output_metrics to baseline if necessary.
     if config["baseline_metrics_filename"] is not None:
         baseline_metrics_path = os.path.join(
             METRICS_DIR, config["baseline_metrics_filename"]
         )
-        compare_metrics(metrics, baseline_metrics_path)
+        compare_metrics(metrics.history(), baseline_metrics_path)
 
 
 def collect_rollout(

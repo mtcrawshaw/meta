@@ -14,7 +14,9 @@ Current sprint:
     Add support for multi-task MetaWorld benchmarks
     Reconcile one-hot observations being normalized
     Add tests for MetaWorld environments
---> Fix comments, typing, and naming (episodes vs. rollouts), suppress warnings, clean up train.py
+    Clean up train.py
+--> Create plots showing learning for single tasks in MetaWorld
+    Clean up naming + suppress warnings
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -39,6 +41,3 @@ Possible additions:
   indexing to construct the batches instead of looping and stacking?
 
 ----------------------------------------------------------------------------------------
-
-Tomorrow:
-Add tests for verifying observations coming from MetaWorld benchmarks

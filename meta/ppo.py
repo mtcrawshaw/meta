@@ -157,7 +157,9 @@ class PPOPolicy:
         action_log_prob = action_dist.log_prob(action)
 
         # We sum over ``action_log_prob`` to convert element-wise log probs into a joint
-        # log prob, if the action is a vector.
+        # log prob, if the action is a vector. Note that we only sum over the last
+        # dimension, so if the action space has two or more dimensions then this will
+        # probably fail.
         if isinstance(self.action_space, Box):
             action_log_prob = action_log_prob.sum(-1, keepdim=True)
         elif not isinstance(self.action_space, Discrete):
