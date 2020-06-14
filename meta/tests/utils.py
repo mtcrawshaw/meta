@@ -33,6 +33,7 @@ DEFAULT_SETTINGS = {
     "seed": 1,
     "print_freq": 10,
     "time_limit": None,
+    "save_name": None,
     "num_episodes": 4,
     "episode_len": 8,
     "device": torch.device("cpu"),

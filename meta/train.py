@@ -19,7 +19,8 @@ from meta.ppo import PPOPolicy
 from meta.storage import RolloutStorage
 from meta.env import get_env
 from meta.metrics import Metrics
-from meta.utils import compare_metrics, METRICS_DIR
+from meta.plot import plot
+from meta.utils import compare_metrics, save_dir_from_name, METRICS_DIR
 
 
 # Suppress gym warnings.
@@ -186,6 +187,32 @@ def train(config: Dict[str, Any]) -> None:
             METRICS_DIR, config["baseline_metrics_filename"]
         )
         compare_metrics(metrics.history(), baseline_metrics_path)
+
+    # Plot results if necessary.
+    if config["save_name"] is not None:
+
+        # Append "_n" (for the minimal n) to name to ensure that save name is unique,
+        # and create the save directory.
+        original_save_name = config["save_name"]
+        save_dir = save_dir_from_name(config["save_name"])
+        n = 0
+        while os.path.isdir(save_dir):
+            n += 1
+            if n > 1:
+                config["save_name"] = config["save_name"][:-2] + "_%d" % n
+            else:
+                config["save_name"] += "_1"
+            save_dir = save_dir_from_name(config["save_name"])
+        os.makedirs(save_dir)
+        if original_save_name != config["save_name"]:
+            print(
+                "There already exists saved results with name '%s'. Saving current "
+                "results under name '%s'." % (original_save_name, config["save_name"])
+            )
+
+        # Plot results.
+        plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
+        plot(metrics.history(), plot_path)
 
 
 def collect_rollout(

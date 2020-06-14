@@ -28,5 +28,6 @@
     "print_freq": 10,
     "time_limit": null,
     "metrics_filename": null,
-    "baseline_metrics_filename": null
+    "baseline_metrics_filename": null,
+    "save_name": null
 }

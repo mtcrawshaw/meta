@@ -11,6 +11,7 @@ from gym.spaces import Space, Box, Discrete
 
 
 METRICS_DIR = os.path.join("data", "metrics")
+RESULTS_DIR = os.path.join("results")
 
 
 class AddBias(nn.Module):
@@ -117,3 +118,11 @@ def combine_first_two_dims(t: torch.Tensor) -> torch.Tensor:
         )
 
     return t.view(t.shape[0] * t.shape[1], *t.shape[2:])
+
+
+def save_dir_from_name(name: str) -> str:
+    """
+    Return the name of the directory to store results of training run with name
+    ``name``.
+    """
+    return os.path.join(RESULTS_DIR, name)
