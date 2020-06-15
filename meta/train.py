@@ -7,10 +7,10 @@ from collections import deque
 from typing import Any, List, Tuple, Dict
 import warnings
 
-# This is to ignore warnings about tensorflow using deprecated Numpy code.
+# This is to ignore warnings about tensorflow using deprecated Numpy code. This line
+# must appear before importing baselines (happens in env.py).
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-import numpy as np
 import torch
 import gym
 from gym import Env
@@ -162,7 +162,6 @@ def train(config: Dict[str, Any]) -> None:
         episode_rewards.extend(rollout_episode_rewards)
         if update_iteration % config["print_freq"] == 0 and len(episode_rewards) > 1:
             metrics.update(episode_rewards)
-            current_metrics = metrics.current_values()
             message = "Update %d" % update_iteration
             message += " | Last %d episodes " % len(episode_rewards)
             message += str(metrics)

@@ -1,6 +1,7 @@
 Road map:
     PPO for single task
---> Add MetaWorld support
+    Add MetaWorld support
+--> Better evaluation
     Splitting networks for MTL
     PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
     Splitting networks for meta learning
@@ -10,13 +11,12 @@ Road map:
     Learned loss convexity regularization for MTL
 
 Current sprint:
-    Add support for single (fixed) MetaWorld environments
-    Add support for multi-task MetaWorld benchmarks
-    Reconcile one-hot observations being normalized
-    Add tests for MetaWorld environments
-    Clean up train.py
-    Suppress warnings
---> Create plots showing learning for single tasks in MetaWorld
+--> EMA of rewards instead of looking at past N
+    Saving settings, metrics under results
+    Option to plot mean + std dev
+    Move legend outside of axes
+    Evaluate success rate during training
+    Evaluate success rate after training
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up

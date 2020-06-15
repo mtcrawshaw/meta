@@ -4,6 +4,7 @@ Unit tests for meta/train.py.
 
 import os
 import json
+from typing import Dict, List, Any
 
 import torch
 
@@ -560,7 +561,13 @@ def test_collect_rollout_MT10_multi() -> None:
     check_metaworld_obs(settings)
 
 
-def check_metaworld_obs(settings):
+def check_metaworld_obs(settings: Dict[str, Any]) -> Any:
+    """
+    Verify that an observation is a valid observation from a MetaWorld multi-task
+    benchmark, i.e. a vector with length at least 9, and the dimensions after 9 form a
+    one-hot vector denoting the task index. We make sure that this is indeed a one-hot
+    vector and that the set bit only changes when we encounter a done=True.
+    """
 
     env = get_env(
         settings["env_name"],
@@ -583,7 +590,7 @@ def check_metaworld_obs(settings):
 
     # Get the tasks indexed by the one-hot vectors in the latter part of the observation
     # from each environment.
-    def get_task_indices(obs):
+    def get_task_indices(obs: torch.Tensor) -> List[int]:
         index_obs = obs[:, 9:]
 
         # Make sure that each observation has exactly one non-zero entry.

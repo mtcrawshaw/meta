@@ -1,13 +1,7 @@
 """ Plotting for performance metrics. """
 
-import os
-from functools import reduce
-from typing import Dict, List, Union, Any, Tuple
-import pickle
+from typing import Dict, List
 
-import torch
-import torch.nn as nn
-from gym.spaces import Space, Box, Discrete
 import numpy as np
 import matplotlib.pyplot as plt
 

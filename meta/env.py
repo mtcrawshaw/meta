@@ -204,7 +204,7 @@ class TimeLimitEnv(gym.Wrapper):
             done = True
         return observation, reward, done, info
 
-    def reset(self, **kwargs) -> Any:
+    def reset(self, **kwargs: Dict[str, Any]) -> Any:
         """ Reset function for environment wrapper. """
 
         self._elapsed_steps = 0
