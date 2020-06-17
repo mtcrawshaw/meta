@@ -3,7 +3,6 @@
 import os
 import pickle
 import random
-from collections import deque
 from typing import Any, List, Tuple, Dict
 import warnings
 
@@ -148,22 +147,20 @@ def train(config: Dict[str, Any]) -> None:
     rollout.set_initial_obs(env.reset())
 
     # Training loop.
-    episode_rewards: deque = deque(maxlen=50)
     metrics = Metrics()
 
     for update_iteration in range(config["num_updates"]):
 
         # Sample rollout, compute update, and reset rollout storage.
-        rollout, rollout_episode_rewards = collect_rollout(rollout, env, policy,)
+        rollout, episode_rewards = collect_rollout(rollout, env, policy)
         _ = policy.update(rollout)
         rollout.reset()
 
         # Update and print metrics.
-        episode_rewards.extend(rollout_episode_rewards)
-        if update_iteration % config["print_freq"] == 0 and len(episode_rewards) > 1:
-            metrics.update(episode_rewards)
-            message = "Update %d" % update_iteration
-            message += " | Last %d episodes " % len(episode_rewards)
+        print("episode rewards: %s" % episode_rewards)
+        metrics.update(episode_rewards)
+        if update_iteration % config["print_freq"] == 0:
+            message = "Update %d | " % update_iteration
             message += str(metrics)
             print(message, end="\r")
 
@@ -211,7 +208,7 @@ def train(config: Dict[str, Any]) -> None:
 
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
-        plot(metrics.history(), plot_path)
+        plot(metrics.state(), plot_path)
 
 
 def collect_rollout(

@@ -12,10 +12,10 @@ Road map:
 
 Current sprint:
 --> EMA of rewards instead of looking at past N
+    Evaluate success rate during training
     Saving settings, metrics under results
     Option to plot mean + std dev
     Move legend outside of axes
-    Evaluate success rate during training
     Evaluate success rate after training
 
 Before merging to master:
@@ -43,3 +43,10 @@ Possible additions:
   trajectories
 
 ----------------------------------------------------------------------------------------
+
+Tomorrow:
+Write tests for Metrics, and add EMA metrics to original_benchmark so we can still
+compare if we need to. Right now tests are failing, all of the MT10 multi-processed
+results come back different than the original. Maybe this is because the different
+processes are finishing in different orders on various runs of the test cases and this
+causes the computation of the metric to be different? Not sure.
