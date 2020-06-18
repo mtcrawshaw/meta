@@ -16,8 +16,8 @@ Current sprint:
     Evaluate success rate during training
     Plot success rate
     Saving settings, metrics under results
---> Move legend outside of axes
-    Get tests to pass
+    Move legend outside of axes
+--> Get tests to pass
     Metrics tests
     Evaluate metrics after training
 
