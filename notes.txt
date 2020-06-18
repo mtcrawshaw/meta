@@ -16,9 +16,10 @@ Current sprint:
     Evaluate success rate during training
     Plot success rate
     Saving settings, metrics under results
-    Move legend outside of axes
-    Evaluate success rate after training
-    Fix stochasticity for MT10 + multi cases
+--> Move legend outside of axes
+    Get tests to pass
+    Metrics tests
+    Evaluate metrics after training
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up

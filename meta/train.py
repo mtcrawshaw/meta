@@ -3,6 +3,7 @@
 import os
 import pickle
 import random
+import json
 from typing import Any, List, Tuple, Dict
 import warnings
 
@@ -185,7 +186,7 @@ def train(config: Dict[str, Any]) -> None:
         )
         compare_metrics(metrics.history(), baseline_metrics_path)
 
-    # Plot results if necessary.
+    # Save results if necessary.
     if config["save_name"] is not None:
 
         # Append "_n" (for the minimal n) to name to ensure that save name is unique,
@@ -206,6 +207,16 @@ def train(config: Dict[str, Any]) -> None:
                 "There already exists saved results with name '%s'. Saving current "
                 "results under name '%s'." % (original_save_name, config["save_name"])
             )
+
+        # Save config.
+        config_path = os.path.join(save_dir, "%s_config.json" % config["save_name"])
+        with open(config_path, "w") as config_file:
+            json.dump(config, config_file, indent=4)
+
+        # Save metrics.
+        metrics_path = os.path.join(save_dir, "%s_metrics.json" % config["save_name"])
+        with open(metrics_path, "w") as metrics_file:
+            json.dump(metrics.state(), metrics_file, indent=4)
 
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])

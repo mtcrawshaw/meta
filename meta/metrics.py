@@ -83,7 +83,7 @@ class Metric:
         # compute EMA. ema_threshold is the number of data points at which we switch
         # from a regular average to an EMA. Using a regular average reduces bias when
         # there are a small number data points, so we use it at the beginning.
-        self.ema_alpha = 0.9
+        self.ema_alpha = 0.999
         self.ema_threshold = 30
 
         # Metric values.
