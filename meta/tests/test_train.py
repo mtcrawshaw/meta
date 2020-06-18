@@ -503,7 +503,7 @@ def test_collect_rollout_values() -> None:
         device=settings["device"],
     )
     rollout.set_initial_obs(env.reset())
-    rollout, _, = collect_rollout(rollout, env, policy,)
+    rollout, _, _ = collect_rollout(rollout, env, policy)
 
     # Check if rollout info came from UniqueEnv.
     for step in range(rollout.rollout_step):
@@ -604,7 +604,7 @@ def check_metaworld_obs(settings: Dict[str, Any]) -> Any:
     task_indices = get_task_indices(rollout.obs[0])
 
     # Collect rollout.
-    rollout, _, = collect_rollout(rollout, env, policy)
+    rollout, _, _ = collect_rollout(rollout, env, policy)
 
     # Check if rollout info came from UniqueEnv.
     for step in range(rollout.rollout_step):

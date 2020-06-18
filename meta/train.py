@@ -152,13 +152,14 @@ def train(config: Dict[str, Any]) -> None:
     for update_iteration in range(config["num_updates"]):
 
         # Sample rollout, compute update, and reset rollout storage.
-        rollout, episode_rewards = collect_rollout(rollout, env, policy)
+        rollout, episode_rewards, episode_successes = collect_rollout(
+            rollout, env, policy
+        )
         _ = policy.update(rollout)
         rollout.reset()
 
         # Update and print metrics.
-        print("episode rewards: %s" % episode_rewards)
-        metrics.update(episode_rewards)
+        metrics.update(episode_rewards, episode_successes)
         if update_iteration % config["print_freq"] == 0:
             message = "Update %d | " % update_iteration
             message += str(metrics)
@@ -213,7 +214,7 @@ def train(config: Dict[str, Any]) -> None:
 
 def collect_rollout(
     rollout: RolloutStorage, env: Env, policy: PPOPolicy,
-) -> Tuple[RolloutStorage, List[float]]:
+) -> Tuple[RolloutStorage, List[float], List[float]]:
     """
     Run environment and collect rollout information (observations, rewards, actions,
     etc.) into a RolloutStorage object, possibly for multiple episodes.
@@ -234,9 +235,14 @@ def collect_rollout(
     rollout_episode_rewards : List[float]
         Each element of is the total reward over an episode which ended during the
         collected rollout.
+    rollout_successes : List[float]
+        One element for each completed episode: 1.0 for success, 0.0 for failure. If the
+        environment doesn't define success and failure, each element will be None
+        instead of a float.
     """
 
     rollout_episode_rewards = []
+    rollout_successes = []
 
     # Rollout loop.
     for rollout_step in range(rollout.rollout_length):
@@ -255,9 +261,17 @@ def collect_rollout(
             obs, actions, dones, action_log_probs, values, rewards, hidden_states
         )
 
+        # Determine success or failure.
+        for done, info in zip(dones, infos):
+            if done:
+                if "success" in info:
+                    rollout_successes.append(info["success"])
+                else:
+                    rollout_successes.append(None)
+
         # Get total episode reward, if it is given, and check for done.
         for info in infos:
             if "episode" in info.keys():
                 rollout_episode_rewards.append(info["episode"]["r"])
 
-    return rollout, rollout_episode_rewards
+    return rollout, rollout_episode_rewards, rollout_successes

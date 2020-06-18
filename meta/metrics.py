@@ -11,27 +11,16 @@ import numpy as np
 
 class Metrics:
     """
-    Metric object, which stores and updates training performance metrics. Each metric is
-    represented with a dictionary, holding the history, running mean, and running stdev.
+    Metrics object, which stores and updates training performance metrics.
     """
 
     def __init__(self) -> None:
         """ Init function for Metrics object. """
 
-        self.reward = {
-            "history": [],
-            "mean": [],
-            "stdev": [],
-        }
+        self.reward = Metric()
+        self.success = Metric()
 
-        # Exponential moving average settings. ema_alpha is the coefficient used to
-        # compute EMA. ema_threshold is the number of data points at which we switch
-        # from a regular average to an EMA. Using a regular average reduces bias when
-        # there are a small number data points, so we use it at the beginning.
-        self.ema_alpha = 0.9
-        self.ema_threshold = 30
-
-        self.state_vars = ["reward"]
+        self.state_vars = ["reward", "success"]
 
     def __repr__(self) -> str:
         """ String representation of ``self``. """
@@ -40,48 +29,21 @@ class Metrics:
         for i, state_var in enumerate(self.state_vars):
             if i != 0:
                 message += ", "
-
-            if len(getattr(self, state_var)["mean"]) > 0:
-                mean = getattr(self, state_var)["mean"][-1]
-                stdev = getattr(self, state_var)["stdev"][-1]
-                message += "%s mean, stdev: %.5f, %.5f" % (state_var, mean, stdev)
-            else:
-                message += "%s mean, stdev: %r, %r" % (state_var, None, None)
+            message += "%s %s" % (state_var, getattr(self, state_var))
 
         return message
 
-    def update(self, episode_rewards: List[float]) -> None:
+    def update(self, episode_rewards: List[float], episode_successes: List[float]) -> None:
         """
         Update performance metrics with a sequence of the most recent episode rewards.
         """
 
-        # Add each episode's reward to history and update running estimates.
-        for episode_reward in episode_rewards:
-            self.reward["history"].append(episode_reward)
+        self.reward.update(episode_rewards)
 
-            # Compute a regular average and standard deviation when the number of data
-            # points is small, otherwise compute an EMA.
-            if len(self.reward["history"]) <= self.ema_threshold:
-                self.reward["mean"].append(np.mean(self.reward["history"]))
-                self.reward["stdev"].append(np.std(self.reward["history"]))
-            else:
-                old_second_moment = (
-                    self.reward["mean"][-1] ** 2 + self.reward["stdev"][-1] ** 2
-                )
-                self.reward["mean"].append(
-                    self.ema_update(self.reward["mean"][-1], episode_reward)
-                )
-                new_second_moment = self.ema_update(
-                    old_second_moment, episode_reward ** 2
-                )
-                self.reward["stdev"].append(
-                    sqrt(new_second_moment - self.reward["mean"][-1] ** 2)
-                )
-
-    def ema_update(self, average: float, new_value: float) -> float:
-        """ Compute one exponential moving average update. """
-
-        return average * self.ema_alpha + new_value * (1.0 - self.ema_alpha)
+        # Success rates are None for environments that don't provide a 0-1 success
+        # signal, so we only compute success rate if this is not the case.
+        if not any(success is None for success in episode_successes):
+            self.success.update(episode_successes)
 
     def current_values(self) -> Dict[str, float]:
         """
@@ -89,7 +51,7 @@ class Metrics:
         """
 
         return {
-            state_var: getattr(self, state_var)["mean"][-1]
+            state_var: getattr(self, state_var).mean[-1]
             for state_var in self.state_vars
         }
 
@@ -99,7 +61,7 @@ class Metrics:
         """
 
         return {
-            state_var: getattr(self, state_var)["history"]
+            state_var: getattr(self, state_var).history
             for state_var in self.state_vars
         }
 
@@ -107,5 +69,66 @@ class Metrics:
         """
         Return a dictionary with the value of all state variables.
         """
+
+        return {state_var: getattr(self, state_var).state() for state_var in self.state_vars}
+
+
+class Metric:
+    """ Class to store values for a single metric. """
+
+    def __init__(self) -> None:
+        """ Init function for Metric. """
+
+        # Exponential moving average settings. ema_alpha is the coefficient used to
+        # compute EMA. ema_threshold is the number of data points at which we switch
+        # from a regular average to an EMA. Using a regular average reduces bias when
+        # there are a small number data points, so we use it at the beginning.
+        self.ema_alpha = 0.9
+        self.ema_threshold = 30
+
+        # Metric values.
+        self.history = []
+        self.mean = []
+        self.stdev = []
+
+        self.state_vars = ["history", "mean", "stdev"]
+
+    def __repr__(self) -> None:
+        """ String representation of ``self``. """
+
+        if len(self.history) > 0:
+            mean = self.mean[-1]
+            stdev = self.stdev[-1]
+            message = "mean, stdev: %.5f, %.5f" % (mean, stdev)
+        else:
+            message = "mean, stdev: %r, %r" % (None, None)
+
+        return message
+
+    def update(self, values: List[float]) -> None:
+        """ Update history, mean, and stdev with new values. """
+
+        # Add each episode's reward to history and update running estimates.
+        for value in values:
+            self.history.append(value)
+
+            # Compute a regular average and standard deviation when the number of data
+            # points is small, otherwise compute an EMA.
+            if len(self.history) <= self.ema_threshold:
+                self.mean.append(np.mean(self.history))
+                self.stdev.append(np.std(self.history))
+            else:
+                old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
+                self.mean.append(self.ema_update(self.mean[-1], value))
+                new_second_moment = self.ema_update(old_second_moment, value ** 2)
+                self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+
+    def ema_update(self, average: float, new_value: float) -> float:
+        """ Compute one exponential moving average update. """
+
+        return average * self.ema_alpha + new_value * (1.0 - self.ema_alpha)
+
+    def state(self) -> Dict[str, Any]:
+        """ Return a dictionary with the value of all state variables. """
 
         return {state_var: getattr(self, state_var) for state_var in self.state_vars}

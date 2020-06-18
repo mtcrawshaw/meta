@@ -11,12 +11,14 @@ Road map:
     Learned loss convexity regularization for MTL
 
 Current sprint:
---> EMA of rewards instead of looking at past N
-    Evaluate success rate during training
-    Saving settings, metrics under results
+    EMA of rewards instead of looking at past N
     Option to plot mean + std dev
+    Evaluate success rate during training
+    Plot success rate
+    Saving settings, metrics under results
     Move legend outside of axes
     Evaluate success rate after training
+    Fix stochasticity for MT10 + multi cases
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -44,9 +46,7 @@ Possible additions:
 
 ----------------------------------------------------------------------------------------
 
-Tomorrow:
-Write tests for Metrics, and add EMA metrics to original_benchmark so we can still
-compare if we need to. Right now tests are failing, all of the MT10 multi-processed
-results come back different than the original. Maybe this is because the different
-processes are finishing in different orders on various runs of the test cases and this
-causes the computation of the metric to be different? Not sure.
+After finishing with running tests to show to Jana, we have some catching up to do:
+- Figure out why addition of success rate has caused other tests to fail
+- Get rid of stochasticity for MT10 + multi
+- Write tests for metrics
