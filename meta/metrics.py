@@ -33,7 +33,9 @@ class Metrics:
 
         return message
 
-    def update(self, episode_rewards: List[float], episode_successes: List[float]) -> None:
+    def update(
+        self, episode_rewards: List[float], episode_successes: List[float]
+    ) -> None:
         """
         Update performance metrics with a sequence of the most recent episode rewards.
         """
@@ -61,8 +63,7 @@ class Metrics:
         """
 
         return {
-            state_var: getattr(self, state_var).history
-            for state_var in self.state_vars
+            state_var: getattr(self, state_var).history for state_var in self.state_vars
         }
 
     def state(self) -> Dict[str, Dict[str, Any]]:
@@ -70,7 +71,9 @@ class Metrics:
         Return a dictionary with the value of all state variables.
         """
 
-        return {state_var: getattr(self, state_var).state() for state_var in self.state_vars}
+        return {
+            state_var: getattr(self, state_var).state() for state_var in self.state_vars
+        }
 
 
 class Metric:
