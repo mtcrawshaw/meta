@@ -17,8 +17,15 @@ class Metrics:
     def __init__(self) -> None:
         """ Init function for Metrics object. """
 
-        self.reward = Metric()
-        self.success = Metric()
+        # Exponential moving average settings. ema_alpha is the coefficient used to
+        # compute EMA. ema_threshold is the number of data points at which we switch
+        # from a regular average to an EMA. Using a regular average reduces bias when
+        # there are a small number data points, so we use it at the beginning.
+        self.ema_alpha = 0.999
+        self.ema_threshold = 1000
+
+        self.reward = Metric(self.ema_alpha, self.ema_threshold)
+        self.success = Metric(self.ema_alpha, self.ema_threshold)
 
         self.state_vars = ["reward", "success"]
 
@@ -79,15 +86,13 @@ class Metrics:
 class Metric:
     """ Class to store values for a single metric. """
 
-    def __init__(self) -> None:
+    def __init__(self, ema_alpha, ema_threshold) -> None:
         """ Init function for Metric. """
 
-        # Exponential moving average settings. ema_alpha is the coefficient used to
-        # compute EMA. ema_threshold is the number of data points at which we switch
-        # from a regular average to an EMA. Using a regular average reduces bias when
-        # there are a small number data points, so we use it at the beginning.
-        self.ema_alpha = 0.999
-        self.ema_threshold = 1000
+        self.ema_alpha = ema_alpha
+        self.ema_threshold = ema_threshold
+        if self.ema_threshold < 1:
+            raise ValueError("ema_threshold for Metrics must be at least 1.")
 
         # Metric values.
         self.history = []
