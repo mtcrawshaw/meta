@@ -2,7 +2,6 @@
 
 import os
 import pickle
-import random
 import json
 from typing import Any, List, Tuple, Dict
 import warnings
@@ -11,6 +10,7 @@ import warnings
 # must appear before importing baselines (happens in env.py).
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+import numpy as np
 import torch
 import gym
 from gym import Env
@@ -87,7 +87,7 @@ def train(config: Dict[str, Any]) -> None:
     """
 
     # Set random seed, number of threads, and device.
-    random.seed(config["seed"])
+    np.random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])
     torch.set_num_threads(1)

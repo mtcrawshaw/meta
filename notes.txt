@@ -18,8 +18,8 @@ Current sprint:
     Saving settings, metrics under results
     Move legend outside of axes
     Add success rate computation for gym environments
---> Get tests to pass
-    Metrics tests
+    Get tests to pass
+--> Metrics tests
     Evaluate metrics after training
 
 Before merging to master:
@@ -47,8 +47,3 @@ Possible additions:
   trajectories
 
 ----------------------------------------------------------------------------------------
-
-After finishing with running tests to show to Jana, we have some catching up to do:
-- Figure out why addition of success rate has caused other tests to fail
-- Get rid of stochasticity for MT10 + multi
-- Write tests for metrics

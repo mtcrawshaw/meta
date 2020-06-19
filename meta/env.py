@@ -1,8 +1,10 @@
 """ Environment wrappers + functionality. """
 
+import os
 import random
 from typing import Dict, Tuple, List, Any, Callable
 
+import numpy as np
 import torch
 import gym
 from gym import Env
@@ -136,7 +138,10 @@ def get_single_env_creator(
         else:
             env = gym.make(env_name)
 
-        # Set environment seed.
+        # Set environment seed. Note that we have to set np.random.seed here despite
+        # having already set it in train.py, so that the seeds are different between
+        # child processes.
+        np.random.seed(seed)
         env.seed(seed)
 
         # Add environment wrapper to reset at time limit.
@@ -219,30 +224,16 @@ class TimeLimitEnv(gym.Wrapper):
 
 class MultiTaskEnv(gym.Wrapper):
     """
-    Environment wrapper to change task when done=True, and randomly choose a task
-    when first instantiated.
+    Environment wrapper to change task when done=True, and randomly choose a task when
+    first instantiated. Only to be used with MetaWorld MultiClassMultiTask objects.
     """
 
-    def __init__(self, env: Env) -> None:
-        """ Init function for MultiTaskEnv. """
+    def reset(self, **kwargs: Dict[str, Any]) -> Any:
+        """ Reset function for environment wrapper. """
 
-        super(MultiTaskEnv, self).__init__(env)
-        self.set_random_task()
-
-    def step(self, action: Any) -> Any:
-        """ Step function for environment wrapper. """
-
-        observation, reward, done, info = self.env.step(action)
-        if done:
-            self.set_random_task()
-
-        return observation, reward, done, info
-
-    def set_random_task(self) -> Any:
-        """ Change environment task to a random task. """
-
-        new_task = random.randrange(self.num_tasks)
+        new_task = np.random.randint(self.num_tasks)
         self.set_task(new_task)
+        return self.env.reset(**kwargs)
 
 
 class SuccessEnv(gym.Wrapper):
