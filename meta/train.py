@@ -150,6 +150,7 @@ def train(config: Dict[str, Any]) -> None:
 
     # Training loop.
     metrics = Metrics()
+    policy.train = True
 
     for update_iteration in range(config["num_updates"]):
 
@@ -174,6 +175,7 @@ def train(config: Dict[str, Any]) -> None:
 
     # Evaluation loop.
     if config["evaluation_rollouts"] > 0:
+        policy.train = False
         rollout.set_initial_obs(env.reset())
         evaluation_rewards = []
         evaluation_successes = []
@@ -193,6 +195,10 @@ def train(config: Dict[str, Any]) -> None:
         final_avg_reward = np.mean(evaluation_rewards)
         final_avg_success = np.mean(evaluation_successes)
         metrics.set_evaluation_values(evaluation_rewards, evaluation_successes)
+
+        # Print final metrics.
+        print("Evaluation metrics:")
+        print(metrics.evaluation_message())
 
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:
@@ -220,7 +226,8 @@ def train(config: Dict[str, Any]) -> None:
         while os.path.isdir(save_dir):
             n += 1
             if n > 1:
-                config["save_name"] = config["save_name"][:-2] + "_%d" % n
+                index_start = config["save_name"].rindex("_")
+                config["save_name"] = config["save_name"][:index_start] + "_%d" % n
             else:
                 config["save_name"] += "_1"
             save_dir = save_dir_from_name(config["save_name"])

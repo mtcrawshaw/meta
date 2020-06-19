@@ -68,6 +68,19 @@ class Metrics:
         if not any(success is None for success in evaluation_successes):
             self.success.final = np.mean(evaluation_successes)
 
+    def evaluation_message(self) -> str:
+        """
+        String representation of evaluation values of each metric.
+        """
+        message = ""
+        for i, state_var in enumerate(self.state_vars):
+            if i != 0:
+                message += "\n"
+            message += "%s " % state_var
+            message += getattr(self, state_var).evaluation_message()
+
+        return message
+
     def current_values(self) -> Dict[str, float]:
         """
         Return a dictionary of the most recent values for each performance metric.
@@ -117,15 +130,32 @@ class Metric:
 
         self.state_vars = ["history", "mean", "stdev", "maximum", "final"]
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         """ String representation of ``self``. """
 
         if len(self.history) > 0:
             mean = self.mean[-1]
             stdev = self.stdev[-1]
-            message = "mean, stdev: %.5f, %.5f" % (mean, stdev)
+            maximum = self.maximum
+            message = "mean, stdev, maximum: %.5f, %.5f, %.5f" % (mean, stdev, maximum)
         else:
-            message = "mean, stdev: %r, %r" % (None, None)
+            message = "mean, stdev, maximum: %r, %r, %r" % (None, None, None)
+
+        return message
+
+    def evaluation_message(self) -> str:
+        """ String representation of evaluation metrics. """
+
+        message = "final mean, maximum: "
+        if self.final is not None:
+            message += "%.5f, " % self.final
+        else:
+            message += "None, "
+
+        if self.maximum is not None:
+            message += "%.5f" % self.maximum
+        else:
+            message += "None, "
 
         return message
 
@@ -148,8 +178,8 @@ class Metric:
                 self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
 
             # Compute new maximum.
-            if self.maximum is None or value > self.maximum:
-                self.maximum = value
+            if self.maximum is None or self.mean[-1] > self.maximum:
+                self.maximum = self.mean[-1]
 
     def ema_update(self, average: float, new_value: float) -> float:
         """ Compute one exponential moving average update. """

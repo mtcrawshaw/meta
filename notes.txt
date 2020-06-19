@@ -22,7 +22,10 @@ Current sprint:
     Metrics tests
     Evaluate metrics after training
     Add final metrics table to plot
---> Script to perform hyperparameter grid search
+    Deterministic acting
+--> Compare evaluation metrics during testing
+    Linear learning rate schedule
+    Script to perform hyperparameter grid search
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -34,7 +37,7 @@ Future additions:
     - Network architecture hyperparameters (more customized architectures)
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
-    - Deterministic acting (i.e. always choose action with highest prob)
+    - Learning rate schedule options (geometric)
 - Make tests deterministic
 - Move tests outside of package
 - Add feature so that task-index part of observation is not normalized

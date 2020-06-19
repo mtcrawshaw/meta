@@ -5,6 +5,7 @@ from typing import Tuple, Dict
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.network import PolicyNetwork
@@ -105,6 +106,7 @@ class PPOPolicy:
         self.hidden_size = hidden_size
         self.normalize_advantages = normalize_advantages
         self.device = device if device is not None else torch.device("cpu")
+        self.train = True
 
         # Initialize policy network and optimizer.
         self.policy_network = PolicyNetwork(
@@ -153,7 +155,18 @@ class PPOPolicy:
         )
 
         # Sample action and compute log probabilities.
-        action = action_dist.sample()
+        if self.train:
+            action = action_dist.sample()
+        else:
+            # If evaluating, select action with highest probability.
+            if isinstance(action_dist, Categorical):
+                action = action_dist.probs.argmax(dim=-1)
+            elif isinstance(action_dist, Normal):
+                action = action_dist.mean
+            else:
+                raise ValueError(
+                    "Unsupported distribution type '%s'." % type(action_dist)
+                )
         action_log_prob = action_dist.log_prob(action)
 
         # We sum over ``action_log_prob`` to convert element-wise log probs into a joint
