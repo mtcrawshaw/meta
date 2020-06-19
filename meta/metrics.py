@@ -87,7 +87,7 @@ class Metric:
         # from a regular average to an EMA. Using a regular average reduces bias when
         # there are a small number data points, so we use it at the beginning.
         self.ema_alpha = 0.999
-        self.ema_threshold = 30
+        self.ema_threshold = 1000
 
         # Metric values.
         self.history = []

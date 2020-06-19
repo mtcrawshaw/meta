@@ -17,6 +17,7 @@ Current sprint:
     Plot success rate
     Saving settings, metrics under results
     Move legend outside of axes
+    Add success rate computation for gym environments
 --> Get tests to pass
     Metrics tests
     Evaluate metrics after training

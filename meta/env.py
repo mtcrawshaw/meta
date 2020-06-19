@@ -150,6 +150,12 @@ def get_single_env_creator(
         # Add environment wrapper to monitor rewards.
         env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
 
+        # Add environment wrapper to compute success/failure for some environments. Note
+        # that this wrapper must be wrapped around a bench.Monitor instance.
+        if env_name in REWARD_THRESHOLDS:
+            reward_threshold = REWARD_THRESHOLDS[env_name]
+            env = SuccessEnv(env, reward_threshold)
+
         return env
 
     return env_creator
@@ -239,6 +245,31 @@ class MultiTaskEnv(gym.Wrapper):
         self.set_task(new_task)
 
 
+class SuccessEnv(gym.Wrapper):
+    """
+    Environment wrapper to compute success/failure for each episode.
+    """
+
+    def __init__(self, env: Env, reward_threshold: int) -> None:
+        """ Init function for SuccessEnv. """
+
+        super(SuccessEnv, self).__init__(env)
+        self._reward_threshold = reward_threshold
+
+    def step(self, action: Any) -> Any:
+        """ Step function for environment wrapper. """
+
+        # Add success to info if done=True, with success=1.0 when the reward over the
+        # episode is greater than the given reward threshold, and 0.0 otherwise.
+        observation, reward, done, info = self.env.step(action)
+        if done:
+            info["success"] = float(info["episode"]["r"] >= self._reward_threshold)
+        else:
+            info["success"] = 0.0
+
+        return observation, reward, done, info
+
+
 def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
 
@@ -249,6 +280,15 @@ def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
 
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+
+
+# This is a hard-coding of a reward threshold for some environments. An episode is
+# considered a success when the reward over that episode is greater than the
+# corresponding threshold.
+REWARD_THRESHOLDS = {
+    "CartPole-v1": 195,
+    "LunarLanderContinuous-v2": 200,
+}
 
 
 # HARDCODE. This is copied from the metaworld repo to avoid the need to import metaworld
