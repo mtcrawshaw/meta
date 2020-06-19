@@ -110,6 +110,7 @@ def train(config: Dict[str, Any]) -> None:
         config["seed"],
         config["time_limit"],
         config["normalize_transition"],
+        allow_early_resets=True,
     )
     policy = PPOPolicy(
         observation_space=env.observation_space,
@@ -170,6 +171,28 @@ def train(config: Dict[str, Any]) -> None:
         # finish.
         if update_iteration == config["num_updates"] - 1:
             print("")
+
+    # Evaluation loop.
+    if config["evaluation_rollouts"] > 0:
+        rollout.set_initial_obs(env.reset())
+        evaluation_rewards = []
+        evaluation_successes = []
+        for eval_iteration in range(config["evaluation_rollouts"]):
+
+            # Sample rollout and reset rollout storage.
+            rollout, episode_rewards, episode_successes = collect_rollout(
+                rollout, env, policy
+            )
+            rollout.reset()
+
+            # Update list of evaluation metrics.
+            evaluation_rewards += episode_rewards
+            evaluation_successes += episode_successes
+
+        # Compute final metrics.
+        final_avg_reward = np.mean(evaluation_rewards)
+        final_avg_success = np.mean(evaluation_successes)
+        metrics.set_evaluation_values(evaluation_rewards, evaluation_successes)
 
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:

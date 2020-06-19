@@ -19,8 +19,10 @@ Current sprint:
     Move legend outside of axes
     Add success rate computation for gym environments
     Get tests to pass
---> Metrics tests
+    Metrics tests
     Evaluate metrics after training
+    Add final metrics table to plot
+--> Script to perform hyperparameter grid search
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up

@@ -54,6 +54,20 @@ class Metrics:
         if not any(success is None for success in episode_successes):
             self.success.update(episode_successes)
 
+    def set_evaluation_values(
+        self, evaluation_rewards: float, evaluation_successes: float
+    ) -> None:
+        """
+        Set evaluation values for each metric.
+        """
+
+        self.reward.final = np.mean(evaluation_rewards)
+
+        # Success rates are None for environments that don't provide a 0-1 success
+        # signal, so we only compute success rate if this is not the case.
+        if not any(success is None for success in evaluation_successes):
+            self.success.final = np.mean(evaluation_successes)
+
     def current_values(self) -> Dict[str, float]:
         """
         Return a dictionary of the most recent values for each performance metric.
@@ -98,8 +112,10 @@ class Metric:
         self.history = []
         self.mean = []
         self.stdev = []
+        self.maximum = None
+        self.final = None
 
-        self.state_vars = ["history", "mean", "stdev"]
+        self.state_vars = ["history", "mean", "stdev", "maximum", "final"]
 
     def __repr__(self) -> None:
         """ String representation of ``self``. """
@@ -130,6 +146,10 @@ class Metric:
                 self.mean.append(self.ema_update(self.mean[-1], value))
                 new_second_moment = self.ema_update(old_second_moment, value ** 2)
                 self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+
+            # Compute new maximum.
+            if self.maximum is None or value > self.maximum:
+                self.maximum = value
 
     def ema_update(self, average: float, new_value: float) -> float:
         """ Compute one exponential moving average update. """

@@ -24,6 +24,7 @@
     "recurrent": false,
 
     "cuda": true,
+    "evaluation_rollouts": 100,
     "seed": 1,
     "print_freq": 10,
     "time_limit": null,
