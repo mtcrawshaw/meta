@@ -23,9 +23,10 @@ Current sprint:
     Evaluate metrics after training
     Add final metrics table to plot
     Deterministic acting
---> Compare evaluation metrics during testing
-    Linear learning rate schedule
+--> Linear learning rate schedule
     Script to perform hyperparameter grid search
+    Saving and loading models
+    Evaluation during training
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -38,9 +39,10 @@ Future additions:
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
     - Learning rate schedule options (geometric)
+    - Add feature so that task-index part of observation is not normalized for MTL
+    - Various network initialization schemes
 - Make tests deterministic
 - Move tests outside of package
-- Add feature so that task-index part of observation is not normalized
 
 Possible additions:
 - Optimize data transfer to GPU
@@ -50,5 +52,8 @@ Possible additions:
   indexing to construct the batches instead of looping and stacking?
 - Refactor naming in PPO implementation to clarify between episodes, rollouts, and
   trajectories
+- Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
+  for a variable in the range [0, 1]
+- Rendering of episode videos
 
 ----------------------------------------------------------------------------------------

@@ -273,12 +273,18 @@ def get_metaworld_env_names() -> List[str]:
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
 
 
-# This is a hard-coding of a reward threshold for some environments. An episode is
-# considered a success when the reward over that episode is greater than the
+# HARDCODE. This is a hard-coding of a reward threshold for some environments. An
+# episode is considered a success when the reward over that episode is greater than the
 # corresponding threshold.
 REWARD_THRESHOLDS = {
     "CartPole-v1": 195,
     "LunarLanderContinuous-v2": 200,
+    "Hopper-v2": 3800,
+    "Hopper-v3": 3800,
+    "HalfCheetah-v2": 4800,
+    "HalfCheetah-v3": 4800,
+    "Ant-v2": 6000,
+    "Ant-v3": 6000,
 }
 
 
