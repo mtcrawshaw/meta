@@ -46,8 +46,14 @@ def train(config: Dict[str, Any]) -> None:
         Number of mini batches per update step for PPO.
     num_processes : int
         Number of asynchronous environments to run at once.
-    lr : float
-        Learning rate.
+    lr_schedule_type : str
+        Either None, "exponential", or "cosine". If None is given, the learning rate
+        will stay at initial_lr for the duration of training. Exponential and cosine
+        yield exponential decay and cosine annealing learning rates, respectively.
+    initial_lr : float
+        Initial policy learning rate.
+    final_lr : float
+        Final policy learning rate.
     eps : float
         Epsilon value for numerical stability.
     value_loss_coeff : float
@@ -118,8 +124,11 @@ def train(config: Dict[str, Any]) -> None:
         num_minibatch=config["num_minibatch"],
         num_processes=config["num_processes"],
         rollout_length=config["rollout_length"],
+        num_updates=config["num_updates"],
         num_ppo_epochs=config["num_ppo_epochs"],
-        lr=config["lr"],
+        lr_schedule_type=config["lr_schedule_type"],
+        initial_lr=config["initial_lr"],
+        final_lr=config["final_lr"],
         eps=config["eps"],
         value_loss_coeff=config["value_loss_coeff"],
         entropy_loss_coeff=config["entropy_loss_coeff"],

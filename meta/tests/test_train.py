@@ -480,6 +480,44 @@ def test_train_MT10_multi_gpu_recurrent() -> None:
     train(config)
 
 
+def test_train_cartpole_exponential_lr() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with an exponential learning
+    rate schedule.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["lr_schedule_type"] = "exponential"
+    config["baseline_metrics_filename"] = "cartpole_exponential.pkl"
+
+    # Run training.
+    train(config)
+
+
+def test_train_cartpole_cosine_lr() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with a cosine learning rate
+    schedule.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["lr_schedule_type"] = "cosine"
+    config["baseline_metrics_filename"] = "cartpole_cosine.pkl"
+
+    # Run training.
+    train(config)
+
+
 def test_collect_rollout_values() -> None:
     """
     Test the values of the returned RolloutStorage objects from train.collect_rollout().

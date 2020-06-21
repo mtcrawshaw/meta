@@ -7,7 +7,9 @@
     "num_minibatch": 2,
     "num_processes": 16,
 
-    "lr": 7e-4,
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
     "eps": 1e-5,
     "value_loss_coeff": 0.5,
     "entropy_loss_coeff": 0.01,
