@@ -31,6 +31,8 @@ DEFAULT_SETTINGS = {
     "num_layers": 3,
     "hidden_size": 64,
     "recurrent": False,
+    "evaluation_freq": 5,
+    "evaluation_rollouts": 1,
     "cuda": False,
     "seed": 1,
     "print_freq": 10,

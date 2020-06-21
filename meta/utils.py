@@ -86,6 +86,13 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
     with open(metrics_filename, "rb") as metrics_file:
         baseline_metrics = pickle.load(metrics_file)
 
+    metrics["reward"] = metrics["train_reward"]
+    metrics["success"] = metrics["train_success"]
+    del metrics["train_reward"]
+    del metrics["train_success"]
+    del metrics["eval_reward"]
+    del metrics["eval_success"]
+
     # Compare metrics against baseline.
     diff: Dict[str, List[Any]] = {key: [] for key in metrics}
     for key in set(metrics.keys()).intersection(set(baseline_metrics.keys())):

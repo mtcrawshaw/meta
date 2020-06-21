@@ -24,7 +24,9 @@ Current sprint:
     Add final metrics table to plot
     Deterministic acting
     Learning rate schedules
---> Evaluation during training
+--> Evaluation during training (fix bug where rollout isn't cleared before evaluation
+      (nonzero hidden state gets used))
+    Compare evaluation metrics during metric comparison
     Saving and loading models
     Script to perform hyperparameter grid search
 
@@ -46,7 +48,9 @@ Future additions:
 - Make tests deterministic
 - Move tests outside of package
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
-  to CV and NLP. This is way in the future
+  to CV and NLP. This is way in the future. It will be a pain because we will have to
+  call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
+  just pass a reference in to the policy.
 
 Possible additions:
 - Optimize data transfer to GPU
@@ -63,7 +67,6 @@ Possible additions:
 ----------------------------------------------------------------------------------------
 
 Environments to run PPO experiments on:
-- Ant (at least 30000 updates)
 - Hopper
 - HalfCheetah
 - bin_picking and other MetaWorld single task environments

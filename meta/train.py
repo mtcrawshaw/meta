@@ -3,6 +3,7 @@
 import os
 import pickle
 import json
+from copy import deepcopy
 from typing import Any, List, Tuple, Dict
 import warnings
 
@@ -163,6 +164,9 @@ def train(config: Dict[str, Any]) -> None:
 
     for update_iteration in range(config["num_updates"]):
 
+        # Construct dictionary to hold metrics from this update.
+        step_metrics = {}
+
         # Sample rollout, compute update, and reset rollout storage.
         rollout, episode_rewards, episode_successes = collect_rollout(
             rollout, env, policy
@@ -170,44 +174,53 @@ def train(config: Dict[str, Any]) -> None:
         _ = policy.update(rollout)
         rollout.reset()
 
+        # Aggregate metrics and run evaluation, if necessary.
+        step_metrics["train_reward"] = episode_rewards
+        step_metrics["train_success"] = episode_successes
+        if (
+            update_iteration % config["evaluation_freq"] == 0
+            or update_iteration == config["num_updates"] - 1
+        ):
+            policy.train = False
+            other_env = get_env(
+                config["env_name"],
+                config["num_processes"],
+                config["seed"],
+                config["time_limit"],
+                config["normalize_transition"],
+                allow_early_resets=True,
+            )
+            other_rollout = RolloutStorage(
+                rollout_length=config["rollout_length"],
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                num_processes=config["num_processes"],
+                hidden_state_size=config["hidden_size"] if policy.recurrent else 1,
+                device=device,
+            )
+            evaluation_rewards, evaluation_successes = evaluate(
+                other_env,
+                deepcopy(policy),
+                other_rollout,
+                config["evaluation_rollouts"],
+            )
+            policy.train = True
+
+            step_metrics["eval_reward"] = evaluation_rewards
+            step_metrics["eval_success"] = evaluation_successes
+
         # Update and print metrics.
-        metrics.update(episode_rewards, episode_successes)
+        metrics.update(step_metrics)
         if update_iteration % config["print_freq"] == 0:
             message = "Update %d | " % update_iteration
             message += str(metrics)
-            print(message, end="\r")
+            message += "\t"
+            print(message, end="\n")
 
         # This is to ensure that printed out values don't get overwritten after we
         # finish.
         if update_iteration == config["num_updates"] - 1:
             print("")
-
-    # Evaluation loop.
-    if config["evaluation_rollouts"] > 0:
-        policy.train = False
-        rollout.set_initial_obs(env.reset())
-        evaluation_rewards = []
-        evaluation_successes = []
-        for eval_iteration in range(config["evaluation_rollouts"]):
-
-            # Sample rollout and reset rollout storage.
-            rollout, episode_rewards, episode_successes = collect_rollout(
-                rollout, env, policy
-            )
-            rollout.reset()
-
-            # Update list of evaluation metrics.
-            evaluation_rewards += episode_rewards
-            evaluation_successes += episode_successes
-
-        # Compute final metrics.
-        final_avg_reward = np.mean(evaluation_rewards)
-        final_avg_success = np.mean(evaluation_successes)
-        metrics.set_evaluation_values(evaluation_rewards, evaluation_successes)
-
-        # Print final metrics.
-        print("Evaluation metrics:")
-        print(metrics.evaluation_message())
 
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:
@@ -325,3 +338,32 @@ def collect_rollout(
                 rollout_episode_rewards.append(info["episode"]["r"])
 
     return rollout, rollout_episode_rewards, rollout_successes
+
+
+def evaluate(
+    env: Env, policy: PPOPolicy, rollout: RolloutStorage, num_rollouts: int
+) -> Tuple[List[float], List[float]]:
+    """
+    Run evaluation of ``policy`` on environment ``env`` for ``num_rollouts`` rollouts.
+    Returns a list of the total reward and success/failure for each episode.
+    """
+
+    # Reset environment and clear rollout.
+    rollout.init_rollout_info()
+    rollout.set_initial_obs(env.reset())
+
+    evaluation_rewards = []
+    evaluation_successes = []
+    for eval_iteration in range(num_rollouts):
+
+        # Sample rollout and reset rollout storage.
+        rollout, episode_rewards, episode_successes = collect_rollout(
+            rollout, env, policy
+        )
+        rollout.reset()
+
+        # Update list of evaluation metrics.
+        evaluation_rewards += episode_rewards
+        evaluation_successes += episode_successes
+
+    return evaluation_rewards, evaluation_successes

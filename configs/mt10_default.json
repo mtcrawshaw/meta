@@ -25,8 +25,10 @@
     "hidden_size": 64,
     "recurrent": false,
 
-    "cuda": false,
+    "evaluation_freq": 5,
     "evaluation_rollouts": 1,
+
+    "cuda": false,
     "seed": 1,
     "print_freq": 1,
     "time_limit": 15,

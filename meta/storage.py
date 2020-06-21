@@ -69,9 +69,6 @@ class RolloutStorage:
         # Initialize rollout information.
         self.init_rollout_info()
 
-        # Set device.
-        self.to(device)
-
     def __repr__(self) -> str:
         """ String representation of RolloutStorage. """
 
@@ -100,6 +97,9 @@ class RolloutStorage:
         self.hidden_states = torch.zeros(
             self.rollout_length + 1, self.num_processes, self.hidden_state_size
         )
+
+        # Set device.
+        self.to(self.device)
 
     def add_step(
         self,

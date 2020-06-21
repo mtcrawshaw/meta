@@ -24,10 +24,17 @@ class Metrics:
         self.ema_alpha = 0.999
         self.ema_threshold = 1000
 
-        self.reward = Metric(self.ema_alpha, self.ema_threshold)
-        self.success = Metric(self.ema_alpha, self.ema_threshold)
+        self.train_reward = Metric(self.ema_alpha, self.ema_threshold)
+        self.train_success = Metric(self.ema_alpha, self.ema_threshold)
+        self.eval_reward = Metric(self.ema_alpha, self.ema_threshold)
+        self.eval_success = Metric(self.ema_alpha, self.ema_threshold)
 
-        self.state_vars = ["reward", "success"]
+        self.state_vars = [
+            "train_reward",
+            "train_success",
+            "eval_reward",
+            "eval_success",
+        ]
 
     def __repr__(self) -> str:
         """ String representation of ``self``. """
@@ -35,51 +42,18 @@ class Metrics:
         message = ""
         for i, state_var in enumerate(self.state_vars):
             if i != 0:
-                message += ", "
+                message += " | "
             message += "%s %s" % (state_var, getattr(self, state_var))
 
         return message
 
-    def update(
-        self, episode_rewards: List[float], episode_successes: List[float]
-    ) -> None:
+    def update(self, update_values: Dict[str, List[float]]) -> None:
         """
         Update performance metrics with a sequence of the most recent episode rewards.
         """
 
-        self.reward.update(episode_rewards)
-
-        # Success rates are None for environments that don't provide a 0-1 success
-        # signal, so we only compute success rate if this is not the case.
-        if not any(success is None for success in episode_successes):
-            self.success.update(episode_successes)
-
-    def set_evaluation_values(
-        self, evaluation_rewards: float, evaluation_successes: float
-    ) -> None:
-        """
-        Set evaluation values for each metric.
-        """
-
-        self.reward.final = np.mean(evaluation_rewards)
-
-        # Success rates are None for environments that don't provide a 0-1 success
-        # signal, so we only compute success rate if this is not the case.
-        if not any(success is None for success in evaluation_successes):
-            self.success.final = np.mean(evaluation_successes)
-
-    def evaluation_message(self) -> str:
-        """
-        String representation of evaluation values of each metric.
-        """
-        message = ""
-        for i, state_var in enumerate(self.state_vars):
-            if i != 0:
-                message += "\n"
-            message += "%s " % state_var
-            message += getattr(self, state_var).evaluation_message()
-
-        return message
+        for metric_name, metric_values in update_values.items():
+            getattr(self, metric_name).update(metric_values)
 
     def current_values(self) -> Dict[str, float]:
         """
@@ -126,9 +100,8 @@ class Metric:
         self.mean = []
         self.stdev = []
         self.maximum = None
-        self.final = None
 
-        self.state_vars = ["history", "mean", "stdev", "maximum", "final"]
+        self.state_vars = ["history", "mean", "stdev", "maximum"]
 
     def __repr__(self) -> str:
         """ String representation of ``self``. """
@@ -140,22 +113,6 @@ class Metric:
             message = "mean, stdev, maximum: %.5f, %.5f, %.5f" % (mean, stdev, maximum)
         else:
             message = "mean, stdev, maximum: %r, %r, %r" % (None, None, None)
-
-        return message
-
-    def evaluation_message(self) -> str:
-        """ String representation of evaluation metrics. """
-
-        message = "final mean, maximum: "
-        if self.final is not None:
-            message += "%.5f, " % self.final
-        else:
-            message += "None, "
-
-        if self.maximum is not None:
-            message += "%.5f" % self.maximum
-        else:
-            message += "None, "
 
         return message
 
