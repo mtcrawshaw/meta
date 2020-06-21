@@ -72,3 +72,7 @@ Environments to run PPO experiments on:
 - bin_picking and other MetaWorld single task environments
 - MT10
 - MT50
+
+Next:
+Remove debug code and add new corresponding baselines
+Add evaluation metrics to plot
