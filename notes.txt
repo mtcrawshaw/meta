@@ -26,7 +26,6 @@ Current sprint:
     Learning rate schedules
 --> Evaluation during training (fix bug where rollout isn't cleared before evaluation
       (nonzero hidden state gets used))
-    Compare evaluation metrics during metric comparison
     Saving and loading models
     Script to perform hyperparameter grid search
 
@@ -74,5 +73,12 @@ Environments to run PPO experiments on:
 - MT50
 
 Next:
-Remove debug code and add new corresponding baselines
+Confirm that adding evaluation didn't mess up training: Just run a bunch of tests and
+  compare with previous results
 Add evaluation metrics to plot
+
+Training ideas:
+- More parallelization + longer rollouts (bigger batches)
+- Normalize observation without transition
+- Search over everything
+- Read emprical study of on-policy RL for ideas
