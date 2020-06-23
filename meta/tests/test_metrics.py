@@ -62,7 +62,7 @@ def test_update_ema_single() -> None:
     # Set up case.
     ema_alpha = 0.9
     ema_threshold = 1
-    metric = Metric(ema_alpha, ema_threshold)
+    metric = Metric(ema_alpha=ema_alpha, ema_threshold=ema_threshold)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.
@@ -84,7 +84,7 @@ def test_update_ema_multi() -> None:
     # Set up case.
     ema_alpha = 0.9
     ema_threshold = 1
-    metric = Metric(ema_alpha, ema_threshold)
+    metric = Metric(ema_alpha=ema_alpha, ema_threshold=ema_threshold)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.

@@ -186,10 +186,7 @@ def train(config: Dict[str, Any]) -> None:
             # Run evaluation and record metrics.
             policy.train = False
             evaluation_rewards, evaluation_successes = evaluate(
-                env,
-                policy,
-                rollout,
-                config["evaluation_rollouts"],
+                env, policy, rollout, config["evaluation_rollouts"],
             )
             policy.train = True
             step_metrics["eval_reward"] = evaluation_rewards

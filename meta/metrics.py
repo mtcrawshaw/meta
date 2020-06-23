@@ -88,10 +88,14 @@ class Metrics:
 class Metric:
     """ Class to store values for a single metric. """
 
-    def __init__(self, ema=True) -> None:
+    def __init__(
+        self, ema=True, ema_alpha=EMA_ALPHA, ema_threshold=EMA_THRESHOLD
+    ) -> None:
         """ Init function for Metric. """
 
         self.ema = ema
+        self.ema_alpha = ema_alpha
+        self.ema_threshold = ema_threshold
 
         # Metric values.
         self.history = []
@@ -125,7 +129,7 @@ class Metric:
 
                 # Compute a regular average and standard deviation when the number of
                 # data points is small, otherwise compute an EMA.
-                if len(self.history) <= EMA_THRESHOLD:
+                if len(self.history) <= self.ema_threshold:
                     self.mean.append(np.mean(self.history))
                     self.stdev.append(np.std(self.history))
                 else:
@@ -159,12 +163,10 @@ class Metric:
                 if self.maximum is None or self.mean[-1] > self.maximum:
                     self.maximum = self.mean[-1]
 
-
-
     def ema_update(self, average: float, new_value: float) -> float:
         """ Compute one exponential moving average update. """
 
-        return average * EMA_ALPHA + new_value * (1.0 - EMA_ALPHA)
+        return average * self.ema_alpha + new_value * (1.0 - self.ema_alpha)
 
     def state(self) -> Dict[str, Any]:
         """ Return a dictionary with the value of all state variables. """
