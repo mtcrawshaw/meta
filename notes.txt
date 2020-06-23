@@ -41,7 +41,7 @@ Future additions:
     - Parameter sharing between actor and critic
     - More learning rate schedule options
         - torch.optim.lr_scheduler.ReduceLROnPlateau
-        - ?
+        - cyclic LR
     - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
 - Make tests deterministic
@@ -73,9 +73,12 @@ Environments to run PPO experiments on:
 - MT50
 
 Next:
+Allow option for metric to be point average instead of EMA
+Add evaluation metrics to plot
+Change evaluation to run for a certain number of episodes
+Change metrics so that you pass in an episode number with values
 Confirm that adding evaluation didn't mess up training: Just run a bunch of tests and
   compare with previous results
-Add evaluation metrics to plot
 
 Training ideas:
 - More parallelization + longer rollouts (bigger batches)

@@ -9,6 +9,14 @@ from typing import Dict, List, Any
 import numpy as np
 
 
+# Exponential moving average settings. ema_alpha is the coefficient used to
+# compute EMA. ema_threshold is the number of data points at which we switch
+# from a regular average to an EMA. Using a regular average reduces bias when
+# there are a small number data points, so we use it at the beginning.
+EMA_ALPHA = 0.999
+EMA_THRESHOLD = 1000
+
+
 class Metrics:
     """
     Metrics object, which stores and updates training performance metrics.
@@ -17,17 +25,10 @@ class Metrics:
     def __init__(self) -> None:
         """ Init function for Metrics object. """
 
-        # Exponential moving average settings. ema_alpha is the coefficient used to
-        # compute EMA. ema_threshold is the number of data points at which we switch
-        # from a regular average to an EMA. Using a regular average reduces bias when
-        # there are a small number data points, so we use it at the beginning.
-        self.ema_alpha = 0.999
-        self.ema_threshold = 1000
-
-        self.train_reward = Metric(self.ema_alpha, self.ema_threshold)
-        self.train_success = Metric(self.ema_alpha, self.ema_threshold)
-        self.eval_reward = Metric(self.ema_alpha, self.ema_threshold)
-        self.eval_success = Metric(self.ema_alpha, self.ema_threshold)
+        self.train_reward = Metric()
+        self.train_success = Metric()
+        self.eval_reward = Metric(ema=False)
+        self.eval_success = Metric(ema=False)
 
         self.state_vars = [
             "train_reward",
@@ -87,13 +88,10 @@ class Metrics:
 class Metric:
     """ Class to store values for a single metric. """
 
-    def __init__(self, ema_alpha, ema_threshold) -> None:
+    def __init__(self, ema=True) -> None:
         """ Init function for Metric. """
 
-        self.ema_alpha = ema_alpha
-        self.ema_threshold = ema_threshold
-        if self.ema_threshold < 1:
-            raise ValueError("ema_threshold for Metrics must be at least 1.")
+        self.ema = ema
 
         # Metric values.
         self.history = []
@@ -110,38 +108,63 @@ class Metric:
             mean = self.mean[-1]
             stdev = self.stdev[-1]
             maximum = self.maximum
-            message = "mean, stdev, maximum: %.5f, %.5f, %.5f" % (mean, stdev, maximum)
+            message = "mean, maximum: %.5f, %.5f" % (mean, maximum)
         else:
-            message = "mean, stdev, maximum: %r, %r, %r" % (None, None, None)
+            message = "mean, maximum: %r, %r" % (None, None)
 
         return message
 
     def update(self, values: List[float]) -> None:
         """ Update history, mean, and stdev with new values. """
 
-        # Add each episode's reward to history and update running estimates.
-        for value in values:
-            self.history.append(value)
+        if self.ema:
 
-            # Compute a regular average and standard deviation when the number of data
-            # points is small, otherwise compute an EMA.
-            if len(self.history) <= self.ema_threshold:
-                self.mean.append(np.mean(self.history))
-                self.stdev.append(np.std(self.history))
-            else:
-                old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
-                self.mean.append(self.ema_update(self.mean[-1], value))
-                new_second_moment = self.ema_update(old_second_moment, value ** 2)
-                self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+            # Add each episode's reward to history and update running estimates.
+            for value in values:
+                self.history.append(value)
 
-            # Compute new maximum.
-            if self.maximum is None or self.mean[-1] > self.maximum:
-                self.maximum = self.mean[-1]
+                # Compute a regular average and standard deviation when the number of
+                # data points is small, otherwise compute an EMA.
+                if len(self.history) <= EMA_THRESHOLD:
+                    self.mean.append(np.mean(self.history))
+                    self.stdev.append(np.std(self.history))
+                else:
+                    old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
+                    self.mean.append(self.ema_update(self.mean[-1], value))
+                    new_second_moment = self.ema_update(old_second_moment, value ** 2)
+                    self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+
+                # Compute new maximum.
+                if self.maximum is None or self.mean[-1] > self.maximum:
+                    self.maximum = self.mean[-1]
+
+        else:
+
+            # Just record mean and stdev of sample, using previous values if given an
+            # empty sample.
+            new_val = None
+            if len(values) > 0:
+                new_val = np.mean(values)
+                new_stdev = np.std(values)
+            elif len(self.mean) > 0:
+                new_val = self.mean[-1]
+                new_stdev = self.stdev[-1]
+
+            if new_val is not None:
+                self.history.append(new_val)
+                self.mean.append(new_val)
+                self.stdev.append(new_stdev)
+
+                # Compute new maximum.
+                if self.maximum is None or self.mean[-1] > self.maximum:
+                    self.maximum = self.mean[-1]
+
+
 
     def ema_update(self, average: float, new_value: float) -> float:
         """ Compute one exponential moving average update. """
 
-        return average * self.ema_alpha + new_value * (1.0 - self.ema_alpha)
+        return average * EMA_ALPHA + new_value * (1.0 - EMA_ALPHA)
 
     def state(self) -> Dict[str, Any]:
         """ Return a dictionary with the value of all state variables. """

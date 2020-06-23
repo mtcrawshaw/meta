@@ -208,7 +208,7 @@ def train(config: Dict[str, Any]) -> None:
             message = "Update %d | " % update_iteration
             message += str(metrics)
             message += "\t"
-            print(message, end="\n")
+            print(message, end="\r")
 
         # This is to ensure that printed out values don't get overwritten after we
         # finish.
