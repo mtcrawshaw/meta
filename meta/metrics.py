@@ -112,9 +112,9 @@ class Metric:
             mean = self.mean[-1]
             stdev = self.stdev[-1]
             maximum = self.maximum
-            message = "mean, maximum: %.5f, %.5f" % (mean, maximum)
+            message = "mean, max: %.5f, %.5f" % (mean, maximum)
         else:
-            message = "mean, maximum: %r, %r" % (None, None)
+            message = "mean, max: %r, %r" % (None, None)
 
         return message
 
