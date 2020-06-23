@@ -24,10 +24,8 @@ Current sprint:
     Add final metrics table to plot
     Deterministic acting
     Learning rate schedules
---> Evaluation during training (fix bug where rollout isn't cleared before evaluation
-      (nonzero hidden state gets used))
-    Saving and loading models
-    Script to perform hyperparameter grid search
+--> Evaluation during training
+    Script to perform hyperparameter random search
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -42,6 +40,7 @@ Future additions:
     - More learning rate schedule options
         - torch.optim.lr_scheduler.ReduceLROnPlateau
         - cyclic LR
+        - ?
     - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
 - Make tests deterministic
@@ -66,19 +65,12 @@ Possible additions:
 ----------------------------------------------------------------------------------------
 
 Environments to run PPO experiments on:
+- Ant
 - Hopper
 - HalfCheetah
-- bin_picking and other MetaWorld single task environments
+- MetaWorld single task environments
 - MT10
 - MT50
-
-Next:
-Allow option for metric to be point average instead of EMA
-Add evaluation metrics to plot
-Change evaluation to run for a certain number of episodes
-Change metrics so that you pass in an episode number with values
-Confirm that adding evaluation didn't mess up training: Just run a bunch of tests and
-  compare with previous results
 
 Training ideas:
 - More parallelization + longer rollouts (bigger batches)

@@ -26,7 +26,7 @@
     "recurrent": false,
 
     "evaluation_freq": 5,
-    "evaluation_rollouts": 2,
+    "evaluation_episodes": 2,
 
     "cuda": false,
     "seed": 1,

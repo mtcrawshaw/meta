@@ -186,7 +186,7 @@ def train(config: Dict[str, Any]) -> None:
             # Run evaluation and record metrics.
             policy.train = False
             evaluation_rewards, evaluation_successes = evaluate(
-                env, policy, rollout, config["evaluation_rollouts"],
+                env, policy, rollout, config["evaluation_episodes"],
             )
             policy.train = True
             step_metrics["eval_reward"] = evaluation_rewards
@@ -331,16 +331,17 @@ def collect_rollout(
 
 
 def evaluate(
-    env: Env, policy: PPOPolicy, rollout: RolloutStorage, num_rollouts: int
+    env: Env, policy: PPOPolicy, rollout: RolloutStorage, evaluation_episodes: int
 ) -> Tuple[List[float], List[float]]:
     """
-    Run evaluation of ``policy`` on environment ``env`` for ``num_rollouts`` rollouts.
-    Returns a list of the total reward and success/failure for each episode.
+    Run evaluation of ``policy`` on environment ``env`` for ``evaluation_episodes``
+    episodes. Returns a list of the total reward and success/failure for each episode.
     """
 
     evaluation_rewards = []
     evaluation_successes = []
-    for eval_iteration in range(num_rollouts):
+    num_episodes = 0
+    while num_episodes < evaluation_episodes:
 
         # Sample rollout and reset rollout storage.
         rollout, episode_rewards, episode_successes = collect_rollout(
@@ -351,5 +352,6 @@ def evaluate(
         # Update list of evaluation metrics.
         evaluation_rewards += episode_rewards
         evaluation_successes += episode_successes
+        num_episodes += len(episode_rewards)
 
     return evaluation_rewards, evaluation_successes
