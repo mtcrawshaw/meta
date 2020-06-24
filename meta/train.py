@@ -27,10 +27,11 @@ from meta.utils import compare_metrics, save_dir_from_name, METRICS_DIR
 gym.logger.set_level(40)
 
 
-def train(config: Dict[str, Any]) -> None:
+def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """
-    Main function for train.py, runs PPO training using settings from ``config``.
-    The expected entries of ``config`` are documented below.
+    Main function for train.py, runs PPO training using settings from ``config``.  The
+    expected entries of ``config`` are documented below. Returns a dictionary holding
+    values of performance metrics from training and evaluation.
 
     Parameters
     ----------
@@ -263,6 +264,8 @@ def train(config: Dict[str, Any]) -> None:
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
         plot(metrics.state(), plot_path)
+
+    return metrics.state()
 
 
 def collect_rollout(

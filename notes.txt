@@ -27,6 +27,10 @@ Current sprint:
 --> Evaluation during training
     Script to perform hyperparameter random search
 
+Current task:
+--> Compute evaluation metrics as EMA of point average
+    Change (mean, mean + stdev, mean - stdev) plots to be prettier
+
 Before merging to master:
 - Use black, pylint, and mypy to clean up
 - Make sure "pytest meta/" passes
@@ -61,6 +65,7 @@ Possible additions:
 - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
   for a variable in the range [0, 1]
 - Rendering of episode videos
+- Time various parts of the training process, save along with metrics
 
 ----------------------------------------------------------------------------------------
 
