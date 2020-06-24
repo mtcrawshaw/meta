@@ -17,11 +17,14 @@ get_fitness = lambda metrics: metrics["eval_reward"]["maximum"]
 GEOMETRIC = lambda factor: lambda val: val * 10 ** random.uniform(-factor, factor)
 ARITHMETIC = lambda shift: lambda val: val * (1.0 + random.uniform(-shift, shift))
 INCREMENT_INT = lambda radius: lambda val: random.randint(val - radius, val + radius)
-DISCRETE = lambda choices, mut_p: lambda val: random.choice(choices) if random.random() < mut_p else val
+DISCRETE = (
+    lambda choices, mut_p: lambda val: random.choice(choices)
+    if random.random() < mut_p
+    else val
+)
 PERTURBATIONS = {
     "num_ppo_epochs": (INCREMENT_INT(1), 1, 8),
     "num_minibatch": (INCREMENT_INT(1), 1, 8),
-
     "lr_schedule_type": (DISCRETE([None, "exponential", "cosine"], 0.2), None, None),
     "initial_lr": (GEOMETRIC(1), 1e-12, 1e-2),
     "final_lr": (GEOMETRIC(1), 1e-12, 1e-2),
@@ -35,7 +38,6 @@ PERTURBATIONS = {
     "clip_value_loss": (DISCRETE([True, False], 0.2), None, None),
     "normalize_advantages": (DISCRETE([True, False], 0.2), None, None),
     "normalize_transition": (DISCRETE([True, False], 0.2), None, None),
-
     "num_layers": (INCREMENT_INT(1), 1, 8),
     "hidden_size": (INCREMENT_INT(16), 2, 512),
     "recurrent": (DISCRETE([True, False], 0.2), None, None),
@@ -76,7 +78,9 @@ def mutate_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
             # Clip parameter, if necessary.
             if min_value is not None and max_value is not None:
-                new_config[param] = clip(new_config[param], min_value, max_value, prev_value)
+                new_config[param] = clip(
+                    new_config[param], min_value, max_value, prev_value
+                )
 
     return new_config
 
@@ -97,11 +101,11 @@ def valid_config(config: Dict[str, Any]) -> bool:
             valid = False
 
     return valid
-        
+
 
 def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
     """ Perform random search over hyperparameter configurations. """
-    
+
     # Read in base name.
     base_name = base_config["save_name"]
     if base_name is None:
@@ -144,7 +148,7 @@ def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
             fitness += trial_fitness
 
         fitness /= TRIALS_PER_CONFIG
-        
+
         # Compare current step to best so far.
         if best_fitness is None or fitness > best_fitness:
             print("New maximum reached: %.5f" % fitness)

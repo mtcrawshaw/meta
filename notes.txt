@@ -28,8 +28,8 @@ Current sprint:
     Script to perform hyperparameter random search
 
 Current task:
---> Compute evaluation metrics as EMA of point average
-    Change (mean, mean + stdev, mean - stdev) plots to be prettier
+    Compute evaluation metrics as EMA of point average
+--> Change (mean, mean + stdev, mean - stdev) plots to be prettier
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
