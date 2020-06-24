@@ -74,15 +74,12 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
 
             # Plot mean.
             axs[i].plot(x_axis, mean_array)
-            legend.append("%s mean" % metric_name)
+            legend.append(metric_name)
 
-            # Plot mean + stdev and mean - stdev.
+            # Fill space between mean and upper/lower std devs.
             upper_dev_array = mean_array + stdev_array
             lower_dev_array = mean_array - stdev_array
-            axs[i].plot(x_axis, upper_dev_array)
-            axs[i].plot(x_axis, lower_dev_array)
-            legend.append("%s mean + stdev" % metric_name)
-            legend.append("%s mean - stdev" % metric_name)
+            axs[i].fill_between(x_axis, lower_dev_array, upper_dev_array, alpha=0.2)
 
             # Add x-axis label.
             axs[i].set_xlabel("Training episodes")
