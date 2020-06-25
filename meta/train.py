@@ -261,6 +261,14 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         with open(metrics_path, "w") as metrics_file:
             json.dump(metrics.state(), metrics_file, indent=4)
 
+        # Try to save repo git hash. This will only work when running training from
+        # inside the repository.
+        try:
+            version_path = os.path.join(save_dir, "VERSION")
+            git_hash = os.system("git rev-parse HEAD > %s" % version_path)
+        except:
+            pass
+
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
         plot(metrics.state(), plot_path)

@@ -1,7 +1,10 @@
+import os
 import random
+import json
 from typing import Dict, Any
 
 from meta.train import train
+from meta.utils import save_dir_from_name
 
 
 # Number of training runs to execute for each hyperparameter configuration.
@@ -103,61 +106,110 @@ def valid_config(config: Dict[str, Any]) -> bool:
     return valid
 
 
+def check_name_uniqueness(
+    config: Dict[str, Any], base_name: str, iterations: int
+) -> None:
+    """
+    Check to make sure that there are no other saved experiments whose names coincide
+    with the current name. This is just to make sure that the saved results don't get
+    mixed up, with some trials being saved with a modified name to ensure uniqueness.
+    """
+
+    # Build list of names to check.
+    names_to_check = [base_name]
+    for iteration in range(iterations):
+        for trial in range(TRIALS_PER_CONFIG):
+            names_to_check.append("%s_%d_%d" % (base_name, iteration, trial))
+
+    # Check names.
+    for name in names_to_check:
+        if os.path.isdir(save_dir_from_name(name)):
+            raise ValueError(
+                "Saved result '%s' already exists. Results of hyperparameter searches"
+                " must have unique names." % name
+            )
+
+
 def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
     """ Perform random search over hyperparameter configurations. """
 
-    # Read in base name.
+    # Read in base name and make sure it is valid.
     base_name = base_config["save_name"]
     if base_name is None:
         raise ValueError(
             "config['save_name'] cannot be None for hyperparameter search."
         )
+    check_name_uniqueness(base_config, base_name, iterations)
 
     # Set random seed.
     random.seed(base_config["seed"])
 
+    # Initialize results.
+    results = {}
+    results["name"] = base_name
+    results["base_config"] = base_config
+    results["base_name"] = base_name
+    results["iterations"] = iterations
+    results["seed"] = base_config["seed"]
+
     # Training loop.
     config = base_config
     best_fitness = None
+    best_metrics = None
     best_config = base_config
     for iteration in range(iterations):
 
         # Perform training and compute resulting fitness for multiple trials.
         fitness = 0.0
+        iteration_results = {"trials": []}
         for trial in range(TRIALS_PER_CONFIG):
+
+            trial_results = {}
 
             # Set trial name and seed.
             trial_name = "%s_%d_%d" % (base_name, iteration, trial)
             config["save_name"] = trial_name
             config["seed"] = trial
 
-            # Run training.
-
-            # TEMP
-            print("Trial name: %s" % trial_name)
-            print("Config: %s" % config)
-            # ----
-            # metrics = train(config)
-            # ----
-            metrics = {"eval_reward": {"maximum": random.random()}}
-            # ----
-            print("Metrics: %s" % metrics)
-            print("")
-
+            # Run training and get fitness.
+            metrics = train(config)
             trial_fitness = get_fitness(metrics)
             fitness += trial_fitness
+
+            # Fill in trial results.
+            trial_results["name"] = trial_name
+            trial_results["config"] = dict(config)
+            trial_results["metrics"] = dict(metrics)
+            trial_results["fitness"] = trial_fitness
+            iteration_results["trials"].append(dict(trial_results))
 
         fitness /= TRIALS_PER_CONFIG
 
         # Compare current step to best so far.
+        new_max = False
         if best_fitness is None or fitness > best_fitness:
-            print("New maximum reached: %.5f" % fitness)
+            new_max = True
             best_fitness = fitness
             best_config = config
 
-        print("\n\n")
+        # Fill in iteration results.
+        iteration_results["fitness"] = fitness
+        iteration_results["maximum"] = new_max
 
         # Mutate config to produce a new one for next step.
         config = mutate_config(best_config)
         while not valid_config(config):
             config = mutate_config(best_config)
+
+    # Fill results.
+    results["iterations"] = dict(iteration_results)
+    results["best_config"] = dict(best_config)
+    results["best_fitness"] = best_fitness
+
+    # Save results.
+    save_dir = save_dir_from_name(base_name)
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    results_path = os.path.join(save_dir, "%s_results.json" % base_name)
+    with open(results_path, "w") as results_file:
+        json.dump(results, results_file, indent=4)
