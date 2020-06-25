@@ -24,8 +24,13 @@ Current sprint:
     Add final metrics table to plot
     Deterministic acting
     Learning rate schedules
---> Evaluation during training
-    Script to perform hyperparameter random search
+    Evaluation during training
+--> Script to perform hyperparameter random search
+
+Current task:
+    Get random search to run
+--> Write tests for hyperparameter_search.py
+    Move hp arguments/constants into an hp config file
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -43,12 +48,12 @@ Future additions:
         - ?
     - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
-- Make tests deterministic
 - Move tests outside of package
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
   to CV and NLP. This is way in the future. It will be a pain because we will have to
   call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
   just pass a reference in to the policy.
+- Fix EOFError when multiprocessing
 
 Possible additions:
 - Optimize data transfer to GPU
@@ -59,8 +64,13 @@ Possible additions:
 - Refactor naming in PPO implementation to clarify between episodes, rollouts, and
   trajectories
 - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
-  for a variable in the range [0, 1]
+  for a variable in the range [0, 1]. Easy way to do this is to assume that tanh^(-1)(X)
+  is normally distributed instead of X, compute mean + stdev and mean - stdev, then take
+  tanh of everything.
 - Rendering of episode videos
+- Time various parts of the training process, save along with metrics
+- Plots to show progression of various hyperparameters during hyperparameter search
+- More robust way to save repository version along with results
 
 ----------------------------------------------------------------------------------------
 

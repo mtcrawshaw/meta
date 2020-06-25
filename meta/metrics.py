@@ -27,8 +27,8 @@ class Metrics:
 
         self.train_reward = Metric()
         self.train_success = Metric()
-        self.eval_reward = Metric(ema=False)
-        self.eval_success = Metric(ema=False)
+        self.eval_reward = Metric(point_avg=True, ema_alpha=0.75, ema_threshold=10)
+        self.eval_success = Metric(point_avg=True, ema_alpha=0.75, ema_threshold=10)
 
         self.state_vars = [
             "train_reward",
@@ -89,11 +89,11 @@ class Metric:
     """ Class to store values for a single metric. """
 
     def __init__(
-        self, ema=True, ema_alpha=EMA_ALPHA, ema_threshold=EMA_THRESHOLD
+        self, point_avg=False, ema_alpha=EMA_ALPHA, ema_threshold=EMA_THRESHOLD
     ) -> None:
         """ Init function for Metric. """
 
-        self.ema = ema
+        self.point_avg = point_avg
         self.ema_alpha = ema_alpha
         self.ema_threshold = ema_threshold
 
@@ -121,47 +121,38 @@ class Metric:
     def update(self, values: List[float]) -> None:
         """ Update history, mean, and stdev with new values. """
 
-        if self.ema:
+        # Replace ``values`` with average of ``values`` if self.point_avg, using recent
+        # history to fill in if ``values`` is empty.
+        if self.point_avg:
 
-            # Add each episode's reward to history and update running estimates.
-            for value in values:
-                self.history.append(value)
-
-                # Compute a regular average and standard deviation when the number of
-                # data points is small, otherwise compute an EMA.
-                if len(self.history) <= self.ema_threshold:
-                    self.mean.append(np.mean(self.history))
-                    self.stdev.append(np.std(self.history))
-                else:
-                    old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
-                    self.mean.append(self.ema_update(self.mean[-1], value))
-                    new_second_moment = self.ema_update(old_second_moment, value ** 2)
-                    self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
-
-                # Compute new maximum.
-                if self.maximum is None or self.mean[-1] > self.maximum:
-                    self.maximum = self.mean[-1]
-
-        else:
-
-            # Just record mean and stdev of sample, using previous values if given an
-            # empty sample.
-            new_val = None
             if len(values) > 0:
                 new_val = np.mean(values)
-                new_stdev = np.std(values)
             elif len(self.mean) > 0:
                 new_val = self.mean[-1]
-                new_stdev = self.stdev[-1]
+            else:
+                # If ``values`` and history are both empty, do nothing.
+                return
 
-            if new_val is not None:
-                self.history.append(new_val)
-                self.mean.append(new_val)
-                self.stdev.append(new_stdev)
+            values = [new_val]
 
-                # Compute new maximum.
-                if self.maximum is None or self.mean[-1] > self.maximum:
-                    self.maximum = self.mean[-1]
+        # Add each new value to history and update running estimates.
+        for value in values:
+            self.history.append(value)
+
+            # Compute a regular average and standard deviation when the number of
+            # data points is small, otherwise compute an EMA.
+            if len(self.history) <= self.ema_threshold:
+                self.mean.append(np.mean(self.history))
+                self.stdev.append(np.std(self.history))
+            else:
+                old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
+                self.mean.append(self.ema_update(self.mean[-1], value))
+                new_second_moment = self.ema_update(old_second_moment, value ** 2)
+                self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+
+            # Compute new maximum.
+            if self.maximum is None or self.mean[-1] > self.maximum:
+                self.maximum = self.mean[-1]
 
     def ema_update(self, average: float, new_value: float) -> float:
         """ Compute one exponential moving average update. """
