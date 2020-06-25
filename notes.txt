@@ -26,11 +26,11 @@ Current sprint:
     Learning rate schedules
     Evaluation during training
 --> Script to perform hyperparameter random search
+    Additional training tricks/options
 
 Current task:
     Get random search to run
---> Write tests for hyperparameter_search.py
-    Move hp arguments/constants into an hp config file
+--> Move hp arguments/constants into an hp config file
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -43,6 +43,7 @@ Future additions:
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
     - More learning rate schedule options
+        - linear schedule
         - torch.optim.lr_scheduler.ReduceLROnPlateau
         - cyclic LR
         - ?
@@ -54,6 +55,9 @@ Future additions:
   call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
   just pass a reference in to the policy.
 - Fix EOFError when multiprocessing
+- More explicit way to handle configs. Would be nice to have a formal specification of
+  the config values, as well as a programmatic difference between different types of
+  configs
 
 Possible additions:
 - Optimize data transfer to GPU
@@ -71,6 +75,10 @@ Possible additions:
 - Time various parts of the training process, save along with metrics
 - Plots to show progression of various hyperparameters during hyperparameter search
 - More robust way to save repository version along with results
+- Another form of hyperparameter optimization: Change one variable at a time. So start
+  with a base config, choose a variable to vary while keeping all others fixed. Measure
+  fitness of configs with various values of target variable, choose best one and fix the
+  corresponding value of the target variable. Then repeat with a different variable.
 
 ----------------------------------------------------------------------------------------
 
@@ -82,8 +90,12 @@ Environments to run PPO experiments on:
 - MT10
 - MT50
 
-Training ideas:
-- More parallelization + longer rollouts (bigger batches)
+Training tricks/options to implement:
 - Normalize observation without transition
-- Search over everything
-- Read emprical study of on-policy RL for ideas
+- Linear learning rate schedule
+- Initialization (https://arxiv.org/abs/2006.05990)
+- Value function normalization (https://arxiv.org/abs/2006.05990)
+
+Training settings to try:
+- More parallelization + longer rollouts (bigger batches, GPU utilization is small)
+- Go over experience multiple times (num_ppo_epochs > num_minibatch)

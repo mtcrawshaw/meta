@@ -92,12 +92,13 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     # Write out table of final metrics.
     axs[-1].axis("off")
     row_labels = list(plotted_metrics)
-    col_labels = ["Maximum"]
+    col_labels = ["Maximum", "Final"]
     cell_text = []
     for metric_name in plotted_metrics:
         metric_state = metrics_state[metric_name]
         row_text = []
         row_text.append("%.5f" % metric_state["maximum"])
+        row_text.append("%.5f" % metric_state["mean"][-1])
         cell_text.append(list(row_text))
     axs[-1].table(
         cellText=cell_text,
