@@ -31,6 +31,7 @@ Current sprint:
 Current task:
     Get random search to run
 --> Move hp arguments/constants into an hp config file
+    Write tests for hyperparameter search
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -79,6 +80,7 @@ Possible additions:
   with a base config, choose a variable to vary while keeping all others fixed. Measure
   fitness of configs with various values of target variable, choose best one and fix the
   corresponding value of the target variable. Then repeat with a different variable.
+- Use Metrics objects outside of train() instead of state dictionary.
 
 ----------------------------------------------------------------------------------------
 

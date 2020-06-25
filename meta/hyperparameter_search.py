@@ -7,14 +7,6 @@ from meta.train import train
 from meta.utils import save_dir_from_name
 
 
-# Number of training runs to execute for each hyperparameter configuration.
-TRIALS_PER_CONFIG = 3
-
-
-# Fitness as a function of metrics returned from train().
-get_fitness = lambda metrics: metrics["eval_reward"]["maximum"]
-
-
 # Perturbation specifications for each parameter. Each value in ``PERTURBATIONS`` is a
 # 3-tuple consisting of a perturbation function, a minimum value, and a maximum value.
 GEOMETRIC = lambda factor: lambda val: val * 10 ** random.uniform(-factor, factor)
@@ -118,7 +110,7 @@ def check_name_uniqueness(
     # Build list of names to check.
     names_to_check = [base_name]
     for iteration in range(iterations):
-        for trial in range(TRIALS_PER_CONFIG):
+        for trial in range(config["trials_per_config"]):
             names_to_check.append("%s_%d_%d" % (base_name, iteration, trial))
 
     # Check names.
@@ -130,8 +122,38 @@ def check_name_uniqueness(
             )
 
 
-def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
-    """ Perform random search over hyperparameter configurations. """
+def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
+    """
+    Perform random search over hyperparameter configurations. Only argument is
+    ``hp_config``, a dictionary holding settings for training. The expected elements of
+    this dictionary are documented below.
+
+    Parameters
+    ----------
+    base_train_config : Dict[str, Any]
+        Config dictionary for function train() in meta/train.py. This is used as a
+        starting point for hyperparameter search.
+    hp_search_iterations : int
+        Number of different hyperparameter configurations to try in search sequence.
+    trials_per_config : int
+        Number of training runs to perform for each hyperparameter configuration. The
+        fitness of each training run is averaged to produce an overall fitness for each
+        hyperparameter configuration.
+    fitness_metric_name : str
+        Name of metric (key in metrics dictionary returned from train()) to use as
+        fitness function for hyperparameter search. Current supported values are
+        "train_reward", "eval_reward", "train_success", "eval_success".
+    fitness_metric_type : str
+        Either "mean" or "maximum", used to determine which value of metric given in
+        hp_config["fitnesss_metric_name"] to use as fitness, either the mean value at
+        the end of training or the maximum value throughout training.
+    seed : int
+        Random seed for hyperparameter search.
+    """
+
+    # Extract base training config and number of iterations.
+    base_config = hp_config["base_train_config"]
+    iterations = hp_config["hp_search_iterations"]
 
     # Read in base name and make sure it is valid.
     base_name = base_config["save_name"]
@@ -141,8 +163,27 @@ def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
         )
     check_name_uniqueness(base_config, base_name, iterations)
 
+    # Construct fitness as a function of metrics returned from train().
+    if config["fitness_metric_name"] not in [
+        "train_reward",
+        "eval_reward",
+        "train_success",
+        "eval_success",
+    ]:
+        raise ValueError(
+            "Unsupported metric name: '%s'." % config["fitness_metric_name"]
+        )
+    if config["fitness_metric_type"] == "mean":
+        get_fitness = lambda metrics: metrics[config["fitness_metric_name"]]["mean"][-1]
+    elif config["fitness_metric_type"] == "maximum":
+        get_fitness = lambda merics: metrics[config["fitness_metric_name"]]["maximum"]
+    else:
+        raise ValueError(
+            "Unsupported metric type: '%s'." % config["fitness_metric_type"]
+        )
+
     # Set random seed.
-    random.seed(base_config["seed"])
+    random.seed(hp_config["seed"])
 
     # Initialize results.
     results = {}
@@ -150,7 +191,7 @@ def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
     results["base_config"] = base_config
     results["base_name"] = base_name
     results["iterations"] = iterations
-    results["seed"] = base_config["seed"]
+    results["seed"] = hp_config["seed"]
 
     # Training loop.
     config = base_config
@@ -162,7 +203,7 @@ def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
         # Perform training and compute resulting fitness for multiple trials.
         fitness = 0.0
         iteration_results = {"trials": []}
-        for trial in range(TRIALS_PER_CONFIG):
+        for trial in range(config["trials_per_config"]):
 
             trial_results = {}
 
@@ -183,7 +224,7 @@ def hyperparameter_search(base_config: Dict[str, Any], iterations: int) -> None:
             trial_results["fitness"] = trial_fitness
             iteration_results["trials"].append(dict(trial_results))
 
-        fitness /= TRIALS_PER_CONFIG
+        fitness /= config["trials_per_config"]
 
         # Compare current step to best so far.
         new_max = False

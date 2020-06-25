@@ -12,12 +12,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "config_filename", type=str, help="Name of config file to load from.",
     )
-    parser.add_argument(
-        "--hp_search_iterations",
-        type=int,
-        default=None,
-        help="Perform hyperparameter search for this many iterations."
-    )
     args = parser.parse_args()
 
     # Load config file.
@@ -25,7 +19,10 @@ if __name__ == "__main__":
         config = json.load(config_file)
 
     # Either call a single training run or a hyperparameter search over multiple runs.
-    if args.hp_search_iterations is None:
-        train(config)
+    # This is currently the only way we have to distinguish between config files for
+    # hyperparameter searching and config files for training. Will have to change but
+    # it'll do for now.
+    if "hp_search_iterations" in config:
+        hyperparameter_search(config)
     else:
-        hyperparameter_search(config, args.hp_search_iterations)
+        train(config)
