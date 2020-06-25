@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # This is currently the only way we have to distinguish between config files for
     # hyperparameter searching and config files for training. Will have to change but
     # it'll do for now.
-    if "hp_search_iterations" in config:
+    if "search_iterations" in config:
         hyperparameter_search(config)
     else:
         train(config)

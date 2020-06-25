@@ -1,14 +1,14 @@
 {
     "base_train_config": {
-        "env_name": "CartPole-v1",
+        "env_name": "LunarLanderContinuous-v2",
 
-        "num_updates": 25,
-        "rollout_length": 5,
+        "num_updates": 10,
+        "rollout_length": 32,
         "num_ppo_epochs": 4,
         "num_minibatch": 1,
         "num_processes": 1,
 
-        "lr_schedule_type": "exponential",
+        "lr_schedule_type": "cosine",
         "initial_lr": 7e-4,
         "final_lr": 7e-4,
         "eps": 1e-5,
@@ -26,13 +26,13 @@
         "hidden_size": 64,
         "recurrent": false,
 
-        "evaluation_freq": 10,
-        "evaluation_episodes": 10,
+        "evaluation_freq": 4,
+        "evaluation_episodes": 5,
 
-        "cuda": true,
+        "cuda": false,
         "seed": 1,
-        "print_freq": 10,
-        "time_limit": null,
+        "print_freq": 4,
+        "time_limit": 64,
         "metrics_filename": null,
         "baseline_metrics_filename": null,
         "save_name": null
@@ -41,8 +41,8 @@
     "search_iterations": 2,
     "trials_per_config": 2,
 
-    "fitness_metric_name": "eval_reward",
-    "fitness_metric_type": "maximum",
+    "fitness_metric_name": "train_success",
+    "fitness_metric_type": "mean",
 
     "seed": 1
 }

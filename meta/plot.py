@@ -67,9 +67,9 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
             assert len(mean_array) == len(stdev_array)
 
             # Assign x-axis values to each data point.
+            num_intervals = len(mean_array) - 1 if len(mean_array) > 1 else 1
             x_axis = [
-                (i * max_metric_len) // (len(mean_array) - 1)
-                for i in range(len(mean_array))
+                (i * max_metric_len) // num_intervals for i in range(len(mean_array))
             ]
 
             # Plot mean.

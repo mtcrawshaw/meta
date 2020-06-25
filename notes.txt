@@ -2,6 +2,7 @@ Road map:
     PPO for single task
     Add MetaWorld support
 --> Better evaluation
+    MT10 baselines
     Splitting networks for MTL
     PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
     Splitting networks for meta learning
@@ -25,13 +26,13 @@ Current sprint:
     Deterministic acting
     Learning rate schedules
     Evaluation during training
---> Script to perform hyperparameter random search
-    Additional training tricks/options
+    Script to perform hyperparameter random search
+--> Additional training tricks/options
 
 Current task:
-    Get random search to run
---> Move hp arguments/constants into an hp config file
-    Write tests for hyperparameter search
+--> Normalize observation without transition
+    Linear learning rate schedule
+    Initialization (https://arxiv.org/abs/2006.05990)
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -50,6 +51,7 @@ Future additions:
         - ?
     - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
+    - Value function normalization
 - Move tests outside of package
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
   to CV and NLP. This is way in the future. It will be a pain because we will have to
@@ -91,12 +93,6 @@ Environments to run PPO experiments on:
 - MetaWorld single task environments
 - MT10
 - MT50
-
-Training tricks/options to implement:
-- Normalize observation without transition
-- Linear learning rate schedule
-- Initialization (https://arxiv.org/abs/2006.05990)
-- Value function normalization (https://arxiv.org/abs/2006.05990)
 
 Training settings to try:
 - More parallelization + longer rollouts (bigger batches, GPU utilization is small)
