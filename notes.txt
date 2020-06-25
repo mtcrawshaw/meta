@@ -91,6 +91,10 @@ Refactoring:
   trajectories
 - Use Metrics objects outside of train() instead of state dictionary.
 - Rename PPO parameters (i.e. gamma -> discount)
+- Get rid of redundant functionality for saving metrics
+- Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
+  have to do so much bullshit to save/load/compare metrics if the functionality was
+  modular
 
 ----------------------------------------------------------------------------------------
 

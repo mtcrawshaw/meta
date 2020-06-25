@@ -1,7 +1,7 @@
 import os
 import random
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Callable
 
 from meta.train import train
 from meta.utils import save_dir_from_name
@@ -39,7 +39,7 @@ def clip(val: float, min_value: float, max_value: float, prev_value: float) -> f
 
 
 def mutate_train_config(
-    hp_config: Dict[str, Any], train_config: Dict[str, Any]
+    search_params: Dict[str, Any], train_config: Dict[str, Any]
 ) -> Dict[str, Any]:
     """ Mutates a training config by perturbing individual elements. """
 
@@ -49,10 +49,10 @@ def mutate_train_config(
         new_config[param] = train_config[param]
 
         # Perturb parameter, if necessary.
-        if param in hp_config["search_params"]:
+        if param in search_params:
 
             # Construct perturbation function from settings.
-            param_settings = hp_config["search_params"][param]
+            param_settings = search_params[param]
             perturb_kwargs = param_settings["perturb_kwargs"]
             perturb = PERTURBATIONS[param_settings["perturb_type"]](**perturb_kwargs)
             min_value = (
@@ -117,6 +117,119 @@ def check_name_uniqueness(
             )
 
 
+def train_single_config(
+    train_config: Dict[str, Any],
+    trials_per_config: int,
+    fitness_fn: Callable,
+    config_save_name: str = None,
+    metrics_filename: str = None,
+    baseline_metrics_filename: str = None,
+) -> Tuple[float, Dict[str, Any]]:
+    """
+    Run training with a fixed config for ``trials_per_config`` trials, and return
+    fitness and a dictionary holding results.
+    """
+
+    # Perform training and compute resulting fitness for multiple trials.
+    fitness = 0.0
+    config_results = {}
+    config_results["trials"] = []
+    config_results["config"] = dict(train_config)
+    for trial in range(trials_per_config):
+
+        trial_results = {}
+
+        # Set trial name, seed, and metrics filenames for saving/comparison, if
+        # neccessary.
+        get_save_name = (
+            lambda name: "%s_%d" % (name, trial) if name is not None else None
+        )
+        train_config["save_name"] = get_save_name(config_save_name)
+        train_config["metrics_filename"] = get_save_name(metrics_filename)
+        train_config["baseline_metrics_filename"] = get_save_name(
+            baseline_metrics_filename
+        )
+        train_config["seed"] = trial
+
+        # Run training and get fitness.
+        metrics = train(train_config)
+        trial_fitness = fitness_fn(metrics)
+        fitness += trial_fitness
+
+        # Fill in trial results.
+        trial_results["trial"] = trial
+        trial_results["metrics"] = dict(metrics)
+        trial_results["fitness"] = trial_fitness
+        config_results["trials"].append(dict(trial_results))
+
+    fitness /= trials_per_config
+    config_results["fitness"] = fitness
+
+    return fitness, config_results
+
+
+def random_search(
+    base_config: Dict[str, Any],
+    iterations: int,
+    trials_per_config: int,
+    fitness_fn: Callable,
+    search_params: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Perform random search over hyperparameter configurations, returning the results.
+    """
+
+    # Initialize results.
+    results = {"iterations": []}
+
+    # Training loop.
+    config = dict(base_config)
+    best_fitness = None
+    best_metrics = None
+    best_config = dict(base_config)
+    for iteration in range(iterations):
+
+        # Run training for current config.
+        get_save_name = (
+            lambda name: "%s_%d" % (name, iteration) if name is not None else None
+        )
+        config_save_name = get_save_name(base_config["save_name"])
+        metrics_save_name = get_save_name(base_config["metrics_filename"])
+        baseline_metrics_save_name = get_save_name(
+            base_config["baseline_metrics_filename"]
+        )
+        fitness, config_results = train_single_config(
+            config,
+            trials_per_config,
+            fitness_fn,
+            config_save_name,
+            metrics_save_name,
+            baseline_metrics_save_name,
+        )
+
+        # Compare current step to best so far.
+        new_max = False
+        if best_fitness is None or fitness > best_fitness:
+            new_max = True
+            best_fitness = fitness
+            best_config = dict(config)
+
+        # Add maximum to config results, and add config results to overall results.
+        config_results["maximum"] = new_max
+        results["iterations"].append(dict(config_results))
+
+        # Mutate config to produce a new one for next step.
+        config = mutate_train_config(search_params, best_config)
+        while not valid_config(config):
+            config = mutate_train_config(search_params, best_config)
+
+    # Fill results.
+    results["best_config"] = dict(best_config)
+    results["best_fitness"] = best_fitness
+
+    return results
+
+
 def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
     """
     Perform random search over hyperparameter configurations. Only argument is
@@ -125,15 +238,23 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
 
     Parameters
     ----------
-    base_train_config : Dict[str, Any]
-        Config dictionary for function train() in meta/train.py. This is used as a
-        starting point for hyperparameter search.
+    search_type : str
+        Either "random" or "grid", defines the search strategy to use.
     search_iterations : int
-        Number of different hyperparameter configurations to try in search sequence.
+        Number of different hyperparameter configurations to try in search sequence. In
+        cases where the number of configurations is determined by ``search_params``
+        (such as when using grid search), the value of this variable is ignored, and the
+        determined value is used instead.
     trials_per_config : int
         Number of training runs to perform for each hyperparameter configuration. The
         fitness of each training run is averaged to produce an overall fitness for each
         hyperparameter configuration.
+    base_train_config : Dict[str, Any]
+        Config dictionary for function train() in meta/train.py. This is used as a
+        starting point for hyperparameter search.
+    search_params : Dict[str, Any]
+        Search specifications for each parameter, such as max/min values, etc. The
+        format of this dictionary varies between different search types.
     fitness_metric_name : str
         Name of metric (key in metrics dictionary returned from train()) to use as
         fitness function for hyperparameter search. Current supported values are
@@ -146,134 +267,57 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
         Random seed for hyperparameter search.
     """
 
-    # Extract base training config and number of iterations.
-    base_config = hp_config["base_train_config"]
+    # Extract info from config.
+    search_type = hp_config["search_type"]
     iterations = hp_config["search_iterations"]
     trials_per_config = hp_config["trials_per_config"]
+    base_config = hp_config["base_train_config"]
+    search_params = hp_config["search_params"]
+    fitness_metric_name = hp_config["fitness_metric_name"]
+    fitness_metric_type = hp_config["fitness_metric_type"]
+    seed = hp_config["seed"]
 
     # Read in base name and make sure it is valid.
     base_name = base_config["save_name"]
     if base_name is not None:
         check_name_uniqueness(base_name, iterations, trials_per_config)
 
-    # Construct fitness as a function of metrics returned from train().
-    if hp_config["fitness_metric_name"] not in [
+    # Construct fitness function.
+    if fitness_metric_name not in [
         "train_reward",
         "eval_reward",
         "train_success",
         "eval_success",
     ]:
-        raise ValueError(
-            "Unsupported metric name: '%s'." % hp_config["fitness_metric_name"]
-        )
-    if hp_config["fitness_metric_type"] == "mean":
-        get_fitness = lambda metrics: metrics[hp_config["fitness_metric_name"]]["mean"][
-            -1
-        ]
-    elif hp_config["fitness_metric_type"] == "maximum":
-        get_fitness = lambda merics: metrics[hp_config["fitness_metric_name"]][
-            "maximum"
-        ]
+        raise ValueError("Unsupported metric name: '%s'." % fitness_metric_name)
+    if fitness_metric_type == "mean":
+        fitness_fn = lambda metrics: metrics[fitness_metric_name]["mean"][-1]
+    elif fitness_metric_type == "maximum":
+        fitness_fn = lambda metrics: metrics[fitness_metric_name]["maximum"]
     else:
-        raise ValueError(
-            "Unsupported metric type: '%s'." % hp_config["fitness_metric_type"]
-        )
+        raise ValueError("Unsupported metric type: '%s'." % fitness_metric_type)
 
     # Set random seed.
-    random.seed(hp_config["seed"])
+    random.seed(seed)
 
-    # Initialize results.
-    results = {}
-    results["name"] = base_name
-    results["base_config"] = base_config
-    results["iterations"] = iterations
-    results["seed"] = hp_config["seed"]
+    # Run random search.
+    results = random_search(
+        base_config, iterations, trials_per_config, fitness_fn, search_params
+    )
 
-    # If provided "metrics_filename" or "baseline_metrics_filename" in ``base_config``,
-    # copy a corresponding value to the same entry of all trial configs.
-    metrics_filename = None
-    baseline_metrics_filename = None
-    if "metrics_filename" in base_config:
-        metrics_filename = base_config["metrics_filename"]
-    if "baseline_metrics_filename" in base_config:
-        baseline_metrics_filename = base_config["baseline_metrics_filename"]
-
-    # Training loop.
-    config = base_config
-    best_fitness = None
-    best_metrics = None
-    best_config = base_config
-    for iteration in range(iterations):
-
-        # Perform training and compute resulting fitness for multiple trials.
-        fitness = 0.0
-        iteration_results = {"trials": []}
-        for trial in range(trials_per_config):
-
-            trial_results = {}
-
-            # Set trial name, seed, and metrics filenames for saving/comparison, if
-            # neccessary.
-            trial_name = "%s_%d_%d" % (base_name, iteration, trial)
-            if base_name is not None:
-                config["save_name"] = trial_name
-            config["seed"] = trial
-            if metrics_filename is not None:
-                config["metrics_filename"] = "%s_%d_%d" % (
-                    metrics_filename,
-                    iteration,
-                    trial,
-                )
-            if baseline_metrics_filename is not None:
-                config["baseline_metrics_filename"] = "%s_%d_%d" % (
-                    baseline_metrics_filename,
-                    iteration,
-                    trial,
-                )
-
-            # Run training and get fitness.
-            metrics = train(config)
-            print(metrics)
-            trial_fitness = get_fitness(metrics)
-            fitness += trial_fitness
-
-            # Fill in trial results.
-            trial_results["name"] = trial_name
-            trial_results["trial"] = trial
-            trial_results["config"] = dict(config)
-            trial_results["metrics"] = dict(metrics)
-            trial_results["fitness"] = trial_fitness
-            iteration_results["trials"].append(dict(trial_results))
-
-        fitness /= trials_per_config
-
-        # Compare current step to best so far.
-        new_max = False
-        if best_fitness is None or fitness > best_fitness:
-            new_max = True
-            best_fitness = fitness
-            best_config = config
-
-        # Fill in iteration results.
-        iteration_results["fitness"] = fitness
-        iteration_results["maximum"] = new_max
-        iteration_results["iteration"] = iteration
-
-        # Mutate config to produce a new one for next step.
-        config = mutate_train_config(hp_config, best_config)
-        while not valid_config(config):
-            config = mutate_train_config(hp_config, best_config)
-
-    # Fill results.
-    results["iterations"] = dict(iteration_results)
-    results["best_config"] = dict(best_config)
-    results["best_fitness"] = best_fitness
-
-    # Save results.
+    # Save results and config.
     if base_name is not None:
+
+        # Create save directory.
         save_dir = save_dir_from_name(base_name)
-        if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
+        os.makedirs(save_dir)
+
+        # Save config.
+        config_path = os.path.join(save_dir, "%s_config.json" % base_name)
+        with open(config_path, "w") as config_file:
+            json.dump(hp_config, config_file, indent=4)
+
+        # Save results.
         results_path = os.path.join(save_dir, "%s_results.json" % base_name)
         with open(results_path, "w") as results_file:
             json.dump(results, results_file, indent=4)

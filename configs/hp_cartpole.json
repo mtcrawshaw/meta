@@ -1,4 +1,5 @@
 {
+    "search_type": "random",
     "search_iterations": 2,
     "trials_per_config": 2,
 
