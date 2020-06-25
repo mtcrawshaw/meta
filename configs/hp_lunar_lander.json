@@ -1,4 +1,7 @@
 {
+    "search_iterations": 2,
+    "trials_per_config": 2,
+
     "base_train_config": {
         "env_name": "LunarLanderContinuous-v2",
 
@@ -38,8 +41,106 @@
         "save_name": null
     },
 
-    "search_iterations": 2,
-    "trials_per_config": 2,
+    "search_params": {
+        "num_ppo_epochs": {
+            "perturb_type": "increment",
+            "perturb_kwargs": {"radius": 1},
+            "min_value": 1,
+            "max_value": 8
+        },
+        "num_minibatch": {
+            "perturb_type": "increment",
+            "perturb_kwargs": {"radius": 1},
+            "min_value": 1,
+            "max_value": 8
+        },
+        "lr_schedule_type": {
+            "perturb_type": "discrete",
+            "perturb_kwargs": {"choices": [null, "exponential", "cosine"], "mut_p": 0.2}
+        },
+        "initial_lr": {
+            "perturb_type": "geometric",
+            "perturb_kwargs": {"factor": 1},
+            "min_value": 1e-12,
+            "max_value": 1e-2
+        },
+        "final_lr": {
+            "perturb_type": "geometric",
+            "perturb_kwargs": {"factor": 1},
+            "min_value": 1e-12,
+            "max_value": 1e-2
+        },
+        "eps": {
+            "perturb_type": "geometric",
+            "perturb_kwargs": {"factor": 1},
+            "min_value": 1e-12,
+            "max_value": 1e-2
+        },
+        "value_loss_coeff": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.05,
+            "max_value": 5.0
+        },
+        "entropy_loss_coeff": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.0,
+            "max_value": 1.0
+        },
+        "gamma": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.1,
+            "max_value": 1.0
+        },
+        "gae_lambda": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.1,
+            "max_value": 1.0
+        },
+        "max_grad_norm": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.01,
+            "max_value": 5.0
+        },
+        "clip_param": {
+            "perturb_type": "arithmetic",
+            "perturb_kwargs": {"shift": 0.1},
+            "min_value": 0.01,
+            "max_value": 10.0
+        },
+        "clip_value_loss": {
+            "perturb_type": "discrete",
+            "perturb_kwargs": {"choices": [true, false], "mut_p": 0.2}
+        },
+        "normalize_advantages": {
+            "perturb_type": "discrete",
+            "perturb_kwargs": {"choices": [true, false], "mut_p": 0.2}
+        },
+        "normalize_transition": {
+            "perturb_type": "discrete",
+            "perturb_kwargs": {"choices": [true, false], "mut_p": 0.2}
+        },
+        "num_layers": {
+            "perturb_type": "increment",
+            "perturb_kwargs": {"radius": 1},
+            "min_value": 1,
+            "max_value": 8
+        },
+        "hidden_size": {
+            "perturb_type": "increment",
+            "perturb_kwargs": {"radius": 16},
+            "min_value": 2,
+            "max_value": 512
+        },
+        "recurrent": {
+            "perturb_type": "discrete",
+            "perturb_kwargs": {"choices": [true, false], "mut_p": 0.2}
+        }
+    },
 
     "fitness_metric_name": "train_success",
     "fitness_metric_type": "mean",

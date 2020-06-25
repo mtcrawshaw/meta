@@ -7,35 +7,16 @@ from meta.train import train
 from meta.utils import save_dir_from_name
 
 
-# Perturbation specifications for each parameter. Each value in ``PERTURBATIONS`` is a
-# 3-tuple consisting of a perturbation function, a minimum value, and a maximum value.
-GEOMETRIC = lambda factor: lambda val: val * 10 ** random.uniform(-factor, factor)
-ARITHMETIC = lambda shift: lambda val: val * (1.0 + random.uniform(-shift, shift))
-INCREMENT_INT = lambda radius: lambda val: random.randint(val - radius, val + radius)
-DISCRETE = (
-    lambda choices, mut_p: lambda val: random.choice(choices)
-    if random.random() < mut_p
-    else val
-)
+# Perturbation functions used to mutate parameters for random search.
 PERTURBATIONS = {
-    "num_ppo_epochs": (INCREMENT_INT(1), 1, 8),
-    "num_minibatch": (INCREMENT_INT(1), 1, 8),
-    "lr_schedule_type": (DISCRETE([None, "exponential", "cosine"], 0.2), None, None),
-    "initial_lr": (GEOMETRIC(1), 1e-12, 1e-2),
-    "final_lr": (GEOMETRIC(1), 1e-12, 1e-2),
-    "eps": (GEOMETRIC(1), 1e-12, 1e-3),
-    "value_loss_coeff": (ARITHMETIC(0.1), 0.05, 5.0),
-    "entropy_loss_coeff": (ARITHMETIC(0.1), 0.0001, 1.0),
-    "gamma": (ARITHMETIC(0.1), 0.1, 1.0),
-    "gae_lambda": (ARITHMETIC(0.1), 0.1, 1.0),
-    "max_grad_norm": (ARITHMETIC(0.1), 0.01, 5.0),
-    "clip_param": (ARITHMETIC(0.1), 0.01, 5.0),
-    "clip_value_loss": (DISCRETE([True, False], 0.2), None, None),
-    "normalize_advantages": (DISCRETE([True, False], 0.2), None, None),
-    "normalize_transition": (DISCRETE([True, False], 0.2), None, None),
-    "num_layers": (INCREMENT_INT(1), 1, 8),
-    "hidden_size": (INCREMENT_INT(16), 2, 512),
-    "recurrent": (DISCRETE([True, False], 0.2), None, None),
+    "geometric": lambda factor: lambda val: val * 10 ** random.uniform(-factor, factor),
+    "arithmetic": lambda shift: lambda val: val * (1.0 + random.uniform(-shift, shift)),
+    "increment": lambda radius: lambda val: random.randint(val - radius, val + radius),
+    "discrete": (
+        lambda choices, mut_p: lambda val: random.choice(choices)
+        if random.random() < mut_p
+        else val
+    ),
 }
 
 
@@ -57,22 +38,36 @@ def clip(val: float, min_value: float, max_value: float, prev_value: float) -> f
     return val
 
 
-def mutate_config(config: Dict[str, Any]) -> Dict[str, Any]:
+def mutate_train_config(
+    hp_config: Dict[str, Any], train_config: Dict[str, Any]
+) -> Dict[str, Any]:
     """ Mutates a training config by perturbing individual elements. """
 
     # Build up new config.
     new_config: Dict[str, Any] = {}
-    for param in config:
-        new_config[param] = config[param]
+    for param in train_config:
+        new_config[param] = train_config[param]
 
         # Perturb parameter, if necessary.
-        if param in PERTURBATIONS:
-            prev_value = config[param]
-            perturb, min_value, max_value = PERTURBATIONS[param]
-            new_config[param] = perturb(config[param])
+        if param in hp_config["search_params"]:
+
+            # Construct perturbation function from settings.
+            param_settings = hp_config["search_params"][param]
+            perturb_kwargs = param_settings["perturb_kwargs"]
+            perturb = PERTURBATIONS[param_settings["perturb_type"]](**perturb_kwargs)
+            min_value = (
+                param_settings["min_value"] if "min_value" in param_settings else None
+            )
+            max_value = (
+                param_settings["max_value"] if "max_value" in param_settings else None
+            )
+
+            # Perturb parameter.
+            new_config[param] = perturb(train_config[param])
 
             # Clip parameter, if necessary.
             if min_value is not None and max_value is not None:
+                prev_value = train_config[param]
                 new_config[param] = clip(
                     new_config[param], min_value, max_value, prev_value
                 )
@@ -265,9 +260,9 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
         iteration_results["iteration"] = iteration
 
         # Mutate config to produce a new one for next step.
-        config = mutate_config(best_config)
+        config = mutate_train_config(hp_config, best_config)
         while not valid_config(config):
-            config = mutate_config(best_config)
+            config = mutate_train_config(hp_config, best_config)
 
     # Fill results.
     results["iterations"] = dict(iteration_results)
