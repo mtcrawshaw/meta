@@ -13,6 +13,7 @@ from meta.hyperparameter_search import hyperparameter_search
 RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")
 GRID_CONFIG_PATH = os.path.join("configs", "hp_grid.json")
 GRID_TEST_CONFIG_PATH = os.path.join("configs", "hp_grid_test.json")
+IC_GRID_CONFIG_PATH = os.path.join("configs", "hp_IC_grid.json")
 
 
 def test_hp_search_random_metrics() -> None:
@@ -96,3 +97,79 @@ def test_hp_search_grid_values() -> None:
     assert all(c1 != c2 for c1, c2 in itertools.combinations(expected_configs, 2))
     for expected_config in expected_configs:
         assert expected_config in actual_configs
+
+
+def test_hp_search_IC_grid_metrics() -> None:
+    """
+    Runs hyperparameter IC grid search and compares metrics against a saved baseline for
+    the Cartpole environment.
+    """
+
+    # Load hyperparameter search config.
+    with open(IC_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["base_train_config"]["baseline_metrics_filename"] = "hp_IC_grid"
+
+    # Run training.
+    hyperparameter_search(config)
+
+
+def test_hp_search_IC_grid_values() -> None:
+    """
+    Runs hyperparameter IC grid search and makes sure that the correct parameter
+    combinations are used for training.
+    """
+
+    # Load hyperparameter search config.
+    with open(IC_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Construct expected param value intervals.
+    param_intervals = {
+        "initial_lr": [1e-5, 1e-3],
+        "clip_param": [0.2, 1.0],
+        "num_layers": [1, 8],
+        "recurrent": [True, False],
+    }
+
+    # Run training and extract actual configs from results.
+    results = hyperparameter_search(config)
+    actual_configs = [
+        config_results["config"] for config_results in results["iterations"]
+    ]
+
+    # Verify configs from training.
+    iteration = 0
+    best_param_vals = {}
+    for param_name, param_values in param_intervals.items():
+
+        param_fitnesses = {}
+
+        for param_val in param_values:
+
+            # Check values.
+            assert actual_configs[iteration][param_name] == param_val
+            for best_param_name, best_param_val in best_param_vals.items():
+                assert actual_configs[iteration][best_param_name] == best_param_val
+
+            # Store fitnesses for comparison.
+            param_fitnesses[param_val] = results["iterations"][iteration]["fitness"]
+            iteration += 1
+
+        best_param_val = dict_argmax(param_fitnesses)
+        best_param_vals[param_name] = best_param_val
+
+
+def dict_argmax(d: Dict[Any, Any]) -> Any:
+    """ Compute argmax for a dictionary with numerical values. """
+
+    argmax = None
+    best_val = None
+    for arg, val in d.items():
+        if argmax is None or val > best_val:
+            argmax = arg
+            best_val = val
+
+    return argmax

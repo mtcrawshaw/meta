@@ -96,19 +96,38 @@ def valid_config(config: Dict[str, Any]) -> bool:
 
 
 def check_name_uniqueness(
-    base_name: str, iterations: int, trials_per_config: int,
+    base_name: str,
+    search_type: str,
+    iterations: int,
+    trials_per_config: int,
+    num_param_values: List[int] = None,
 ) -> None:
     """
     Check to make sure that there are no other saved experiments whose names coincide
     with the current name. This is just to make sure that the saved results don't get
-    mixed up, with some trials being saved with a modified name to ensure uniqueness.
+    mixed up, with some trials being saved with a modified name to ensure uniqueness. We
+    do some weirdness here to handle cases of different search types, since the naming
+    is slightly different for IC grid.
     """
 
     # Build list of names to check.
-    names_to_check = [base_name]
-    for iteration in range(iterations):
-        for trial in range(trials_per_config):
-            names_to_check.append("%s_%d_%d" % (base_name, iteration, trial))
+    if search_type in ["grid", "random"]:
+        assert num_param_values is None
+        names_to_check = [base_name]
+        for iteration in range(iterations):
+            for trial in range(trials_per_config):
+                names_to_check.append("%s_%d_%d" % (base_name, iteration, trial))
+    elif search_type == "IC_grid":
+        assert num_param_values is not None
+        names_to_check = [base_name]
+        for param_num, param_len in enumerate(num_param_values):
+            for param_iteration in range(param_len):
+                for trial in range(trials_per_config):
+                    names_to_check.append(
+                        "%s_%d_%d_%d" % (base_name, param_num, param_iteration, trial)
+                    )
+    else:
+        raise NotImplementedError
 
     # Check names.
     for name in names_to_check:
@@ -351,7 +370,6 @@ def grid_search(
         configs.append(dict(config))
 
     # Training loop.
-    config = dict(base_config)
     best_fitness = None
     best_config = dict(base_config)
     for iteration, config in enumerate(configs):
@@ -389,6 +407,97 @@ def grid_search(
     return results
 
 
+def IC_grid_search(
+    base_config: Dict[str, Any],
+    iterations: int,
+    trials_per_config: int,
+    fitness_fn: Callable,
+    search_params: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Perform iterated constrained grid search over hyperparameter configurations,
+    returning the results. In this style of search, we only vary one parameter at a
+    time. For each parameter, we do a mini grid search, where we try configurations
+    where all other parameters are held fixed, and our parameter of interest varies over
+    an interval. The parameter of interest is then fixed at whichever value led to the
+    best fitness, and a new parameter is varied. Each parameter is varied once, in the
+    order specified by search_params.
+    """
+
+    # Initialize results.
+    results = {"iterations": []}
+
+    # Construct list of values for each variable parameter to vary over.
+    param_values = {}
+    for param_name, param_settings in search_params.items():
+        param_values[param_name] = get_param_values(param_settings)
+
+    # Training loop. We set config values for all varying parameters to their median
+    # values. We do this to ensure that, on each IC grid iteration, the best
+    # configuration so far is included in the configurations to try. If the values of
+    # the varying parameters in ``base_config`` aren't included in the intervals
+    # specified in ``search_params``, then the original values of the varying parameters
+    # are never revisited. We avoid this by explicitly setting the values of the varying
+    # parameters to their median values in the given intervals.
+    config = dict(base_config)
+    for param_name, param_interval in param_values.items():
+        config[param_name] = param_interval[len(param_interval) // 2]
+    best_fitness = None
+    best_config = dict(base_config)
+    for param_num, (param_name, param_settings) in enumerate(search_params.items()):
+
+        # Find best value of parameter ``param_name``.
+        best_param_fitness = None
+        best_param_val = None
+
+        for val_num, param_val in enumerate(param_values[param_name]):
+
+            # Set value of current param of interest in current config.
+            config[param_name] = param_val
+
+            # Run training for current config.
+            get_save_name = (
+                lambda name: "%s_%d_%d" % (name, param_num, val_num)
+                if name is not None
+                else None
+            )
+            config_save_name = get_save_name(base_config["save_name"])
+            metrics_save_name = get_save_name(base_config["metrics_filename"])
+            baseline_metrics_save_name = get_save_name(
+                base_config["baseline_metrics_filename"]
+            )
+            fitness, config_results = train_single_config(
+                config,
+                trials_per_config,
+                fitness_fn,
+                config_save_name,
+                metrics_save_name,
+                baseline_metrics_save_name,
+            )
+
+            # Compare current step to best so far.
+            if best_fitness is None or fitness > best_fitness:
+                best_fitness = fitness
+                best_config = dict(config)
+
+            # Compare current step to best among current IC grid iteration.
+            if best_param_fitness is None or fitness > best_param_fitness:
+                best_param_fitness = fitness
+                best_param_val = param_val
+
+            # Add maximum to config results, and add config results to overall results.
+            results["iterations"].append(dict(config_results))
+
+        # Fix parameter value to that which led to highest fitness.
+        config[param_name] = best_param_val
+
+    # Fill results.
+    results["best_config"] = dict(best_config)
+    results["best_fitness"] = best_fitness
+
+    return results
+
+
 def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform random search over hyperparameter configurations. Only argument is
@@ -399,7 +508,7 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     Parameters
     ----------
     search_type : str
-        Either "random" or "grid", defines the search strategy to use.
+        Either "random", "grid", or "IC_grid", defines the search strategy to use.
     search_iterations : int
         Number of different hyperparameter configurations to try in search sequence. In
         cases where the number of configurations is determined by ``search_params``
@@ -437,9 +546,10 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     fitness_metric_type = hp_config["fitness_metric_type"]
     seed = hp_config["seed"]
 
-    # Ignore value in hp_config["search_iterations"] during grid search, since the
-    # number of iterations is determined by hp_config["search_params"].
-    if hp_config["search_type"] == "grid":
+    # Ignore value in hp_config["search_iterations"] during grid search and IC grid
+    # search, since the number of iterations is determined by
+    # hp_config["search_params"].
+    if search_type in ["grid", "IC_grid"]:
         num_param_values = []
         for param_settings in search_params.values():
             if "num_values" in param_settings:
@@ -448,12 +558,28 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
                 num_param_values.append(len(param_settings["choices"]))
             else:
                 raise ValueError("Invalid ``search_params`` value in config.")
-        iterations = reduce(lambda a, b: a * b, num_param_values)
+        if search_type == "grid":
+            iterations = reduce(lambda a, b: a * b, num_param_values)
+        elif search_type == "IC_grid":
+            iterations = sum(num_param_values)
+        else:
+            raise NotImplementedError
 
-    # Read in base name and make sure it is valid.
+    # Read in base name and make sure it is valid. Naming is slightly different for
+    # different search strategies, so we do some weirdness here to make one function
+    # which handles all cases.
     base_name = base_config["save_name"]
     if base_name is not None:
-        check_name_uniqueness(base_name, iterations, trials_per_config)
+        if search_type == "IC_grid":
+            check_name_uniqueness(
+                base_name,
+                search_type,
+                iterations,
+                trials_per_config,
+                num_param_values=num_param_values,
+            )
+        else:
+            check_name_uniqueness(base_name, search_type, iterations, trials_per_config)
 
     # Construct fitness function.
     if fitness_metric_name not in [
@@ -479,7 +605,7 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     elif hp_config["search_type"] == "grid":
         search_fn = grid_search
     elif hp_config["search_type"] == "IC_grid":
-        raise NotImplementedError
+        search_fn = IC_grid_search
     results = search_fn(
         base_config, iterations, trials_per_config, fitness_fn, search_params
     )

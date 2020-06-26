@@ -31,9 +31,11 @@ Current sprint:
     Additional training tricks/options
 
 Current task (Hyperparameter search):
---> Add grid search
+    Add grid search
     Add iterated constrained grid search
     Write tests for grid search and IC grid search
+--> Fix random seed setting for individual trials
+    Cache metrics results to avoid redundant training
 
 Next task (Additional training tricks/options):
     Normalize observation without transition
