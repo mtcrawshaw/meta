@@ -217,14 +217,14 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     if config["metrics_filename"] is not None:
         if not os.path.isdir(METRICS_DIR):
             os.makedirs(METRICS_DIR)
-        metrics_path = os.path.join(METRICS_DIR, config["metrics_filename"])
+        metrics_path = os.path.join(METRICS_DIR, "%s.pkl" % config["metrics_filename"])
         with open(metrics_path, "wb") as metrics_file:
             pickle.dump(metrics.history(), metrics_file)
 
     # Compare output_metrics to baseline if necessary.
     if config["baseline_metrics_filename"] is not None:
         baseline_metrics_path = os.path.join(
-            METRICS_DIR, config["baseline_metrics_filename"]
+            METRICS_DIR, "%s.pkl" % config["baseline_metrics_filename"]
         )
         compare_metrics(metrics.history(), baseline_metrics_path)
 

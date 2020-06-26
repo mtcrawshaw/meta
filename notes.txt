@@ -2,8 +2,10 @@ Road map:
     PPO for single task
     Add MetaWorld support
 --> Better evaluation
+    MT10/MT50 baselines
     Splitting networks for MTL
-    PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL
+    PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL?
+    ML10/ML45 baselines
     Splitting networks for meta learning
     MAML and other baselines for meta learning
     Hyperparameter optimization
@@ -25,16 +27,19 @@ Current sprint:
     Deterministic acting
     Learning rate schedules
     Evaluation during training
---> Script to perform hyperparameter random search
+    Hyperparameter search
+--> Additional training tricks/options
 
-Current task:
-    Get random search to run
---> Write tests for hyperparameter_search.py
-    Move hp arguments/constants into an hp config file
+Current task (Additional training tricks/options):
+    Normalize observation without transition
+    Linear learning rate schedule
+    Initialization (https://arxiv.org/abs/2006.05990)
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
 - Make sure "pytest meta/" passes
+
+----------------------------------------------------------------------------------------
 
 Future additions:
 - Test PPO for environments with action space Box((n1, n2))
@@ -46,31 +51,49 @@ Future additions:
         - torch.optim.lr_scheduler.ReduceLROnPlateau
         - cyclic LR
         - ?
-    - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
+    - Value function normalization
+    - Independent options for normalizing observations and rewards
+- More explicit way to handle configs. Would be nice to have a formal specification of
+  the config values, as well as a programmatic difference between different types of
+  configs
+
+Possible additions:
+- Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
+  one, randomly pick one that is different from previous.
+- Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
+  for a variable in the range [0, 1]. Easy way to do this is to assume that tan^(-1)(X)
+  is normally distributed instead of X, compute mean + stdev and mean - stdev, then take
+  tan of everything tp put it back into interval [0, 1].
+- Rendering of episode videos
+- Time various parts of the training process, save along with metrics
+- Plots to show progression of various hyperparameters during hyperparameter search
+- More robust way to save repository version along with results
+- Determine whether or not policy has solved environment (N successes in a row, usually)
+
+Refactoring:
 - Move tests outside of package
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
   to CV and NLP. This is way in the future. It will be a pain because we will have to
   call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
   just pass a reference in to the policy.
 - Fix EOFError when multiprocessing
-
-Possible additions:
 - Optimize data transfer to GPU
-- Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
-  one, randomly pick one that is different from previous.
 - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
   indexing to construct the batches instead of looping and stacking?
 - Refactor naming in PPO implementation to clarify between episodes, rollouts, and
   trajectories
-- Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
-  for a variable in the range [0, 1]. Easy way to do this is to assume that tanh^(-1)(X)
-  is normally distributed instead of X, compute mean + stdev and mean - stdev, then take
-  tanh of everything.
-- Rendering of episode videos
-- Time various parts of the training process, save along with metrics
-- Plots to show progression of various hyperparameters during hyperparameter search
-- More robust way to save repository version along with results
+- Use Metrics objects outside of train() instead of state dictionary.
+- Rename PPO parameters (i.e. gamma -> discount)
+- Get rid of redundant functionality for saving metrics
+- Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
+  have to do so much bullshit to save/load/compare metrics if the functionality was
+  modular
+- Clean up hyperparameter_search() a lot:
+  - Break it into separate files
+  - Get rid of repeated code in different search strategies
+  - Clean up redundant options between "base_train_config" and "hp_config"
+  - A billion other things, it's disgusting
 
 ----------------------------------------------------------------------------------------
 
@@ -81,9 +104,12 @@ Environments to run PPO experiments on:
 - MetaWorld single task environments
 - MT10
 - MT50
+- Move optimizer and learning schedule outside of ppo.py in order to generalize training
+  to CV and NLP. This is way in the future. It will be a pain because we will have to
+  call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
+  just pass a reference in to the policy.
+- Fix EOFError when multiprocessing
 
-Training ideas:
-- More parallelization + longer rollouts (bigger batches)
-- Normalize observation without transition
-- Search over everything
-- Read emprical study of on-policy RL for ideas
+Training settings to try:
+- More parallelization + longer rollouts (bigger batches, GPU utilization is small)
+- Go over experience multiple times (num_ppo_epochs > num_minibatch)

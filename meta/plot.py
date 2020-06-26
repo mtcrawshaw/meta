@@ -67,9 +67,9 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
             assert len(mean_array) == len(stdev_array)
 
             # Assign x-axis values to each data point.
+            num_intervals = len(mean_array) - 1 if len(mean_array) > 1 else 1
             x_axis = [
-                (i * max_metric_len) // (len(mean_array) - 1)
-                for i in range(len(mean_array))
+                (i * max_metric_len) // num_intervals for i in range(len(mean_array))
             ]
 
             # Plot mean.
@@ -89,15 +89,22 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
         # Add legend to subplot.
         axs[i].legend(legend, loc="upper left")
 
+    # Helper function for constructing cell text.
+    possibly_none = lambda val: "%.5f" % val if val is not None else "None"
+
     # Write out table of final metrics.
     axs[-1].axis("off")
     row_labels = list(plotted_metrics)
-    col_labels = ["Maximum"]
+    col_labels = ["Maximum", "Final"]
     cell_text = []
     for metric_name in plotted_metrics:
         metric_state = metrics_state[metric_name]
         row_text = []
-        row_text.append("%.5f" % metric_state["maximum"])
+        row_text.append(possibly_none(metric_state["maximum"]))
+        if len(metric_state["mean"]) == 0:
+            row_text.append("None")
+        else:
+            row_text.append(possibly_none(metric_state["mean"][-1]))
         cell_text.append(list(row_text))
     axs[-1].table(
         cellText=cell_text,
