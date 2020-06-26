@@ -89,6 +89,9 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
         # Add legend to subplot.
         axs[i].legend(legend, loc="upper left")
 
+    # Helper function for constructing cell text.
+    possibly_none = lambda val: "%.5f" % val if val is not None else "None"
+
     # Write out table of final metrics.
     axs[-1].axis("off")
     row_labels = list(plotted_metrics)
@@ -97,8 +100,11 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     for metric_name in plotted_metrics:
         metric_state = metrics_state[metric_name]
         row_text = []
-        row_text.append("%.5f" % metric_state["maximum"])
-        row_text.append("%.5f" % metric_state["mean"][-1])
+        row_text.append(possibly_none(metric_state["maximum"]))
+        if len(metric_state["mean"]) == 0:
+            row_text.append("None")
+        else:
+            row_text.append(possibly_none(metric_state["mean"][-1]))
         cell_text.append(list(row_text))
     axs[-1].table(
         cellText=cell_text,

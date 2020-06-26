@@ -34,8 +34,8 @@ Current task (Hyperparameter search):
     Add grid search
     Add iterated constrained grid search
     Write tests for grid search and IC grid search
---> Fix random seed setting for individual trials
-    Cache metrics results to avoid redundant training
+    Fix random seed setting for individual trials
+--> Cache metrics results to avoid redundant training
 
 Next task (Additional training tricks/options):
     Normalize observation without transition
@@ -55,11 +55,9 @@ Future additions:
     - Choice of optimizer and optimizer hyperparameters
     - Parameter sharing between actor and critic
     - More learning rate schedule options
-        - linear schedule
         - torch.optim.lr_scheduler.ReduceLROnPlateau
         - cyclic LR
         - ?
-    - Add feature so that task-index part of observation is not normalized for MTL
     - Various network initialization schemes
     - Value function normalization
     - Independent options for normalizing observations and rewards

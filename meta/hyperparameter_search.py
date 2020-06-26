@@ -156,6 +156,7 @@ def train_single_config(
     config_results = {}
     config_results["trials"] = []
     config_results["config"] = dict(train_config)
+    original_seed = train_config["seed"]
     for trial in range(trials_per_config):
 
         trial_results = {}
@@ -170,7 +171,7 @@ def train_single_config(
         train_config["baseline_metrics_filename"] = get_save_name(
             baseline_metrics_filename
         )
-        train_config["seed"] = trial
+        train_config["seed"] = original_seed + trial
 
         # Run training and get fitness.
         metrics = train(train_config)
@@ -596,7 +597,8 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     else:
         raise ValueError("Unsupported metric type: '%s'." % fitness_metric_type)
 
-    # Set random seed.
+    # Set random seed. Note that this may cause reproducibility issues if the train()
+    # function ever comes to use the random module.
     random.seed(seed)
 
     # Run the chosen search strategy.
