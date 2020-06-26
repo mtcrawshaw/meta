@@ -1,7 +1,9 @@
 import os
 import random
 import json
-from typing import Dict, Any, Tuple, Callable
+import itertools
+from functools import reduce
+from typing import Dict, Any, Tuple, Callable, List
 
 from meta.train import train
 from meta.utils import save_dir_from_name
@@ -168,6 +170,100 @@ def train_single_config(
     return fitness, config_results
 
 
+def get_param_values(param_settings: Dict[str, Any]) -> List[Any]:
+    """
+    Produce a list of parameter values from the parameter search settings. The expected
+    format of the input dictionary ``param_settings`` is documented below.
+
+    ``search_params`` can be one of two forms. An example of each is shown below.
+
+    {
+        "distribution_type": "geometric",
+        "num_values": 2,
+        "min_value": 1e-5,
+        "max_value": 1e-3
+    }
+
+    OR
+
+    {
+        "distribution_type": "discrete",
+        "choices": [true, false]
+    }
+
+    The first form is used to specify values for a numeric parameter. Values are
+    computed in an interval between a min value and a max value based on a number of
+    values and a distribution type. When a geometric interval is used, successive terms
+    will differ by a constant ratio, whereas an arithmetic interval will yield terms
+    that have a constant difference.
+
+    The second form is used to specify values for a categorical parameter. Distribution
+    type should be set to "discrete", and the value of "choices" should hold the list of
+    values to draw from. This can also be used to specify a hand-coded set of numerical
+    values.
+    """
+
+    param_values = []
+
+    # Get data type from min/max value.
+    if param_settings["distribution_type"] in ["geometric", "arithmetic"]:
+        if type(param_settings["min_value"]) != type(param_settings["max_value"]):
+            raise ValueError(
+                "Conflicting data types for min/max value of parameter search settings: %s"
+                % param_settings
+            )
+        datatype = type(param_settings["min_value"])
+
+    # Geometric interval (numeric).
+    if param_settings["distribution_type"] == "geometric":
+
+        # If there is only one value, take geometric mean of max and min.
+        if param_settings["num_values"] == 1:
+            param_values = [
+                datatype(
+                    (param_settings["max_value"] * param_settings["min_value"]) ** (0.5)
+                )
+            ]
+        else:
+            ratio = (param_settings["max_value"] / param_settings["min_value"]) ** (
+                1.0 / (param_settings["num_values"] - 1.0)
+            )
+            param_values = [
+                datatype(param_settings["min_value"] * ratio ** i)
+                for i in range(param_settings["num_values"])
+            ]
+
+    # Arithmetic interval (numeric).
+    elif param_settings["distribution_type"] == "arithmetic":
+
+        # If there is only one value, take mean of max and min.
+        if param_settings["num_values"] == 1:
+            param_values = [
+                datatype(
+                    (param_settings["max_value"] + param_settings["min_value"]) * (0.5)
+                )
+            ]
+        else:
+            shift = (param_settings["max_value"] - param_settings["min_value"]) / (
+                param_settings["num_values"] - 1.0
+            )
+            param_values = [
+                datatype(param_settings["min_value"] + shift * i)
+                for i in range(param_settings["num_values"])
+            ]
+
+    # Discrete interval (categorical).
+    elif param_settings["distribution_type"] == "discrete":
+        param_values = list(param_settings["choices"])
+
+    else:
+        raise ValueError(
+            "Unrecognized distribution type: %s" % param_settings["distribution_type"]
+        )
+
+    return param_values
+
+
 def random_search(
     base_config: Dict[str, Any],
     iterations: int,
@@ -185,7 +281,6 @@ def random_search(
     # Training loop.
     config = dict(base_config)
     best_fitness = None
-    best_metrics = None
     best_config = dict(base_config)
     for iteration in range(iterations):
 
@@ -230,11 +325,76 @@ def random_search(
     return results
 
 
-def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
+def grid_search(
+    base_config: Dict[str, Any],
+    iterations: int,
+    trials_per_config: int,
+    fitness_fn: Callable,
+    search_params: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Perform grid search over hyperparameter configurations, returning the results.
+    """
+
+    # Initialize results.
+    results = {"iterations": []}
+
+    # Construct set of configurations to search over.
+    param_values = {}
+    for param_name, param_settings in search_params.items():
+        param_values[param_name] = get_param_values(param_settings)
+    config_values = list(itertools.product(*list(param_values.values())))
+    configs = []
+    for config_value in config_values:
+        config = dict(base_config)
+        config.update(dict(zip(search_params.keys(), config_value)))
+        configs.append(dict(config))
+
+    # Training loop.
+    config = dict(base_config)
+    best_fitness = None
+    best_config = dict(base_config)
+    for iteration, config in enumerate(configs):
+
+        # Run training for current config.
+        get_save_name = (
+            lambda name: "%s_%d" % (name, iteration) if name is not None else None
+        )
+        config_save_name = get_save_name(base_config["save_name"])
+        metrics_save_name = get_save_name(base_config["metrics_filename"])
+        baseline_metrics_save_name = get_save_name(
+            base_config["baseline_metrics_filename"]
+        )
+        fitness, config_results = train_single_config(
+            config,
+            trials_per_config,
+            fitness_fn,
+            config_save_name,
+            metrics_save_name,
+            baseline_metrics_save_name,
+        )
+
+        # Compare current step to best so far.
+        if best_fitness is None or fitness > best_fitness:
+            best_fitness = fitness
+            best_config = dict(config)
+
+        # Add maximum to config results, and add config results to overall results.
+        results["iterations"].append(dict(config_results))
+
+    # Fill results.
+    results["best_config"] = dict(best_config)
+    results["best_fitness"] = best_fitness
+
+    return results
+
+
+def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform random search over hyperparameter configurations. Only argument is
     ``hp_config``, a dictionary holding settings for training. The expected elements of
-    this dictionary are documented below.
+    this dictionary are documented below. This function returns a dictionary holding the
+    results of training and the various parameter configurations used.
 
     Parameters
     ----------
@@ -277,6 +437,19 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
     fitness_metric_type = hp_config["fitness_metric_type"]
     seed = hp_config["seed"]
 
+    # Ignore value in hp_config["search_iterations"] during grid search, since the
+    # number of iterations is determined by hp_config["search_params"].
+    if hp_config["search_type"] == "grid":
+        num_param_values = []
+        for param_settings in search_params.values():
+            if "num_values" in param_settings:
+                num_param_values.append(param_settings["num_values"])
+            elif "choices" in param_settings:
+                num_param_values.append(len(param_settings["choices"]))
+            else:
+                raise ValueError("Invalid ``search_params`` value in config.")
+        iterations = reduce(lambda a, b: a * b, num_param_values)
+
     # Read in base name and make sure it is valid.
     base_name = base_config["save_name"]
     if base_name is not None:
@@ -300,8 +473,14 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
     # Set random seed.
     random.seed(seed)
 
-    # Run random search.
-    results = random_search(
+    # Run the chosen search strategy.
+    if hp_config["search_type"] == "random":
+        search_fn = random_search
+    elif hp_config["search_type"] == "grid":
+        search_fn = grid_search
+    elif hp_config["search_type"] == "IC_grid":
+        raise NotImplementedError
+    results = search_fn(
         base_config, iterations, trials_per_config, fitness_fn, search_params
     )
 
@@ -321,3 +500,5 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> None:
         results_path = os.path.join(save_dir, "%s_results.json" % base_name)
         with open(results_path, "w") as results_file:
             json.dump(results, results_file, indent=4)
+
+    return results

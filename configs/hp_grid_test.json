@@ -1,0 +1,74 @@
+{
+    "search_type": "grid",
+    "search_iterations": null,
+    "trials_per_config": 2,
+
+    "base_train_config": {
+        "env_name": "LunarLanderContinuous-v2",
+
+        "num_updates": 2,
+        "rollout_length": 5,
+        "num_ppo_epochs": 4,
+        "num_minibatch": 1,
+        "num_processes": 1,
+
+        "lr_schedule_type": "cosine",
+        "initial_lr": 7e-4,
+        "final_lr": 7e-4,
+        "eps": 1e-5,
+        "value_loss_coeff": 0.5,
+        "entropy_loss_coeff": 0.01,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "max_grad_norm": 0.5,
+        "clip_param": 0.2,
+        "clip_value_loss": true,
+        "normalize_advantages": true,
+        "normalize_transition": true,
+
+        "num_layers": 3,
+        "hidden_size": 64,
+        "recurrent": false,
+
+        "evaluation_freq": 1,
+        "evaluation_episodes": 1,
+
+        "cuda": false,
+        "seed": 1,
+        "print_freq": 4,
+        "time_limit": 5,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null,
+        "save_name": null
+    },
+
+    "search_params": {
+        "initial_lr": {
+            "distribution_type": "geometric",
+            "num_values": 3,
+            "min_value": 1e-5,
+            "max_value": 1e-3
+        },
+        "final_lr": {
+            "distribution_type": "geometric",
+            "num_values": 1,
+            "min_value": 1e-7,
+            "max_value": 1e-5
+        },
+        "clip_param": {
+            "distribution_type": "arithmetic",
+            "num_values": 1,
+            "min_value": 0.2,
+            "max_value": 1.0
+        },
+        "recurrent": {
+            "distribution_type": "discrete",
+            "choices": [true, false]
+        }
+    },
+
+    "fitness_metric_name": "train_success",
+    "fitness_metric_type": "mean",
+
+    "seed": 1
+}

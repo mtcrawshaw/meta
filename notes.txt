@@ -33,6 +33,7 @@ Current sprint:
 Current task (Hyperparameter search):
 --> Add grid search
     Add iterated constrained grid search
+    Write tests for grid search and IC grid search
 
 Next task (Additional training tricks/options):
     Normalize observation without transition
@@ -68,9 +69,9 @@ Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
   one, randomly pick one that is different from previous.
 - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
-  for a variable in the range [0, 1]. Easy way to do this is to assume that tanh^(-1)(X)
+  for a variable in the range [0, 1]. Easy way to do this is to assume that tan^(-1)(X)
   is normally distributed instead of X, compute mean + stdev and mean - stdev, then take
-  tanh of everything.
+  tan of everything tp put it back into interval [0, 1].
 - Rendering of episode videos
 - Time various parts of the training process, save along with metrics
 - Plots to show progression of various hyperparameters during hyperparameter search
