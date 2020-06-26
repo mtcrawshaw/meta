@@ -298,29 +298,58 @@ def random_search(
     # Initialize results.
     results = {"iterations": []}
 
+    # Helper function to compare configs.
+    nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
+
+    def strip_config(config):
+        stripped = dict(config)
+        for param in nonessential_params:
+            del stripped[param]
+        return stripped
+
     # Training loop.
     config = dict(base_config)
     best_fitness = None
     best_config = dict(base_config)
     for iteration in range(iterations):
 
-        # Run training for current config.
-        get_save_name = (
-            lambda name: "%s_%d" % (name, iteration) if name is not None else None
-        )
-        config_save_name = get_save_name(base_config["save_name"])
-        metrics_save_name = get_save_name(base_config["metrics_filename"])
-        baseline_metrics_save_name = get_save_name(
-            base_config["baseline_metrics_filename"]
-        )
-        fitness, config_results = train_single_config(
-            config,
-            trials_per_config,
-            fitness_fn,
-            config_save_name,
-            metrics_save_name,
-            baseline_metrics_save_name,
-        )
+        # See if we have already performed training with this configuration.
+        already_trained = False
+        past_iteration = None
+        past_configs = [
+            results["iterations"][i]["config"]
+            for i in range(len(results["iterations"]))
+        ]
+        for i, past_config in enumerate(past_configs):
+            if strip_config(config) == strip_config(past_config):
+                already_trained = True
+                past_iteration = i
+                break
+
+        # If so, reuse the past results. Otherwise, run training.
+        if already_trained:
+            fitness = float(results["iterations"][past_iteration]["fitness"])
+            config_results = dict(results["iterations"][past_iteration])
+
+        else:
+
+            # Run training for current config.
+            get_save_name = (
+                lambda name: "%s_%d" % (name, iteration) if name is not None else None
+            )
+            config_save_name = get_save_name(base_config["save_name"])
+            metrics_save_name = get_save_name(base_config["metrics_filename"])
+            baseline_metrics_save_name = get_save_name(
+                base_config["baseline_metrics_filename"]
+            )
+            fitness, config_results = train_single_config(
+                config,
+                trials_per_config,
+                fitness_fn,
+                config_save_name,
+                metrics_save_name,
+                baseline_metrics_save_name,
+            )
 
         # Compare current step to best so far.
         new_max = False
@@ -428,6 +457,15 @@ def IC_grid_search(
     # Initialize results.
     results = {"iterations": []}
 
+    # Helper function to compare configs.
+    nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
+
+    def strip_config(config):
+        stripped = dict(config)
+        for param in nonessential_params:
+            del stripped[param]
+        return stripped
+
     # Construct list of values for each variable parameter to vary over.
     param_values = {}
     for param_name, param_settings in search_params.items():
@@ -456,25 +494,45 @@ def IC_grid_search(
             # Set value of current param of interest in current config.
             config[param_name] = param_val
 
-            # Run training for current config.
-            get_save_name = (
-                lambda name: "%s_%d_%d" % (name, param_num, val_num)
-                if name is not None
-                else None
-            )
-            config_save_name = get_save_name(base_config["save_name"])
-            metrics_save_name = get_save_name(base_config["metrics_filename"])
-            baseline_metrics_save_name = get_save_name(
-                base_config["baseline_metrics_filename"]
-            )
-            fitness, config_results = train_single_config(
-                config,
-                trials_per_config,
-                fitness_fn,
-                config_save_name,
-                metrics_save_name,
-                baseline_metrics_save_name,
-            )
+            # See if we have already performed training with this configuration.
+            already_trained = False
+            past_iteration = None
+            past_configs = [
+                results["iterations"][i]["config"]
+                for i in range(len(results["iterations"]))
+            ]
+            for i, past_config in enumerate(past_configs):
+                if strip_config(config) == strip_config(past_config):
+                    already_trained = True
+                    past_iteration = i
+                    break
+
+            # If so, reuse the past results. Otherwise, run training.
+            if already_trained:
+                fitness = float(results["iterations"][past_iteration]["fitness"])
+                config_results = dict(results["iterations"][past_iteration])
+
+            else:
+
+                # Run training for current config.
+                get_save_name = (
+                    lambda name: "%s_%d_%d" % (name, param_num, val_num)
+                    if name is not None
+                    else None
+                )
+                config_save_name = get_save_name(base_config["save_name"])
+                metrics_save_name = get_save_name(base_config["metrics_filename"])
+                baseline_metrics_save_name = get_save_name(
+                    base_config["baseline_metrics_filename"]
+                )
+                fitness, config_results = train_single_config(
+                    config,
+                    trials_per_config,
+                    fitness_fn,
+                    config_save_name,
+                    metrics_save_name,
+                    baseline_metrics_save_name,
+                )
 
             # Compare current step to best so far.
             if best_fitness is None or fitness > best_fitness:

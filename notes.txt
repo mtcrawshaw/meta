@@ -27,17 +27,10 @@ Current sprint:
     Deterministic acting
     Learning rate schedules
     Evaluation during training
---> Hyperparameter search
-    Additional training tricks/options
+    Hyperparameter search
+--> Additional training tricks/options
 
-Current task (Hyperparameter search):
-    Add grid search
-    Add iterated constrained grid search
-    Write tests for grid search and IC grid search
-    Fix random seed setting for individual trials
---> Cache metrics results to avoid redundant training
-
-Next task (Additional training tricks/options):
+Current task (Additional training tricks/options):
     Normalize observation without transition
     Linear learning rate schedule
     Initialization (https://arxiv.org/abs/2006.05990)
@@ -96,6 +89,11 @@ Refactoring:
 - Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
   have to do so much bullshit to save/load/compare metrics if the functionality was
   modular
+- Clean up hyperparameter_search() a lot:
+  - Break it into separate files
+  - Get rid of repeated code in different search strategies
+  - Clean up redundant options between "base_train_config" and "hp_config"
+  - A billion other things, it's disgusting
 
 ----------------------------------------------------------------------------------------
 
