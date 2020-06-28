@@ -48,9 +48,8 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     num_processes : int
         Number of asynchronous environments to run at once.
     lr_schedule_type : str
-        Either None, "exponential", or "cosine". If None is given, the learning rate
-        will stay at initial_lr for the duration of training. Exponential and cosine
-        yield exponential decay and cosine annealing learning rates, respectively.
+        Either None, "exponential", "cosine", or "linear". If None is given, the
+        learning rate will stay at initial_lr for the duration of training.
     initial_lr : float
         Initial policy learning rate.
     final_lr : float

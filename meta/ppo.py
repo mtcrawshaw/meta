@@ -63,9 +63,8 @@ class PPOPolicy:
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr_schedule_type : str
-            Either None, "exponential", or "cosine". If None is given, the learning rate
-            will stay at initial_lr for the duration of training. Exponential and cosine
-            yield exponential decay and cosine annealing learning rates, respectively.
+            Either None, "exponential", "cosine", or "linear". If None is given, the
+            learning rate will stay at initial_lr for the duration of training.
         initial_lr : float
             Initial policy learning rate.
         final_lr: float
@@ -149,6 +148,19 @@ class PPOPolicy:
         elif self.lr_schedule_type == "cosine":
             self.lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer=self.optimizer, T_max=self.num_updates, eta_min=self.final_lr,
+            )
+
+        elif self.lr_schedule_type == "linear":
+
+            def factor(step):
+                lr_shift = self.final_lr - self.initial_lr
+                desired_lr = self.initial_lr + lr_shift * float(step) / (
+                    self.num_updates - 1
+                )
+                return desired_lr / self.initial_lr
+
+            self.lr_schedule = torch.optim.lr_scheduler.LambdaLR(
+                optimizer=self.optimizer, lr_lambda=factor,
             )
 
         elif self.lr_schedule_type is None:

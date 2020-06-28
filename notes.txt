@@ -32,8 +32,8 @@ Current sprint:
     Refactoring
 
 Current task (Additional training tricks/options):
-    Normalize observation without transition
     Linear learning rate schedule
+--> Normalize observation without transition
     Initialization (https://arxiv.org/abs/2006.05990)
 
 Next task (Refactoring):
