@@ -213,6 +213,9 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         if update_iteration == config["num_updates"] - 1:
             print("")
 
+    # Close environment.
+    env.close()
+
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:
         if not os.path.isdir(METRICS_DIR):
