@@ -305,6 +305,7 @@ def random_search(
         "baseline_metrics_filename",
         "print_freq",
     ]
+
     def strip_config(config):
         stripped = dict(config)
         for param in nonessential_params:

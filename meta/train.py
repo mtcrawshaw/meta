@@ -116,6 +116,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         config["seed"],
         config["time_limit"],
         config["normalize_transition"],
+        config["normalize_first_n"],
         allow_early_resets=True,
     )
     policy = PPOPolicy(

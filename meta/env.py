@@ -9,11 +9,12 @@ import torch
 import gym
 from gym import Env
 from baselines import bench
+from baselines.common.running_mean_std import RunningMeanStd
 from baselines.common.vec_env import (
     ShmemVecEnv,
     DummyVecEnv,
     VecEnvWrapper,
-    VecNormalize as VecNormalizeEnv,
+    VecNormalize,
 )
 
 from meta.tests.envs import ParityEnv, UniqueEnv
@@ -25,6 +26,7 @@ def get_env(
     seed: int = 1,
     time_limit: int = None,
     normalize_transition: bool = True,
+    normalize_first_n: int = None,
     allow_early_resets: bool = False,
 ) -> Env:
     """
@@ -43,6 +45,10 @@ def get_env(
         Limit on number of steps for environment.
     normalize_transition : bool
         Whether or not to add environment wrapper to normalize observations and rewards.
+    normalize_first_n: int
+        If not equal to None, only normalize the first ``normalize_first_n`` elements of
+        the observation. If ``normalize_transition`` is False then this value is
+        ignored.
     allow_early_resets: bool
         Whether or not to allow environments before done=True is returned.
 
@@ -68,7 +74,7 @@ def get_env(
     # Add environment wrappers to normalize observations/rewards and convert between
     # numpy arrays and torch.Tensors.
     if normalize_transition:
-        env = VecNormalizeEnv(env)
+        env = VecNormalizeEnv(env, first_n=normalize_first_n)
     env = VecPyTorchEnv(env)
 
     return env
@@ -164,6 +170,78 @@ def get_single_env_creator(
         return env
 
     return env_creator
+
+
+class VecNormalizeEnv(VecNormalize):
+    """
+    Environment wrapper to normalize observations and rewards. We modify VecNormalize
+    from baselines in order to implement a key change: We want to be able to normalize
+    only a part of the observation. This is because in multi-task environments, the
+    "observation" is really a concatenation of an environment observation with a one-hot
+    vector which denotes the task-index. When normalizing the observation, we want to be
+    able to leave the one-hot vector as is. Note that this is only supported for
+    environments with observations that are flat vectors.
+    """
+
+    def __init__(
+        self,
+        venv,
+        ob=True,
+        ret=True,
+        clipob=10.0,
+        cliprew=10.0,
+        gamma=0.99,
+        epsilon=1e-8,
+        first_n=None,
+    ):
+        """
+        Modified init function of VecNormalize. The only change here is in modifying the
+        shape of self.ob_rms. The argument ``first_n`` controls how much of the
+        observation we want to normalize: for an observation ``obs``, we normalize the
+        vector ``obs[:first_n]``.
+        """
+
+        VecEnvWrapper.__init__(self, venv)
+        if ob is not None:
+            if first_n is None:
+                self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
+            else:
+                self.ob_rms = RunningMeanStd(shape=(first_n,))
+        else:
+            self.ob_rms = None
+        self.ret_rms = RunningMeanStd(shape=()) if ret else None
+        self.clipob = clipob
+        self.cliprew = cliprew
+        self.ret = np.zeros(self.num_envs)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.first_n = first_n
+
+    def _obfilt(self, obs):
+
+        # Take portion of observation to normalize, if necessary.
+        if self.first_n is None:
+            update_obs = obs
+        else:
+            update_obs = obs[:, : self.first_n]
+
+        # Normalize obs.
+        if self.ob_rms:
+            self.ob_rms.update(update_obs)
+            update_obs = np.clip(
+                (update_obs - self.ob_rms.mean)
+                / np.sqrt(self.ob_rms.var + self.epsilon),
+                -self.clipob,
+                self.clipob,
+            )
+
+        # Reconstruct observation, if necessary.
+        if self.first_n is None:
+            obs = update_obs
+        else:
+            obs[:, : self.first_n] = update_obs
+
+        return obs
 
 
 class VecPyTorchEnv(VecEnvWrapper):

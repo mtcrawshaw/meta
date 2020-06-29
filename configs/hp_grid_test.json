@@ -25,6 +25,7 @@
         "clip_value_loss": true,
         "normalize_advantages": true,
         "normalize_transition": true,
+        "normalize_first_n": null,
 
         "num_layers": 3,
         "hidden_size": 64,

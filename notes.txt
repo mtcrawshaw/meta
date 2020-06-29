@@ -33,8 +33,7 @@ Current sprint:
 
 Current task (Additional training tricks/options):
     Linear learning rate schedule
---> Initialization (https://arxiv.org/abs/2006.05990)
-    Normalize observation without transition
+--> Normalize observation without transition
 
 Next task (Refactoring):
     Change main.py to accept command name (train or tune)
@@ -110,11 +109,12 @@ Environments to run PPO experiments on:
 - MetaWorld single task environments
 - MT10
 - MT50
-- Move optimizer and learning schedule outside of ppo.py in order to generalize training
-  to CV and NLP. This is way in the future. It will be a pain because we will have to
-  call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
-  just pass a reference in to the policy.
 
 Training settings to try:
 - More parallelization + longer rollouts (bigger batches, GPU utilization is small)
 - Go over experience multiple times (num_ppo_epochs > num_minibatch)
+
+Next time:
+Write assertion that observation is 1-dimensional, if partially normalizing
+Write tests for partial observation normalization
+Update MT10 baselines
