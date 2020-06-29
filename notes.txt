@@ -33,8 +33,8 @@ Current sprint:
 
 Current task (Additional training tricks/options):
     Linear learning rate schedule
---> Normalize observation without transition
-    Initialization (https://arxiv.org/abs/2006.05990)
+--> Initialization (https://arxiv.org/abs/2006.05990)
+    Normalize observation without transition
 
 Next task (Refactoring):
     Change main.py to accept command name (train or tune)
@@ -93,6 +93,8 @@ Refactoring:
 - Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
   have to do so much bullshit to save/load/compare metrics if the functionality was
   modular
+- Get rid of redundant settings inside and outside base_train_config for hyperparameter
+  search, i.e. seed, save name, etc
 - Clean up hyperparameter_search() a lot:
   - Break it into separate files
   - Get rid of repeated code in different search strategies
