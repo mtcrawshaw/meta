@@ -2,14 +2,12 @@
 Unit tests for meta/env.py.
 """
 
-import os
-import json
 from typing import Dict, List, Any
 
 import torch
 
 from meta.env import get_env
-from meta.train import collect_rollout, train
+from meta.train import collect_rollout
 from meta.storage import RolloutStorage
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 

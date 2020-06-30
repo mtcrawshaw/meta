@@ -168,7 +168,7 @@ def test_lr_schedule_null() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         check_lr(policy.optimizer, settings["initial_lr"])
@@ -205,7 +205,7 @@ def test_lr_schedule_exponential() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         interval_pos = float(i + 1) / settings["num_updates"]
@@ -247,7 +247,7 @@ def test_lr_schedule_cosine() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         interval_pos = math.pi * float(i + 1) / settings["num_updates"]
@@ -291,7 +291,7 @@ def test_lr_schedule_linear() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         lr_shift = settings["final_lr"] - settings["initial_lr"]

@@ -1,3 +1,7 @@
+"""
+Hyperparater search functions wrapped around training.
+"""
+
 import os
 import random
 import json
@@ -154,7 +158,7 @@ def train_single_config(
 
     # Perform training and compute resulting fitness for multiple trials.
     fitness = 0.0
-    config_results = {}
+    config_results: Dict[str, Any] = {}
     config_results["trials"] = []
     config_results["config"] = dict(train_config)
     for trial in range(trials_per_config):
@@ -296,7 +300,7 @@ def random_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Helper function to compare configs.
     nonessential_params = [
@@ -306,7 +310,7 @@ def random_search(
         "print_freq",
     ]
 
-    def strip_config(config):
+    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
         stripped = dict(config)
         for param in nonessential_params:
             del stripped[param]
@@ -392,7 +396,7 @@ def grid_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Construct set of configurations to search over.
     param_values = {}
@@ -462,12 +466,12 @@ def IC_grid_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Helper function to compare configs.
     nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
 
-    def strip_config(config):
+    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
         stripped = dict(config)
         for param in nonessential_params:
             del stripped[param]

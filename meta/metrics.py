@@ -3,7 +3,6 @@ Object definition for Metrics class, which stores and updates training performan
 """
 
 from math import sqrt
-from collections import deque
 from typing import Dict, List, Any
 
 import numpy as np
@@ -89,7 +88,10 @@ class Metric:
     """ Class to store values for a single metric. """
 
     def __init__(
-        self, point_avg=False, ema_alpha=EMA_ALPHA, ema_threshold=EMA_THRESHOLD
+        self,
+        point_avg: bool = False,
+        ema_alpha: float = EMA_ALPHA,
+        ema_threshold: int = EMA_THRESHOLD,
     ) -> None:
         """ Init function for Metric. """
 
@@ -98,10 +100,10 @@ class Metric:
         self.ema_threshold = ema_threshold
 
         # Metric values.
-        self.history = []
-        self.mean = []
-        self.stdev = []
-        self.maximum = None
+        self.history: List[float] = []
+        self.mean: List[float] = []
+        self.stdev: List[float] = []
+        self.maximum: float = None
 
         self.state_vars = ["history", "mean", "stdev", "maximum"]
 
@@ -110,7 +112,6 @@ class Metric:
 
         if len(self.history) > 0:
             mean = self.mean[-1]
-            stdev = self.stdev[-1]
             maximum = self.maximum
             message = "mean, max: %.5f, %.5f" % (mean, maximum)
         else:

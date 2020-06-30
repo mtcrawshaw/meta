@@ -1,7 +1,5 @@
 """ Environment wrappers + functionality. """
 
-import os
-import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import numpy as np
@@ -185,15 +183,15 @@ class VecNormalizeEnv(VecNormalize):
 
     def __init__(
         self,
-        venv,
-        ob=True,
-        ret=True,
-        clipob=10.0,
-        cliprew=10.0,
-        gamma=0.99,
-        epsilon=1e-8,
-        first_n=None,
-    ):
+        venv: Env,
+        ob: bool = True,
+        ret: bool = True,
+        clipob: float = 10.0,
+        cliprew: float = 10.0,
+        gamma: float = 0.99,
+        epsilon: float = 1e-8,
+        first_n: int = None,
+    ) -> None:
         """
         Modified init function of VecNormalize. The only change here is in modifying the
         shape of self.ob_rms. The argument ``first_n`` controls how much of the

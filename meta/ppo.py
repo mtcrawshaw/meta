@@ -152,7 +152,7 @@ class PPOPolicy:
 
         elif self.lr_schedule_type == "linear":
 
-            def factor(step):
+            def factor(step: int) -> float:
                 lr_shift = self.final_lr - self.initial_lr
                 desired_lr = self.initial_lr + lr_shift * float(step) / (
                     self.num_updates - 1

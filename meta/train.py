@@ -268,7 +268,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # inside the repository.
         try:
             version_path = os.path.join(save_dir, "VERSION")
-            git_hash = os.system("git rev-parse HEAD > %s" % version_path)
+            os.system("git rev-parse HEAD > %s" % version_path)
         except:
             pass
 

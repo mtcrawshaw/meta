@@ -36,7 +36,7 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     fig, axs = plt.subplots(
         num_plots,
         figsize=(fig_width, plot_height * (num_plots - (1.0 - table_height_ratio))),
-        gridspec_kw={"height_ratios": [1] * (num_plots - 1) + [table_height_ratio]},
+        gridspec_kw={"height_ratios": [1.0] * (num_plots - 1) + [table_height_ratio]},
     )
 
     # Wrap a single axis in a list to make sure that axs is iterable.
