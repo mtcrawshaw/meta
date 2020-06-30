@@ -25,7 +25,7 @@ def get_copy_path(path: str, index: int) -> str:
     return new_path
 
 
-def main(args):
+def main(args) -> None:
     """ Main function of script. """
 
     # Get paths to configs.

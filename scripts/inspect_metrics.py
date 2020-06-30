@@ -1,9 +1,16 @@
+"""
+Helper script to print out value of all pickled metrics in data/metrics.
+"""
+
 import os
 import pickle
 import glob
 
 
-def main():
+def main() -> None:
+    """
+    Main function for inspect_metrics.py.
+    """
 
     metrics_filenames = glob.glob(os.path.join("data", "metrics", "*.pkl"))
     for metrics_filename in metrics_filenames:
