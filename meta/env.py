@@ -303,7 +303,7 @@ HARD_MODE_CLS_DICT = {
         "door-close-v1",
         "drawer-open-v1",
         "drawer-close-v1",
-        "button-press_topdown-v1",
+        "button-press-topdown-v1",
         "button-press-v1",
         "button-press-topdown-wall-v1",
         "button-press-wall-v1",
