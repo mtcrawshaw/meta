@@ -168,7 +168,7 @@ def test_lr_schedule_null() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         check_lr(policy.optimizer, settings["initial_lr"])
@@ -205,7 +205,7 @@ def test_lr_schedule_exponential() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         interval_pos = float(i + 1) / settings["num_updates"]
@@ -247,7 +247,7 @@ def test_lr_schedule_cosine() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        loss_items = policy.update(rollout)
+        _ = policy.update(rollout)
 
         # Check learning rate.
         interval_pos = math.pi * float(i + 1) / settings["num_updates"]
@@ -257,6 +257,47 @@ def test_lr_schedule_cosine() -> None:
             * (1.0 + math.cos(interval_pos))
         )
         expected_lr = settings["final_lr"] + offset
+        check_lr(policy.optimizer, expected_lr)
+
+
+def test_lr_schedule_linear() -> None:
+    """
+    Tests learning rate schedule in the case where the schedule type is linear.
+    """
+
+    # Initialize environment and policy.
+    settings = dict(DEFAULT_SETTINGS)
+    settings["lr_schedule_type"] = "linear"
+    env = get_env(
+        settings["env_name"], settings["num_processes"], allow_early_resets=True
+    )
+    policy = get_policy(env, settings)
+
+    # Define helper function to check learning rate.
+    def check_lr(optimizer: torch.optim.Optimizer, lr: float) -> None:
+        for param_group in optimizer.param_groups:
+            assert abs(param_group["lr"] - lr) < TOL
+
+    # Run training and test values of learning rate along the way.
+    check_lr(policy.optimizer, settings["initial_lr"])
+    for i in range(settings["num_updates"]):
+
+        # Perform update.
+        rollout = get_rollout(
+            env,
+            policy,
+            settings["num_episodes"],
+            settings["episode_len"],
+            settings["num_processes"],
+            settings["device"],
+        )
+        _ = policy.update(rollout)
+
+        # Check learning rate.
+        lr_shift = settings["final_lr"] - settings["initial_lr"]
+        expected_lr = settings["initial_lr"] + lr_shift * float(i + 1) / (
+            settings["num_updates"] - 1
+        )
         check_lr(policy.optimizer, expected_lr)
 
 

@@ -48,9 +48,8 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     num_processes : int
         Number of asynchronous environments to run at once.
     lr_schedule_type : str
-        Either None, "exponential", or "cosine". If None is given, the learning rate
-        will stay at initial_lr for the duration of training. Exponential and cosine
-        yield exponential decay and cosine annealing learning rates, respectively.
+        Either None, "exponential", "cosine", or "linear". If None is given, the
+        learning rate will stay at initial_lr for the duration of training.
     initial_lr : float
         Initial policy learning rate.
     final_lr : float
@@ -117,6 +116,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         config["seed"],
         config["time_limit"],
         config["normalize_transition"],
+        config["normalize_first_n"],
         allow_early_resets=True,
     )
     policy = PPOPolicy(
@@ -268,7 +268,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # inside the repository.
         try:
             version_path = os.path.join(save_dir, "VERSION")
-            git_hash = os.system("git rev-parse HEAD > %s" % version_path)
+            os.system("git rev-parse HEAD > %s" % version_path)
         except:
             pass
 

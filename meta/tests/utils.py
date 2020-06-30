@@ -28,6 +28,7 @@ DEFAULT_SETTINGS = {
     "clip_value_loss": False,
     "normalize_advantages": True,
     "normalize_transition": False,
+    "normalize_first_n": None,
     "num_layers": 3,
     "hidden_size": 64,
     "recurrent": False,

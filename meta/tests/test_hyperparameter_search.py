@@ -5,7 +5,7 @@ Unit tests for meta/hyperparameter_search.py.
 import os
 import json
 import itertools
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 from meta.hyperparameter_search import hyperparameter_search
 
@@ -142,7 +142,7 @@ def test_hp_search_IC_grid_values() -> None:
 
     # Verify configs from training.
     iteration = 0
-    best_param_vals = {}
+    best_param_vals: Dict[str, float] = {}
     for param_name, param_values in param_intervals.items():
 
         param_fitnesses = {}

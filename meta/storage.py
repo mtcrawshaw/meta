@@ -45,7 +45,7 @@ class RolloutStorage:
         # Get observation and action shape.
         self.observation_space = observation_space
         self.action_space = action_space
-        self.space_shapes: Dict[str, Tuple[int]] = {}
+        self.space_shapes: Dict[str, Tuple[int, ...]] = {}
         spaces = {"obs": observation_space, "action": action_space}
         for space_name, space in spaces.items():
             self.space_shapes[space_name] = get_space_shape(space, space_name)

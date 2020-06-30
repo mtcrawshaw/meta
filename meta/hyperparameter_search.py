@@ -1,3 +1,7 @@
+"""
+Hyperparater search functions wrapped around training.
+"""
+
 import os
 import random
 import json
@@ -142,6 +146,7 @@ def train_single_config(
     train_config: Dict[str, Any],
     trials_per_config: int,
     fitness_fn: Callable,
+    seed: int,
     config_save_name: str = None,
     metrics_filename: str = None,
     baseline_metrics_filename: str = None,
@@ -153,10 +158,9 @@ def train_single_config(
 
     # Perform training and compute resulting fitness for multiple trials.
     fitness = 0.0
-    config_results = {}
+    config_results: Dict[str, Any] = {}
     config_results["trials"] = []
     config_results["config"] = dict(train_config)
-    original_seed = train_config["seed"]
     for trial in range(trials_per_config):
 
         trial_results = {}
@@ -171,7 +175,7 @@ def train_single_config(
         train_config["baseline_metrics_filename"] = get_save_name(
             baseline_metrics_filename
         )
-        train_config["seed"] = original_seed + trial
+        train_config["seed"] = seed + trial
 
         # Run training and get fitness.
         metrics = train(train_config)
@@ -296,12 +300,17 @@ def random_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Helper function to compare configs.
-    nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
+    nonessential_params = [
+        "save_name",
+        "metrics_filename",
+        "baseline_metrics_filename",
+        "print_freq",
+    ]
 
-    def strip_config(config):
+    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
         stripped = dict(config)
         for param in nonessential_params:
             del stripped[param]
@@ -346,6 +355,7 @@ def random_search(
                 config,
                 trials_per_config,
                 fitness_fn,
+                base_config["seed"],
                 config_save_name,
                 metrics_save_name,
                 baseline_metrics_save_name,
@@ -386,7 +396,7 @@ def grid_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Construct set of configurations to search over.
     param_values = {}
@@ -417,6 +427,7 @@ def grid_search(
             config,
             trials_per_config,
             fitness_fn,
+            base_config["seed"],
             config_save_name,
             metrics_save_name,
             baseline_metrics_save_name,
@@ -455,12 +466,12 @@ def IC_grid_search(
     """
 
     # Initialize results.
-    results = {"iterations": []}
+    results: Dict[str, Any] = {"iterations": []}
 
     # Helper function to compare configs.
     nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
 
-    def strip_config(config):
+    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
         stripped = dict(config)
         for param in nonessential_params:
             del stripped[param]
@@ -529,6 +540,7 @@ def IC_grid_search(
                     config,
                     trials_per_config,
                     fitness_fn,
+                    base_config["seed"],
                     config_save_name,
                     metrics_save_name,
                     baseline_metrics_save_name,
