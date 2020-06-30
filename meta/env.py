@@ -206,7 +206,10 @@ class VecNormalizeEnv(VecNormalize):
             if first_n is None:
                 self.ob_rms = RunningMeanStd(shape=self.observation_space.shape)
             else:
-                self.ob_rms = RunningMeanStd(shape=(first_n,))
+                if len(self.observation_space.shape) == 1:
+                    self.ob_rms = RunningMeanStd(shape=(first_n,))
+                else:
+                    raise NotImplementedError
         else:
             self.ob_rms = None
         self.ret_rms = RunningMeanStd(shape=()) if ret else None
