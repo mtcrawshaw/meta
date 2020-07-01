@@ -6,7 +6,7 @@ from math import sqrt
 
 import numpy as np
 
-from meta.metrics import Metric
+from meta.utils.metrics import Metric
 
 
 def test_update_avg_single() -> None:

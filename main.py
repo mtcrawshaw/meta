@@ -1,8 +1,8 @@
 import argparse
 import json
 
-from meta.train import train
-from meta.hyperparameter_search import hyperparameter_search
+from meta.train.train import train
+from meta.train.hyperparameter_search import hyperparameter_search
 
 
 if __name__ == "__main__":

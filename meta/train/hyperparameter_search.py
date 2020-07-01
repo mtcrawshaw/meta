@@ -9,8 +9,8 @@ import itertools
 from functools import reduce
 from typing import Dict, Any, Tuple, Callable, List
 
-from meta.train import train
-from meta.utils import save_dir_from_name
+from meta.train.train import train
+from meta.utils.utils import save_dir_from_name
 
 
 # Perturbation functions used to mutate parameters for random search.

@@ -8,7 +8,7 @@ import torch
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from gym.spaces import Space
 
-from meta.utils import get_space_shape, combine_first_two_dims
+from meta.utils.utils import get_space_shape, combine_first_two_dims
 
 
 class RolloutStorage:

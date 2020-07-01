@@ -9,9 +9,9 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.network import PolicyNetwork
-from meta.storage import RolloutStorage
-from meta.utils import combine_first_two_dims
+from meta.networks.network import PolicyNetwork
+from meta.utils.storage import RolloutStorage
+from meta.utils.utils import combine_first_two_dims
 
 
 class PPOPolicy:

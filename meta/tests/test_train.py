@@ -7,9 +7,9 @@ import json
 
 import torch
 
-from meta.env import get_env
-from meta.train import collect_rollout, train
-from meta.storage import RolloutStorage
+from meta.train.env import get_env
+from meta.train.train import collect_rollout, train
+from meta.utils.storage import RolloutStorage
 from meta.tests.utils import get_policy, DEFAULT_SETTINGS
 
 

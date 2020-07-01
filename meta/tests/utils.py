@@ -5,8 +5,8 @@ from typing import Dict, Any
 import torch
 from gym import Env
 
-from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage
+from meta.train.ppo import PPOPolicy
+from meta.utils.storage import RolloutStorage
 
 DEFAULT_SETTINGS = {
     "env_name": "CartPole-v1",

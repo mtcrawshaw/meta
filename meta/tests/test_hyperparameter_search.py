@@ -7,7 +7,7 @@ import json
 import itertools
 from typing import Dict, Any
 
-from meta.hyperparameter_search import hyperparameter_search
+from meta.train.hyperparameter_search import hyperparameter_search
 
 
 RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")

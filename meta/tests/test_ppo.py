@@ -8,9 +8,9 @@ from typing import Dict, Any
 import torch
 import numpy as np
 
-from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage
-from meta.env import get_env
+from meta.train.ppo import PPOPolicy
+from meta.train.env import get_env
+from meta.utils.storage import RolloutStorage
 from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
 
 

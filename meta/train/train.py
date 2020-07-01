@@ -15,12 +15,12 @@ import torch
 import gym
 from gym import Env
 
-from meta.ppo import PPOPolicy
-from meta.storage import RolloutStorage
-from meta.env import get_env
-from meta.metrics import Metrics
-from meta.plot import plot
-from meta.utils import compare_metrics, save_dir_from_name, METRICS_DIR
+from meta.train.ppo import PPOPolicy
+from meta.train.env import get_env
+from meta.utils.storage import RolloutStorage
+from meta.utils.metrics import Metrics
+from meta.utils.plot import plot
+from meta.utils.utils import compare_metrics, save_dir_from_name, METRICS_DIR
 
 
 # Suppress gym warnings.

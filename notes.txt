@@ -12,12 +12,15 @@ Road map:
     Tests of statistical significance
     Learned loss convexity regularization for MTL
 
-Current sprint:
+Current sprint (MT10/MT50 baselines):
 --> Shared trunk architecture
     ?
 
-Current task:
-    ?
+Current task (Shared trunk architecture):
+    Add another directory level to package
+--> Add new file for shared trunk architecture
+    Naive forward pass
+    Batch inputs of same task in forward pass
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -51,6 +54,7 @@ Possible additions:
 - Plots to show progression of various hyperparameters during hyperparameter search
 - More robust way to save repository version along with results
 - Determine whether or not policy has solved environment (N successes in a row, usually)
+- Catch KeyboardInterrupt during training to optionally stop training early
 
 Refactoring:
 - Move tests outside of package
