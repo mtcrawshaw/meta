@@ -1,5 +1,6 @@
 """
-Definition of PolicyNetwork, the module used to parameterize an actor/critic policy.
+Definition of BaseNetwork, which serves as an abstract class for an actor critic network
+that is extended by other modules defined in this folder.
 """
 
 from typing import Tuple, List
@@ -10,11 +11,27 @@ from torch.distributions import Distribution, Categorical, Normal
 import numpy as np
 from gym.spaces import Space, Box, Discrete
 
-from meta.utils.utils import get_space_size, get_space_shape, init, AddBias
+from meta.utils.utils import get_space_size, get_space_shape, init
 
 
-class PolicyNetwork(nn.Module):
-    """ Module used to parameterize an actor/critic policy. """
+# Initialization functions for network weights. init_final is only used for the last
+# layer of the actor network, init_base is used for all other layers in actor/critic
+# networks, init_recurrent is used for recurrent layer. We initialize the final layer of
+# the actor network with much smaller weights than all other network layers, as
+# recommended by https://arxiv.org/abs/2006.05990.
+init_base = lambda m: init(
+    m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
+)
+init_final = lambda m: init(
+    m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
+)
+init_recurrent = lambda m: init(
+    m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.0
+)
+
+
+class BaseNetwork(nn.Module):
+    """ Module used as an abstract class for an actor critic network. """
 
     def __init__(
         self,
@@ -28,7 +45,7 @@ class PolicyNetwork(nn.Module):
         device: torch.device = None,
     ) -> None:
 
-        super(PolicyNetwork, self).__init__()
+        super(BaseNetwork, self).__init__()
         self.observation_space = observation_space
         self.action_space = action_space
         self.num_processes = num_processes
@@ -41,68 +58,23 @@ class PolicyNetwork(nn.Module):
         self.input_size = get_space_size(observation_space)
         self.output_size = get_space_size(action_space)
 
-        # Initialization functions for network, init_final is only used for the last
-        # layer of the actor network, init_base is used for all other layers in
-        # actor/critic networks, init_recurrent is used for recurrent layer.
-        init_base = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
-        )
-        init_final = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
-        )
-        init_recurrent = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.0
-        )
-
-        # Generate layers of network.
-        if self.recurrent:
-            self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
-            self.hidden_state = torch.zeros(self.hidden_size)
-
-        actor_layers = []
-        critic_layers = []
-        for i in range(num_layers):
-
-            # Calcuate input and output size of layer.
-            layer_input_size = (
-                self.input_size if i == 0 and not self.recurrent else hidden_size
-            )
-            actor_output_size = self.output_size if i == num_layers - 1 else hidden_size
-            critic_output_size = 1 if i == num_layers - 1 else hidden_size
-
-            # Determine init function for actor layer. Note that all layers of critic
-            # are initialized with init_base, so we only need to do this for actor.
-            actor_init = init_base if i < num_layers - 1 else init_final
-
-            actor_layers.append(
-                actor_init(nn.Linear(layer_input_size, actor_output_size))
-            )
-            critic_layers.append(
-                init_base(nn.Linear(layer_input_size, critic_output_size))
-            )
-
-            # Activation functions.
-            if i != num_layers - 1:
-                actor_layers.append(nn.Tanh())
-                critic_layers.append(nn.Tanh())
-
-        self.actor = nn.Sequential(*actor_layers)
-        self.critic = nn.Sequential(*critic_layers)
-
-        # Extra parameter vector for standard deviations in the case that
-        # the policy distribution is Gaussian.
-        if isinstance(action_space, Box):
-            self.logstd = AddBias(torch.zeros(self.output_size))
+        # Generate network layers.
+        self.initialize_network()
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
         self.to(device)
 
+    def initialize_network(self) -> None:
+        """ Initialize layers of network. Must be defined in child classes. """
+
+        raise NotImplementedError
+
     def forward(
         self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
     ) -> Tuple[torch.Tensor, Distribution, torch.Tensor]:
         """
-        Forward pass definition for PolicyNetwork.
+        Forward pass definition for BaseNetwork. Must be defined in child classes.
 
         Arguments
         ---------
@@ -125,34 +97,13 @@ class PolicyNetwork(nn.Module):
             New hidden state after forward pass.
         """
 
-        x = obs
-
-        # Pass through recurrent layer, if necessary.
-        if self.recurrent:
-            x, hidden_state = self.recurrent_forward(x, hidden_state, done)
-
-        # Pass through actor and critic networks.
-        value_pred = self.critic(x)
-        actor_output = self.actor(x)
-
-        # Construct action distribution from actor_output.
-        if isinstance(self.action_space, Discrete):
-            action_dist = Categorical(logits=actor_output)
-        elif isinstance(self.action_space, Box):
-            action_logstd = self.logstd(
-                torch.zeros(actor_output.size(), device=self.device)
-            )
-            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
-        else:
-            raise NotImplementedError
-
-        return value_pred, action_dist, hidden_state
+        raise NotImplementedError
 
     def recurrent_forward(
         self, inputs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward pass through recurrent layer of PolicyNetwork.
+        Forward pass through recurrent layer of BaseNetwork.
 
         Arguments
         ---------

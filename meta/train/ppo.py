@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.networks.network import PolicyNetwork
+from meta.networks.vanilla import VanillaNetwork
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import combine_first_two_dims
 
@@ -123,7 +123,7 @@ class PPOPolicy:
         self.train = True
 
         # Initialize policy network and optimizer.
-        self.policy_network = PolicyNetwork(
+        self.policy_network = VanillaNetwork(
             observation_space=observation_space,
             action_space=action_space,
             num_processes=num_processes,
