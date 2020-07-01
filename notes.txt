@@ -18,9 +18,11 @@ Current sprint (MT10/MT50 baselines):
 
 Current task (Shared trunk architecture):
     Add another directory level to package
---> Add new file for shared trunk architecture
-    Naive forward pass
+    Create base network class, extend it with PolicyNetwork
+    Shared trunk network with naive forward pass
+--> Add trunk tests
     Batch inputs of same task in forward pass
+    Add option to include/exclude task index to forward pass
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -31,9 +33,11 @@ Before merging to master:
 Future additions:
 - Test PPO for environments with action space Box((n1, n2))
 - PPO training settings to add/consider:
-    - Network architecture hyperparameters (more customized architectures)
+    - Network architecture hyperparameters
+      - Parameter sharing between actor and critic
+      - Option to have separate recurrent layers
+      - Recurrent layers throughout network
     - Choice of optimizer and optimizer hyperparameters
-    - Parameter sharing between actor and critic
     - More learning rate schedule options
         - torch.optim.lr_scheduler.ReduceLROnPlateau
         - cyclic LR
@@ -41,6 +45,8 @@ Future additions:
     - Various network initialization schemes
     - Value function normalization
     - Independent options for normalizing observations and rewards
+- Multi-task architecture support for environments with observation spaces with
+  dimension greater than 1
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -81,6 +87,9 @@ Refactoring:
   - Clean up redundant options between "base_train_config" and "hp_config"
   - A billion other things, it's disgusting
 - Change main.py to accept a command name ("train" or "tune") and a config
+- Determine whether or not we save time by skipping the check that the end of each
+  observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
+- Change hyperparameter search to allow non-unique leaf node names in config
 
 ----------------------------------------------------------------------------------------
 

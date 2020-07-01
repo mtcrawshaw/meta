@@ -47,7 +47,7 @@ def test_train_cartpole_recurrent() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "cartpole_recurrent"
 
     # Run training.
@@ -86,7 +86,7 @@ def test_train_cartpole_multi_recurrent() -> None:
     # Modify default training config.
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "cartpole_multi_recurrent"
 
     # Run training.
@@ -123,7 +123,7 @@ def test_train_cartpole_gpu_recurrent() -> None:
 
     # Modify default training config.
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "cartpole_gpu_recurrent"
 
     # Run training.
@@ -164,7 +164,7 @@ def test_train_cartpole_multi_gpu_recurrent() -> None:
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "cartpole_multi_gpu_recurrent"
 
     # Run training.
@@ -199,7 +199,7 @@ def test_train_lunar_lander_recurrent() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["num_minibatch"] = 1
     config["baseline_metrics_filename"] = "lunar_lander_recurrent"
 
@@ -239,7 +239,7 @@ def test_train_lunar_lander_multi_recurrent() -> None:
     # Modify default training config.
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "lunar_lander_multi_recurrent"
 
     # Run training.
@@ -276,7 +276,7 @@ def test_train_lunar_lander_gpu_recurrent() -> None:
 
     # Modify default training config.
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["num_minibatch"] = 1
     config["baseline_metrics_filename"] = "lunar_lander_gpu_recurrent"
 
@@ -318,7 +318,7 @@ def test_train_lunar_lander_multi_gpu_recurrent() -> None:
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "lunar_lander_multi_gpu_recurrent"
 
     # Run training.
@@ -353,7 +353,7 @@ def test_train_MT10_recurrent() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["num_minibatch"] = 1
     config["baseline_metrics_filename"] = "MT10_recurrent"
 
@@ -393,7 +393,7 @@ def test_train_MT10_multi_recurrent() -> None:
     # Modify default training config.
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "MT10_multi_recurrent"
 
     # Run training.
@@ -430,7 +430,7 @@ def test_train_MT10_gpu_recurrent() -> None:
 
     # Modify default training config.
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["num_minibatch"] = 1
     config["baseline_metrics_filename"] = "MT10_gpu_recurrent"
 
@@ -472,7 +472,7 @@ def test_train_MT10_multi_gpu_recurrent() -> None:
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
     config["cuda"] = True
-    config["recurrent"] = True
+    config["architecture_config"]["recurrent"] = True
     config["baseline_metrics_filename"] = "MT10_multi_gpu_recurrent"
 
     # Run training.

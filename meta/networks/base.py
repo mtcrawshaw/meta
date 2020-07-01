@@ -39,7 +39,6 @@ class BaseNetwork(nn.Module):
         action_space: Space,
         num_processes: int,
         rollout_length: int,
-        num_layers: int = 3,
         hidden_size: int = 64,
         recurrent: bool = False,
         device: torch.device = None,
@@ -50,7 +49,6 @@ class BaseNetwork(nn.Module):
         self.action_space = action_space
         self.num_processes = num_processes
         self.rollout_length = rollout_length
-        self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.recurrent = recurrent
 
@@ -213,3 +211,18 @@ class BaseNetwork(nn.Module):
             )
 
         return output, hidden_state
+
+    def get_action_distribution(self, actor_output: torch.Tensor) -> Distribution:
+        """ Construction action distribution from output of actor network. """
+
+        if isinstance(self.action_space, Discrete):
+            action_dist = Categorical(logits=actor_output)
+        elif isinstance(self.action_space, Box):
+            action_logstd = self.logstd(
+                torch.zeros(actor_output.size(), device=self.device)
+            )
+            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
+        else:
+            raise NotImplementedError
+
+        return action_dist

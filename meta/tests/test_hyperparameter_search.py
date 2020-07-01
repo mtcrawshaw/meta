@@ -5,9 +5,9 @@ Unit tests for meta/hyperparameter_search.py.
 import os
 import json
 import itertools
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
-from meta.train.hyperparameter_search import hyperparameter_search
+from meta.train.hyperparameter_search import hyperparameter_search, update_config
 
 
 RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")
@@ -79,7 +79,7 @@ def test_hp_search_grid_values() -> None:
     for variable_param_combo in variable_param_combos:
         config = dict(hp_config["base_train_config"])
         updated_params = dict(zip(variable_params, variable_param_combo))
-        config.update(updated_params)
+        config = update_config(config, updated_params)
         expected_configs.append(dict(config))
 
     # Run training and extract actual configs from results.
@@ -150,9 +150,10 @@ def test_hp_search_IC_grid_values() -> None:
         for param_val in param_values:
 
             # Check values.
-            assert actual_configs[iteration][param_name] == param_val
             for best_param_name, best_param_val in best_param_vals.items():
-                assert actual_configs[iteration][best_param_name] == best_param_val
+                found, result = dict_search(actual_configs[iteration], best_param_name)
+                assert found
+                assert result == best_param_val
 
             # Store fitnesses for comparison.
             param_fitnesses[param_val] = results["iterations"][iteration]["fitness"]
@@ -173,3 +174,19 @@ def dict_argmax(d: Dict[Any, Any]) -> Any:
             best_val = val
 
     return argmax
+
+
+def dict_search(d: Dict[str, Any], key: str) -> Tuple[bool, Any]:
+    """
+    Recursively search through a dictionary to find the value corresponding to ``key``.
+    """
+
+    for k, v in d.items():
+        if k == key:
+            return True, v
+        elif isinstance(v, dict):
+            found, result = dict_search(v, key)
+            if found:
+                return True, result
+
+    return False, None

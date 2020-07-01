@@ -18,6 +18,35 @@ from meta.utils.utils import AddBias
 class VanillaNetwork(BaseNetwork):
     """ Module used to parameterize an actor/critic policy. """
 
+    def __init__(
+        self,
+        observation_space: Space,
+        action_space: Space,
+        num_processes: int,
+        rollout_length: int,
+        num_layers: int = 3,
+        hidden_size: int = 64,
+        recurrent: bool = False,
+        device: torch.device = None,
+    ) -> None:
+
+        self.num_layers = num_layers
+        if self.num_layers < 1:
+            raise ValueError(
+                "Number of layers in network should be at least 1. Given value is: %d"
+                % self.num_layers
+            )
+
+        super(VanillaNetwork, self).__init__(
+            observation_space=observation_space,
+            action_space=action_space,
+            num_processes=num_processes,
+            rollout_length=rollout_length,
+            hidden_size=hidden_size,
+            recurrent=recurrent,
+            device=device,
+        )
+
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
@@ -101,15 +130,7 @@ class VanillaNetwork(BaseNetwork):
         value_pred = self.critic(x)
         actor_output = self.actor(x)
 
-        # Construct action distribution from actor_output.
-        if isinstance(self.action_space, Discrete):
-            action_dist = Categorical(logits=actor_output)
-        elif isinstance(self.action_space, Box):
-            action_logstd = self.logstd(
-                torch.zeros(actor_output.size(), device=self.device)
-            )
-            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
-        else:
-            raise NotImplementedError
+        # Construct action distribution from actor output.
+        action_dist = self.get_action_distribution(actor_output)
 
         return value_pred, action_dist, hidden_state

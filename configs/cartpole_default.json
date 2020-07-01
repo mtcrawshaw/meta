@@ -22,9 +22,12 @@
     "normalize_transition": true,
     "normalize_first_n": null,
 
-    "num_layers": 3,
-    "hidden_size": 64,
-    "recurrent": false,
+    "architecture_config": {
+        "type": "vanilla",
+        "num_layers": 3,
+        "hidden_size": 64,
+        "recurrent": false
+    },
 
     "evaluation_freq": 10,
     "evaluation_episodes": 10,

@@ -44,6 +44,24 @@ def clip(val: float, min_value: float, max_value: float, prev_value: float) -> f
     return val
 
 
+def mutate_param(param_settings: Dict[str, Any], value: Any) -> Any:
+    """ Mutate a single parameter and return a new value. """
+
+    perturb_kwargs = param_settings["perturb_kwargs"]
+    perturb = PERTURBATIONS[param_settings["perturb_type"]](**perturb_kwargs)
+    min_value = param_settings["min_value"] if "min_value" in param_settings else None
+    max_value = param_settings["max_value"] if "max_value" in param_settings else None
+
+    # Perturb parameter.
+    new_value = perturb(value)
+
+    # Clip parameter, if necessary.
+    if min_value is not None and max_value is not None:
+        new_value = clip(new_value, min_value, max_value, value)
+
+    return new_value
+
+
 def mutate_train_config(
     search_params: Dict[str, Any], train_config: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -56,27 +74,11 @@ def mutate_train_config(
 
         # Perturb parameter, if necessary.
         if param in search_params:
+            new_config[param] = mutate_param(search_params[param], train_config[param])
 
-            # Construct perturbation function from settings.
-            param_settings = search_params[param]
-            perturb_kwargs = param_settings["perturb_kwargs"]
-            perturb = PERTURBATIONS[param_settings["perturb_type"]](**perturb_kwargs)
-            min_value = (
-                param_settings["min_value"] if "min_value" in param_settings else None
-            )
-            max_value = (
-                param_settings["max_value"] if "max_value" in param_settings else None
-            )
-
-            # Perturb parameter.
-            new_config[param] = perturb(train_config[param])
-
-            # Clip parameter, if necessary.
-            if min_value is not None and max_value is not None:
-                prev_value = train_config[param]
-                new_config[param] = clip(
-                    new_config[param], min_value, max_value, prev_value
-                )
+        # Mutate next depth level of config dictionary, if necessary.
+        if isinstance(train_config[param], dict):
+            new_config[param] = mutate_train_config(search_params, train_config[param])
 
     return new_config
 
@@ -89,9 +91,12 @@ def valid_config(config: Dict[str, Any]) -> bool:
     # Test for requirements on num_minibatch, rollout_length, and num_processes detailed
     # in meta/storage.py (in this file, these conditions are checked at the beginning of
     # each generator definition, and an error is raised when they are violated)
-    if config["recurrent"] and config["num_processes"] < config["num_minibatch"]:
+    if (
+        config["architecture_config"]["recurrent"]
+        and config["num_processes"] < config["num_minibatch"]
+    ):
         valid = False
-    if not config["recurrent"]:
+    if not config["architecture_config"]["recurrent"]:
         total_steps = config["rollout_length"] * config["num_processes"]
         if total_steps < config["num_minibatch"]:
             valid = False
@@ -140,6 +145,28 @@ def check_name_uniqueness(
                 "Saved result '%s' already exists. Results of hyperparameter searches"
                 " must have unique names." % name
             )
+
+
+def update_config(config: Dict[str, Any], new_values: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Updates a config with new values. The keys of ``new_values`` are the names of the
+    leaf nodes in ``config`` that should be updated. For example, if
+    ``config["architecture_config"]["recurrent"]`` should be updated, that will appear
+    in ``new_values`` as ``new_values["recurrent"]``. This why leaf nodes must have
+    unique names.
+    """
+
+    # Construct updated config.
+    new_config = dict(config)
+
+    # Loop over each parameter and check for changes, or check for recursion.
+    for param_name, value in config.items():
+        if param_name in new_values:
+            new_config[param_name] = new_values[param_name]
+        elif isinstance(value, dict):
+            new_config[param_name] = update_config(new_config[param_name], new_values)
+
+    return new_config
 
 
 def train_single_config(
@@ -319,7 +346,7 @@ def random_search(
     # Training loop.
     config = dict(base_config)
     best_fitness = None
-    best_config = dict(base_config)
+    best_config = None
     for iteration in range(iterations):
 
         # See if we have already performed training with this configuration.
@@ -406,12 +433,13 @@ def grid_search(
     configs = []
     for config_value in config_values:
         config = dict(base_config)
-        config.update(dict(zip(search_params.keys(), config_value)))
+        new_values = dict(zip(search_params.keys(), config_value))
+        config = update_config(config, new_values)
         configs.append(dict(config))
 
     # Training loop.
     best_fitness = None
-    best_config = dict(base_config)
+    best_config = None
     for iteration, config in enumerate(configs):
 
         # Run training for current config.
@@ -482,18 +510,23 @@ def IC_grid_search(
     for param_name, param_settings in search_params.items():
         param_values[param_name] = get_param_values(param_settings)
 
-    # Training loop. We set config values for all varying parameters to their median
-    # values. We do this to ensure that, on each IC grid iteration, the best
-    # configuration so far is included in the configurations to try. If the values of
-    # the varying parameters in ``base_config`` aren't included in the intervals
-    # specified in ``search_params``, then the original values of the varying parameters
-    # are never revisited. We avoid this by explicitly setting the values of the varying
-    # parameters to their median values in the given intervals.
+    # We set config values for all varying parameters to their median values. We do this
+    # to ensure that, on each IC grid iteration, the best configuration so far is
+    # included in the configurations to try. If the values of the varying parameters in
+    # ``base_config`` aren't included in the intervals specified in ``search_params``,
+    # then the original values of the varying parameters are never revisited. We avoid
+    # this by explicitly setting the values of the varying parameters to their median
+    # values in the given intervals.
     config = dict(base_config)
-    for param_name, param_interval in param_values.items():
-        config[param_name] = param_interval[len(param_interval) // 2]
+    median_values = {
+        param_name: param_interval[len(param_interval) // 2]
+        for param_name, param_interval in param_values.items()
+    }
+    config = update_config(config, median_values)
+
+    # Training loop.
     best_fitness = None
-    best_config = dict(base_config)
+    best_config = None
     for param_num, (param_name, param_settings) in enumerate(search_params.items()):
 
         # Find best value of parameter ``param_name``.
@@ -503,7 +536,7 @@ def IC_grid_search(
         for val_num, param_val in enumerate(param_values[param_name]):
 
             # Set value of current param of interest in current config.
-            config[param_name] = param_val
+            config = update_config(config, {param_name: param_val})
 
             # See if we have already performed training with this configuration.
             already_trained = False
@@ -560,7 +593,7 @@ def IC_grid_search(
             results["iterations"].append(dict(config_results))
 
         # Fix parameter value to that which led to highest fitness.
-        config[param_name] = best_param_val
+        config = update_config(config, {param_name: best_param_val})
 
     # Fill results.
     results["best_config"] = dict(best_config)
@@ -591,7 +624,11 @@ def hyperparameter_search(hp_config: Dict[str, Any]) -> Dict[str, Any]:
         hyperparameter configuration.
     base_train_config : Dict[str, Any]
         Config dictionary for function train() in meta/train.py. This is used as a
-        starting point for hyperparameter search.
+        starting point for hyperparameter search. It is required that each leaf element
+        of this config dictionary have a unique key, i.e. a config containing
+        base_train_config["key1"]["num_layers"] and
+        base_train_config["key2"]["num_layers"] is invalid. This occurrence will cause
+        unexpected behavior due to the implementation of update_config().
     search_params : Dict[str, Any]
         Search specifications for each parameter, such as max/min values, etc. The
         format of this dictionary varies between different search types.

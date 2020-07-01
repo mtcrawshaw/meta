@@ -1,7 +1,7 @@
 """ Definition of PPOPolicy, an object to perform acting and training with PPO. """
 
 import math
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Any
 
 import torch
 import torch.nn as nn
@@ -10,6 +10,7 @@ from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.networks.vanilla import VanillaNetwork
+from meta.networks.mt_trunk import MultiTaskTrunkNetwork
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import combine_first_two_dims
 
@@ -25,6 +26,7 @@ class PPOPolicy:
         num_processes: int,
         rollout_length: int,
         num_updates: int,
+        architecture_config: Dict[str, Any],
         num_ppo_epochs: int = 4,
         lr_schedule_type: str = None,
         initial_lr: float = 7e-4,
@@ -37,9 +39,6 @@ class PPOPolicy:
         clip_param: float = 0.2,
         max_grad_norm: float = 0.5,
         clip_value_loss: bool = True,
-        num_layers: int = 3,
-        hidden_size: int = 64,
-        recurrent: bool = False,
         normalize_advantages: float = True,
         device: torch.device = None,
     ) -> None:
@@ -60,6 +59,11 @@ class PPOPolicy:
             Length of the rollout between each update.
         num_updates : int
             Number of total updates to be performed on policy.
+        architecture_config: Dict[str, Any]
+            Config dictionary for the architecture. Should contain an entry for "type",
+            which is either "vanilla" or "trunk", and all other entries should
+            correspond to the keyword arguments for the corresponding network class,
+            which is either VanillaNetwork or MultiTaskTrunkNetwork.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr_schedule_type : str
@@ -85,12 +89,6 @@ class PPOPolicy:
             Maximum norm of loss gradients for update.
         clip_value_loss : float
             Whether or not to clip the value loss.
-        num_layers : int
-            Number of layers in actor/critic network.
-        hidden_size : int
-            Hidden size of actor/critic network.
-        recurrent : bool
-            Whether or not to add recurrent layer to policy network.
         normalize_advantages : float
             Whether or not to normalize advantages.
         device : torch.device
@@ -103,6 +101,7 @@ class PPOPolicy:
         self.num_minibatch = num_minibatch
         self.num_processes = num_processes
         self.num_updates = num_updates
+        self.recurrent = architecture_config["recurrent"]
         self.num_ppo_epochs = num_ppo_epochs
         self.lr_schedule_type = lr_schedule_type
         self.initial_lr = initial_lr
@@ -115,24 +114,31 @@ class PPOPolicy:
         self.clip_param = clip_param
         self.max_grad_norm = max_grad_norm
         self.clip_value_loss = clip_value_loss
-        self.num_layers = num_layers
-        self.recurrent = recurrent
-        self.hidden_size = hidden_size
         self.normalize_advantages = normalize_advantages
         self.device = device if device is not None else torch.device("cpu")
         self.train = True
 
-        # Initialize policy network and optimizer.
-        self.policy_network = VanillaNetwork(
+        # Initialize policy network.
+        if architecture_config["type"] == "vanilla":
+            network_cls = VanillaNetwork
+        elif architecture_config["type"] == "trunk":
+            network_cls = MultiTaskTrunkNetwork
+        else:
+            raise ValueError(
+                "Invalid architecture type: %s" % architecture_config["type"]
+            )
+        kwargs = dict(architecture_config)
+        del kwargs["type"]
+        self.policy_network = network_cls(
             observation_space=observation_space,
             action_space=action_space,
             num_processes=num_processes,
             rollout_length=rollout_length,
-            num_layers=num_layers,
-            hidden_size=hidden_size,
-            recurrent=recurrent,
             device=device,
+            **kwargs,
         )
+
+        # Initialize optimizer.
         self.optimizer = optim.Adam(
             self.policy_network.parameters(), lr=initial_lr, eps=eps
         )

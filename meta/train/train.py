@@ -74,12 +74,11 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Whether or not to normalize advantages after computation.
     normalize_transition : bool
         Whether or not to normalize observations and rewards.
-    num_layers : int
-        Number of layers in actor/critic network.
-    hidden_size : int
-        Hidden size of actor/critic network.
-    recurrent : bool
-        Whether or not to add recurrent layer to policy network.
+    architecture_config: Dict[str, Any]
+        Config dictionary for the architecture. Should contain an entry for "type",
+        which is either "vanilla" or "trunk", and all other entries should correspond to
+        the keyword arguments for the corresponding network class, which is either
+        VanillaNetwork or MultiTaskTrunkNetwork.
     cuda : bool
         Whether or not to train on GPU.
     seed : int
@@ -126,6 +125,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         num_processes=config["num_processes"],
         rollout_length=config["rollout_length"],
         num_updates=config["num_updates"],
+        architecture_config=config["architecture_config"],
         num_ppo_epochs=config["num_ppo_epochs"],
         lr_schedule_type=config["lr_schedule_type"],
         initial_lr=config["initial_lr"],
@@ -138,9 +138,6 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         clip_param=config["clip_param"],
         max_grad_norm=config["max_grad_norm"],
         clip_value_loss=config["clip_value_loss"],
-        num_layers=config["num_layers"],
-        hidden_size=config["hidden_size"],
-        recurrent=config["recurrent"],
         normalize_advantages=config["normalize_advantages"],
         device=device,
     )
@@ -151,7 +148,9 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=config["num_processes"],
-        hidden_state_size=config["hidden_size"] if policy.recurrent else 1,
+        hidden_state_size=config["architecture_config"]["hidden_size"]
+        if policy.recurrent
+        else 1,
         device=device,
     )
 
