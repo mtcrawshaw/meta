@@ -1,5 +1,5 @@
 # meta
-Meta learning and transfer learning methods for the MetaWorld benchmark.
+A library for multi-task learning and meta-learning.
 
 __Dependencies__
 - [OpenAI Gym](https://gym.openai.com)
