@@ -10,7 +10,7 @@ import torch
 from meta.train.env import get_env
 from meta.train.train import collect_rollout, train
 from meta.utils.storage import RolloutStorage
-from meta.tests.utils import get_policy, DEFAULT_SETTINGS
+from tests.helpers import get_policy, DEFAULT_SETTINGS
 
 
 MP_FACTOR = 4

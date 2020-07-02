@@ -9,7 +9,7 @@ import torch
 from meta.train.env import get_env
 from meta.train.train import collect_rollout
 from meta.utils.storage import RolloutStorage
-from meta.tests.utils import get_policy, DEFAULT_SETTINGS
+from tests.helpers import get_policy, DEFAULT_SETTINGS
 
 
 def test_collect_rollout_MT10_single() -> None:

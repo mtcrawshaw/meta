@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import gym
 from gym import Env
+from gym.spaces import Box, Discrete
 from baselines import bench
 from baselines.common.running_mean_std import RunningMeanStd
 from baselines.common.vec_env import (
@@ -14,8 +15,6 @@ from baselines.common.vec_env import (
     VecEnvWrapper,
     VecNormalize,
 )
-
-from meta.tests.envs import ParityEnv, UniqueEnv
 
 
 def get_env(
@@ -350,6 +349,74 @@ def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
 
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+
+
+class ParityEnv(Env):
+    """ Environment for testing. Only has two states, and two actions.  """
+
+    def __init__(self) -> None:
+        """ Init function for ParityEnv. """
+
+        self.states = [np.array([1, 0]), np.array([0, 1])]
+        self.observation_space = Discrete(len(self.states))
+        self.action_space = Discrete(len(self.states))
+        self.initial_state_index = 0
+        self.state_index = self.initial_state_index
+        self.state = self.states[self.state_index]
+
+    def reset(self) -> np.ndarray:
+        """ Reset environment to initial state. """
+
+        self.state_index = self.initial_state_index
+        self.state = self.states[self.state_index]
+        return self.state
+
+    def step(self, action: int) -> Tuple[int, float, bool, dict]:
+        """
+        Step function for environment. Returns an observation, a reward,
+        whether or not the environment is done, and an info dictionary, as is
+        the standard for OpenAI gym environments.
+        """
+
+        reward = 1 if action == self.state_index else -1
+        self.state_index = (self.state_index + 1) % len(self.states)
+        self.state = self.states[self.state_index]
+        done = False
+        info: Dict = {}
+
+        return self.state, reward, done, info
+
+
+class UniqueEnv(Env):
+    """ Environment for testing. Each step returns a unique observation and reward. """
+
+    def __init__(self) -> None:
+        """ Init function for UniqueEnv. """
+
+        self.observation_space = Box(low=0.0, high=np.inf, shape=(1,))
+        self.action_space = Discrete(2)
+        self.timestep = 1
+
+    def reset(self) -> np.ndarray:
+        """ Reset environment to initial state. """
+
+        self.timestep = 1
+        return np.array(float(self.timestep))
+
+    def step(self, action: float) -> Tuple[float, float, bool, dict]:
+        """
+        Step function for environment. Returns an observation, a reward,
+        whether or not the environment is done, and an info dictionary, as is
+        the standard for OpenAI gym environments.
+        """
+
+        reward = float(self.timestep)
+        done = False
+        self.timestep += 1
+        obs = float(self.timestep)
+        info: Dict = {}
+
+        return np.array(obs), reward, done, info
 
 
 # HARDCODE. This is a hard-coding of a reward threshold for some environments. An

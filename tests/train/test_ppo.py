@@ -11,7 +11,7 @@ import numpy as np
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env
 from meta.utils.storage import RolloutStorage
-from meta.tests.utils import get_policy, get_rollout, DEFAULT_SETTINGS
+from tests.helpers import get_policy, get_rollout, DEFAULT_SETTINGS
 
 
 TOL = 5e-6

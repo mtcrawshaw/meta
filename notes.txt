@@ -26,7 +26,7 @@ Current task (Shared trunk architecture):
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
-- Make sure "pytest meta/" passes
+- Make sure "pytest tests/" passes
 
 ----------------------------------------------------------------------------------------
 
@@ -63,7 +63,6 @@ Possible additions:
 - Catch KeyboardInterrupt during training to optionally stop training early
 
 Refactoring:
-- Move tests outside of package
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
   to CV and NLP. This is way in the future. It will be a pain because we will have to
   call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
