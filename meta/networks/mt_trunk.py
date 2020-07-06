@@ -62,10 +62,6 @@ class MultiTaskTrunkNetwork(BaseNetwork):
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
-        # Increase input size to account for the fact that inputs are observations
-        # concatenated with a one-hot task vector.
-        self.input_size += self.num_tasks
-
         # Initialize recurrent layer, if necessary.
         if self.recurrent:
             self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
@@ -186,7 +182,7 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         # the end of each observation in the batch and aggregate the task indices. Here
         # we commented out the check that these vectors are actually one-hot, just to
         # save time.
-        task_index_pos = self.observation_space.shape[0]
+        task_index_pos = self.observation_space.shape[0] - self.num_tasks
         nonzero_pos = obs[:, task_index_pos:].nonzero()
         # assert nonzero_pos[:, 0] == torch.arange(obs.shape[0], device="cuda")
         task_indices = nonzero_pos[:, 1]

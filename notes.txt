@@ -20,8 +20,8 @@ Current task (Shared trunk architecture):
     Add another directory level to package
     Create base network class, extend it with PolicyNetwork
     Shared trunk network with naive forward pass
---> Add trunk tests
-    Batch inputs of same task in forward pass
+    Add trunk tests
+--> Batch inputs of same task in forward pass
     Add option to include/exclude task index to forward pass
 
 Before merging to master:
@@ -36,7 +36,7 @@ Future additions:
     - Network architecture hyperparameters
       - Parameter sharing between actor and critic
       - Option to have separate recurrent layers
-      - Recurrent layers throughout network
+      - Recurrent layers throughout network, different types of recurrent layers
     - Choice of optimizer and optimizer hyperparameters
     - More learning rate schedule options
         - torch.optim.lr_scheduler.ReduceLROnPlateau

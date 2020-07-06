@@ -16,7 +16,7 @@ from tests.helpers import DEFAULT_SETTINGS
 SETTINGS = {
     "obs_dim": 8,
     "num_tasks": 3,
-    "num_processes": 4,
+    "num_processes": 6,
     "rollout_length": 8,
     "num_shared_layers": 2,
     "num_task_layers": 1,
@@ -40,8 +40,9 @@ def test_forward_discrete() -> None:
 
     # Set up case.
     dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
-    observation_space = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
-    observation_space.seed(DEFAULT_SETTINGS["seed"])
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     action_space = Discrete(dim)
     hidden_size = dim
     recurrent = False
@@ -80,7 +81,7 @@ def test_forward_discrete() -> None:
     # Construct batch of observations concatenated with one-hot task vectors.
     obs_list = []
     for _ in range(SETTINGS["num_processes"]):
-        ob = torch.Tensor(observation_space.sample())
+        ob = torch.Tensor(observation_subspace.sample())
         task_vector = one_hot_tensor(SETTINGS["num_tasks"])
         obs_list.append(torch.cat([ob, task_vector]))
     obs = torch.stack(obs_list)
@@ -121,8 +122,9 @@ def test_forward_box() -> None:
 
     # Set up case.
     dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
-    observation_space = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
-    observation_space.seed(DEFAULT_SETTINGS["seed"])
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     action_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     hidden_size = dim
     recurrent = False
@@ -167,7 +169,7 @@ def test_forward_box() -> None:
     # Construct batch of observations concatenated with one-hot task vectors.
     obs_list = []
     for _ in range(SETTINGS["num_processes"]):
-        ob = torch.Tensor(observation_space.sample())
+        ob = torch.Tensor(observation_subspace.sample())
         task_vector = one_hot_tensor(SETTINGS["num_tasks"])
         obs_list.append(torch.cat([ob, task_vector]))
     obs = torch.stack(obs_list)
@@ -201,3 +203,189 @@ def test_forward_box() -> None:
     assert torch.allclose(action_dist.mean, expected_mean)
     assert torch.allclose(action_dist.stddev, expected_stddev)
     assert torch.allclose(value_pred, expected_value)
+
+
+def test_backward_1() -> None:
+    """
+    Test backward() when the action space is Discrete and network is feedforward. We
+    just want to make sure that the gradient with respect to the i-th task loss is zero
+    for all parameters in output head j != i, and is nonzero for all parameters in
+    output head i.
+    """
+
+    # Set up case.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
+    action_space = Discrete(dim)
+    hidden_size = dim
+    recurrent = False
+    device = torch.device("cpu")
+
+    # Construct network.
+    network = MultiTaskTrunkNetwork(
+        observation_space=observation_space,
+        action_space=action_space,
+        num_processes=SETTINGS["num_processes"],
+        rollout_length=SETTINGS["rollout_length"],
+        num_tasks=SETTINGS["num_tasks"],
+        num_shared_layers=SETTINGS["num_shared_layers"],
+        num_task_layers=SETTINGS["num_task_layers"],
+        hidden_size=hidden_size,
+        recurrent=recurrent,
+        device=device,
+    )
+
+    # Construct batch of observations concatenated with one-hot task vectors.
+    obs_list = []
+    for _ in range(SETTINGS["num_processes"]):
+        ob = torch.Tensor(observation_subspace.sample())
+        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
+        obs_list.append(torch.cat([ob, task_vector]))
+    obs = torch.stack(obs_list)
+    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
+    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
+    task_indices = nonzero_pos[:, 1].tolist()
+
+    # Make sure every task gets at least one process.
+    assert set(task_indices) == set(range(SETTINGS["num_tasks"]))
+
+    # Get output of network.
+    value_pred, action_dist, _ = network(obs, hidden_state=None, done=None)
+
+    # Compute losses (we just compute the squared network output to keep it simple) and
+    # test gradients.
+    for i in range(SETTINGS["num_tasks"]):
+
+        # Zero out gradients.
+        network.zero_grad()
+
+        # Compute loss over outputs from the current task.
+        loss = torch.zeros(1)
+        for process in range(obs.shape[0]):
+            j = task_indices[process]
+            if i == j:
+                logits = action_dist.logits[process]
+                value = value_pred[process]
+                loss += torch.sum(logits ** 2)
+                loss += value ** 2
+
+        # Test gradients.
+        loss.backward(retain_graph=True)
+        check_gradients(network.actor_trunk, nonzero=True)
+        check_gradients(network.critic_trunk, nonzero=True)
+        for j in range(SETTINGS["num_tasks"]):
+            nonzero = j == i
+            check_gradients(network.actor_output_heads[j], nonzero=nonzero)
+            check_gradients(network.critic_output_heads[j], nonzero=nonzero)
+
+
+def test_backward_2() -> None:
+    """
+    Test backward() when the action space is Box and network is recurrent. We just want
+    to make sure that the gradient with respect to the i-th task loss is zero for all
+    parameters in output head j != i, and is nonzero for all parameters in output head
+    i.
+    """
+
+    # Set up case.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
+    action_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
+    hidden_size = dim
+    recurrent = True
+    device = torch.device("cpu")
+
+    # Construct network.
+    network = MultiTaskTrunkNetwork(
+        observation_space=observation_space,
+        action_space=action_space,
+        num_processes=SETTINGS["num_processes"],
+        rollout_length=SETTINGS["rollout_length"],
+        num_tasks=SETTINGS["num_tasks"],
+        num_shared_layers=SETTINGS["num_shared_layers"],
+        num_task_layers=SETTINGS["num_task_layers"],
+        hidden_size=hidden_size,
+        recurrent=recurrent,
+        device=device,
+    )
+
+    # Sample a task for each process.
+    task_vector_list = []
+    for _ in range(SETTINGS["num_processes"]):
+        task_vector_list.append(one_hot_tensor(SETTINGS["num_tasks"]))
+    task_vectors = torch.stack(task_vector_list)
+    nonzero_pos = task_vectors.nonzero()
+    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
+    task_indices = nonzero_pos[:, 1].tolist()
+
+    # Make sure every task gets at least one process.
+    assert set(task_indices) == set(range(SETTINGS["num_tasks"]))
+
+    # Run multiple timesteps of forward passes.
+    hidden_state = torch.zeros(SETTINGS["num_processes"], hidden_size)
+    done = torch.zeros(SETTINGS["num_processes"], 1)
+    mean_list = []
+    std_list = []
+    value_pred_list = []
+    for _ in range(SETTINGS["rollout_length"]):
+
+        # Construct batch of observations.
+        obs_list = []
+        for i in range(SETTINGS["num_processes"]):
+            ob = torch.Tensor(observation_subspace.sample())
+            obs_list.append(torch.cat([ob, task_vectors[i]]))
+        obs = torch.stack(obs_list)
+
+        # Get output of network.
+        value_pred, action_dist, hidden_state = network(
+            obs, hidden_state=hidden_state, done=done
+        )
+        mean_list.append(action_dist.mean)
+        std_list.append(action_dist.stddev)
+        value_pred_list.append(value_pred)
+
+    mean = torch.stack(mean_list)
+    std = torch.stack(std_list)
+    value_pred = torch.stack(value_pred_list)
+
+    # Compute losses (we just compute the squared network output to keep it simple) and
+    # test gradients.
+    for i in range(SETTINGS["num_tasks"]):
+
+        # Zero out gradients.
+        network.zero_grad()
+
+        # Compute loss over outputs from the current task.
+        loss = torch.zeros(1)
+        for process in range(obs.shape[0]):
+            j = task_indices[process]
+            if i == j:
+                current_mean = mean[:, process]
+                current_std = std[:, process]
+                current_value = value_pred[:, process]
+                loss += torch.sum(current_mean ** 2)
+                loss += torch.sum(current_std ** 2)
+                loss += torch.sum(current_value ** 2)
+
+        # Test gradients.
+        loss.backward(retain_graph=True)
+        check_gradients(network.actor_trunk, nonzero=True)
+        check_gradients(network.critic_trunk, nonzero=True)
+        for j in range(SETTINGS["num_tasks"]):
+            nonzero = j == i
+            check_gradients(network.actor_output_heads[j], nonzero=nonzero)
+            check_gradients(network.critic_output_heads[j], nonzero=nonzero)
+
+
+# Helper function to test gradients.
+def check_gradients(m: torch.nn.Module, nonzero: bool) -> None:
+    correct = True
+    for param in m.parameters():
+        if nonzero:
+            assert (param.grad != 0).any()
+        else:
+            assert param.grad is None or (param.grad == 0).all()
