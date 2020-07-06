@@ -62,6 +62,10 @@ class MultiTaskTrunkNetwork(BaseNetwork):
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
+        # Increase input size to account for the fact that inputs are observations
+        # concatenated with a one-hot task vector.
+        self.input_size += self.num_tasks
+
         # Initialize recurrent layer, if necessary.
         if self.recurrent:
             self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
@@ -93,8 +97,8 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         self.critic_trunk = nn.Sequential(*critic_trunk_layers)
 
         # Initialize task-specific output heads for each task.
-        self.actor_output_heads = []
-        self.critic_output_heads = []
+        actor_heads_list = []
+        critic_heads_list = []
         for task in range(self.num_tasks):
 
             actor_task_layers = []
@@ -126,15 +130,19 @@ class MultiTaskTrunkNetwork(BaseNetwork):
                     actor_task_layers.append(nn.Tanh())
                     critic_task_layers.append(nn.Tanh())
 
-            self.actor_output_heads.append(nn.Sequential(*actor_task_layers))
-            self.critic_output_heads.append(nn.Sequential(*critic_task_layers))
+            actor_heads_list.append(nn.Sequential(*actor_task_layers))
+            critic_heads_list.append(nn.Sequential(*critic_task_layers))
+
+        self.actor_output_heads = nn.ModuleList(actor_heads_list)
+        self.critic_output_heads = nn.ModuleList(critic_heads_list)
 
         # Extra parameter vector for standard deviations in the case that
         # the policy distribution is Gaussian.
         if isinstance(self.action_space, Box):
-            self.output_logstd = []
+            logstd_list = []
             for task in range(self.num_tasks):
-                self.output_logstd.append(AddBias(torch.zeros(self.output_size)))
+                logstd_list.append(AddBias(torch.zeros(self.output_size)))
+            self.output_logstd = nn.ModuleList(logstd_list)
 
     def forward(
         self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
@@ -201,9 +209,24 @@ class MultiTaskTrunkNetwork(BaseNetwork):
             actor_outputs.append(self.actor_output_heads[task_index](actor_out))
             critic_outputs.append(self.critic_output_heads[task_index](critic_out))
         actor_output = torch.stack(actor_outputs)
-        critic_outputs = torch.stack(critic_outputs)
+        value_pred = torch.stack(critic_outputs)
 
-        # Construct action distribution from actor output.
-        action_dist = self.get_action_distribution(actor_output)
+        # Construct action distribution from actor outputs.
+        if isinstance(self.action_space, Discrete):
+            action_dist = Categorical(logits=actor_output)
+        elif isinstance(self.action_space, Box):
+            action_logstds = []
+            logstd_shape = actor_output.shape[1:]
+            for i in range(task_indices.shape[0]):
+                task_index = task_indices[i]
+                action_logstds.append(
+                    self.output_logstd[task_index](
+                        torch.zeros(logstd_shape, device=self.device)
+                    )
+                )
+            action_logstd = torch.stack(action_logstds)
+            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
+        else:
+            raise NotImplementedError
 
         return value_pred, action_dist, hidden_state

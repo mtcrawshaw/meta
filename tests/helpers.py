@@ -1,4 +1,4 @@
-""" Utilities for meta/tests. """
+""" Utilities for tests. """
 
 from typing import Dict, Any
 
@@ -7,6 +7,7 @@ from gym import Env
 
 from meta.train.ppo import PPOPolicy
 from meta.utils.storage import RolloutStorage
+
 
 DEFAULT_SETTINGS = {
     "env_name": "CartPole-v1",

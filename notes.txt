@@ -47,6 +47,11 @@ Future additions:
     - Independent options for normalizing observations and rewards
 - Multi-task architecture support for environments with observation spaces with
   dimension greater than 1
+- When it comes time to add training for CV and NLP tasks, decouple the current network
+  objects into model objects and network objects. For example, for the current RL setup
+  we will have an actor critic model, which has two network objects as members, one
+  actor network and one critic network. Right now the only available network objects
+  have to be actor critic networks.
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick

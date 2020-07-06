@@ -1,5 +1,5 @@
 """
-Unit tests for meta/ppo.py.
+Unit tests for meta/train/ppo.py.
 """
 
 import math

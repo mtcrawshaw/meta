@@ -1,5 +1,5 @@
 """
-Unit tests for meta/train.py.
+Unit tests for meta/train/train.py.
 """
 
 import os

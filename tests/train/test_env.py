@@ -1,5 +1,5 @@
 """
-Unit tests for meta/env.py.
+Unit tests for meta/train/env.py.
 """
 
 from typing import Dict, List, Any

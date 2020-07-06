@@ -4,11 +4,6 @@ import os
 import pickle
 import json
 from typing import Any, List, Tuple, Dict
-import warnings
-
-# This is to ignore warnings about tensorflow using deprecated Numpy code. This line
-# must appear before importing baselines (happens in env.py).
-warnings.filterwarnings("ignore", category=FutureWarning)
 
 import numpy as np
 import torch

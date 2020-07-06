@@ -1,5 +1,5 @@
 """
-Unit tests for meta/metrics.py.
+Unit tests for meta/utils/metrics.py.
 """
 
 from math import sqrt

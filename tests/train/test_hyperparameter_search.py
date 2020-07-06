@@ -1,5 +1,5 @@
 """
-Unit tests for meta/hyperparameter_search.py.
+Unit tests for meta/train/hyperparameter_search.py.
 """
 
 import os

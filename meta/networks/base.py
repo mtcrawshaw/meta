@@ -211,18 +211,3 @@ class BaseNetwork(nn.Module):
             )
 
         return output, hidden_state
-
-    def get_action_distribution(self, actor_output: torch.Tensor) -> Distribution:
-        """ Construction action distribution from output of actor network. """
-
-        if isinstance(self.action_space, Discrete):
-            action_dist = Categorical(logits=actor_output)
-        elif isinstance(self.action_space, Box):
-            action_logstd = self.logstd(
-                torch.zeros(actor_output.size(), device=self.device)
-            )
-            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
-        else:
-            raise NotImplementedError
-
-        return action_dist

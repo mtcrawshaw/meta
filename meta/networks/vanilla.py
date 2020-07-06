@@ -131,6 +131,14 @@ class VanillaNetwork(BaseNetwork):
         actor_output = self.actor(x)
 
         # Construct action distribution from actor output.
-        action_dist = self.get_action_distribution(actor_output)
+        if isinstance(self.action_space, Discrete):
+            action_dist = Categorical(logits=actor_output)
+        elif isinstance(self.action_space, Box):
+            action_logstd = self.logstd(
+                torch.zeros(actor_output.size(), device=self.device)
+            )
+            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
+        else:
+            raise NotImplementedError
 
         return value_pred, action_dist, hidden_state
