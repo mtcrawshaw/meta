@@ -33,11 +33,13 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         hidden_size: int = 64,
         recurrent: bool = False,
         device: torch.device = None,
+        include_task_index: bool = True,
     ) -> None:
 
         self.num_tasks = num_tasks
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
+        self.include_task_index = include_task_index
         if self.num_shared_layers < 1 or self.num_task_layers < 1:
             raise ValueError(
                 "Number of shared layers and task-specific layers in network should "
@@ -46,8 +48,19 @@ class MultiTaskTrunkNetwork(BaseNetwork):
             )
 
         # We only support environments whose observation spaces are flat vectors.
-        if len(observation_space.shape) != 1:
+        if not isinstance(observation_space, Box) or len(observation_space.shape) != 1:
             raise NotImplementedError
+
+        # If the one-hot task vector isn't to be included in the network input, we need
+        # to resize the observation space. Note that we have to take low[0] and high[0]
+        # from the existing space since self.low is set to np.full(self.shape, low)
+        # during __init__, and similarly for self.high.
+        if not self.include_task_index:
+            low = observation_space.low[0]
+            high = observation_space.high[0]
+            shape = (observation_space.shape[0] - self.num_tasks,)
+            dtype = observation_space.dtype
+            observation_space = Box(low, high, shape=shape, dtype=dtype)
 
         super(MultiTaskTrunkNetwork, self).__init__(
             observation_space=observation_space,
@@ -172,7 +185,13 @@ class MultiTaskTrunkNetwork(BaseNetwork):
             New hidden state after forward pass.
         """
 
-        x = obs
+        # Omit one-hot task vector from network input, if necessary.
+        if self.include_task_index:
+            task_index_pos = self.observation_space.shape[0] - self.num_tasks
+            x = obs
+        else:
+            task_index_pos = self.observation_space.shape[0]
+            x = obs[:, :task_index_pos]
 
         # Pass through recurrent layer, if necessary.
         if self.recurrent:
@@ -182,7 +201,6 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         # the end of each observation in the batch and aggregate the task indices. Here
         # we commented out the check that these vectors are actually one-hot, just to
         # save time.
-        task_index_pos = self.observation_space.shape[0] - self.num_tasks
         nonzero_pos = obs[:, task_index_pos:].nonzero()
         # assert nonzero_pos[:, 0] == torch.arange(obs.shape[0], device="cuda")
         task_indices = nonzero_pos[:, 1]
@@ -205,10 +223,8 @@ class MultiTaskTrunkNetwork(BaseNetwork):
             # Construct the batch of trunk outputs for a given task head.
             single_batch_indices = task_batch_indices[task]
 
+            # Don't perform forward pass if there are no inputs for the current task.
             if len(single_batch_indices) == 0:
-
-                # Don't perform forward pass if there are no inputs for the current
-                # task.
                 actor_batch_outputs.append(torch.Tensor([0.0]))
                 critic_batch_outputs.append(torch.Tensor([0.0]))
                 continue

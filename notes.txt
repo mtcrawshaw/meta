@@ -23,7 +23,8 @@ Current task (Shared trunk architecture):
     Add trunk tests
     Establish shared trunk baselines
     Batch inputs from the same task in forward pass
---> Add option to include/exclude task index to forward pass
+    Add option to include/exclude task index to forward pass
+--> Evaluate trunk performance on MT10
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up

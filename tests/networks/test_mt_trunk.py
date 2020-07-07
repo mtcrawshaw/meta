@@ -20,6 +20,9 @@ SETTINGS = {
     "rollout_length": 8,
     "num_shared_layers": 2,
     "num_task_layers": 1,
+    "include_task_index": True,
+    "recurrent": False,
+    "device": torch.device("cpu"),
 }
 
 
@@ -45,8 +48,6 @@ def test_forward_discrete() -> None:
     observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     action_space = Discrete(dim)
     hidden_size = dim
-    recurrent = False
-    device = torch.device("cpu")
 
     # Construct network and set weights of each output head explicitly. We want to make
     # it so that f_i(x) = x * i + i (with broadcasted operations), where the i-th actor
@@ -61,8 +62,9 @@ def test_forward_discrete() -> None:
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
-        recurrent=recurrent,
-        device=device,
+        recurrent=SETTINGS["recurrent"],
+        device=SETTINGS["device"],
+        include_task_index=SETTINGS["include_task_index"],
     )
     for i in range(SETTINGS["num_tasks"]):
 
@@ -127,8 +129,6 @@ def test_forward_box() -> None:
     observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     action_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     hidden_size = dim
-    recurrent = False
-    device = torch.device("cpu")
 
     # Construct network and set weights of each output head explicitly. We want to make
     # it so that f_i(x) = x * i + i (with broadcasted operations), where the i-th actor
@@ -144,8 +144,9 @@ def test_forward_box() -> None:
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
-        recurrent=recurrent,
-        device=device,
+        recurrent=SETTINGS["recurrent"],
+        device=SETTINGS["device"],
+        include_task_index=SETTINGS["include_task_index"],
     )
     for i in range(SETTINGS["num_tasks"]):
 
@@ -205,6 +206,112 @@ def test_forward_box() -> None:
     assert torch.allclose(value_pred, expected_value)
 
 
+def test_forward_obs_only() -> None:
+    """
+    Test forward() when each task-specific output head multiplies the shared trunk
+    output by some constant factor, omitting the one-hot task vector from the network
+    input.
+    """
+
+    # Set up case.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
+    action_space = Box(low=-np.inf, high=np.inf, shape=(SETTINGS["obs_dim"],))
+    hidden_size = SETTINGS["obs_dim"]
+    num_shared_layers = 1
+    include_task_index = False
+
+    # Construct network and set weights of each output head explicitly. We want to make
+    # it so that each layer in the shared trunk computes an identity function (plus the
+    # nonlinearity), f_i(x) = x * i + i (with broadcasted operations), where the i-th
+    # actor head is f_i. Similarly for the critic head, we want to make it so that
+    # g_i(x) = sum(x * i) + i, where the i-th critic head is g_i. We also set the logstd
+    # for the action distribution of the i-th actor head to log(i + 1).
+    network = MultiTaskTrunkNetwork(
+        observation_space=observation_space,
+        action_space=action_space,
+        num_processes=SETTINGS["num_processes"],
+        rollout_length=SETTINGS["rollout_length"],
+        num_tasks=SETTINGS["num_tasks"],
+        num_shared_layers=num_shared_layers,
+        num_task_layers=SETTINGS["num_task_layers"],
+        hidden_size=hidden_size,
+        recurrent=SETTINGS["recurrent"],
+        device=SETTINGS["device"],
+        include_task_index=include_task_index,
+    )
+
+    # Set shared trunk weights.
+    actor_trunk_state_dict = network.actor_trunk.state_dict()
+    actor_trunk_state_dict["0.weight"] = torch.Tensor(np.identity(hidden_size))
+    actor_trunk_state_dict["0.bias"] = torch.zeros(hidden_size)
+    network.actor_trunk.load_state_dict(actor_trunk_state_dict)
+
+    critic_trunk_state_dict = network.critic_trunk.state_dict()
+    critic_trunk_state_dict["0.weight"] = torch.Tensor(np.identity(hidden_size))
+    critic_trunk_state_dict["0.bias"] = torch.zeros(hidden_size)
+    network.critic_trunk.load_state_dict(critic_trunk_state_dict)
+
+    # Set task-specific weights.
+    for i in range(SETTINGS["num_tasks"]):
+
+        # Set actor weights.
+        actor_state_dict = network.actor_output_heads[i].state_dict()
+        actor_state_dict["0.weight"] = torch.Tensor(i * np.identity(hidden_size))
+        actor_state_dict["0.bias"] = i * torch.ones(hidden_size)
+        network.actor_output_heads[i].load_state_dict(actor_state_dict)
+
+        # Set critic weights.
+        critic_state_dict = network.critic_output_heads[i].state_dict()
+        critic_state_dict["0.weight"] = (i * torch.ones(hidden_size)).unsqueeze(0)
+        critic_state_dict["0.bias"] = torch.Tensor([i])
+        network.critic_output_heads[i].load_state_dict(critic_state_dict)
+
+        # Set logstd for each actor head.
+        logstd_state_dict = network.output_logstd[i].state_dict()
+        logstd_state_dict["_bias"] = torch.Tensor([log(i + 1)] * hidden_size)
+        network.output_logstd[i].load_state_dict(logstd_state_dict)
+
+    # Construct batch of observations concatenated with one-hot task vectors.
+    obs_list = []
+    for _ in range(SETTINGS["num_processes"]):
+        ob = torch.Tensor(observation_subspace.sample())
+        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
+        obs_list.append(torch.cat([ob, task_vector]))
+    obs = torch.stack(obs_list)
+    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
+    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
+    task_indices = nonzero_pos[:, 1].tolist()
+    obs_only = obs[:, : SETTINGS["obs_dim"]]
+
+    # Get output of network.
+    value_pred, action_dist, _ = network(obs, hidden_state=None, done=None)
+
+    # Construct expected action distribution of network.
+    expected_mean_list = []
+    expected_stddev_list = []
+    for i, task_index in enumerate(task_indices):
+        expected_mean_list.append(torch.tanh(obs_only[i]) * task_index + task_index)
+        expected_stddev_list.append(torch.Tensor([task_index + 1] * hidden_size))
+    expected_mean = torch.stack(expected_mean_list)
+    expected_stddev = torch.stack(expected_stddev_list)
+
+    # Construct expected value prediction of network.
+    expected_value_list = []
+    for i, task_index in enumerate(task_indices):
+        expected_value_list.append(
+            torch.sum(torch.tanh(obs_only[i]) * task_index) + task_index
+        )
+    expected_value = torch.stack(expected_value_list).unsqueeze(-1)
+
+    # Test output of network.
+    assert torch.allclose(action_dist.mean, expected_mean)
+    assert torch.allclose(action_dist.stddev, expected_stddev)
+    assert torch.allclose(value_pred, expected_value)
+
+
 def test_backward_1() -> None:
     """
     Test backward() when the action space is Discrete and network is feedforward. We
@@ -220,8 +327,6 @@ def test_backward_1() -> None:
     observation_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     action_space = Discrete(dim)
     hidden_size = dim
-    recurrent = False
-    device = torch.device("cpu")
 
     # Construct network.
     network = MultiTaskTrunkNetwork(
@@ -233,8 +338,9 @@ def test_backward_1() -> None:
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
-        recurrent=recurrent,
-        device=device,
+        recurrent=SETTINGS["recurrent"],
+        device=SETTINGS["device"],
+        include_task_index=SETTINGS["include_task_index"],
     )
 
     # Construct batch of observations concatenated with one-hot task vectors.
@@ -297,7 +403,6 @@ def test_backward_2() -> None:
     action_space = Box(low=-np.inf, high=np.inf, shape=(dim,))
     hidden_size = dim
     recurrent = True
-    device = torch.device("cpu")
 
     # Construct network.
     network = MultiTaskTrunkNetwork(
@@ -310,7 +415,8 @@ def test_backward_2() -> None:
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
         recurrent=recurrent,
-        device=device,
+        device=SETTINGS["device"],
+        include_task_index=SETTINGS["include_task_index"],
     )
 
     # Sample a task for each process.
