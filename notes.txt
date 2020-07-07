@@ -21,7 +21,8 @@ Current task (Shared trunk architecture):
     Create base network class, extend it with PolicyNetwork
     Shared trunk network with naive forward pass
     Add trunk tests
---> Batch inputs of same task in forward pass
+    Establish shared trunk baselines
+--> Batch inputs from the same task in forward pass
     Add option to include/exclude task index to forward pass
 
 Before merging to master:

@@ -17,6 +17,7 @@ MP_FACTOR = 4
 CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole_default.json")
 LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander_default.json")
 MT10_CONFIG_PATH = os.path.join("configs", "mt10_default.json")
+TRUNK_CONFIG_PATH = os.path.join("configs", "trunk_default.json")
 
 
 def test_train_cartpole() -> None:
@@ -512,6 +513,60 @@ def test_train_cartpole_cosine_lr() -> None:
     # Modify default training config.
     config["lr_schedule_type"] = "cosine"
     config["baseline_metrics_filename"] = "cartpole_cosine"
+
+    # Run training.
+    train(config)
+
+
+def test_train_cartpole_linear_lr() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with a linear learning rate
+    schedule.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["lr_schedule_type"] = "linear"
+    config["baseline_metrics_filename"] = "cartpole_linear"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_trunk() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with shared trunk architecture.
+    """
+
+    # Load default training config.
+    with open(TRUNK_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "MT10_trunk"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_trunk_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent shared trunk architecture.
+    """
+
+    # Load default training config.
+    with open(TRUNK_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["baseline_metrics_filename"] = "MT10_trunk_recurrent"
 
     # Run training.
     train(config)
