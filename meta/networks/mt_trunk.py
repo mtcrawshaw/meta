@@ -191,19 +191,43 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         actor_trunk_output = self.actor_trunk(x)
         critic_trunk_output = self.critic_trunk(x)
 
-        # Pass each individual trunk output through its task-specific output head. This
-        # is a naive implementation because we can actually batch the individual outputs
-        # by task to speed things up. We will do this later.
+        # To forward pass through the output heads, we first partition the inputs by
+        # their task, so that we can perform only one forward pass through each
+        # task-specific output head.
+        task_batch_indices = [
+            (task_indices == task).nonzero().squeeze(-1)
+            for task in range(self.num_tasks)
+        ]
+        actor_batch_outputs = []
+        critic_batch_outputs = []
+        for task in range(self.num_tasks):
+
+            # Construct the batch of trunk outputs for a given task head.
+            single_batch_indices = task_batch_indices[task]
+
+            if len(single_batch_indices) == 0:
+
+                # Don't perform forward pass if there are no inputs for the current
+                # task.
+                actor_batch_outputs.append(torch.Tensor([0.0]))
+                critic_batch_outputs.append(torch.Tensor([0.0]))
+                continue
+
+            # Pass batch of trunk outputs through task head.
+            actor_batch = actor_trunk_output[single_batch_indices]
+            critic_batch = critic_trunk_output[single_batch_indices]
+            actor_batch_outputs.append(self.actor_output_heads[task](actor_batch))
+            critic_batch_outputs.append(self.critic_output_heads[task](critic_batch))
+
+        # Reconstruct batched outputs into a single tensor each for actor/critic.
         actor_outputs = []
         critic_outputs = []
-        assert task_indices.shape[0] == actor_trunk_output.shape[0]
-        assert task_indices.shape[0] == critic_trunk_output.shape[0]
-        for i in range(task_indices.shape[0]):
-            task_index = task_indices[i]
-            actor_out = actor_trunk_output[i]
-            critic_out = critic_trunk_output[i]
-            actor_outputs.append(self.actor_output_heads[task_index](actor_out))
-            critic_outputs.append(self.critic_output_heads[task_index](critic_out))
+        batch_counters = [0 for _ in range(self.num_tasks)]
+        for task in task_indices:
+            batch_counter = batch_counters[task]
+            actor_outputs.append(actor_batch_outputs[task][batch_counter])
+            critic_outputs.append(critic_batch_outputs[task][batch_counter])
+            batch_counters[task] += 1
         actor_output = torch.stack(actor_outputs)
         value_pred = torch.stack(critic_outputs)
 
