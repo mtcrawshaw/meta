@@ -1,20 +1,27 @@
 Road map:
     PPO for single task
-    Add MetaWorld support
-    Better evaluation
---> MT10/MT50 baselines
-    Splitting networks for MTL
-    PCGrad, sparse sharing, soft-layer ordering, other baselines for MTL?
-    ML10/ML45 baselines
-    Splitting networks for meta learning
-    MAML, other baselines for meta learning?
+    Multi-task/MetaWorld support
+    Training tools
+--> MT10/MT50 methods (baselines + splitting networks)
+    ML10/ML45 methods (baselines + meta splitting networks)
     Hyperparameter optimization
     Tests of statistical significance
     Learned loss convexity regularization for MTL
 
 Current sprint (MT10/MT50 baselines):
 --> Shared trunk architecture
-    ?
+    Splitting networks
+    PCGrad
+    Other baselines (
+        Branched MT networks,
+        soft layer ordering,
+        modular meta learning (code available),
+        AdaShare,
+        Piggyback (code available),
+        sparse sharing (code available),
+        routing networks (code available),
+    )
+    Refactoring
 
 Current task (Shared trunk architecture):
     Add another directory level to package
@@ -24,7 +31,8 @@ Current task (Shared trunk architecture):
     Establish shared trunk baselines
     Batch inputs from the same task in forward pass
     Add option to include/exclude task index to forward pass
---> Evaluate trunk performance on MT10
+    Evaluate trunk performance on MT10
+--> Refactoring
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -68,6 +76,7 @@ Possible additions:
 - More robust way to save repository version along with results
 - Determine whether or not policy has solved environment (N successes in a row, usually)
 - Catch KeyboardInterrupt during training to optionally stop training early
+- Regularization terms from AdaShare when learning architecture
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
