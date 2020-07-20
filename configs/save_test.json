@@ -1,0 +1,44 @@
+{
+    "env_name": "CartPole-v1",
+
+    "num_updates": 10,
+    "rollout_length": 500,
+    "num_ppo_epochs": 4,
+    "num_minibatch": 1,
+    "num_processes": 4,
+
+    "lr_schedule_type": "cosine",
+    "initial_lr": 1e-4,
+    "final_lr": 1e-5,
+    "eps": 1e-5,
+    "value_loss_coeff": 0.5,
+    "entropy_loss_coeff": 0.01,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "max_grad_norm": 0.5,
+    "clip_param": 0.2,
+    "clip_value_loss": true,
+    "normalize_advantages": true,
+    "normalize_transition": true,
+    "normalize_first_n": null,
+
+    "architecture_config": {
+        "type": "vanilla",
+        "num_layers": 3,
+        "hidden_size": 64,
+        "recurrent": false
+    },
+
+    "evaluation_freq": 1,
+    "evaluation_episodes": 10,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": 1,
+    "load_from": null,
+    "time_limit": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": "save_test"
+}

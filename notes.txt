@@ -62,6 +62,11 @@ Future additions:
   we will have an actor critic model, which has two network objects as members, one
   actor network and one critic network. Right now the only available network objects
   have to be actor critic networks.
+- Add tests for saving/loading training runs. This can't be done right now since the
+  training function is so monolithic, we can't "look inside" and check the values of the
+  local variabes of that function. Once this functionality is more modular we should add
+  these tests. For now I just manually inspected the values after loading and created a
+  baseline to compare metrics against.
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -109,6 +114,15 @@ Refactoring:
 - Determine whether or not we save time by skipping the check that the end of each
   observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
 - Change hyperparameter search to allow non-unique leaf node names in config
+- Implement checkpointing/resuming training
+- Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
+  and then it is resumed and trained for a longer period of time, the learning rate will
+  not align with the original schedule. Really this could be fixed by creating two
+  different loading modes: resume and extend. Resume will follow the original schedule
+  for parameters, and extend will ditch the old one and follow the newly given one.
+- Fix cosine learning rate schedule definition (T_max should be num_updates - 1) and
+  create new corresponding baselines
+- Get rid of warnings that occur during tests
 
 ----------------------------------------------------------------------------------------
 

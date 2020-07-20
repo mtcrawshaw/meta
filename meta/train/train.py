@@ -82,14 +82,17 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Number of training iterations between metric printing.
     save_freq : int
         Number of training iterations between saving of intermediate progress. If None,
-        no saving of intermediate progress will occur.
+        no saving of intermediate progress will occur. Note that if save_name is None,
+        then this value will just be ignored.
     load_from : str
         Path of checkpoint file (as saved by this function) to load from in order to
         resume training.
-    save_metrics : bool
+    metrics_filename : str
         Name to save metric values under.
-    compare_metrics : bool
+    baseline_metrics_filename : str
         Name of metrics baseline file to compare against.
+    save_name : str
+        Name to save experiments under.
     """
 
     # Construct save directory.
@@ -114,6 +117,19 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 "There already exists saved results with name '%s'. Saving current "
                 "results under name '%s'." % (original_save_name, config["save_name"])
             )
+
+        # Save config.
+        config_path = os.path.join(save_dir, "%s_config.json" % config["save_name"])
+        with open(config_path, "w") as config_file:
+            json.dump(config, config_file, indent=4)
+
+        # Try to save repo git hash. This will only work when running training from
+        # inside the repository.
+        try:
+            version_path = os.path.join(save_dir, "VERSION")
+            os.system("git rev-parse HEAD > %s" % version_path)
+        except:
+            pass
 
     # Set random seed, number of threads, and device.
     np.random.seed(config["seed"])
@@ -187,7 +203,10 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     # Load intermediate progress from checkpoint, if necessary.
     update_iteration = 0
     if config["load_from"] is not None:
-        with open(config["load_from"], "rb") as checkpoint_file:
+        checkpoint_filename = os.path.join(
+            save_dir_from_name(config["load_from"]), "checkpoint.pkl"
+        )
+        with open(checkpoint_filename, "rb") as checkpoint_file:
             checkpoint = pickle.load(checkpoint_file)
 
         # Make sure current config and previous config line up.
@@ -252,28 +271,6 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             rollout.init_rollout_info()
             rollout.set_initial_obs(env.reset())
 
-        # Save intermediate training progress, if necessary.
-        if (
-            config["save_name"] is not None
-            and update_iteration == config["num_updates"] - 1
-            or (
-                config["save_freq"] is not None
-                and update_iteration % config["save_freq"] == 0
-            )
-        ):
-            checkpoint = {}
-            checkpoint["network_state_dict"] = policy.policy_network.state_dict()
-            checkpoint["optim_state_dict"] = policy.optimizer.state_dict()
-            if policy.lr_schedule is not None:
-                checkpoint["lr_schedule_state_dict"] = policy.lr_schedule.state_dict()
-            checkpoint["metrics"] = metrics
-            checkpoint["update_iteration"] = update_iteration
-            checkpoint["config"] = config
-
-            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
-            with open(checkpoint_filename, "wb") as checkpoint_file:
-                pickle.dump(checkpoint, checkpoint_file)
-
         # Update and print metrics.
         metrics.update(step_metrics)
         if (
@@ -289,6 +286,29 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # finish.
         if update_iteration == config["num_updates"] - 1:
             print("")
+
+        # Save intermediate training progress, if necessary. Note that we save an
+        # incremented version of update_iteration so that the loaded version will take
+        # on the subsequent value of update_iteration on the first step.
+        if config["save_name"] is not None and (
+            update_iteration == config["num_updates"] - 1
+            or (
+                config["save_freq"] is not None
+                and update_iteration % config["save_freq"] == 0
+            )
+        ):
+            checkpoint = {}
+            checkpoint["network_state_dict"] = policy.policy_network.state_dict()
+            checkpoint["optim_state_dict"] = policy.optimizer.state_dict()
+            if policy.lr_schedule is not None:
+                checkpoint["lr_schedule_state_dict"] = policy.lr_schedule.state_dict()
+            checkpoint["metrics"] = metrics
+            checkpoint["update_iteration"] = update_iteration + 1
+            checkpoint["config"] = config
+
+            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+            with open(checkpoint_filename, "wb") as checkpoint_file:
+                pickle.dump(checkpoint, checkpoint_file)
 
         update_iteration += 1
 
@@ -313,23 +333,10 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     # Save results if necessary.
     if config["save_name"] is not None:
 
-        # Save config.
-        config_path = os.path.join(save_dir, "%s_config.json" % config["save_name"])
-        with open(config_path, "w") as config_file:
-            json.dump(config, config_file, indent=4)
-
         # Save metrics.
         metrics_path = os.path.join(save_dir, "%s_metrics.json" % config["save_name"])
         with open(metrics_path, "w") as metrics_file:
             json.dump(metrics.state(), metrics_file, indent=4)
-
-        # Try to save repo git hash. This will only work when running training from
-        # inside the repository.
-        try:
-            version_path = os.path.join(save_dir, "VERSION")
-            os.system("git rev-parse HEAD > %s" % version_path)
-        except:
-            pass
 
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])

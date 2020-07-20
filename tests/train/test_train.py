@@ -10,6 +10,7 @@ import torch
 from meta.train.env import get_env
 from meta.train.train import collect_rollout, train
 from meta.utils.storage import RolloutStorage
+from meta.utils.utils import save_dir_from_name
 from tests.helpers import get_policy, DEFAULT_SETTINGS
 
 
@@ -572,6 +573,39 @@ def test_train_MT10_trunk_recurrent() -> None:
     train(config)
 
 
+def test_train_save_load() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, when training is resumed
+    from a saved checkpoint.
+    """
+
+    # Check that desired results name is available.
+    save_name = "save_test"
+    check_results_name(save_name)
+
+    # Load default training config and run training for the first time.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["save_name"] = save_name
+
+    # Run training to get checkpoint.
+    train(config)
+
+    # Modify config for second training run.
+    config["load_from"] = save_name
+    config["save_name"] = None
+    config["baseline_metrics_filename"] = "cartpole_save_load"
+
+    # Run resumed training.
+    train(config)
+
+    # Clean up.
+    os.system("rm -rf %s" % save_dir_from_name(save_name))
+
+
 def test_collect_rollout_values() -> None:
     """
     Test the values of the returned RolloutStorage objects from train.collect_rollout().
@@ -619,3 +653,95 @@ def test_collect_rollout_values() -> None:
         assert float(obs) == float(reward)
 
     env.close()
+
+
+def test_save_load() -> None:
+    """
+    Test saving/loading functionality for training.
+    """
+
+    # Check that desired results name is available.
+    save_name = "save_test"
+    check_results_name(save_name)
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config and run training to save checkpoint.
+    config["save_name"] = save_name
+    first_metrics = train(config)
+
+    # Fun training for the second time, and load from checkpoint.
+    config["load_from"] = save_name
+    config["save_name"] = None
+    config["num_updates"] *= 2
+    second_metrics = train(config)
+
+    # Compare metrics.
+    assert list(first_metrics.keys()) == list(second_metrics.keys())
+    for metric_name in first_metrics.keys():
+        first_metric = first_metrics[metric_name]
+        second_metric = second_metrics[metric_name]
+
+        assert first_metric["maximum"] <= second_metric["maximum"]
+        for key in ["history", "mean", "stdev"]:
+            n = len(first_metric[key])
+            assert first_metric[key][:n] == second_metric[key][:n]
+
+    # Clean up.
+    os.system("rm -rf %s" % save_dir_from_name(save_name))
+
+
+def test_save_load_multi() -> None:
+    """
+    Test saving/loading functionality for training when multiprocessing.
+    """
+
+    # Check that desired results name is available.
+    save_name = "save_test"
+    check_results_name(save_name)
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config and run training to save checkpoint.
+    config["save_name"] = save_name
+    config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
+    config["num_processes"] *= MP_FACTOR
+    first_metrics = train(config)
+
+    # Fun training for the second time, and load from checkpoint.
+    config["load_from"] = save_name
+    config["save_name"] = None
+    config["num_updates"] *= 2
+    second_metrics = train(config)
+
+    # Compare metrics.
+    assert list(first_metrics.keys()) == list(second_metrics.keys())
+    for metric_name in first_metrics.keys():
+        first_metric = first_metrics[metric_name]
+        second_metric = second_metrics[metric_name]
+
+        assert first_metric["maximum"] <= second_metric["maximum"]
+        for key in ["history", "mean", "stdev"]:
+            n = len(first_metric[key])
+            assert first_metric[key][:n] == second_metric[key][:n]
+
+    # Clean up.
+    os.system("rm -rf %s" % save_dir_from_name(save_name))
+
+
+def check_results_name(save_name: str) -> None:
+    """
+    Helper function to check if a results folder already exists, and raise an error if
+    so.
+    """
+
+    results_dir = save_dir_from_name(save_name)
+    if os.path.isdir(results_dir):
+        raise ValueError(
+            "Already exists saved results with name %s. This folder must be renamed "
+            "or deleted in order for the test to run properly."
+        )
