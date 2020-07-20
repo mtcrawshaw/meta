@@ -77,6 +77,10 @@ Possible additions:
 - Determine whether or not policy has solved environment (N successes in a row, usually)
 - Catch KeyboardInterrupt during training to optionally stop training early
 - Regularization terms from AdaShare when learning architecture
+- Make it so that, when resuming training from a checkpoint, training happens exactly as
+  it would had if training had never been stopped. Not sure if this is possible, the
+  main obstacle being pickling/loading the environment state, and mimicking random
+  decisions.
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training

@@ -40,6 +40,8 @@
         "cuda": false,
         "seed": 1,
         "print_freq": 4,
+        "save_freq": null,
+        "load_from": null,
         "time_limit": 20,
         "metrics_filename": null,
         "baseline_metrics_filename": null,

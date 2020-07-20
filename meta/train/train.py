@@ -80,11 +80,40 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Random seed.
     print_freq : int
         Number of training iterations between metric printing.
+    save_freq : int
+        Number of training iterations between saving of intermediate progress. If None,
+        no saving of intermediate progress will occur.
+    load_from : str
+        Path of checkpoint file (as saved by this function) to load from in order to
+        resume training.
     save_metrics : bool
         Name to save metric values under.
     compare_metrics : bool
         Name of metrics baseline file to compare against.
     """
+
+    # Construct save directory.
+    if config["save_name"] is not None:
+
+        # Append "_n" (for the minimal n) to name to ensure that save name is unique,
+        # and create the save directory.
+        original_save_name = config["save_name"]
+        save_dir = save_dir_from_name(config["save_name"])
+        n = 0
+        while os.path.isdir(save_dir):
+            n += 1
+            if n > 1:
+                index_start = config["save_name"].rindex("_")
+                config["save_name"] = config["save_name"][:index_start] + "_%d" % n
+            else:
+                config["save_name"] += "_1"
+            save_dir = save_dir_from_name(config["save_name"])
+        os.makedirs(save_dir)
+        if original_save_name != config["save_name"]:
+            print(
+                "There already exists saved results with name '%s'. Saving current "
+                "results under name '%s'." % (original_save_name, config["save_name"])
+            )
 
     # Set random seed, number of threads, and device.
     np.random.seed(config["seed"])
@@ -152,11 +181,43 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     # Initialize environment and set first observation.
     rollout.set_initial_obs(env.reset())
 
-    # Training loop.
+    # Construct metrics object to hold performance metrics.
     metrics = Metrics()
+
+    # Load intermediate progress from checkpoint, if necessary.
+    update_iteration = 0
+    if config["load_from"] is not None:
+        with open(config["load_from"], "rb") as checkpoint_file:
+            checkpoint = pickle.load(checkpoint_file)
+
+        # Make sure current config and previous config line up.
+        aligned_settings = [
+            "env_name",
+            "lr_schedule_type",
+            "initial_lr",
+            "final_lr",
+            "normalize_transition",
+            "normalize_first_n",
+            "architecture_config",
+            "evaluation_freq",
+            "evaluation_episodes",
+            "time_limit",
+        ]
+        for setting in aligned_settings:
+            assert config[setting] == checkpoint["config"][setting]
+
+        # Set policy, optimizer, lr schedule, and metrics appropriately.
+        policy.policy_network.load_state_dict(checkpoint["network_state_dict"])
+        policy.optimizer.load_state_dict(checkpoint["optim_state_dict"])
+        if config["lr_schedule_type"] is not None:
+            policy.lr_schedule.load_state_dict(checkpoint["lr_schedule_state_dict"])
+        metrics = checkpoint["metrics"]
+        update_iteration = checkpoint["update_iteration"]
+
+    # Training loop.
     policy.train = True
 
-    for update_iteration in range(config["num_updates"]):
+    while update_iteration < config["num_updates"]:
 
         # Sample rollout, compute update, and reset rollout storage.
         rollout, episode_rewards, episode_successes = collect_rollout(
@@ -191,6 +252,28 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             rollout.init_rollout_info()
             rollout.set_initial_obs(env.reset())
 
+        # Save intermediate training progress, if necessary.
+        if (
+            config["save_name"] is not None
+            and update_iteration == config["num_updates"] - 1
+            or (
+                config["save_freq"] is not None
+                and update_iteration % config["save_freq"] == 0
+            )
+        ):
+            checkpoint = {}
+            checkpoint["network_state_dict"] = policy.policy_network.state_dict()
+            checkpoint["optim_state_dict"] = policy.optimizer.state_dict()
+            if policy.lr_schedule is not None:
+                checkpoint["lr_schedule_state_dict"] = policy.lr_schedule.state_dict()
+            checkpoint["metrics"] = metrics
+            checkpoint["update_iteration"] = update_iteration
+            checkpoint["config"] = config
+
+            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+            with open(checkpoint_filename, "wb") as checkpoint_file:
+                pickle.dump(checkpoint, checkpoint_file)
+
         # Update and print metrics.
         metrics.update(step_metrics)
         if (
@@ -206,6 +289,8 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # finish.
         if update_iteration == config["num_updates"] - 1:
             print("")
+
+        update_iteration += 1
 
     # Close environment.
     env.close()
@@ -227,26 +312,6 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
     # Save results if necessary.
     if config["save_name"] is not None:
-
-        # Append "_n" (for the minimal n) to name to ensure that save name is unique,
-        # and create the save directory.
-        original_save_name = config["save_name"]
-        save_dir = save_dir_from_name(config["save_name"])
-        n = 0
-        while os.path.isdir(save_dir):
-            n += 1
-            if n > 1:
-                index_start = config["save_name"].rindex("_")
-                config["save_name"] = config["save_name"][:index_start] + "_%d" % n
-            else:
-                config["save_name"] += "_1"
-            save_dir = save_dir_from_name(config["save_name"])
-        os.makedirs(save_dir)
-        if original_save_name != config["save_name"]:
-            print(
-                "There already exists saved results with name '%s'. Saving current "
-                "results under name '%s'." % (original_save_name, config["save_name"])
-            )
 
         # Save config.
         config_path = os.path.join(save_dir, "%s_config.json" % config["save_name"])
