@@ -62,11 +62,11 @@ Future additions:
   we will have an actor critic model, which has two network objects as members, one
   actor network and one critic network. Right now the only available network objects
   have to be actor critic networks.
-- Add tests for saving/loading training runs. This can't be done right now since the
-  training function is so monolithic, we can't "look inside" and check the values of the
-  local variabes of that function. Once this functionality is more modular we should add
-  these tests. For now I just manually inspected the values after loading and created a
-  baseline to compare metrics against.
+- Add tests checking saved/loaded values for saving/loading training runs. This can't be
+  done right now since the training function is so monolithic, we can't "look inside"
+  and check the values of the local variabes of that function. Once this functionality
+  is more modular we should add these tests. For now I just manually inspected the
+  values after loading and created a baseline to compare metrics against.
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -106,15 +106,13 @@ Refactoring:
 - Get rid of redundant settings inside and outside base_train_config for hyperparameter
   search, i.e. seed, save name, etc
 - Clean up hyperparameter_search() a lot:
-  - Break it into separate files
   - Get rid of repeated code in different search strategies
   - Clean up redundant options between "base_train_config" and "hp_config"
   - A billion other things, it's disgusting
-- Change main.py to accept a command name ("train" or "tune") and a config
 - Determine whether or not we save time by skipping the check that the end of each
   observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
 - Change hyperparameter search to allow non-unique leaf node names in config
-- Implement checkpointing/resuming training
+- Implement checkpointing/resuming training for hyperparameter search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
   and then it is resumed and trained for a longer period of time, the learning rate will
   not align with the original schedule. Really this could be fixed by creating two

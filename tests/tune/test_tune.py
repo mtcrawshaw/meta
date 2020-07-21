@@ -1,5 +1,5 @@
 """
-Unit tests for meta/train/hyperparameter_search.py.
+Unit tests for meta/tune/tune.py.
 """
 
 import os
@@ -7,7 +7,7 @@ import json
 import itertools
 from typing import Dict, Any, Tuple
 
-from meta.train.hyperparameter_search import hyperparameter_search, update_config
+from meta.tune.tune import tune, update_config
 
 
 RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")
@@ -30,7 +30,7 @@ def test_hp_search_random_metrics() -> None:
     config["base_train_config"]["baseline_metrics_filename"] = "hp_random"
 
     # Run training.
-    hyperparameter_search(config)
+    tune(config)
 
 
 def test_hp_search_grid_metrics() -> None:
@@ -47,7 +47,7 @@ def test_hp_search_grid_metrics() -> None:
     config["base_train_config"]["baseline_metrics_filename"] = "hp_grid"
 
     # Run training.
-    hyperparameter_search(config)
+    tune(config)
 
 
 def test_hp_search_grid_values() -> None:
@@ -83,7 +83,7 @@ def test_hp_search_grid_values() -> None:
         expected_configs.append(dict(config))
 
     # Run training and extract actual configs from results.
-    results = hyperparameter_search(hp_config)
+    results = tune(hp_config)
     actual_configs = [
         config_results["config"] for config_results in results["iterations"]
     ]
@@ -113,7 +113,7 @@ def test_hp_search_IC_grid_metrics() -> None:
     config["base_train_config"]["baseline_metrics_filename"] = "hp_IC_grid"
 
     # Run training.
-    hyperparameter_search(config)
+    tune(config)
 
 
 def test_hp_search_IC_grid_values() -> None:
@@ -135,7 +135,7 @@ def test_hp_search_IC_grid_values() -> None:
     }
 
     # Run training and extract actual configs from results.
-    results = hyperparameter_search(config)
+    results = tune(config)
     actual_configs = [
         config_results["config"] for config_results in results["iterations"]
     ]
