@@ -15,7 +15,12 @@ from meta.train.env import get_env
 from meta.utils.storage import RolloutStorage
 from meta.utils.metrics import Metrics
 from meta.utils.plot import plot
-from meta.utils.utils import compare_metrics, save_dir_from_name, METRICS_DIR
+from meta.utils.utils import (
+    compare_metrics,
+    save_dir_from_name,
+    aligned_train_configs,
+    METRICS_DIR,
+)
 
 
 # Suppress gym warnings.
@@ -210,20 +215,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             checkpoint = pickle.load(checkpoint_file)
 
         # Make sure current config and previous config line up.
-        aligned_settings = [
-            "env_name",
-            "lr_schedule_type",
-            "initial_lr",
-            "final_lr",
-            "normalize_transition",
-            "normalize_first_n",
-            "architecture_config",
-            "evaluation_freq",
-            "evaluation_episodes",
-            "time_limit",
-        ]
-        for setting in aligned_settings:
-            assert config[setting] == checkpoint["config"][setting]
+        assert aligned_train_configs(config, checkpoint["config"])
 
         # Set policy, optimizer, lr schedule, and metrics appropriately.
         policy.policy_network.load_state_dict(checkpoint["network_state_dict"])

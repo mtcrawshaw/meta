@@ -14,13 +14,13 @@ from meta.train.train import train
 from meta.tune.mutate import mutate_train_config
 from meta.tune.utils import check_name_uniqueness, strip_config
 from meta.tune.params import valid_config, update_config, get_param_values
-from meta.utils.utils import save_dir_from_name
+from meta.utils.utils import save_dir_from_name, aligned_tune_configs
 
 
-def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
+def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Perform search over hyperparameter configurations. Only argument is ``hp_config``, a
-    dictionary holding settings for training. The expected elements of this dictionary
+    Perform search over hyperparameter configurations. Only argument is ``tune_config``,
+    a dictionary holding settings for training. The expected elements of this dictionary
     are documented below. This function returns a dictionary holding the results of
     training and the various parameter configurations used.
 
@@ -53,7 +53,7 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
         "train_reward", "eval_reward", "train_success", "eval_success".
     fitness_metric_type : str
         Either "mean" or "maximum", used to determine which value of metric given in
-        hp_config["fitnesss_metric_name"] to use as fitness, either the mean value at
+        tune_config["fitnesss_metric_name"] to use as fitness, either the mean value at
         the end of training or the maximum value throughout training.
     seed : int
         Random seed for hyperparameter search.
@@ -62,19 +62,19 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     """
 
     # Extract info from config.
-    search_type = hp_config["search_type"]
-    iterations = hp_config["search_iterations"]
-    trials_per_config = hp_config["trials_per_config"]
-    base_config = hp_config["base_train_config"]
-    search_params = hp_config["search_params"]
-    fitness_metric_name = hp_config["fitness_metric_name"]
-    fitness_metric_type = hp_config["fitness_metric_type"]
-    seed = hp_config["seed"]
-    load_from = hp_config["load_from"]
+    search_type = tune_config["search_type"]
+    iterations = tune_config["search_iterations"]
+    trials_per_config = tune_config["trials_per_config"]
+    base_config = tune_config["base_train_config"]
+    search_params = tune_config["search_params"]
+    fitness_metric_name = tune_config["fitness_metric_name"]
+    fitness_metric_type = tune_config["fitness_metric_type"]
+    seed = tune_config["seed"]
+    load_from = tune_config["load_from"]
 
-    # Ignore value in hp_config["search_iterations"] during grid search and IC grid
+    # Ignore value in tune_config["search_iterations"] during grid search and IC grid
     # search, since the number of iterations is determined by
-    # hp_config["search_params"].
+    # tune_config["search_params"].
     if search_type in ["grid", "IC_grid"]:
         num_param_values = []
         for param_settings in search_params.values():
@@ -117,7 +117,7 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
         # Save config.
         config_path = os.path.join(save_dir, "%s_config.json" % base_name)
         with open(config_path, "w") as config_file:
-            json.dump(hp_config, config_file, indent=4)
+            json.dump(tune_config, config_file, indent=4)
 
     else:
         save_dir = None
@@ -148,13 +148,14 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     random.seed(seed)
 
     # Run the chosen search strategy.
-    if hp_config["search_type"] == "random":
+    if tune_config["search_type"] == "random":
         search_fn = random_search
-    elif hp_config["search_type"] == "grid":
+    elif tune_config["search_type"] == "grid":
         search_fn = grid_search
-    elif hp_config["search_type"] == "IC_grid":
+    elif tune_config["search_type"] == "IC_grid":
         search_fn = IC_grid_search
     results = search_fn(
+        tune_config,
         base_config,
         iterations,
         trials_per_config,
@@ -176,6 +177,7 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def random_search(
+    tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
     trials_per_config: int,
@@ -260,6 +262,7 @@ def random_search(
 
 
 def grid_search(
+    tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
     trials_per_config: int,
@@ -290,10 +293,12 @@ def grid_search(
     best_config = None
     iteration = 0
     if load_dir is not None:
-
         checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
         with open(checkpoint_filename, "rb") as checkpoint_file:
             checkpoint = pickle.load(checkpoint_file)
+
+        # Make sure current config and previous config line up.
+        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
 
         results = dict(checkpoint["results"])
         best_fitness = checkpoint["best_fitness"]
@@ -339,8 +344,9 @@ def grid_search(
             checkpoint = {}
             checkpoint["results"] = dict(results)
             checkpoint["best_fitness"] = best_fitness
-            checkpoint["best_config"] = best_config
+            checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
+            checkpoint["tune_config"] = dict(tune_config)
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
@@ -356,6 +362,7 @@ def grid_search(
 
 
 def IC_grid_search(
+    tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
     trials_per_config: int,
