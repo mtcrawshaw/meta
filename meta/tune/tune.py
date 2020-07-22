@@ -1,5 +1,7 @@
 """
-Hyperparater search functions wrapped around training.
+Hyperparater search functions wrapped around training. It should be noted that there is
+a ton of repeated code between random_search(), grid_search(), and IC_grid_search(). If
+code changes in any of these functions, similar changes should be made in the other two.
 """
 
 import os
@@ -381,9 +383,6 @@ def IC_grid_search(
     order specified by search_params.
     """
 
-    # Initialize results.
-    results: Dict[str, Any] = {"iterations": []}
-
     # Construct list of values for each variable parameter to vary over.
     param_values = {}
     for param_name, param_settings in search_params.items():
@@ -403,18 +402,42 @@ def IC_grid_search(
     }
     config = update_config(config, median_values)
 
-    # Training loop.
+    # Load in checkpoint, if necessary.
+    results: Dict[str, Any] = {"iterations": []}
     best_fitness = None
     best_config = None
-    for param_num, (param_name, param_settings) in enumerate(search_params.items()):
+    best_param_vals = {}
+    param_num = 0
+    val_num = 0
+    if load_dir is not None:
+        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
+        with open(checkpoint_filename, "rb") as checkpoint_file:
+            checkpoint = pickle.load(checkpoint_file)
+
+        # Make sure current config and previous config line up.
+        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
+
+        results = dict(checkpoint["results"])
+        best_fitness = checkpoint["best_fitness"]
+        best_config = dict(checkpoint["best_config"])
+        best_param_vals = dict(checkpoint["best_param_vals"])
+        param_num = checkpoint["param_num"]
+        val_num = checkpoint["val_num"]
+
+    # Training loop.
+    while param_num < len(search_params):
+
+        # Fix parameter value to that which led to highest fitness.
+        config = update_config(config, best_param_vals)
 
         # Find best value of parameter ``param_name``.
+        param_name = list(search_params.keys())[param_num]
         best_param_fitness = None
-        best_param_val = None
 
-        for val_num, param_val in enumerate(param_values[param_name]):
+        while val_num < len(param_values[param_name]):
 
             # Set value of current param of interest in current config.
+            param_val = param_values[param_name][val_num]
             config = update_config(config, {param_name: param_val})
 
             # See if we have already performed training with this configuration.
@@ -466,13 +489,41 @@ def IC_grid_search(
             # Compare current step to best among current IC grid iteration.
             if best_param_fitness is None or fitness > best_param_fitness:
                 best_param_fitness = fitness
-                best_param_val = param_val
+                best_param_vals[param_name] = param_val
 
             # Add maximum to config results, and add config results to overall results.
             results["iterations"].append(dict(config_results))
 
-        # Fix parameter value to that which led to highest fitness.
-        config = update_config(config, {param_name: best_param_val})
+            # Save intermediate results, if necessary. We increment val_num by one here
+            # (resetting to zero and incrementing param_num if necessary) so that upon
+            # resumption, training starts with the first iteration not yet completed.
+            if save_dir is not None:
+                checkpoint = {}
+                checkpoint["results"] = dict(results)
+                checkpoint["best_fitness"] = best_fitness
+                checkpoint["best_config"] = dict(best_config)
+                checkpoint["tune_config"] = dict(tune_config)
+                checkpoint["best_param_vals"] = dict(best_param_vals)
+
+                # Increment val_num and/or param_num.
+                cp_val_num = val_num + 1
+                cp_param_num = param_num
+                if cp_val_num == len(param_values[param_name]):
+                    cp_val_num = 0
+                    cp_param_num += 1
+                checkpoint["val_num"] = cp_val_num
+                checkpoint["param_num"] = cp_param_num
+
+                checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+                with open(checkpoint_filename, "wb") as checkpoint_file:
+                    pickle.dump(checkpoint, checkpoint_file)
+
+            # Update value index.
+            val_num += 1
+
+        # Update search indices.
+        param_num += 1
+        val_num = 0
 
     # Fill results.
     results["best_config"] = dict(best_config)

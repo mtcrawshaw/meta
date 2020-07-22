@@ -36,12 +36,12 @@ Current task (Shared trunk architecture):
 
 Notes for current task:
 Implementing saving/loading of tuning runs. Just finished implementing it for grid
-search, as well as a unit test case. Need to do the same for IC grid search and random
+search and IC grid search, as well unit test cases. Need to do the same for random
 search, though random search will need to measure against a saved baseline since we
-won't be able to 100% accurately reproduce training as if it had never been paused in
-the case of resuming of a random search run. Make sure that tune_results_equal() works
-for results from random/IC grid search runs. After all of this, consider more
-fine-grained saving/loading, like per trial or even mid-trial.
+won't be able to 100% accurately reproduce training as if it had never been paused. Make
+sure that tune_results_equal() works for results from random/IC grid search runs. After
+all of this, consider more fine-grained saving/loading, like per trial or even
+mid-trial.
 
 ----------------------------------------------------------------------------------------
 

@@ -19,8 +19,7 @@ IC_GRID_CONFIG_PATH = os.path.join("configs", "tune_IC_grid.json")
 
 def test_tune_random_metrics() -> None:
     """
-    Runs hyperparameter random search and compares metrics against a saved baseline for
-    the Cartpole environment.
+    Runs hyperparameter random search and compares metrics against a saved baseline.
     """
 
     # Load hyperparameter search config.
@@ -36,8 +35,7 @@ def test_tune_random_metrics() -> None:
 
 def test_tune_grid_metrics() -> None:
     """
-    Runs hyperparameter grid search and compares metrics against a saved baseline for
-    the LunarLanderContinuous environment.
+    Runs hyperparameter grid search and compares metrics against a saved baseline.
     """
 
     # Load hyperparameter search config.
@@ -54,13 +52,13 @@ def test_tune_grid_metrics() -> None:
 def test_tune_resume_grid_metrics() -> None:
     """
     Resumes an interrupted hyperparameter grid search and compares metrics against a
-    saved baseline for the LunarLanderContinuous environment.
+    saved baseline.
     """
 
     # Load resume hyperparameter search config and resume training.
     with open(GRID_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
-    config["load_from"] = "tune_interrupt"
+    config["load_from"] = "tune_grid_interrupt"
     resumed_results = tune(config)
 
     # Load original hyperparameter search config and run original training from scratch.
@@ -123,8 +121,7 @@ def test_tune_grid_values() -> None:
 
 def test_tune_IC_grid_metrics() -> None:
     """
-    Runs hyperparameter IC grid search and compares metrics against a saved baseline for
-    the Cartpole environment.
+    Runs hyperparameter IC grid search and compares metrics against a saved baseline.
     """
 
     # Load hyperparameter search config.
@@ -136,6 +133,27 @@ def test_tune_IC_grid_metrics() -> None:
 
     # Run training.
     tune(config)
+
+
+def test_tune_resume_IC_grid_metrics() -> None:
+    """
+    Resumes an interrupted hyperparameter IC grid search and compares metrics against a
+    saved baseline.
+    """
+
+    # Load resume hyperparameter search config and resume training.
+    with open(IC_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    config["load_from"] = "tune_IC_grid_interrupt"
+    resumed_results = tune(config)
+
+    # Load original hyperparameter search config and run original training from scratch.
+    with open(IC_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    original_results = tune(config)
+
+    # Check values.
+    assert tune_results_equal(resumed_results, original_results)
 
 
 def test_tune_IC_grid_values() -> None:
