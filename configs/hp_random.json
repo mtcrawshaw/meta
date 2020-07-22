@@ -152,5 +152,6 @@
     "fitness_metric_name": "eval_reward",
     "fitness_metric_type": "maximum",
 
-    "seed": 1
+    "seed": 1,
+    "load_from": null
 }

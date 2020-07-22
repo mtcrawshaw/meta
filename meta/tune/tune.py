@@ -4,14 +4,15 @@ Hyperparater search functions wrapped around training.
 
 import os
 import random
+import pickle
 import json
 import itertools
 from functools import reduce
-from typing import Dict, Any, Tuple, Callable, List
+from typing import Dict, Any, Tuple, Callable
 
 from meta.train.train import train
 from meta.tune.mutate import mutate_train_config
-from meta.tune.utils import check_name_uniqueness
+from meta.tune.utils import check_name_uniqueness, strip_config
 from meta.tune.params import valid_config, update_config, get_param_values
 from meta.utils.utils import save_dir_from_name
 
@@ -56,6 +57,8 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
         the end of training or the maximum value throughout training.
     seed : int
         Random seed for hyperparameter search.
+    load_from : str
+        Name of results directory to resume training from.
     """
 
     # Extract info from config.
@@ -67,6 +70,7 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     fitness_metric_name = hp_config["fitness_metric_name"]
     fitness_metric_type = hp_config["fitness_metric_type"]
     seed = hp_config["seed"]
+    load_from = hp_config["load_from"]
 
     # Ignore value in hp_config["search_iterations"] during grid search and IC grid
     # search, since the number of iterations is determined by
@@ -118,6 +122,12 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     else:
         save_dir = None
 
+    # Construct load directory, if necessary.
+    if load_from is not None:
+        load_dir = save_dir_from_name(load_from)
+    else:
+        load_dir = None
+
     # Construct fitness function.
     if fitness_metric_name not in [
         "train_reward",
@@ -145,7 +155,13 @@ def tune(hp_config: Dict[str, Any]) -> Dict[str, Any]:
     elif hp_config["search_type"] == "IC_grid":
         search_fn = IC_grid_search
     results = search_fn(
-        base_config, iterations, trials_per_config, fitness_fn, search_params, save_dir
+        base_config,
+        iterations,
+        trials_per_config,
+        fitness_fn,
+        search_params,
+        save_dir,
+        load_dir,
     )
 
     # Save results and config.
@@ -166,6 +182,7 @@ def random_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
+    load_dir: str,
 ) -> Dict[str, Any]:
     """
     Perform random search over hyperparameter configurations, returning the results.
@@ -173,20 +190,6 @@ def random_search(
 
     # Initialize results.
     results: Dict[str, Any] = {"iterations": []}
-
-    # Helper function to compare configs.
-    nonessential_params = [
-        "save_name",
-        "metrics_filename",
-        "baseline_metrics_filename",
-        "print_freq",
-    ]
-
-    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
-        stripped = dict(config)
-        for param in nonessential_params:
-            del stripped[param]
-        return stripped
 
     # Training loop.
     config = dict(base_config)
@@ -263,13 +266,11 @@ def grid_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
+    load_dir: str,
 ) -> Dict[str, Any]:
     """
     Perform grid search over hyperparameter configurations, returning the results.
     """
-
-    # Initialize results.
-    results: Dict[str, Any] = {"iterations": []}
 
     # Construct set of configurations to search over.
     param_values = {}
@@ -283,10 +284,26 @@ def grid_search(
         config = update_config(config, new_values)
         configs.append(dict(config))
 
-    # Training loop.
+    # Load in checkpoint, if necessary.
+    results: Dict[str, Any] = {"iterations": []}
     best_fitness = None
     best_config = None
-    for iteration, config in enumerate(configs):
+    iteration = 0
+    if load_dir is not None:
+
+        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
+        with open(checkpoint_filename, "rb") as checkpoint_file:
+            checkpoint = pickle.load(checkpoint_file)
+
+        results = dict(checkpoint["results"])
+        best_fitness = checkpoint["best_fitness"]
+        best_config = dict(checkpoint["best_config"])
+        iteration = checkpoint["iteration"]
+
+    # Training loop.
+    while iteration < len(configs):
+
+        config = configs[iteration]
 
         # Run training for current config.
         get_save_name = (
@@ -315,6 +332,22 @@ def grid_search(
         # Add maximum to config results, and add config results to overall results.
         results["iterations"].append(dict(config_results))
 
+        # Save intermediate results, if necessary. We add one to the iteration here so
+        # that upon resumption, the first iteration will be the next one after the last
+        # completed iteration.
+        if save_dir is not None:
+            checkpoint = {}
+            checkpoint["results"] = dict(results)
+            checkpoint["best_fitness"] = best_fitness
+            checkpoint["best_config"] = best_config
+            checkpoint["iteration"] = iteration + 1
+
+            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+            with open(checkpoint_filename, "wb") as checkpoint_file:
+                pickle.dump(checkpoint, checkpoint_file)
+
+        iteration += 1
+
     # Fill results.
     results["best_config"] = dict(best_config)
     results["best_fitness"] = best_fitness
@@ -329,6 +362,7 @@ def IC_grid_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
+    load_dir: str,
 ) -> Dict[str, Any]:
     """
     Perform iterated constrained grid search over hyperparameter configurations,
@@ -342,15 +376,6 @@ def IC_grid_search(
 
     # Initialize results.
     results: Dict[str, Any] = {"iterations": []}
-
-    # Helper function to compare configs.
-    nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
-
-    def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
-        stripped = dict(config)
-        for param in nonessential_params:
-            del stripped[param]
-        return stripped
 
     # Construct list of values for each variable parameter to vary over.
     param_values = {}

@@ -8,10 +8,13 @@ import itertools
 from typing import Dict, Any, Tuple
 
 from meta.tune.tune import tune, update_config
+from meta.tune.utils import tune_results_equal
 
 
 RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")
 GRID_CONFIG_PATH = os.path.join("configs", "hp_grid.json")
+RESUME_GRID_CONFIG_PATH = os.path.join("configs", "resume_hp.json")
+INTERRUPT_GRID_CONFIG_PATH = os.path.join("configs", "interrupt_hp.json")
 GRID_TEST_CONFIG_PATH = os.path.join("configs", "hp_grid_test.json")
 IC_GRID_CONFIG_PATH = os.path.join("configs", "hp_IC_grid.json")
 
@@ -48,6 +51,26 @@ def test_hp_search_grid_metrics() -> None:
 
     # Run training.
     tune(config)
+
+
+def test_hp_search_resume_grid_metrics() -> None:
+    """
+    Resumes an interrupted hyperparameter grid search and compares metrics against a
+    saved baseline for the LunarLanderContinuous environment.
+    """
+
+    # Load resume hyperparameter search config and resume training.
+    with open(RESUME_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    resumed_results = tune(config)
+
+    # Load original hyperparameter search config and run original training from scratch.
+    with open(INTERRUPT_GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    interrupt_results = tune(config)
+
+    # Check values.
+    assert tune_results_equal(resumed_results, interrupt_results)
 
 
 def test_hp_search_grid_values() -> None:
