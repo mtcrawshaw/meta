@@ -192,14 +192,28 @@ def random_search(
     Perform random search over hyperparameter configurations, returning the results.
     """
 
-    # Initialize results.
+    # Load in checkpoint, if necessary.
     results: Dict[str, Any] = {"iterations": []}
-
-    # Training loop.
     config = dict(base_config)
     best_fitness = None
     best_config = None
-    for iteration in range(iterations):
+    iteration = 0
+    if load_dir is not None:
+        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
+        with open(checkpoint_filename, "rb") as checkpoint_file:
+            checkpoint = pickle.load(checkpoint_file)
+
+        # Make sure current config and previous config line up.
+        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
+
+        results = dict(checkpoint["results"])
+        config = dict(checkpoint["config"])
+        best_fitness = checkpoint["best_fitness"]
+        best_config = dict(checkpoint["best_config"])
+        iteration = checkpoint["iteration"]
+
+    # Training loop.
+    while iteration < iterations:
 
         # See if we have already performed training with this configuration.
         already_trained = False
@@ -255,6 +269,25 @@ def random_search(
         config = mutate_train_config(search_params, best_config)
         while not valid_config(config):
             config = mutate_train_config(search_params, best_config)
+
+        # Save intermediate results, if necessary. We add one to the iteration here, so
+        # that upon resumption, the first iteration will be the next one after the last
+        # copmleted iteration. It is also important that we save the checkpoint AFTER
+        # the config has been mutated, so that we don't repeat configs after resumption.
+        if save_dir is not None:
+            checkpoint = {}
+            checkpoint["results"] = dict(results)
+            checkpoint["config"] = dict(config)
+            checkpoint["best_fitness"] = best_fitness
+            checkpoint["best_config"] = dict(best_config)
+            checkpoint["iteration"] = iteration + 1
+            checkpoint["tune_config"] = dict(tune_config)
+
+            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+            with open(checkpoint_filename, "wb") as checkpoint_file:
+                pickle.dump(checkpoint, checkpoint_file)
+
+        iteration += 1
 
     # Fill results.
     results["best_config"] = dict(best_config)

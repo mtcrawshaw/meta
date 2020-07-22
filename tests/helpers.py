@@ -1,5 +1,6 @@
 """ Utilities for tests. """
 
+import os
 from typing import Dict, Any
 
 import torch
@@ -7,6 +8,7 @@ from gym import Env
 
 from meta.train.ppo import PPOPolicy
 from meta.utils.storage import RolloutStorage
+from meta.utils.utils import save_dir_from_name
 
 
 DEFAULT_SETTINGS = {
@@ -125,3 +127,17 @@ def get_rollout(
             )
 
     return rollout
+
+
+def check_results_name(save_name: str) -> None:
+    """
+    Helper function to check if a results folder already exists, and raise an error if
+    so.
+    """
+
+    results_dir = save_dir_from_name(save_name)
+    if os.path.isdir(results_dir):
+        raise ValueError(
+            "Already exists saved results with name %s. This folder must be renamed "
+            "or deleted in order for the test to run properly."
+        )

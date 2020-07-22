@@ -11,7 +11,7 @@ from meta.train.env import get_env
 from meta.train.train import collect_rollout, train
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import save_dir_from_name
-from tests.helpers import get_policy, DEFAULT_SETTINGS
+from tests.helpers import get_policy, check_results_name, DEFAULT_SETTINGS
 
 
 MP_FACTOR = 4
@@ -672,7 +672,7 @@ def test_save_load() -> None:
     config["save_name"] = save_name
     first_metrics = train(config)
 
-    # Fun training for the second time, and load from checkpoint.
+    # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
@@ -712,7 +712,7 @@ def test_save_load_multi() -> None:
     config["num_processes"] *= MP_FACTOR
     first_metrics = train(config)
 
-    # Fun training for the second time, and load from checkpoint.
+    # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
@@ -731,17 +731,3 @@ def test_save_load_multi() -> None:
 
     # Clean up.
     os.system("rm -rf %s" % save_dir_from_name(save_name))
-
-
-def check_results_name(save_name: str) -> None:
-    """
-    Helper function to check if a results folder already exists, and raise an error if
-    so.
-    """
-
-    results_dir = save_dir_from_name(save_name)
-    if os.path.isdir(results_dir):
-        raise ValueError(
-            "Already exists saved results with name %s. This folder must be renamed "
-            "or deleted in order for the test to run properly."
-        )

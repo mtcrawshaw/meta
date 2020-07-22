@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple
 
 from meta.tune.tune import tune, update_config
 from meta.tune.utils import tune_results_equal
+from tests.helpers import check_results_name
 
 
 RANDOM_CONFIG_PATH = os.path.join("configs", "tune_random.json")
@@ -27,9 +28,25 @@ def test_tune_random_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["metrics_filename"] = "tune_random"
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_random"
 
     # Run training.
+    tune(config)
+
+
+def test_tune_random_resume_metrics() -> None:
+    """
+    Runs hyperparameter random search and compares metrics against a saved baseline.
+    """
+
+    # Load hyperparameter search config.
+    with open(RANDOM_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config and resume training from interrupted checkpoint.
+    save_name = "tune_random_interrupt"
+    config["load_from"] = save_name
+    config["base_train_config"]["baseline_metrics_filename"] = save_name
     tune(config)
 
 
@@ -43,7 +60,7 @@ def test_tune_grid_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["metrics_filename"] = "tune_grid"
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
 
     # Run training.
     tune(config)
@@ -129,7 +146,7 @@ def test_tune_IC_grid_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["metrics_filename"] = "tune_IC_grid"
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_IC_grid"
 
     # Run training.
     tune(config)

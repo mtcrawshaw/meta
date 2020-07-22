@@ -35,13 +35,9 @@ Current task (Shared trunk architecture):
 --> Refactoring
 
 Notes for current task:
-Implementing saving/loading of tuning runs. Just finished implementing it for grid
-search and IC grid search, as well unit test cases. Need to do the same for random
-search, though random search will need to measure against a saved baseline since we
-won't be able to 100% accurately reproduce training as if it had never been paused. Make
-sure that tune_results_equal() works for results from random/IC grid search runs. After
-all of this, consider more fine-grained saving/loading, like per trial or even
-mid-trial.
+Give different save names to different tests so one test failure doesn't make another
+test fail.
+Consider more fine-grained saving/loading, like per trial or even mid-trial.
 
 ----------------------------------------------------------------------------------------
 
@@ -136,7 +132,3 @@ Refactoring:
 - Get rid of warnings that occur during tests
 - Make sure that a clean install works properly (repo contains all data necessary for
   tests, requirements contains all requirements, etc)
-- Change hp tests so that success rate is used for CartPole, and reward is used for
-  LunarLander. After doing this, consolidate interrupted/resumed configs with the
-  default configs
-
