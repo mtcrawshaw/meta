@@ -7,7 +7,7 @@
         "env_name": "CartPole-v1",
 
         "num_updates": 10,
-        "rollout_length": 64,
+        "rollout_length": 32,
         "num_ppo_epochs": 4,
         "num_minibatch": 1,
         "num_processes": 1,
@@ -73,7 +73,7 @@
         }
     },
 
-    "fitness_metric_name": "train_success",
+    "fitness_metric_name": "eval_success",
     "fitness_metric_type": "mean",
 
     "seed": 1,

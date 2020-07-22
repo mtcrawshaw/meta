@@ -11,15 +11,13 @@ from meta.tune.tune import tune, update_config
 from meta.tune.utils import tune_results_equal
 
 
-RANDOM_CONFIG_PATH = os.path.join("configs", "hp_random.json")
-GRID_CONFIG_PATH = os.path.join("configs", "hp_grid.json")
-RESUME_GRID_CONFIG_PATH = os.path.join("configs", "resume_hp.json")
-INTERRUPT_GRID_CONFIG_PATH = os.path.join("configs", "interrupt_hp.json")
-GRID_TEST_CONFIG_PATH = os.path.join("configs", "hp_grid_test.json")
-IC_GRID_CONFIG_PATH = os.path.join("configs", "hp_IC_grid.json")
+RANDOM_CONFIG_PATH = os.path.join("configs", "tune_random.json")
+GRID_CONFIG_PATH = os.path.join("configs", "tune_grid.json")
+GRID_VALUES_CONFIG_PATH = os.path.join("configs", "tune_grid_values.json")
+IC_GRID_CONFIG_PATH = os.path.join("configs", "tune_IC_grid.json")
 
 
-def test_hp_search_random_metrics() -> None:
+def test_tune_random_metrics() -> None:
     """
     Runs hyperparameter random search and compares metrics against a saved baseline for
     the Cartpole environment.
@@ -30,13 +28,13 @@ def test_hp_search_random_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["baseline_metrics_filename"] = "hp_random"
+    config["base_train_config"]["metrics_filename"] = "tune_random"
 
     # Run training.
     tune(config)
 
 
-def test_hp_search_grid_metrics() -> None:
+def test_tune_grid_metrics() -> None:
     """
     Runs hyperparameter grid search and compares metrics against a saved baseline for
     the LunarLanderContinuous environment.
@@ -47,41 +45,42 @@ def test_hp_search_grid_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["baseline_metrics_filename"] = "hp_grid"
+    config["base_train_config"]["metrics_filename"] = "tune_grid"
 
     # Run training.
     tune(config)
 
 
-def test_hp_search_resume_grid_metrics() -> None:
+def test_tune_resume_grid_metrics() -> None:
     """
     Resumes an interrupted hyperparameter grid search and compares metrics against a
     saved baseline for the LunarLanderContinuous environment.
     """
 
     # Load resume hyperparameter search config and resume training.
-    with open(RESUME_GRID_CONFIG_PATH, "r") as config_file:
+    with open(GRID_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
+    config["load_from"] = "tune_interrupt"
     resumed_results = tune(config)
 
     # Load original hyperparameter search config and run original training from scratch.
-    with open(INTERRUPT_GRID_CONFIG_PATH, "r") as config_file:
+    with open(GRID_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
-    interrupt_results = tune(config)
+    original_results = tune(config)
 
     # Check values.
-    assert tune_results_equal(resumed_results, interrupt_results)
+    assert tune_results_equal(resumed_results, original_results)
 
 
-def test_hp_search_grid_values() -> None:
+def test_tune_grid_values() -> None:
     """
     Runs hyperparameter grid search and makes sure that the correct parameter
     combinations are used for training.
     """
 
     # Load hyperparameter search config.
-    with open(GRID_TEST_CONFIG_PATH, "r") as config_file:
-        hp_config = json.load(config_file)
+    with open(GRID_VALUES_CONFIG_PATH, "r") as config_file:
+        tune_config = json.load(config_file)
 
     # Construct expected parameter combinations.
     expected_configs = []
@@ -100,13 +99,13 @@ def test_hp_search_grid_values() -> None:
         [1e-3, 1e-6, 0.6, False],
     ]
     for variable_param_combo in variable_param_combos:
-        config = dict(hp_config["base_train_config"])
+        config = dict(tune_config["base_train_config"])
         updated_params = dict(zip(variable_params, variable_param_combo))
         config = update_config(config, updated_params)
         expected_configs.append(dict(config))
 
     # Run training and extract actual configs from results.
-    results = tune(hp_config)
+    results = tune(tune_config)
     actual_configs = [
         config_results["config"] for config_results in results["iterations"]
     ]
@@ -122,7 +121,7 @@ def test_hp_search_grid_values() -> None:
         assert expected_config in actual_configs
 
 
-def test_hp_search_IC_grid_metrics() -> None:
+def test_tune_IC_grid_metrics() -> None:
     """
     Runs hyperparameter IC grid search and compares metrics against a saved baseline for
     the Cartpole environment.
@@ -133,13 +132,13 @@ def test_hp_search_IC_grid_metrics() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["base_train_config"]["baseline_metrics_filename"] = "hp_IC_grid"
+    config["base_train_config"]["metrics_filename"] = "tune_IC_grid"
 
     # Run training.
     tune(config)
 
 
-def test_hp_search_IC_grid_values() -> None:
+def test_tune_IC_grid_values() -> None:
     """
     Runs hyperparameter IC grid search and makes sure that the correct parameter
     combinations are used for training.
