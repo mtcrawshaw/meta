@@ -139,5 +139,5 @@ def check_results_name(save_name: str) -> None:
     if os.path.isdir(results_dir):
         raise ValueError(
             "Already exists saved results with name %s. This folder must be renamed "
-            "or deleted in order for the test to run properly."
+            "or deleted in order for the test to run properly." % save_name
         )

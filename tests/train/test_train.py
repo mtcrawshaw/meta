@@ -581,7 +581,7 @@ def test_train_save_load() -> None:
     """
 
     # Check that desired results name is available.
-    save_name = "save_test"
+    save_name = "test_train_save_load"
     check_results_name(save_name)
 
     # Load default training config and run training for the first time.
@@ -661,7 +661,7 @@ def test_save_load() -> None:
     """
 
     # Check that desired results name is available.
-    save_name = "save_test"
+    save_name = "test_save_load"
     check_results_name(save_name)
 
     # Load default training config.
@@ -699,7 +699,7 @@ def test_save_load_multi() -> None:
     """
 
     # Check that desired results name is available.
-    save_name = "save_test"
+    save_name = "test_save_load_multi"
     check_results_name(save_name)
 
     # Load default training config.

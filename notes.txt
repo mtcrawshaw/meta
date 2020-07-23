@@ -35,8 +35,6 @@ Current task (Shared trunk architecture):
 --> Refactoring
 
 Notes for current task:
-Give different save names to different tests so one test failure doesn't make another
-test fail.
 Consider more fine-grained saving/loading, like per trial or even mid-trial.
 
 ----------------------------------------------------------------------------------------
