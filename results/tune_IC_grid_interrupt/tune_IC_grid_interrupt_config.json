@@ -1,0 +1,75 @@
+{
+    "search_type": "IC_grid",
+    "search_iterations": null,
+    "trials_per_config": 1,
+    "base_train_config": {
+        "env_name": "CartPole-v1",
+        "num_updates": 10,
+        "rollout_length": 5,
+        "num_ppo_epochs": 4,
+        "num_minibatch": 1,
+        "num_processes": 1,
+        "lr_schedule_type": "cosine",
+        "initial_lr": 0.0007,
+        "final_lr": 0.0007,
+        "eps": 1e-05,
+        "value_loss_coeff": 0.5,
+        "entropy_loss_coeff": 0.01,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "max_grad_norm": 0.5,
+        "clip_param": 0.2,
+        "clip_value_loss": true,
+        "normalize_advantages": true,
+        "normalize_transition": true,
+        "normalize_first_n": null,
+        "architecture_config": {
+            "type": "vanilla",
+            "num_layers": 3,
+            "hidden_size": 64,
+            "recurrent": false
+        },
+        "evaluation_freq": 4,
+        "evaluation_episodes": 5,
+        "cuda": false,
+        "seed": 1,
+        "print_freq": 4,
+        "save_freq": null,
+        "load_from": null,
+        "time_limit": 20,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null,
+        "save_name": "tune_IC_grid_interrupt"
+    },
+    "search_params": {
+        "initial_lr": {
+            "distribution_type": "geometric",
+            "num_values": 2,
+            "min_value": 1e-05,
+            "max_value": 0.001
+        },
+        "clip_param": {
+            "distribution_type": "arithmetic",
+            "num_values": 2,
+            "min_value": 0.2,
+            "max_value": 1.0
+        },
+        "num_layers": {
+            "distribution_type": "arithmetic",
+            "num_values": 2,
+            "min_value": 1,
+            "max_value": 8
+        },
+        "recurrent": {
+            "distribution_type": "discrete",
+            "choices": [
+                true,
+                false
+            ]
+        }
+    },
+    "fitness_metric_name": "eval_reward",
+    "fitness_metric_type": "mean",
+    "seed": 1,
+    "load_from": null
+}

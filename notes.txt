@@ -73,7 +73,7 @@ Future additions:
   is more modular we should add these tests. For now I just manually inspected the
   values after loading and created a baseline to compare metrics against. The same goes
   for saving/loading hyperparameter random search runs (the other types of hp search
-  should be reproducible).
+  are reproducible).
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
