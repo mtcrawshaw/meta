@@ -130,3 +130,4 @@ Refactoring:
 - Get rid of warnings that occur during tests
 - Make sure that a clean install works properly (repo contains all data necessary for
   tests, requirements contains all requirements, etc)
+- Move test files (configs, results, metrics, etc.) into a separate subdirectory

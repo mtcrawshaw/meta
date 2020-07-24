@@ -51,6 +51,24 @@ def test_tune_random_resume_metrics() -> None:
     tune(config)
 
 
+def test_tune_random_resume_trial_metrics() -> None:
+    """
+    Runs hyperparameter random search and compares metrics against a saved baseline,
+    resuming from a checkpoint in which some trials were completed for a given config,
+    but not all (i.e. training was interrupted during train_single_config()).
+    """
+
+    # Load hyperparameter search config.
+    with open(RANDOM_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config and resume training from interrupted checkpoint.
+    save_name = "tune_random_interrupt_trial"
+    config["load_from"] = save_name
+    config["base_train_config"]["baseline_metrics_filename"] = save_name
+    tune(config)
+
+
 def test_tune_grid_metrics() -> None:
     """
     Runs hyperparameter grid search and compares metrics against a saved baseline.

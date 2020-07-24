@@ -212,6 +212,18 @@ def random_search(
         best_config = dict(checkpoint["best_config"])
         iteration = checkpoint["iteration"]
 
+    else:
+
+        # Construct initial checkpoint. This is used for saving both in this function
+        # and in train_single_config().
+        checkpoint = {}
+        checkpoint["results"] = results
+        checkpoint["config"] = config
+        checkpoint["best_fitness"] = best_fitness
+        checkpoint["best_config"] = best_config
+        checkpoint["iteration"] = iteration
+        checkpoint["config_checkpoint"] = None
+
     # Training loop.
     while iteration < iterations:
 
@@ -249,6 +261,7 @@ def random_search(
                 trials_per_config,
                 fitness_fn,
                 base_config["seed"],
+                checkpoint,
                 save_dir,
                 load_dir,
                 config_save_name,
@@ -284,10 +297,17 @@ def random_search(
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
+            checkpoint["config_checkpoint"] = None
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
                 pickle.dump(checkpoint, checkpoint_file)
+
+        else:
+
+            # Make sure to clear checkpoint so that call to train_single_config()
+            # doesn't try to load something again on the next run.
+            checkpoint = None
 
         iteration += 1
 
