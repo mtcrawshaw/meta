@@ -249,6 +249,8 @@ def random_search(
                 trials_per_config,
                 fitness_fn,
                 base_config["seed"],
+                save_dir,
+                load_dir,
                 config_save_name,
                 metrics_save_name,
                 baseline_metrics_save_name,
@@ -340,6 +342,17 @@ def grid_search(
         best_config = dict(checkpoint["best_config"])
         iteration = checkpoint["iteration"]
 
+    else:
+
+        # Construct initial checkpoint. This is used for saving both in this function
+        # and in train_single_config().
+        checkpoint = {}
+        checkpoint["results"] = results
+        checkpoint["best_fitness"] = best_fitness
+        checkpoint["best_config"] = best_config
+        checkpoint["iteration"] = iteration
+        checkpoint["config_checkpoint"] = None
+
     # Training loop.
     while iteration < len(configs):
 
@@ -359,6 +372,9 @@ def grid_search(
             trials_per_config,
             fitness_fn,
             base_config["seed"],
+            checkpoint,
+            save_dir,
+            load_dir,
             config_save_name,
             metrics_save_name,
             baseline_metrics_save_name,
@@ -382,10 +398,17 @@ def grid_search(
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
+            checkpoint["config_checkpoint"] = None
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
                 pickle.dump(checkpoint, checkpoint_file)
+
+        else:
+
+            # Make sure to clear checkpoint so that call to train_single_config()
+            # doesn't try to load something again on the next run.
+            checkpoint = None
 
         iteration += 1
 
@@ -509,6 +532,8 @@ def IC_grid_search(
                     trials_per_config,
                     fitness_fn,
                     base_config["seed"],
+                    save_dir,
+                    load_dir,
                     config_save_name,
                     metrics_save_name,
                     baseline_metrics_save_name,
@@ -570,6 +595,9 @@ def train_single_config(
     trials_per_config: int,
     fitness_fn: Callable,
     seed: int,
+    checkpoint: Dict[str, Any],
+    save_dir: str,
+    load_dir: str,
     config_save_name: str = None,
     metrics_filename: str = None,
     baseline_metrics_filename: str = None,
@@ -579,12 +607,19 @@ def train_single_config(
     fitness and a dictionary holding results.
     """
 
-    # Perform training and compute resulting fitness for multiple trials.
+    # Load in checkpoint, if necessary.
     fitness = 0.0
+    trial = 0
     config_results: Dict[str, Any] = {}
     config_results["trials"] = []
     config_results["config"] = dict(train_config)
-    for trial in range(trials_per_config):
+    if checkpoint is not None and checkpoint["config_checkpoint"] is not None:
+        config_results = checkpoint["config_checkpoint"]["config_results"]
+        fitness = checkpoint["config_checkpoint"]["fitness"]
+        trial = checkpoint["config_checkpoint"]["trial"]
+
+    # Perform training and compute resulting fitness for multiple trials.
+    while trial < trials_per_config:
 
         trial_results = {}
 
@@ -610,6 +645,23 @@ def train_single_config(
         trial_results["metrics"] = dict(metrics)
         trial_results["fitness"] = trial_fitness
         config_results["trials"].append(dict(trial_results))
+
+        # Save checkpoint, if necessary. We increment the trial index here so that when
+        # training resumes, it will start with the next trial after the last completed
+        # one.
+        if save_dir is not None:
+            config_checkpoint = {}
+            config_checkpoint["config_results"] = dict(config_results)
+            config_checkpoint["fitness"] = fitness
+            config_checkpoint["trial"] = trial + 1
+            checkpoint["config_checkpoint"] = dict(config_checkpoint)
+
+            checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
+            with open(checkpoint_filename, "wb") as checkpoint_file:
+                pickle.dump(checkpoint, checkpoint_file)
+
+        # Update trial index.
+        trial += 1
 
     fitness /= trials_per_config
     config_results["fitness"] = fitness

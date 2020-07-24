@@ -15,6 +15,7 @@ from tests.helpers import check_results_name
 RANDOM_CONFIG_PATH = os.path.join("configs", "tune_random.json")
 GRID_CONFIG_PATH = os.path.join("configs", "tune_grid.json")
 GRID_VALUES_CONFIG_PATH = os.path.join("configs", "tune_grid_values.json")
+GRID_TRIAL_CONFIG_PATH = os.path.join("configs", "tune_grid_trial.json")
 IC_GRID_CONFIG_PATH = os.path.join("configs", "tune_IC_grid.json")
 
 
@@ -80,6 +81,29 @@ def test_tune_resume_grid_metrics() -> None:
 
     # Load original hyperparameter search config and run original training from scratch.
     with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    original_results = tune(config)
+
+    # Check values.
+    assert tune_results_equal(resumed_results, original_results)
+
+
+def test_tune_resume_grid_trial_metrics() -> None:
+    """
+    Resumes an interrupted hyperparameter grid search and compares metrics against a
+    saved baseline, resuming from a checkpoint in which some trials were completed for a
+    given config, but not all (i.e. training was interrupted during
+    train_single_config()).
+    """
+
+    # Load resume hyperparameter search config and resume training.
+    with open(GRID_TRIAL_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    config["load_from"] = "tune_grid_interrupt_trial"
+    resumed_results = tune(config)
+
+    # Load original hyperparameter search config and run original training from scratch.
+    with open(GRID_TRIAL_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
     original_results = tune(config)
 
