@@ -410,7 +410,9 @@ def grid_search(
 
         # Save intermediate results, if necessary. We add one to the iteration here so
         # that upon resumption, the first iteration will be the next one after the last
-        # completed iteration.
+        # completed iteration. We clear the config checkpoint so that the next call to
+        # train_single_config() doesn't try to load a previous checkpoint.
+        checkpoint["config_checkpoint"] = None
         if save_dir is not None:
             checkpoint = {}
             checkpoint["results"] = dict(results)
@@ -418,17 +420,10 @@ def grid_search(
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
-            checkpoint["config_checkpoint"] = None
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
                 pickle.dump(checkpoint, checkpoint_file)
-
-        else:
-
-            # Make sure to clear checkpoint so that call to train_single_config()
-            # doesn't try to load something again on the next run.
-            checkpoint = None
 
         iteration += 1
 
