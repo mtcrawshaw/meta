@@ -35,7 +35,14 @@ Current task (Shared trunk architecture):
 --> Refactoring
 
 Notes for current task:
-Consider more fine-grained saving/loading, like per trial or even mid-trial.
+Trying to implement per-trial saving/loading in tune. I possibly fixed a bug but we
+won't be sure until we test it. Details of the fix are in commit eee82947. We need to do
+a couple things to get tests.
+- Implement an option in tune config that allows for early stopping.
+- Write saving/loading tests that vary over (load config, load trial) and (one stop, two
+  stops) for grid_search()
+- If things are working, make random_search() and IC_grid_search() match grid_search(),
+  then write tests for those functions as well.
 
 ----------------------------------------------------------------------------------------
 
