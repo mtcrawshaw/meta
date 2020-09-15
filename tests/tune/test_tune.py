@@ -6,9 +6,11 @@ import os
 import json
 import itertools
 from typing import Dict, Any, Tuple
+from glob import glob
 
 from meta.tune.tune import tune, update_config
-from meta.tune.utils import tune_results_equal
+from meta.tune.params import get_iterations
+from meta.tune.utils import tune_results_equal, check_name_uniqueness
 from tests.helpers import check_results_name
 
 
@@ -83,6 +85,51 @@ def test_tune_grid_metrics() -> None:
 
     # Run training.
     tune(config)
+
+
+def test_tune_grid_early_stop_iteration() -> None:
+    """
+    Runs hyperparameter grid search with an early stop point between iterations.
+    """
+
+    # Load hyperparameter search config.
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config to stop early and save results.
+    config["early_stop"] = {"iterations": 2, "trials": 0}
+
+    # Run training.
+    results = tune(config)
+
+    # Check results file.
+    assert len(results["iterations"]) == config["early_stop"]["iterations"]
+    for config_results in results["iterations"]:
+        assert len(config_results["trials"]) == config["trials_per_config"]
+
+
+def test_tune_grid_early_stop_trial() -> None:
+    """
+    Runs hyperparameter grid search with an early stop point between trials of an
+    iteration.
+    """
+
+    # Load hyperparameter search config.
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config to stop early and save results.
+    config["trials_per_config"] = 2
+    config["early_stop"] = {"iterations": 3, "trials": 1}
+
+    # Run training.
+    results = tune(config)
+
+    # Check results file.
+    assert len(results["iterations"]) == config["early_stop"]["iterations"] + 1
+    for config_results in results["iterations"][:-1]:
+        assert len(config_results["trials"]) == config["trials_per_config"]
+    assert len(results["iterations"][-1]["trials"]) == config["early_stop"]["trials"]
 
 
 def test_tune_resume_grid_metrics() -> None:

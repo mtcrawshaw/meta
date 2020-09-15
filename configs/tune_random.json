@@ -1,6 +1,7 @@
 {
     "search_type": "random",
     "search_iterations": 2,
+    "early_stop": null,
     "trials_per_config": 2,
 
     "base_train_config": {

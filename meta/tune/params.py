@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Dict, List, Any
 
 
@@ -136,3 +137,52 @@ def get_param_values(param_settings: Dict[str, Any]) -> List[Any]:
         )
 
     return param_values
+
+
+def get_iterations(
+    search_type: str, iterations: int, search_params: Dict[str, Any]
+) -> int:
+    """
+    Get number of iterations based on configuration values. If the search type is
+    "random", then we just return the number of iterations passed in. With search types
+    "grid" and "IC_grid", we have to compute the number of iterations from
+    ``search_params``.
+    """
+
+    new_iterations = 0
+    if search_type in ["grid", "IC_grid"]:
+        num_param_values = get_num_param_values(search_params)
+
+        if search_type == "grid":
+            new_iterations = reduce(lambda a, b: a * b, num_param_values)
+        elif search_type == "IC_grid":
+            new_iterations = sum(num_param_values)
+        else:
+            raise NotImplementedError
+
+    elif search_type == "random":
+        new_iterations = iterations
+
+    else:
+        raise NotImplementedError
+
+    return new_iterations
+
+
+def get_num_param_values(search_params: Dict[str, Any]) -> List[int]:
+    """
+    Given ``search_params`` from a tune configuration (this entry doesn't exist for
+    random searches), returns the number of parameter values to iterate over for each
+    parameter.
+    """
+
+    num_param_values = []
+    for param_settings in search_params.values():
+        if "num_values" in param_settings:
+            num_param_values.append(param_settings["num_values"])
+        elif "choices" in param_settings:
+            num_param_values.append(len(param_settings["choices"]))
+        else:
+            raise ValueError("Invalid ``search_params`` value in config.")
+
+    return num_param_values

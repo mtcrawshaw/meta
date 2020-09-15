@@ -1,6 +1,7 @@
 {
     "search_type": "IC_grid",
     "search_iterations": null,
+    "early_stop": null,
     "trials_per_config": 1,
 
     "base_train_config": {

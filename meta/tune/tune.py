@@ -9,13 +9,18 @@ import random
 import pickle
 import json
 import itertools
-from functools import reduce
 from typing import Dict, Any, Tuple, Callable
 
 from meta.train.train import train
 from meta.tune.mutate import mutate_train_config
 from meta.tune.utils import check_name_uniqueness, strip_config
-from meta.tune.params import valid_config, update_config, get_param_values
+from meta.tune.params import (
+    valid_config,
+    update_config,
+    get_param_values,
+    get_iterations,
+    get_num_param_values,
+)
 from meta.utils.utils import save_dir_from_name, aligned_tune_configs
 
 
@@ -35,6 +40,13 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
         cases where the number of configurations is determined by ``search_params``
         (such as when using grid search), the value of this variable is ignored, and the
         determined value is used instead.
+    early_stop : Dict[str, int]
+        Options to stop before reaching the end of training. This is mainly for
+        simulating interruptions in test. Should have two keys, "iterations" and
+        "trials", the corresponding value of each denotes how many of each to execute
+        before stopping early. For example, {"iterations": 3", "trials": 1} will execute
+        3 whole iterations, and 1 trial of the 4th iteration. If early stopping isn't
+        desired, this value can just be set to None.
     trials_per_config : int
         Number of training runs to perform for each hyperparameter configuration. The
         fitness of each training run is averaged to produce an overall fitness for each
@@ -66,6 +78,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     # Extract info from config.
     search_type = tune_config["search_type"]
     iterations = tune_config["search_iterations"]
+    early_stop = tune_config["early_stop"]
     trials_per_config = tune_config["trials_per_config"]
     base_config = tune_config["base_train_config"]
     search_params = tune_config["search_params"]
@@ -74,40 +87,21 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     seed = tune_config["seed"]
     load_from = tune_config["load_from"]
 
-    # Ignore value in tune_config["search_iterations"] during grid search and IC grid
-    # search, since the number of iterations is determined by
-    # tune_config["search_params"].
+    # Compute iterations from tune_config["search_params"] if necessary. When search
+    # type is "grid" or "IC_grid", iterations must be computed from ``search_params``.
     if search_type in ["grid", "IC_grid"]:
-        num_param_values = []
-        for param_settings in search_params.values():
-            if "num_values" in param_settings:
-                num_param_values.append(param_settings["num_values"])
-            elif "choices" in param_settings:
-                num_param_values.append(len(param_settings["choices"]))
-            else:
-                raise ValueError("Invalid ``search_params`` value in config.")
-        if search_type == "grid":
-            iterations = reduce(lambda a, b: a * b, num_param_values)
-        elif search_type == "IC_grid":
-            iterations = sum(num_param_values)
-        else:
-            raise NotImplementedError
+        iterations = get_iterations(search_type, iterations, search_params)
 
     # Read in base name and make sure it is valid. Naming is slightly different for
     # different search strategies, so we do some weirdness here to make one function
     # which handles all cases.
     base_name = base_config["save_name"]
     if base_name is not None:
+        check_args = [base_name, search_type, iterations, trials_per_config]
         if search_type == "IC_grid":
-            check_name_uniqueness(
-                base_name,
-                search_type,
-                iterations,
-                trials_per_config,
-                num_param_values=num_param_values,
-            )
-        else:
-            check_name_uniqueness(base_name, search_type, iterations, trials_per_config)
+            num_param_values = get_num_param_values(search_params)
+            check_args.append(num_param_values)
+        check_name_uniqueness(*check_args)
 
     # Make results folder and save initial config.
     if base_name is not None:
@@ -160,6 +154,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
         tune_config,
         base_config,
         iterations,
+        early_stop,
         trials_per_config,
         fitness_fn,
         search_params,
@@ -168,7 +163,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     # Save results and config.
-    if base_name is not None:
+    if base_name is not None and early_stop is not None:
 
         # Save results.
         results_path = os.path.join(save_dir, "%s_results.json" % base_name)
@@ -182,6 +177,7 @@ def random_search(
     tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
+    early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
     search_params: Dict[str, Any],
@@ -322,6 +318,7 @@ def grid_search(
     tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
+    early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
     search_params: Dict[str, Any],
@@ -376,6 +373,17 @@ def grid_search(
     # Training loop.
     while iteration < len(configs):
 
+        # Check for early stop.
+        early_stop_trials = None
+        if early_stop is not None:
+            if iteration == early_stop["iterations"]:
+                if early_stop["trials"] == 0:
+                    break
+                else:
+                    early_stop_trials = early_stop["trials"]
+            if iteration > early_stop["iterations"]:
+                break
+
         config = configs[iteration]
 
         # Run training for current config.
@@ -398,6 +406,7 @@ def grid_search(
             config_save_name,
             metrics_save_name,
             baseline_metrics_save_name,
+            early_stop_trials,
         )
 
         # Compare current step to best so far.
@@ -438,6 +447,7 @@ def IC_grid_search(
     tune_config: Dict[str, Any],
     base_config: Dict[str, Any],
     iterations: int,
+    early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
     search_params: Dict[str, Any],
@@ -616,6 +626,7 @@ def train_single_config(
     config_save_name: str = None,
     metrics_filename: str = None,
     baseline_metrics_filename: str = None,
+    early_stop_trials: int = None,
 ) -> Tuple[float, Dict[str, Any]]:
     """
     Run training with a fixed config for ``trials_per_config`` trials, and return
@@ -635,6 +646,10 @@ def train_single_config(
 
     # Perform training and compute resulting fitness for multiple trials.
     while trial < trials_per_config:
+
+        # Check for early stop.
+        if early_stop_trials is not None and trial == early_stop_trials:
+            break
 
         trial_results = {}
 
