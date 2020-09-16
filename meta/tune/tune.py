@@ -1,4 +1,6 @@
 """
+WARNING: This file is incredibly gross. I am so sorry.
+
 Hyperparater search functions wrapped around training. It should be noted that there is
 a ton of repeated code between random_search(), grid_search(), and IC_grid_search(). If
 code changes in any of these functions, similar changes should be made in the other two.
@@ -421,7 +423,6 @@ def grid_search(
         # that upon resumption, the first iteration will be the next one after the last
         # completed iteration. We clear the config checkpoint so that the next call to
         # train_single_config() doesn't try to load a previous checkpoint.
-        checkpoint["config_checkpoint"] = None
         if save_dir is not None:
             checkpoint = {}
             checkpoint["results"] = dict(results)
@@ -429,10 +430,14 @@ def grid_search(
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
+            checkpoint["config_checkpoint"] = None
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
                 pickle.dump(checkpoint, checkpoint_file)
+
+        else:
+            checkpoint["config_checkpoint"] = None
 
         iteration += 1
 

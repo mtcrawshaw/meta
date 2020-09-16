@@ -6,11 +6,12 @@ import os
 import json
 import itertools
 from typing import Dict, Any, Tuple
-from glob import glob
+from shutil import rmtree
 
 from meta.tune.tune import tune, update_config
 from meta.tune.params import get_iterations
-from meta.tune.utils import tune_results_equal, check_name_uniqueness
+from meta.tune.utils import tune_results_equal, check_name_uniqueness, get_experiment_names
+from meta.utils.utils import save_dir_from_name
 from tests.helpers import check_results_name
 
 
@@ -71,111 +72,6 @@ def test_tune_random_resume_trial_metrics() -> None:
     tune(config)
 
 
-def test_tune_grid_metrics() -> None:
-    """
-    Runs hyperparameter grid search and compares metrics against a saved baseline.
-    """
-
-    # Load hyperparameter search config.
-    with open(GRID_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-
-    # Modify default training config.
-    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
-
-    # Run training.
-    tune(config)
-
-
-def test_tune_grid_early_stop_iteration() -> None:
-    """
-    Runs hyperparameter grid search with an early stop point between iterations.
-    """
-
-    # Load hyperparameter search config.
-    with open(GRID_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-
-    # Modify default training config to stop early and save results.
-    config["early_stop"] = {"iterations": 2, "trials": 0}
-
-    # Run training.
-    results = tune(config)
-
-    # Check results file.
-    assert len(results["iterations"]) == config["early_stop"]["iterations"]
-    for config_results in results["iterations"]:
-        assert len(config_results["trials"]) == config["trials_per_config"]
-
-
-def test_tune_grid_early_stop_trial() -> None:
-    """
-    Runs hyperparameter grid search with an early stop point between trials of an
-    iteration.
-    """
-
-    # Load hyperparameter search config.
-    with open(GRID_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-
-    # Modify default training config to stop early and save results.
-    config["trials_per_config"] = 2
-    config["early_stop"] = {"iterations": 3, "trials": 1}
-
-    # Run training.
-    results = tune(config)
-
-    # Check results file.
-    assert len(results["iterations"]) == config["early_stop"]["iterations"] + 1
-    for config_results in results["iterations"][:-1]:
-        assert len(config_results["trials"]) == config["trials_per_config"]
-    assert len(results["iterations"][-1]["trials"]) == config["early_stop"]["trials"]
-
-
-def test_tune_resume_grid_metrics() -> None:
-    """
-    Resumes an interrupted hyperparameter grid search and compares metrics against a
-    saved baseline.
-    """
-
-    # Load resume hyperparameter search config and resume training.
-    with open(GRID_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-    config["load_from"] = "tune_grid_interrupt"
-    resumed_results = tune(config)
-
-    # Load original hyperparameter search config and run original training from scratch.
-    with open(GRID_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-    original_results = tune(config)
-
-    # Check values.
-    assert tune_results_equal(resumed_results, original_results)
-
-
-def test_tune_resume_grid_trial_metrics() -> None:
-    """
-    Resumes an interrupted hyperparameter grid search and compares metrics against a
-    saved baseline, resuming from a checkpoint in which some trials were completed for a
-    given config, but not all (i.e. training was interrupted during
-    train_single_config()).
-    """
-
-    # Load resume hyperparameter search config and resume training.
-    with open(GRID_TRIAL_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-    config["load_from"] = "tune_grid_interrupt_trial"
-    resumed_results = tune(config)
-
-    # Load original hyperparameter search config and run original training from scratch.
-    with open(GRID_TRIAL_CONFIG_PATH, "r") as config_file:
-        config = json.load(config_file)
-    original_results = tune(config)
-
-    # Check values.
-    assert tune_results_equal(resumed_results, original_results)
-
-
 def test_tune_grid_values() -> None:
     """
     Runs hyperparameter grid search and makes sure that the correct parameter
@@ -223,6 +119,158 @@ def test_tune_grid_values() -> None:
     assert all(c1 != c2 for c1, c2 in itertools.combinations(expected_configs, 2))
     for expected_config in expected_configs:
         assert expected_config in actual_configs
+
+
+def test_tune_grid_metrics() -> None:
+    """
+    Runs hyperparameter grid search and compares metrics against a saved baseline.
+    """
+
+    # Load hyperparameter search config.
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
+
+    # Run training.
+    tune(config)
+
+
+def test_tune_grid_early_stop_iteration() -> None:
+    """
+    Runs hyperparameter grid search until an early stop point between iterations.
+    """
+
+    # Load hyperparameter search config.
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config to stop early and save results.
+    config["early_stop"] = {"iterations": 2, "trials": 0}
+
+    # Run training.
+    results = tune(config)
+
+    # Check results file.
+    assert len(results["iterations"]) == config["early_stop"]["iterations"]
+    for config_results in results["iterations"]:
+        assert len(config_results["trials"]) == config["trials_per_config"]
+
+
+def test_tune_grid_early_stop_trial() -> None:
+    """
+    Runs hyperparameter grid search until an early stop point between trials of an
+    iteration.
+    """
+
+    # Load hyperparameter search config.
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config to stop early and save results.
+    config["trials_per_config"] = 2
+    config["early_stop"] = {"iterations": 3, "trials": 1}
+
+    # Run training.
+    results = tune(config)
+
+    # Check results file.
+    assert len(results["iterations"]) == config["early_stop"]["iterations"] + 1
+    for config_results in results["iterations"][:-1]:
+        assert len(config_results["trials"]) == config["trials_per_config"]
+    assert len(results["iterations"][-1]["trials"]) == config["early_stop"]["trials"]
+
+
+def test_tune_grid_resume_iteration() -> None:
+    """
+    Runs partial training, saves a checkpoint between iterations, then resumes from
+    checkpoint and finishes training, comparing results against a non-interrupted
+    version.
+    """
+
+    # Load hyperparameter search config and set up partial training.
+    save_name = "test_tune_grid_resume_iteration"
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    config["early_stop"] = {"iterations": 4, "trials": 0}
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
+    config["base_train_config"]["save_name"] = save_name
+
+    # Ensure that there are no existing saved experiments whose names coincide with the
+    # experiment names used here. We do have to save and load from disk so we want to
+    # make sure that we aren't overwriting any previously existing files.
+    iterations = get_iterations(config["search_type"], None, config["search_params"])
+    check_name_uniqueness(
+        save_name, config["search_type"], iterations, config["trials_per_config"]
+    )
+
+    # Run partial training.
+    tune(config)
+
+    # Modify config to resume training and check metrics against baseline.
+    config["base_train_config"]["save_name"] = None
+    config["early_stop"] = None
+    config["load_from"] = save_name
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
+
+    # Finish training from checkpoint and test metrics.
+    tune(config)
+
+    # Clean up saved results.
+    experiment_names = get_experiment_names(
+        save_name, config["search_type"], iterations, config["trials_per_config"]
+    )
+    for name in experiment_names:
+        save_dir = save_dir_from_name(name)
+        if os.path.isdir(save_dir):
+            rmtree(save_dir)
+
+
+def test_tune_grid_resume_trial() -> None:
+    """
+    Resumes an interrupted hyperparameter grid search and compares metrics against a
+    saved baseline, resuming from a checkpoint in which some trials were completed for a
+    given config, but not all (i.e. training was interrupted during
+    train_single_config()).
+    """
+
+    # Load hyperparameter search config and set up partial training.
+    save_name = "test_tune_grid_resume_trial"
+    with open(GRID_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+    config["early_stop"] = {"iterations": 4, "trials": 1}
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
+    config["base_train_config"]["save_name"] = save_name
+
+    # Ensure that there are no existing saved experiments whose names coincide with the
+    # experiment names used here. We do have to save and load from disk so we want to
+    # make sure that we aren't overwriting any previously existing files.
+    iterations = get_iterations(config["search_type"], None, config["search_params"])
+    check_name_uniqueness(
+        save_name, config["search_type"], iterations, config["trials_per_config"]
+    )
+
+    # Run partial training.
+    tune(config)
+
+    # Modify config to resume training and check metrics against baseline.
+    config["base_train_config"]["save_name"] = None
+    config["early_stop"] = None
+    config["load_from"] = save_name
+    config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
+
+    # Finish training from checkpoint and test metrics.
+    tune(config)
+
+    # Clean up saved results.
+    experiment_names = get_experiment_names(
+        save_name, config["search_type"], iterations, config["trials_per_config"]
+    )
+    for name in experiment_names:
+        save_dir = save_dir_from_name(name)
+        if os.path.isdir(save_dir):
+            rmtree(save_dir)
 
 
 def test_tune_IC_grid_metrics() -> None:

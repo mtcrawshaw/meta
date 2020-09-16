@@ -4,22 +4,19 @@ from typing import List, Dict, Any
 from meta.utils.utils import save_dir_from_name
 
 
-def check_name_uniqueness(
+def get_experiment_names(
     base_name: str,
     search_type: str,
     iterations: int,
     trials_per_config: int,
     num_param_values: List[int] = None,
-) -> None:
+) -> List[str]:
     """
-    Check to make sure that there are no other saved experiments whose names coincide
-    with the current name. This is just to make sure that the saved results don't get
-    mixed up, with some trials being saved with a modified name to ensure uniqueness. We
-    do some weirdness here to handle cases of different search types, since the naming
-    is slightly different for IC grid.
+    Construct list of names of experiments that will be run during this hyperparameter
+    tuning run. We do some weirdness here to handle cases of different search types,
+    since the naming is slightly different for IC grid.
     """
 
-    # Build list of names to check.
     if search_type in ["grid", "random"]:
         assert num_param_values is None
         names_to_check = [base_name]
@@ -37,6 +34,27 @@ def check_name_uniqueness(
                     )
     else:
         raise NotImplementedError
+
+    return names_to_check
+
+
+def check_name_uniqueness(
+    base_name: str,
+    search_type: str,
+    iterations: int,
+    trials_per_config: int,
+    num_param_values: List[int] = None,
+) -> None:
+    """
+    Check to make sure that there are no other saved experiments whose names coincide
+    with the current name. This is just to make sure that the saved results don't get
+    mixed up, with some trials being saved with a modified name to ensure uniqueness.
+    """
+
+    # Build list of names to check.
+    names_to_check = get_experiment_names(
+        base_name, search_type, iterations, trials_per_config, num_param_values
+    )
 
     # Check names.
     for name in names_to_check:
