@@ -92,13 +92,13 @@ def test_tune_grid_early_stop_iteration() -> None:
     with open(GRID_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
 
-    # Modify default training config to stop early and save results.
+    # Modify default training config to stop early.
     config["early_stop"] = {"iterations": 2, "trials": 0}
 
     # Run training.
     results = tune(config)
 
-    # Check results file.
+    # Check results.
     assert len(results["iterations"]) == config["early_stop"]["iterations"]
     for config_results in results["iterations"]:
         assert len(config_results["trials"]) == config["trials_per_config"]
@@ -114,18 +114,16 @@ def test_tune_grid_early_stop_trial() -> None:
     with open(GRID_CONFIG_PATH, "r") as config_file:
         config = json.load(config_file)
 
-    # Modify default training config to stop early and save results.
-    config["trials_per_config"] = 2
+    # Modify default training config to stop early.
     config["early_stop"] = {"iterations": 3, "trials": 1}
 
     # Run training.
     results = tune(config)
 
-    # Check results file.
-    assert len(results["iterations"]) == config["early_stop"]["iterations"] + 1
-    for config_results in results["iterations"][:-1]:
+    # Check results.
+    assert len(results["iterations"]) == config["early_stop"]["iterations"]
+    for config_results in results["iterations"]:
         assert len(config_results["trials"]) == config["trials_per_config"]
-    assert len(results["iterations"][-1]["trials"]) == config["early_stop"]["trials"]
 
 
 def test_tune_grid_resume_iteration() -> None:

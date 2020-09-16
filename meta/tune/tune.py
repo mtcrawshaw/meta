@@ -388,13 +388,11 @@ def grid_search(
         # Check for early stop.
         early_stop_trials = None
         if early_stop is not None:
-            if iteration == early_stop["iterations"]:
+            if iteration >= early_stop["iterations"]:
                 if early_stop["trials"] == 0:
                     break
                 else:
                     early_stop_trials = early_stop["trials"]
-            if iteration > early_stop["iterations"]:
-                break
 
         config = configs[iteration]
 
@@ -407,7 +405,7 @@ def grid_search(
         baseline_metrics_save_name = get_save_name(
             base_config["baseline_metrics_filename"]
         )
-        fitness, config_results = train_single_config(
+        fitness, config_results, checkpoint = train_single_config(
             config,
             trials_per_config,
             fitness_fn,
@@ -420,26 +418,36 @@ def grid_search(
             early_stop_trials,
         )
 
-        # Compare current step to best so far.
-        if best_fitness is None or fitness > best_fitness:
-            best_fitness = fitness
-            best_config = dict(config)
+        # Compare current step to best so far. Add maximum to config results, and add
+        # config results to overall results. We only do this as long as we are not about
+        # to make an early exit.
+        if early_stop_trials is None:
+            results["iterations"].append(dict(config_results))
 
-        # Add maximum to config results, and add config results to overall results.
-        results["iterations"].append(dict(config_results))
+            if best_fitness is None or fitness > best_fitness:
+                best_fitness = fitness
+                best_config = dict(config)
 
         # Save intermediate results, if necessary. We add one to the iteration here so
         # that upon resumption, the first iteration will be the next one after the last
         # completed iteration. We clear the config checkpoint so that the next call to
-        # train_single_config() doesn't try to load a previous checkpoint.
+        # train_single_config() doesn't try to load a previous checkpoint, unless we
+        # are making an early exit before completing an iteration.
         if save_dir is not None:
+            config_checkpoint = dict(checkpoint["config_checkpoint"])
+
             checkpoint = {}
             checkpoint["results"] = dict(results)
             checkpoint["best_fitness"] = best_fitness
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
-            checkpoint["config_checkpoint"] = None
+
+            if early_stop_trials is None:
+                checkpoint["config_checkpoint"] = None
+            else:
+                checkpoint["config_checkpoint"] = config_checkpoint
+                checkpoint["iteration"] -= 1
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
@@ -447,6 +455,10 @@ def grid_search(
 
         else:
             checkpoint["config_checkpoint"] = None
+
+        # Exit early if we hit the iteration/trial limit.
+        if early_stop_trials is not None:
+            break
 
         iteration += 1
 
@@ -701,4 +713,4 @@ def train_single_config(
     fitness /= trials_per_config
     config_results["fitness"] = fitness
 
-    return fitness, config_results
+    return fitness, config_results, checkpoint
