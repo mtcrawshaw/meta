@@ -139,3 +139,5 @@ Refactoring:
 - Make sure that a clean install works properly (repo contains all data necessary for
   tests, requirements contains all requirements, etc)
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
+- Modify tests so that we don't have to save/load from/to disk during tests. Returning
+  checkpoints from training functions would allow this.

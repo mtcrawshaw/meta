@@ -9,6 +9,7 @@ def get_experiment_names(
     search_type: str,
     iterations: int,
     trials_per_config: int,
+    start_pos: Dict[str, int] = None,
     num_param_values: List[int] = None,
 ) -> List[str]:
     """
@@ -20,12 +21,29 @@ def get_experiment_names(
     if search_type in ["grid", "random"]:
         assert num_param_values is None
         names_to_check = [base_name]
-        for iteration in range(iterations):
-            for trial in range(trials_per_config):
+
+        # Handle case of `start_pos = None`.
+        if start_pos is None:
+            start_iteration = 0
+            start_trial = 0
+        else:
+            start_iteration = start_pos["iteration"]
+            start_trial = start_pos["trial"]
+
+        # Iterate over iteration, trial.
+        for iteration in range(start_iteration, iterations):
+            start = start_trial if iteration == start_iteration else 0
+            for trial in range(start, trials_per_config):
                 names_to_check.append("%s_%d_%d" % (base_name, iteration, trial))
+
     elif search_type == "IC_grid":
         assert num_param_values is not None
         names_to_check = [base_name]
+
+        # Handle case of `start_pos = None`.
+        raise NotImplementedError
+
+        # Iterate over param_num, param_iteration, trial.
         for param_num, param_len in enumerate(num_param_values):
             for param_iteration in range(param_len):
                 for trial in range(trials_per_config):
@@ -43,6 +61,8 @@ def check_name_uniqueness(
     search_type: str,
     iterations: int,
     trials_per_config: int,
+    start_pos: Dict[str, int] = None,
+    exempt_base: bool = False,
     num_param_values: List[int] = None,
 ) -> None:
     """
@@ -53,16 +73,40 @@ def check_name_uniqueness(
 
     # Build list of names to check.
     names_to_check = get_experiment_names(
-        base_name, search_type, iterations, trials_per_config, num_param_values
+        base_name,
+        search_type,
+        iterations,
+        trials_per_config,
+        start_pos,
+        num_param_values,
     )
 
     # Check names.
     for name in names_to_check:
+        if exempt_base and name == base_name:
+            continue
+
         if os.path.isdir(save_dir_from_name(name)):
             raise ValueError(
                 "Saved result '%s' already exists. Results of hyperparameter searches"
                 " must have unique names." % name
             )
+
+
+def get_start_pos(checkpoint: Dict[str, Any]) -> Dict[str, int]:
+    """
+    Computes starting position from a previous checkpoint. For example, with grid
+    search, this will compute the iteration and trial index to start on when resuming
+    from ``checkpoint``.
+    """
+
+    start_pos = {"iteration": 0, "trial": 0}
+    if checkpoint is not None:
+        start_pos["iteration"] = checkpoint["iteration"]
+        if checkpoint["config_checkpoint"] is not None:
+            start_pos["trial"] = checkpoint["config_checkpoint"]["trial"]
+
+    return start_pos
 
 
 def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:

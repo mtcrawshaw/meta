@@ -15,7 +15,7 @@ from typing import Dict, Any, Tuple, Callable
 
 from meta.train.train import train
 from meta.tune.mutate import mutate_train_config
-from meta.tune.utils import check_name_uniqueness, strip_config
+from meta.tune.utils import check_name_uniqueness, strip_config, get_start_pos
 from meta.tune.params import (
     valid_config,
     update_config,
@@ -94,23 +94,54 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     if search_type in ["grid", "IC_grid"]:
         iterations = get_iterations(search_type, iterations, search_params)
 
+    # Load checkpoint, if necessary.
+    if load_from is not None:
+        load_dir = save_dir_from_name(load_from)
+
+        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
+        with open(checkpoint_filename, "rb") as checkpoint_file:
+            checkpoint = pickle.load(checkpoint_file)
+
+        # Make sure current config and previous config line up.
+        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
+
+    else:
+        load_dir = None
+        checkpoint = None
+
     # Read in base name and make sure it is valid. Naming is slightly different for
     # different search strategies, so we do some weirdness here to make one function
-    # which handles all cases.
+    # which handles all cases. If it is valid, we make the save directory and save the
+    # initial config.
     base_name = base_config["save_name"]
     if base_name is not None:
-        check_args = [base_name, search_type, iterations, trials_per_config]
+
+        # Compute previous checkpoint.
+        start_pos = get_start_pos(checkpoint)
+
+        # Edge case: If ``load_from == base_name``, then we exempt ``base_name`` from
+        # the uniqueness check.
+        exempt_base = load_from is not None and load_from == base_name
+
+        # Check uniqueness of each training name.
+        check_args = [
+            base_name,
+            search_type,
+            iterations,
+            trials_per_config,
+            start_pos,
+            exempt_base,
+        ]
         if search_type == "IC_grid":
             num_param_values = get_num_param_values(search_params)
             check_args.append(num_param_values)
         check_name_uniqueness(*check_args)
 
-    # Make results folder and save initial config.
-    if base_name is not None:
-
-        # Create save directory.
+        # Create save directory, if we aren't loading from an already existing directory
+        # of the same name.
         save_dir = save_dir_from_name(base_name)
-        os.makedirs(save_dir)
+        if not exempt_base:
+            os.makedirs(save_dir)
 
         # Save config.
         config_path = os.path.join(save_dir, "%s_config.json" % base_name)
@@ -119,12 +150,6 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
 
     else:
         save_dir = None
-
-    # Construct load directory, if necessary.
-    if load_from is not None:
-        load_dir = save_dir_from_name(load_from)
-    else:
-        load_dir = None
 
     # Construct fitness function.
     if fitness_metric_name not in [
@@ -161,7 +186,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
         fitness_fn,
         search_params,
         save_dir,
-        load_dir,
+        checkpoint,
     )
 
     # Save results and config.
@@ -184,7 +209,7 @@ def random_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
-    load_dir: str,
+    checkpoint: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
     Perform random search over hyperparameter configurations, returning the results.
@@ -196,14 +221,7 @@ def random_search(
     best_fitness = None
     best_config = None
     iteration = 0
-    if load_dir is not None:
-        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
-        with open(checkpoint_filename, "rb") as checkpoint_file:
-            checkpoint = pickle.load(checkpoint_file)
-
-        # Make sure current config and previous config line up.
-        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
-
+    if checkpoint is not None:
         results = dict(checkpoint["results"])
         config = dict(checkpoint["config"])
         best_fitness = checkpoint["best_fitness"]
@@ -261,7 +279,6 @@ def random_search(
                 base_config["seed"],
                 checkpoint,
                 save_dir,
-                load_dir,
                 config_save_name,
                 metrics_save_name,
                 baseline_metrics_save_name,
@@ -325,7 +342,7 @@ def grid_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
-    load_dir: str,
+    checkpoint: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
     Perform grid search over hyperparameter configurations, returning the results.
@@ -348,14 +365,7 @@ def grid_search(
     best_fitness = None
     best_config = None
     iteration = 0
-    if load_dir is not None:
-        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
-        with open(checkpoint_filename, "rb") as checkpoint_file:
-            checkpoint = pickle.load(checkpoint_file)
-
-        # Make sure current config and previous config line up.
-        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
-
+    if checkpoint is not None:
         results = dict(checkpoint["results"])
         best_fitness = checkpoint["best_fitness"]
         best_config = dict(checkpoint["best_config"])
@@ -404,7 +414,6 @@ def grid_search(
             base_config["seed"],
             checkpoint,
             save_dir,
-            load_dir,
             config_save_name,
             metrics_save_name,
             baseline_metrics_save_name,
@@ -457,7 +466,7 @@ def IC_grid_search(
     fitness_fn: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
-    load_dir: str,
+    checkpoint: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
     Perform iterated constrained grid search over hyperparameter configurations,
@@ -495,14 +504,7 @@ def IC_grid_search(
     best_param_vals = {}
     param_num = 0
     val_num = 0
-    if load_dir is not None:
-        checkpoint_filename = os.path.join(load_dir, "checkpoint.pkl")
-        with open(checkpoint_filename, "rb") as checkpoint_file:
-            checkpoint = pickle.load(checkpoint_file)
-
-        # Make sure current config and previous config line up.
-        assert aligned_tune_configs(tune_config, checkpoint["tune_config"])
-
+    if checkpoint is not None:
         results = dict(checkpoint["results"])
         best_fitness = checkpoint["best_fitness"]
         best_config = dict(checkpoint["best_config"])
@@ -563,7 +565,6 @@ def IC_grid_search(
                     fitness_fn,
                     base_config["seed"],
                     save_dir,
-                    load_dir,
                     config_save_name,
                     metrics_save_name,
                     baseline_metrics_save_name,
@@ -627,7 +628,6 @@ def train_single_config(
     seed: int,
     checkpoint: Dict[str, Any],
     save_dir: str,
-    load_dir: str,
     config_save_name: str = None,
     metrics_filename: str = None,
     baseline_metrics_filename: str = None,
