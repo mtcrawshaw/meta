@@ -36,7 +36,9 @@ def resume_template(
     # Ensure that there are no existing saved experiments whose names coincide with the
     # experiment names used here. We do have to save and load from disk so we want to
     # make sure that we aren't overwriting any previously existing files.
-    iterations = get_iterations(config["search_type"], None, config["search_params"])
+    iterations = get_iterations(
+        config["search_type"], config["search_iterations"], config["search_params"]
+    )
     check_name_uniqueness(
         save_name, config["search_type"], iterations, config["trials_per_config"]
     )
@@ -60,10 +62,11 @@ def resume_template(
     resumed_results = tune(config)
 
     # Compare resumed results with un-interrupted results.
-    results_path = os.path.join(METRICS_DIR, "%s.json" % results_name)
-    with open(results_path, "r") as results_file:
-        correct_results = json.load(results_file)
-    assert tune_results_equal(resumed_results, correct_results)
+    if results_name is not None:
+        results_path = os.path.join(METRICS_DIR, "%s.json" % results_name)
+        with open(results_path, "r") as results_file:
+            correct_results = json.load(results_file)
+        assert tune_results_equal(resumed_results, correct_results)
 
     # Clean up saved results.
     experiment_names = get_experiment_names(

@@ -215,7 +215,7 @@ def random_search(
     Perform random search over hyperparameter configurations, returning the results.
     """
 
-    # Load in checkpoint, if necessary.
+    # Load in checkpoint info, if necessary.
     results: Dict[str, Any] = {"iterations": []}
     config = dict(base_config)
     best_fitness = None
@@ -242,6 +242,17 @@ def random_search(
 
     # Training loop.
     while iteration < iterations:
+
+        # Check for early stop.
+        early_stop_trials = None
+        if early_stop is not None:
+            if iteration > early_stop["iterations"]:
+                break
+            elif iteration == early_stop["iterations"]:
+                if early_stop["trials"] == 0:
+                    break
+                else:
+                    early_stop_trials = early_stop["trials"]
 
         # See if we have already performed training with this configuration.
         already_trained = False
@@ -272,7 +283,7 @@ def random_search(
             baseline_metrics_save_name = get_save_name(
                 base_config["baseline_metrics_filename"]
             )
-            fitness, config_results = train_single_config(
+            fitness, config_results, checkpoint = train_single_config(
                 config,
                 trials_per_config,
                 fitness_fn,
@@ -282,29 +293,36 @@ def random_search(
                 config_save_name,
                 metrics_save_name,
                 baseline_metrics_save_name,
+                early_stop_trials,
             )
 
-        # Compare current step to best so far.
-        new_max = False
-        if best_fitness is None or fitness > best_fitness:
-            new_max = True
-            best_fitness = fitness
-            best_config = dict(config)
+        # Compare current step to best so far, add maximum to config results, add config
+        # results to overall results, and mutate config for next step. We only do this
+        # as long as we are not about to make an early exit.
+        if early_stop_trials is None:
+            new_max = False
+            if best_fitness is None or fitness > best_fitness:
+                new_max = True
+                best_fitness = fitness
+                best_config = dict(config)
 
-        # Add maximum to config results, and add config results to overall results.
-        config_results["maximum"] = new_max
-        results["iterations"].append(dict(config_results))
+            config_results["maximum"] = new_max
+            results["iterations"].append(dict(config_results))
 
-        # Mutate config to produce a new one for next step.
-        config = mutate_train_config(search_params, best_config)
-        while not valid_config(config):
             config = mutate_train_config(search_params, best_config)
+            while not valid_config(config):
+                config = mutate_train_config(search_params, best_config)
 
         # Save intermediate results, if necessary. We add one to the iteration here, so
         # that upon resumption, the first iteration will be the next one after the last
         # copmleted iteration. It is also important that we save the checkpoint AFTER
         # the config has been mutated, so that we don't repeat configs after resumption.
+        # We clear the config checkpoint so that the next call to train_single_config()
+        # doesn't try to load a previous checkpoint, unless we are making an early exit
+        # before completing an iteration.
         if save_dir is not None:
+            config_checkpoint = dict(checkpoint["config_checkpoint"])
+
             checkpoint = {}
             checkpoint["results"] = dict(results)
             checkpoint["config"] = dict(config)
@@ -312,17 +330,23 @@ def random_search(
             checkpoint["best_config"] = dict(best_config)
             checkpoint["iteration"] = iteration + 1
             checkpoint["tune_config"] = dict(tune_config)
-            checkpoint["config_checkpoint"] = None
+
+            if early_stop_trials is None:
+                checkpoint["config_checkpoint"] = None
+            else:
+                checkpoint["config_checkpoint"] = config_checkpoint
+                checkpoint["iteration"] -= 1
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
                 pickle.dump(checkpoint, checkpoint_file)
 
         else:
+            checkpoint["config_checkpoint"] = None
 
-            # Make sure to clear checkpoint so that call to train_single_config()
-            # doesn't try to load something again on the next run.
-            checkpoint = None
+        # Exit early if we hit the iteration/trial limit.
+        if early_stop_trials is not None:
+            break
 
         iteration += 1
 
@@ -360,7 +384,7 @@ def grid_search(
         config = update_config(config, new_values)
         configs.append(dict(config))
 
-    # Load in checkpoint, if necessary.
+    # Load in checkpoint info, if necessary.
     results: Dict[str, Any] = {"iterations": []}
     best_fitness = None
     best_config = None
@@ -509,7 +533,7 @@ def IC_grid_search(
     }
     config = update_config(config, median_values)
 
-    # Load in checkpoint, if necessary.
+    # Load in checkpoint info, if necessary.
     results: Dict[str, Any] = {"iterations": []}
     best_fitness = None
     best_config = None

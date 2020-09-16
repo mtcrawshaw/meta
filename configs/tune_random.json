@@ -1,6 +1,6 @@
 {
     "search_type": "random",
-    "search_iterations": 2,
+    "search_iterations": 3,
     "early_stop": null,
     "trials_per_config": 2,
 
