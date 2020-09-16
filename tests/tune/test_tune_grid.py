@@ -146,10 +146,9 @@ def test_tune_grid_resume_iteration() -> None:
 
 def test_tune_grid_resume_trial() -> None:
     """
-    Resumes an interrupted hyperparameter grid search and compares metrics against a
-    saved baseline, resuming from a checkpoint in which some trials were completed for a
-    given config, but not all (i.e. training was interrupted during
-    train_single_config()).
+    Runs partial training, saves a checkpoint between trials, then resumes from
+    checkpoint and finishes training, comparing results against a non-interrupted
+    version.
     """
 
     # Set up case.
@@ -170,4 +169,66 @@ def test_tune_grid_resume_x2_iteration_x2() -> None:
     finishes training. Then compares results against a non-interrupted version.
     """
 
-    pass
+    # Set up case.
+    save_name = "test_tune_grid_resume_x2_iteration_x2"
+    config_path = GRID_CONFIG_PATH
+    early_stops = [{"iterations": 3, "trials": 0}, {"iterations": 6, "trials": 0}]
+    baseline_name = "tune_grid"
+    results_name = "tune_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_grid_resume_x2_trial_x2() -> None:
+    """
+    Runs partial training, saves checkpoint between trials, resumes from checkpoint,
+    runs more training, saves checkpoint between trials, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_grid_resume_x2_trial_x2"
+    config_path = GRID_CONFIG_PATH
+    early_stops = [{"iterations": 3, "trials": 0}, {"iterations": 6, "trials": 0}]
+    baseline_name = "tune_grid"
+    results_name = "tune_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_grid_resume_x2_iteration_trial() -> None:
+    """
+    Runs partial training, saves checkpoint between iterations, resumes from checkpoint,
+    runs more training, saves checkpoint between trials, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_grid_resume_x2_iteration_trial"
+    config_path = GRID_CONFIG_PATH
+    early_stops = [{"iterations": 3, "trials": 0}, {"iterations": 6, "trials": 1}]
+    baseline_name = "tune_grid"
+    results_name = "tune_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_grid_resume_x2_trial_iteration() -> None:
+    """
+    Runs partial training, saves checkpoint between trials, resumes from checkpoint,
+    runs more training, saves checkpoint between iterations, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_grid_resume_x2_trial_iteration"
+    config_path = GRID_CONFIG_PATH
+    early_stops = [{"iterations": 3, "trials": 1}, {"iterations": 6, "trials": 0}]
+    baseline_name = "tune_grid"
+    results_name = "tune_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
