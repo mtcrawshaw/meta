@@ -80,7 +80,7 @@ def test_tune_grid_metrics() -> None:
     config["base_train_config"]["baseline_metrics_filename"] = "tune_grid"
 
     # Run training.
-    results = tune(config)
+    tune(config)
 
 
 def test_tune_grid_early_stop_iteration() -> None:

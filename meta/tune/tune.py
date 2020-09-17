@@ -117,7 +117,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     if base_name is not None:
 
         # Compute previous checkpoint.
-        start_pos = get_start_pos(checkpoint)
+        start_pos = get_start_pos(search_type, checkpoint)
 
         # Edge case: If ``load_from == base_name``, then we exempt ``base_name`` from
         # the uniqueness check.
@@ -412,7 +412,9 @@ def grid_search(
         # Check for early stop.
         early_stop_trials = None
         if early_stop is not None:
-            if iteration >= early_stop["iterations"]:
+            if iteration > early_stop["iterations"]:
+                break
+            elif iteration >= early_stop["iterations"]:
                 if early_stop["trials"] == 0:
                     break
                 else:
@@ -548,7 +550,21 @@ def IC_grid_search(
         param_num = checkpoint["param_num"]
         val_num = checkpoint["val_num"]
 
+    else:
+
+        # Construct initial checkpoint. This is used for saving both in this function
+        # and in train_single_config().
+        checkpoint = {}
+        checkpoint["results"] = results
+        checkpoint["best_fitness"] = best_fitness
+        checkpoint["best_config"] = best_config
+        checkpoint["best_param_vals"] = best_param_vals
+        checkpoint["param_num"] = param_num
+        checkpoint["val_num"] = val_num
+        checkpoint["config_checkpoint"] = None
+
     # Training loop.
+    stop_now = False
     while param_num < len(search_params):
 
         # Fix parameter value to that which led to highest fitness.
@@ -559,6 +575,20 @@ def IC_grid_search(
         best_param_fitness = None
 
         while val_num < len(param_values[param_name]):
+
+            # Check for early stop.
+            early_stop_trials = None
+            if early_stop is not None:
+                if param_num > early_stop["param_num"]:
+                    stop_now = True
+                    break
+                elif param_num == early_stop["param_num"]:
+                    if val_num >= early_stop["val_num"]:
+                        if early_stop["trials"] == 0:
+                            stop_now = True
+                            break
+                        else:
+                            early_stop_trials = early_stop["trials"]
 
             # Set value of current param of interest in current config.
             param_val = param_values[param_name][val_num]
@@ -595,34 +625,43 @@ def IC_grid_search(
                 baseline_metrics_save_name = get_save_name(
                     base_config["baseline_metrics_filename"]
                 )
-                fitness, config_results = train_single_config(
+                fitness, config_results, checkpoint = train_single_config(
                     config,
                     trials_per_config,
                     fitness_fn,
                     base_config["seed"],
+                    checkpoint,
                     save_dir,
                     config_save_name,
                     metrics_save_name,
                     baseline_metrics_save_name,
+                    early_stop_trials,
                 )
 
-            # Compare current step to best so far.
-            if best_fitness is None or fitness > best_fitness:
-                best_fitness = fitness
-                best_config = dict(config)
+            # Compare current step to best so far and best among current IC grid
+            # iteration. Add maximum to config results, and add config results to
+            # overall results. We only do this as long as we are not about to make an
+            # early exit.
+            if early_stop_trials is None:
+                if best_fitness is None or fitness > best_fitness:
+                    best_fitness = fitness
+                    best_config = dict(config)
 
-            # Compare current step to best among current IC grid iteration.
-            if best_param_fitness is None or fitness > best_param_fitness:
-                best_param_fitness = fitness
-                best_param_vals[param_name] = param_val
+                if best_param_fitness is None or fitness > best_param_fitness:
+                    best_param_fitness = fitness
+                    best_param_vals[param_name] = param_val
 
-            # Add maximum to config results, and add config results to overall results.
-            results["iterations"].append(dict(config_results))
+                results["iterations"].append(dict(config_results))
 
             # Save intermediate results, if necessary. We increment val_num by one here
             # (resetting to zero and incrementing param_num if necessary) so that upon
-            # resumption, training starts with the first iteration not yet completed.
+            # resumption, training starts with the first iteration not yet completed. We
+            # clear the config checkpoint so that the next call to train_single_config()
+            # doesn't try to load a previous checkpoint, unless we are making an early
+            # exit before completing an iteration.
             if save_dir is not None:
+                config_checkpoint = dict(checkpoint["config_checkpoint"])
+
                 checkpoint = {}
                 checkpoint["results"] = dict(results)
                 checkpoint["best_fitness"] = best_fitness
@@ -639,12 +678,29 @@ def IC_grid_search(
                 checkpoint["val_num"] = cp_val_num
                 checkpoint["param_num"] = cp_param_num
 
+                if early_stop_trials is None:
+                    checkpoint["config_checkpoint"] = None
+                else:
+                    checkpoint["config_checkpoint"] = config_checkpoint
+                    checkpoint["val_num"] -= 1
+
+                    if checkpoint["val_num"] == -1:
+                        checkpoint["val_num"] = len(param_values[param_name]) - 1
+                        checkpoint["param_num"] -= 1
+
                 checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
                 with open(checkpoint_filename, "wb") as checkpoint_file:
                     pickle.dump(checkpoint, checkpoint_file)
 
+            else:
+                checkpoint["config_checkpoint"] = None
+
             # Update value index.
             val_num += 1
+
+        # Check for early stop.
+        if stop_now:
+            break
 
         # Update search indices.
         param_num += 1

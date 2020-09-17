@@ -2,7 +2,7 @@
     "search_type": "IC_grid",
     "search_iterations": null,
     "early_stop": null,
-    "trials_per_config": 1,
+    "trials_per_config": 2,
 
     "base_train_config": {
         "env_name": "CartPole-v1",
@@ -55,12 +55,6 @@
             "num_values": 2,
             "min_value": 1e-5,
             "max_value": 1e-3
-        },
-        "clip_param": {
-            "distribution_type": "arithmetic",
-            "num_values": 2,
-            "min_value": 0.2,
-            "max_value": 1.0
         },
         "num_layers": {
             "distribution_type": "arithmetic",

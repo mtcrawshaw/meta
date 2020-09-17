@@ -41,12 +41,25 @@ def get_experiment_names(
         names_to_check = [base_name]
 
         # Handle case of `start_pos = None`.
-        raise NotImplementedError
+        if start_pos is None:
+            start_param = 0
+            start_val = 0
+            start_trial = 0
+        else:
+            start_param = start_pos["param"]
+            start_val = start_pos["val"]
+            start_trial = start_trial["trial"]
 
         # Iterate over param_num, param_iteration, trial.
-        for param_num, param_len in enumerate(num_param_values):
-            for param_iteration in range(param_len):
-                for trial in range(trials_per_config):
+        for param_num, param_len in enumerate(start_param, num_param_values):
+            start_1 = start_val if param_num == start_param else 0
+            for param_iteration in range(start_1, param_len):
+                start_2 = (
+                    start_trial
+                    if param_num == start_param and param_iteration == start_1
+                    else 0
+                )
+                for trial in range(start_2, trials_per_config):
                     names_to_check.append(
                         "%s_%d_%d_%d" % (base_name, param_num, param_iteration, trial)
                     )
@@ -93,16 +106,28 @@ def check_name_uniqueness(
             )
 
 
-def get_start_pos(checkpoint: Dict[str, Any]) -> Dict[str, int]:
+def get_start_pos(search_type: str, checkpoint: Dict[str, Any]) -> Dict[str, int]:
     """
     Computes starting position from a previous checkpoint. For example, with grid
     search, this will compute the iteration and trial index to start on when resuming
     from ``checkpoint``.
     """
 
-    start_pos = {"iteration": 0, "trial": 0}
+    # Set default values before loading from checkpoint.
+    if search_type in ["grid", "random"]:
+        start_pos = {"iteration": 0, "trial": 0}
+    elif search_type == "IC_grid":
+        start_pos = {"param": 0, "val": 0, "trial": 0}
+
+    # Load start position from checkpoint, if necessary.
     if checkpoint is not None:
-        start_pos["iteration"] = checkpoint["iteration"]
+
+        if search_type in ["grid", "random"]:
+            start_pos["iteration"] = checkpoint["iteration"]
+        else:
+            start_pos["param"] = checkpoint["param_num"]
+            start_pos["val"] = checkpoint["val_num"]
+
         if checkpoint["config_checkpoint"] is not None:
             start_pos["trial"] = checkpoint["config_checkpoint"]["trial"]
 
