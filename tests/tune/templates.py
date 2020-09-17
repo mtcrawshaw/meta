@@ -4,7 +4,7 @@ from typing import Dict, List
 from shutil import rmtree
 
 from meta.tune.tune import tune
-from meta.tune.params import get_iterations
+from meta.tune.params import get_iterations, get_num_param_values
 from meta.tune.utils import (
     check_name_uniqueness,
     get_experiment_names,
@@ -36,11 +36,18 @@ def resume_template(
     # Ensure that there are no existing saved experiments whose names coincide with the
     # experiment names used here. We do have to save and load from disk so we want to
     # make sure that we aren't overwriting any previously existing files.
+    num_param_values = None
+    if config["search_type"] == "IC_grid":
+        num_param_values = get_num_param_values(config["search_params"])
     iterations = get_iterations(
         config["search_type"], config["search_iterations"], config["search_params"]
     )
     check_name_uniqueness(
-        save_name, config["search_type"], iterations, config["trials_per_config"]
+        save_name,
+        config["search_type"],
+        iterations,
+        config["trials_per_config"],
+        num_param_values=num_param_values,
     )
 
     # Run until hitting each early stopping point.
@@ -70,7 +77,11 @@ def resume_template(
 
     # Clean up saved results.
     experiment_names = get_experiment_names(
-        save_name, config["search_type"], iterations, config["trials_per_config"]
+        save_name,
+        config["search_type"],
+        iterations,
+        config["trials_per_config"],
+        num_param_values=num_param_values,
     )
     for name in experiment_names:
         save_dir = save_dir_from_name(name)

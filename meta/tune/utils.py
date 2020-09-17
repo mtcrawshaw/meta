@@ -48,10 +48,11 @@ def get_experiment_names(
         else:
             start_param = start_pos["param"]
             start_val = start_pos["val"]
-            start_trial = start_trial["trial"]
+            start_trial = start_pos["trial"]
 
         # Iterate over param_num, param_iteration, trial.
-        for param_num, param_len in enumerate(start_param, num_param_values):
+        for param_num in range(start_param, len(num_param_values)):
+            param_len = num_param_values[param_num]
             start_1 = start_val if param_num == start_param else 0
             for param_iteration in range(start_1, param_len):
                 start_2 = (
@@ -134,13 +135,15 @@ def get_start_pos(search_type: str, checkpoint: Dict[str, Any]) -> Dict[str, int
     return start_pos
 
 
-def strip_config(config: Dict[str, Any]) -> Dict[str, Any]:
+def strip_config(config: Dict[str, Any], strip_seed=False) -> Dict[str, Any]:
     """ Helper function to compare configs. """
 
     nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]
     stripped = dict(config)
     for param in nonessential_params:
         del stripped[param]
+    if strip_seed:
+        del stripped["seed"]
     return stripped
 
 
@@ -166,9 +169,9 @@ def tune_results_equal(results1: Dict[str, Any], results2: Dict[str, Any]) -> bo
 
     # Check best configs and best fitnesses.
     equal = True
-    equal = equal and strip_config(results1["best_config"]) == strip_config(
-        results2["best_config"]
-    )
+    equal = equal and strip_config(
+        results1["best_config"], strip_seed=True
+    ) == strip_config(results2["best_config"], strip_seed=True)
     equal = equal and results1["best_fitness"] == results2["best_fitness"]
 
     # Check iteration results.
@@ -179,9 +182,9 @@ def tune_results_equal(results1: Dict[str, Any], results2: Dict[str, Any]) -> bo
             iteration2 = results2["iterations"][iteration]
 
             # Check config and fitness.
-            equal = equal and strip_config(iteration1["config"]) == strip_config(
-                iteration2["config"]
-            )
+            equal = equal and strip_config(
+                iteration1["config"], strip_seed=True
+            ) == strip_config(iteration2["config"], strip_seed=True)
             equal = equal and iteration1["fitness"] == iteration2["fitness"]
 
             # Check trial results.

@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple
 
 from meta.tune.tune import tune
 from meta.tune.utils import tune_results_equal
+from tests.tune.templates import resume_template
 
 
 IC_GRID_CONFIG_PATH = os.path.join("configs", "tune_IC_grid.json")
@@ -114,7 +115,7 @@ def test_tune_IC_grid_early_stop_iteration() -> None:
         config = json.load(config_file)
 
     # Modify default training config to stop early.
-    config["early_stop"] = {"param_num": 2, "val_num": 1, "trials": 0}
+    config["early_stop"] = {"param_num": 1, "val_num": 1, "trials": 0}
 
     # Run training.
     results = tune(config)
@@ -161,6 +162,42 @@ def test_tune_IC_grid_early_stop_trial() -> None:
     assert len(results["iterations"]) == expected_iterations
     for config_results in results["iterations"]:
         assert len(config_results["trials"]) == config["trials_per_config"]
+
+
+def test_tune_IC_grid_resume_iteration() -> None:
+    """
+    Runs partial training, saves a checkpoint between iterations, then resumes from
+    checkpoint and finishes training, comparing results against a non-interrupted
+    version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_iteration"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [{"param_num": 1, "val_num": 1, "trials": 0}]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_IC_grid_resume_trial() -> None:
+    """
+    Runs partial training, saves a checkpoint between trials, then resumes from
+    checkpoint and finishes training, comparing results against a non-interrupted
+    version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_trial"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [{"param_num": 2, "val_num": 1, "trials": 1}]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
 
 
 def dict_argmax(d: Dict[Any, Any]) -> Any:

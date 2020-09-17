@@ -612,6 +612,10 @@ def IC_grid_search(
                 fitness = float(results["iterations"][past_iteration]["fitness"])
                 config_results = dict(results["iterations"][past_iteration])
 
+                # Make an early exit, if necessary.
+                if early_stop_trials is not None:
+                    break
+
             else:
 
                 # Run training for current config.
@@ -626,7 +630,7 @@ def IC_grid_search(
                     base_config["baseline_metrics_filename"]
                 )
                 fitness, config_results, checkpoint = train_single_config(
-                    config,
+                    dict(config),
                     trials_per_config,
                     fitness_fn,
                     base_config["seed"],
@@ -660,7 +664,8 @@ def IC_grid_search(
             # doesn't try to load a previous checkpoint, unless we are making an early
             # exit before completing an iteration.
             if save_dir is not None:
-                config_checkpoint = dict(checkpoint["config_checkpoint"])
+                if early_stop_trials is not None:
+                    config_checkpoint = dict(checkpoint["config_checkpoint"])
 
                 checkpoint = {}
                 checkpoint["results"] = dict(results)

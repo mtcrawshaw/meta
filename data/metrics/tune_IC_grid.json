@@ -1,0 +1,1244 @@
+{
+    "iterations": [
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                12.0
+                            ],
+                            "mean": [
+                                20.0,
+                                16.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                4.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                18.4,
+                                19.4,
+                                20.0,
+                                20.0
+                            ],
+                            "mean": [
+                                18.4,
+                                18.9,
+                                19.266666666666666,
+                                19.45
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.5,
+                                0.6599663291074449,
+                                0.6538348415311016
+                            ],
+                            "maximum": 19.45
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 19.45
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                10.0
+                            ],
+                            "mean": [
+                                20.0,
+                                15.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                5.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                8.6,
+                                9.2,
+                                9.0,
+                                8.6
+                            ],
+                            "mean": [
+                                8.6,
+                                8.899999999999999,
+                                8.933333333333332,
+                                8.85
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.2999999999999998,
+                                0.24944382578492935,
+                                0.2598076211353315
+                            ],
+                            "maximum": 8.933333333333332
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 8.85
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 1e-05,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 8,
+                    "hidden_size": 64,
+                    "recurrent": false
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 1,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid",
+                "save_name": null
+            },
+            "fitness": 14.149999999999999
+        },
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                20.0
+                            ],
+                            "mean": [
+                                20.0,
+                                20.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                12.6,
+                                20.0,
+                                17.6,
+                                9.6
+                            ],
+                            "mean": [
+                                12.6,
+                                16.3,
+                                16.733333333333334,
+                                14.950000000000001
+                            ],
+                            "stdev": [
+                                0.0,
+                                3.7,
+                                3.0825674724525047,
+                                4.082584965435503
+                            ],
+                            "maximum": 16.733333333333334
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 14.950000000000001
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                12.0,
+                                12.0
+                            ],
+                            "mean": [
+                                12.0,
+                                12.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 12.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                8.6,
+                                9.4,
+                                9.2,
+                                8.6
+                            ],
+                            "mean": [
+                                8.6,
+                                9.0,
+                                9.066666666666666,
+                                8.95
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.40000000000000036,
+                                0.3399346342395192,
+                                0.35707142142714265
+                            ],
+                            "maximum": 9.066666666666666
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 8.95
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 0.001,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 8,
+                    "hidden_size": 64,
+                    "recurrent": false
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 2,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid_0_0_1",
+                "save_name": null
+            },
+            "fitness": 11.95
+        },
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                11.0,
+                                20.0
+                            ],
+                            "mean": [
+                                11.0,
+                                15.5
+                            ],
+                            "stdev": [
+                                0.0,
+                                4.5
+                            ],
+                            "maximum": 15.5
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                20.0,
+                                20.0,
+                                14.4,
+                                9.2
+                            ],
+                            "mean": [
+                                20.0,
+                                20.0,
+                                18.133333333333333,
+                                15.899999999999999
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                2.6398653164297774,
+                                4.493328387732195
+                            ],
+                            "maximum": 20.0
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 15.899999999999999
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                20.0
+                            ],
+                            "mean": [
+                                20.0,
+                                20.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                9.4,
+                                9.6,
+                                9.2,
+                                8.8
+                            ],
+                            "mean": [
+                                9.4,
+                                9.5,
+                                9.4,
+                                9.25
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.09999999999999964,
+                                0.16329931618554536,
+                                0.29580398915498046
+                            ],
+                            "maximum": 9.5
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 9.25
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 1e-05,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 1,
+                    "hidden_size": 64,
+                    "recurrent": false
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 2,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid_0_1_1",
+                "save_name": null
+            },
+            "fitness": 12.575
+        },
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                12.0
+                            ],
+                            "mean": [
+                                20.0,
+                                16.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                4.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                18.4,
+                                19.4,
+                                20.0,
+                                20.0
+                            ],
+                            "mean": [
+                                18.4,
+                                18.9,
+                                19.266666666666666,
+                                19.45
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.5,
+                                0.6599663291074449,
+                                0.6538348415311016
+                            ],
+                            "maximum": 19.45
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 19.45
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                10.0
+                            ],
+                            "mean": [
+                                20.0,
+                                15.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                5.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                8.6,
+                                9.2,
+                                9.0,
+                                8.6
+                            ],
+                            "mean": [
+                                8.6,
+                                8.899999999999999,
+                                8.933333333333332,
+                                8.85
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.2999999999999998,
+                                0.24944382578492935,
+                                0.2598076211353315
+                            ],
+                            "maximum": 8.933333333333332
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 8.85
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 1e-05,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 8,
+                    "hidden_size": 64,
+                    "recurrent": false
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 2,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid_1_0_1",
+                "save_name": null
+            },
+            "fitness": 14.149999999999999
+        },
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                10.0,
+                                20.0
+                            ],
+                            "mean": [
+                                10.0,
+                                15.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                5.0
+                            ],
+                            "maximum": 15.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                8.2,
+                                16.0,
+                                8.8,
+                                9.8
+                            ],
+                            "mean": [
+                                8.2,
+                                12.1,
+                                11.0,
+                                10.7
+                            ],
+                            "stdev": [
+                                0.0,
+                                3.9000000000000004,
+                                3.54400902933387,
+                                3.112876483254676
+                            ],
+                            "maximum": 12.1
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 10.7
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                17.0,
+                                20.0
+                            ],
+                            "mean": [
+                                17.0,
+                                18.5
+                            ],
+                            "stdev": [
+                                0.0,
+                                1.5
+                            ],
+                            "maximum": 18.5
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                20.0,
+                                8.6,
+                                10.2,
+                                9.8
+                            ],
+                            "mean": [
+                                20.0,
+                                14.3,
+                                12.933333333333332,
+                                12.149999999999999
+                            ],
+                            "stdev": [
+                                0.0,
+                                5.7,
+                                5.039400317057136,
+                                4.570284455042159
+                            ],
+                            "maximum": 20.0
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 12.149999999999999
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 1e-05,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 8,
+                    "hidden_size": 64,
+                    "recurrent": true
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 2,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid_1_1_1",
+                "save_name": null
+            },
+            "fitness": 11.424999999999999
+        },
+        {
+            "trials": [
+                {
+                    "trial": 0,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                12.0
+                            ],
+                            "mean": [
+                                20.0,
+                                16.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                4.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                18.4,
+                                19.4,
+                                20.0,
+                                20.0
+                            ],
+                            "mean": [
+                                18.4,
+                                18.9,
+                                19.266666666666666,
+                                19.45
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.5,
+                                0.6599663291074449,
+                                0.6538348415311016
+                            ],
+                            "maximum": 19.45
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 19.45
+                },
+                {
+                    "trial": 1,
+                    "metrics": {
+                        "train_reward": {
+                            "history": [
+                                20.0,
+                                10.0
+                            ],
+                            "mean": [
+                                20.0,
+                                15.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                5.0
+                            ],
+                            "maximum": 20.0
+                        },
+                        "train_success": {
+                            "history": [
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        },
+                        "eval_reward": {
+                            "history": [
+                                8.6,
+                                9.2,
+                                9.0,
+                                8.6
+                            ],
+                            "mean": [
+                                8.6,
+                                8.899999999999999,
+                                8.933333333333332,
+                                8.85
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.2999999999999998,
+                                0.24944382578492935,
+                                0.2598076211353315
+                            ],
+                            "maximum": 8.933333333333332
+                        },
+                        "eval_success": {
+                            "history": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "mean": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "stdev": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "maximum": 0.0
+                        }
+                    },
+                    "fitness": 8.85
+                }
+            ],
+            "config": {
+                "env_name": "CartPole-v1",
+                "num_updates": 10,
+                "rollout_length": 5,
+                "num_ppo_epochs": 4,
+                "num_minibatch": 1,
+                "num_processes": 1,
+                "lr_schedule_type": "cosine",
+                "initial_lr": 1e-05,
+                "final_lr": 0.0007,
+                "eps": 1e-05,
+                "value_loss_coeff": 0.5,
+                "entropy_loss_coeff": 0.01,
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "max_grad_norm": 0.5,
+                "clip_param": 0.2,
+                "clip_value_loss": true,
+                "normalize_advantages": true,
+                "normalize_transition": true,
+                "normalize_first_n": null,
+                "architecture_config": {
+                    "type": "vanilla",
+                    "num_layers": 8,
+                    "hidden_size": 64,
+                    "recurrent": false
+                },
+                "evaluation_freq": 4,
+                "evaluation_episodes": 5,
+                "cuda": false,
+                "seed": 2,
+                "print_freq": 4,
+                "save_freq": null,
+                "load_from": null,
+                "time_limit": 20,
+                "metrics_filename": null,
+                "baseline_metrics_filename": "tune_IC_grid_1_0_1",
+                "save_name": null
+            },
+            "fitness": 14.149999999999999
+        }
+    ],
+    "best_config": {
+        "env_name": "CartPole-v1",
+        "num_updates": 10,
+        "rollout_length": 5,
+        "num_ppo_epochs": 4,
+        "num_minibatch": 1,
+        "num_processes": 1,
+        "lr_schedule_type": "cosine",
+        "initial_lr": 1e-05,
+        "final_lr": 0.0007,
+        "eps": 1e-05,
+        "value_loss_coeff": 0.5,
+        "entropy_loss_coeff": 0.01,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "max_grad_norm": 0.5,
+        "clip_param": 0.2,
+        "clip_value_loss": true,
+        "normalize_advantages": true,
+        "normalize_transition": true,
+        "normalize_first_n": null,
+        "architecture_config": {
+            "type": "vanilla",
+            "num_layers": 8,
+            "hidden_size": 64,
+            "recurrent": false
+        },
+        "evaluation_freq": 4,
+        "evaluation_episodes": 5,
+        "cuda": false,
+        "seed": 2,
+        "print_freq": 4,
+        "save_freq": null,
+        "load_from": null,
+        "time_limit": 20,
+        "metrics_filename": null,
+        "baseline_metrics_filename": "tune_IC_grid_0_0_1",
+        "save_name": null
+    },
+    "best_fitness": 14.149999999999999
+}
