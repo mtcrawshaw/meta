@@ -35,15 +35,7 @@ Current task (Shared trunk architecture):
 --> Refactoring
 
 Notes for current task:
-Trying to implement per-trial saving/loading in tune. I possibly fixed a bug but we
-won't be sure until we test it. Details of the fix are in commit eee82947. We need to do
-a couple things to get tests:
-DONE - Implement an option in tune config that allows for early stopping in grid_search().
-- Write early stopping test for grid_search().
-- Write saving/loading tests that vary over (load config, load trial) and (one stop, two
-  stops) for grid_search().
-- If things are working, make random_search() and IC_grid_search() match grid_search(),
-  then write tests for those functions as well.
+Get rid of warnings during tests.
 
 ----------------------------------------------------------------------------------------
 
@@ -127,7 +119,6 @@ Refactoring:
 - Determine whether or not we save time by skipping the check that the end of each
   observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
 - Change hyperparameter search to allow non-unique leaf node names in config
-- Implement checkpointing/resuming training for hyperparameter search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
   and then it is resumed and trained for a longer period of time, the learning rate will
   not align with the original schedule. Really this could be fixed by creating two
@@ -141,3 +132,4 @@ Refactoring:
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
 - Modify tests so that we don't have to save/load from/to disk during tests. Returning
   checkpoints from training functions would allow this.
+- Get rid of warnings during tests

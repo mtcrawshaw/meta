@@ -200,6 +200,90 @@ def test_tune_IC_grid_resume_trial() -> None:
     resume_template(save_name, config_path, early_stops, baseline_name, results_name)
 
 
+def test_tune_IC_grid_resume_x2_iteration_x2() -> None:
+    """
+    Runs partial training, saves checkpoint between iterations, resumes from checkpoint,
+    runs more training, saves checkpoint between iterations, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_x2_iteration_x2"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [
+        {"param_num": 1, "val_num": 0, "trials": 0},
+        {"param_num": 2, "val_num": 1, "trials": 0},
+    ]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_IC_grid_resume_x2_trial_x2() -> None:
+    """
+    Runs partial training, saves checkpoint between trials, resumes from checkpoint,
+    runs more training, saves checkpoint between trials, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_x2_trial_x2"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [
+        {"param_num": 0, "val_num": 1, "trials": 1},
+        {"param_num": 1, "val_num": 0, "trials": 1},
+    ]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_IC_grid_resume_x2_iteration_trial() -> None:
+    """
+    Runs partial training, saves checkpoint between iterations, resumes from checkpoint,
+    runs more training, saves checkpoint between trials, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_x2_iteration_trial"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [
+        {"param_num": 1, "val_num": 0, "trials": 0},
+        {"param_num": 2, "val_num": 0, "trials": 1},
+    ]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
+def test_tune_IC_grid_resume_x2_trial_iteration() -> None:
+    """
+    Runs partial training, saves checkpoint between trials, resumes from checkpoint,
+    runs more training, saves checkpoint between iterations, resumes from checkpoint and
+    finishes training. Then compares results against a non-interrupted version.
+    """
+
+    # Set up case.
+    save_name = "test_tune_IC_grid_resume_x2_trial_iteration"
+    config_path = IC_GRID_CONFIG_PATH
+    early_stops = [
+        {"param_num": 0, "val_num": 1, "trials": 1},
+        {"param_num": 2, "val_num": 0, "trials": 0},
+    ]
+    baseline_name = "tune_IC_grid"
+    results_name = "tune_IC_grid"
+
+    # Call template.
+    resume_template(save_name, config_path, early_stops, baseline_name, results_name)
+
+
 def dict_argmax(d: Dict[Any, Any]) -> Any:
     """ Compute argmax for a dictionary with numerical values. """
 

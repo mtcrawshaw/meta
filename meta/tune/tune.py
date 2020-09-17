@@ -538,17 +538,22 @@ def IC_grid_search(
     # Load in checkpoint info, if necessary.
     results: Dict[str, Any] = {"iterations": []}
     best_fitness = None
+    best_param_fitness = None
     best_config = None
     best_param_vals = {}
     param_num = 0
     val_num = 0
+    keep_best_param_fitness = False
     if checkpoint is not None:
         results = dict(checkpoint["results"])
         best_fitness = checkpoint["best_fitness"]
+        best_param_fitness = checkpoint["best_param_fitness"]
         best_config = dict(checkpoint["best_config"])
         best_param_vals = dict(checkpoint["best_param_vals"])
         param_num = checkpoint["param_num"]
         val_num = checkpoint["val_num"]
+        if val_num != 0:
+            keep_best_param_fitness = True
 
     else:
 
@@ -557,6 +562,7 @@ def IC_grid_search(
         checkpoint = {}
         checkpoint["results"] = results
         checkpoint["best_fitness"] = best_fitness
+        checkpoint["best_param_fitness"] = best_param_fitness
         checkpoint["best_config"] = best_config
         checkpoint["best_param_vals"] = best_param_vals
         checkpoint["param_num"] = param_num
@@ -572,7 +578,10 @@ def IC_grid_search(
 
         # Find best value of parameter ``param_name``.
         param_name = list(search_params.keys())[param_num]
-        best_param_fitness = None
+
+        if not keep_best_param_fitness:
+            best_param_fitness = None
+            keep_best_param_fitness = False
 
         while val_num < len(param_values[param_name]):
 
@@ -670,6 +679,7 @@ def IC_grid_search(
                 checkpoint = {}
                 checkpoint["results"] = dict(results)
                 checkpoint["best_fitness"] = best_fitness
+                checkpoint["best_param_fitness"] = best_param_fitness
                 checkpoint["best_config"] = dict(best_config)
                 checkpoint["tune_config"] = dict(tune_config)
                 checkpoint["best_param_vals"] = dict(best_param_vals)
