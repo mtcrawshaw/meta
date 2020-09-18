@@ -291,9 +291,9 @@ class PPOPolicy:
         action_dist_entropy = action_dist.entropy()
 
         # This is to account for the fact that value has one more dimension than
-        # value_preds_batch in update(), since value is generated from input obs_batch,
-        # which has one more dimension than obs, which is the input that generated
-        # value_preds_batch.
+        # value_preds_batch in get_loss(), since value is generated from input
+        # obs_batch, which has one more dimension than obs, which is the input that
+        # generated value_preds_batch.
         value = torch.squeeze(value, -1)
 
         return value, action_log_probs, action_dist_entropy, hidden_states_batch
@@ -394,7 +394,7 @@ class PPOPolicy:
 
         return returns, advantages
 
-    def update(self, rollout: RolloutStorage) -> Dict[str, float]:
+    def get_loss(self, rollout: RolloutStorage) -> Dict[str, float]:
         """
         Train policy with PPO from rollout information in ``rollouts``.
 
@@ -416,7 +416,6 @@ class PPOPolicy:
         # Run multiple training steps on surrogate loss.
         loss_names = ["action", "value", "entropy", "total"]
         loss_items = {loss_name: 0.0 for loss_name in loss_names}
-        num_updates = 0
         for _ in range(self.num_ppo_epochs):
 
             # Set minibatch generator based on whether or not are training a recurrent
@@ -494,37 +493,19 @@ class PPOPolicy:
                     value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
                 entropy_loss = action_dist_entropy_batch.mean()
 
-                # Backward pass.
+                # Compute final loss.
                 self.optimizer.zero_grad()
                 loss = -(
                     action_loss
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss
                 )
-                loss.backward()
 
-                # Clip gradient.
-                if self.max_grad_norm is not None:
-                    nn.utils.clip_grad_norm_(
-                        self.policy_network.parameters(), self.max_grad_norm
-                    )
+                yield loss
 
-                # Optimizer step.
-                self.optimizer.step()
+    def after_step(self) -> None:
+        """ Perform any post step actions. """
 
-                # Get loss values.
-                loss_items["action"] += action_loss.item()
-                loss_items["value"] += value_loss.item()
-                loss_items["entropy"] += entropy_loss.item()
-                loss_items["total"] += loss.item()
-                num_updates += 1
-
-        # Take average of loss values over all updates.
-        for loss_name in loss_names:
-            loss_items[loss_name] /= num_updates
-
-        # Step learning rate schedule, if necessary.
+        # Step learning rate schedule before yielding, if necessary.
         if self.lr_schedule is not None:
             self.lr_schedule.step()
-
-        return loss_items

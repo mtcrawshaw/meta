@@ -101,7 +101,7 @@ def compute_returns_advantages_values() -> None:
 
 def test_update_values() -> None:
     """
-    Tests whether PPOPolicy.update() calculates correct updates in the case of
+    Tests whether PPOPolicy.get_loss() calculates correct updates in the case of
     a linear actor/critic network and a dummy environment.
     """
 
@@ -126,16 +126,21 @@ def test_update_values() -> None:
     expected_loss_items = get_losses(rollout, policy, settings)
 
     # Compute actual losses.
-    loss_items = policy.update(rollout)
+    actual_loss = 0
+    n_steps = 0
+    for step_loss in policy.get_loss(rollout):
+        actual_loss += step_loss.item()
+        step_loss.backward()
+        policy.optimizer.step()
+        policy.after_step()
+        n_steps += 1
+
+    actual_loss /= n_steps
 
     # Compare expected vs. actual.
-    for loss_name in ["action", "value", "entropy", "total"]:
-        diff = abs(loss_items[loss_name] - expected_loss_items[loss_name])
-        print("%s diff: %.8f" % (loss_name, diff))
-    assert abs(loss_items["action"] - expected_loss_items["action"]) < TOL
-    assert abs(loss_items["value"] - expected_loss_items["value"]) < TOL
-    assert abs(loss_items["entropy"] - expected_loss_items["entropy"]) < TOL
-    assert abs(loss_items["total"] - expected_loss_items["total"]) < TOL
+    diff = abs(actual_loss - expected_loss_items["total"])
+    print("loss diff: %.8f" % diff)
+    assert abs(actual_loss - expected_loss_items["total"]) < TOL
 
 
 def test_lr_schedule_null() -> None:
@@ -169,7 +174,8 @@ def test_lr_schedule_null() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.update(rollout)
+        _ = policy.get_loss(rollout)
+        policy.after_step()
 
         # Check learning rate.
         check_lr(policy.optimizer, settings["initial_lr"])
@@ -206,7 +212,8 @@ def test_lr_schedule_exponential() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.update(rollout)
+        _ = policy.get_loss(rollout)
+        policy.after_step()
 
         # Check learning rate.
         interval_pos = float(i + 1) / settings["num_updates"]
@@ -248,7 +255,8 @@ def test_lr_schedule_cosine() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.update(rollout)
+        _ = policy.get_loss(rollout)
+        policy.after_step()
 
         # Check learning rate.
         interval_pos = math.pi * float(i + 1) / settings["num_updates"]
@@ -292,7 +300,8 @@ def test_lr_schedule_linear() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.update(rollout)
+        _ = policy.get_loss(rollout)
+        policy.after_step()
 
         # Check learning rate.
         lr_shift = settings["final_lr"] - settings["initial_lr"]

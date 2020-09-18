@@ -35,6 +35,9 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+Changed ppo.update() to a generator which returns loss values over multiple minibatches.
+Now we have to convert this so that it returns each task loss individually, instead of
+the total loss.
 
 ----------------------------------------------------------------------------------------
 

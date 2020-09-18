@@ -7,6 +7,7 @@ from typing import Any, List, Tuple, Dict
 
 import numpy as np
 import torch
+import torch.nn as nn
 import gym
 from gym import Env
 
@@ -230,11 +231,24 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
     while update_iteration < config["num_updates"]:
 
-        # Sample rollout, compute update, and reset rollout storage.
+        # Sample rollout.
         rollout, episode_rewards, episode_successes = collect_rollout(
             rollout, env, policy
         )
-        _ = policy.update(rollout)
+
+        # Compute update.
+        for step_loss in policy.get_loss(rollout):
+
+            # Perform backward pass, clip gradient, and take optimizer step.
+            step_loss.backward()
+            if config["max_grad_norm"] is not None:
+                nn.utils.clip_grad_norm_(
+                    policy.policy_network.parameters(), config["max_grad_norm"]
+                )
+            policy.optimizer.step()
+        policy.after_step()
+
+        # Reset rollout storage.
         rollout.reset()
 
         # Aggregate metrics and run evaluation, if necessary.
