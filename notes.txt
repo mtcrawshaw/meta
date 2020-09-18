@@ -91,6 +91,19 @@ Possible additions:
   it would had if training had never been stopped. Not sure if this is possible, the
   main obstacle being pickling/loading the environment state, and mimicking random
   decisions.
+- Another hp search strategy: IC grid search, but which parameter to vary is chosen
+  automatically. Each parameter is varied once to get an initial tuning for each one,
+  then the next parameter to tune is sampled from a distribution in which the
+  probability that a parameter gets chosen is equal to some normalized estimate of the
+  potential gain from tuning that parameter. A natural choice is to use the standard
+  deviation of the rewards from the previous tuning as this estimate. Once a parameter
+  is chosen, we compute an interval to vary that parameter over based off of the
+  previous tuned value of that parameter and the interval type (arithmetic, geometric).
+  Not sure how this will work with discrete variables but we can at least use this for
+  continuous parameters.
+- Monitor system resource utilization and recommend changes in config for maximum
+  utilization, i.e. bigger batch sizes to increase GPU utilization, less processes if
+  thrashing is present
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
@@ -117,6 +130,7 @@ Refactoring:
 - Determine whether or not we save time by skipping the check that the end of each
   observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
 - Change hyperparameter search to allow non-unique leaf node names in config
+- Include name of search parameter in name of results file for IC grid search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
   and then it is resumed and trained for a longer period of time, the learning rate will
   not align with the original schedule. Really this could be fixed by creating two
