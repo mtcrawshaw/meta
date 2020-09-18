@@ -24,7 +24,8 @@ Current sprint (MT10/MT50 baselines):
     Refactoring
 
 Current task (Splitting networks):
---> Compute task-specific gradients for MLP
+--> Individually compute task losses
+    Compute task-specific gradients for MLP
     Set forward pass as a function of sharing variables (layers as regions)
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
