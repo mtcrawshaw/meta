@@ -7,9 +7,9 @@ from typing import Tuple, List
 
 import torch
 import torch.nn as nn
-from torch.distributions import Distribution, Categorical, Normal
+from torch.distributions import Distribution
 import numpy as np
-from gym.spaces import Space, Box, Discrete
+from gym.spaces import Space
 
 from meta.utils.utils import get_space_size, get_space_shape, init
 

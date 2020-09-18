@@ -1,3 +1,5 @@
+""" Test templates for tests/tune. """
+
 import os
 import json
 from typing import Dict, List
@@ -21,8 +23,8 @@ def resume_template(
     results_name: str,
 ) -> None:
     """
-    Runs partial training, saves a checkpoint, then resumes from checkpoint and finishes
-    training, comparing results against a non-interrupted version.
+    Runs while stopping to save/load at a given set of checkpoints, then compares
+    results against non-interrupted version.
     """
 
     # Load hyperparameter search config.

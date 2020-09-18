@@ -487,9 +487,9 @@ def test_backward_2() -> None:
             check_gradients(network.critic_output_heads[j], nonzero=nonzero)
 
 
-# Helper function to test gradients.
 def check_gradients(m: torch.nn.Module, nonzero: bool) -> None:
-    correct = True
+    """ Helper function to test whether gradients are nonzero. """
+
     for param in m.parameters():
         if nonzero:
             assert (param.grad != 0).any()

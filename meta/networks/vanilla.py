@@ -3,12 +3,11 @@ Definition of VanillaNetwork, a module used to parameterize a vanilla actor/crit
 policy.
 """
 
-from typing import Tuple, List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution, Categorical, Normal
-import numpy as np
 from gym.spaces import Space, Box, Discrete
 
 from meta.networks.base import BaseNetwork, init_base, init_final, init_recurrent

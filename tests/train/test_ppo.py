@@ -6,6 +6,7 @@ import math
 from typing import Dict, Any
 
 import torch
+from torch.optim import Optimizer
 import numpy as np
 
 from meta.train.ppo import PPOPolicy
@@ -151,7 +152,7 @@ def test_lr_schedule_null() -> None:
     policy = get_policy(env, settings)
 
     # Define helper function to check learning rate.
-    def check_lr(optimizer: torch.optim.Optimizer, lr: float) -> None:
+    def check_lr(optimizer: Optimizer, lr: float) -> None:
         for param_group in optimizer.param_groups:
             assert param_group["lr"] == lr
 
@@ -188,7 +189,7 @@ def test_lr_schedule_exponential() -> None:
     policy = get_policy(env, settings)
 
     # Define helper function to check learning rate.
-    def check_lr(optimizer: torch.optim.Optimizer, lr: float) -> None:
+    def check_lr(optimizer: Optimizer, lr: float) -> None:
         for param_group in optimizer.param_groups:
             assert abs(param_group["lr"] - lr) < TOL
 
@@ -230,7 +231,7 @@ def test_lr_schedule_cosine() -> None:
     policy = get_policy(env, settings)
 
     # Define helper function to check learning rate.
-    def check_lr(optimizer: torch.optim.Optimizer, lr: float) -> None:
+    def check_lr(optimizer: Optimizer, lr: float) -> None:
         for param_group in optimizer.param_groups:
             assert abs(param_group["lr"] - lr) < TOL
 
@@ -274,7 +275,7 @@ def test_lr_schedule_linear() -> None:
     policy = get_policy(env, settings)
 
     # Define helper function to check learning rate.
-    def check_lr(optimizer: torch.optim.Optimizer, lr: float) -> None:
+    def check_lr(optimizer: Optimizer, lr: float) -> None:
         for param_group in optimizer.param_groups:
             assert abs(param_group["lr"] - lr) < TOL
 

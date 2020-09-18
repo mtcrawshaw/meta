@@ -1,3 +1,5 @@
+""" __init__ code for meta module. """
+
 import warnings
 
 # This is to ignore warnings about tensorflow using deprecated Numpy code. This line

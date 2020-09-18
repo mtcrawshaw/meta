@@ -739,7 +739,7 @@ def train_single_config(
     metrics_filename: str = None,
     baseline_metrics_filename: str = None,
     early_stop_trials: int = None,
-) -> Tuple[float, Dict[str, Any]]:
+) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:
     """
     Run training with a fixed config for ``trials_per_config`` trials, and return
     fitness and a dictionary holding results.
@@ -763,7 +763,7 @@ def train_single_config(
         if early_stop_trials is not None and trial == early_stop_trials:
             break
 
-        trial_results = {}
+        trial_results: Dict[str, Any] = {}
 
         # Set trial name, seed, and metrics filenames for saving/comparison, if
         # neccessary.
@@ -792,7 +792,7 @@ def train_single_config(
         # training resumes, it will start with the next trial after the last completed
         # one.
         if save_dir is not None:
-            config_checkpoint = {}
+            config_checkpoint: Dict[str, Any] = {}
             config_checkpoint["config_results"] = dict(config_results)
             config_checkpoint["fitness"] = fitness
             config_checkpoint["trial"] = trial + 1

@@ -1,3 +1,5 @@
+""" Utility/helper methods specifically for meta/tune. """
+
 import os
 from typing import List, Dict, Any
 
@@ -135,7 +137,7 @@ def get_start_pos(search_type: str, checkpoint: Dict[str, Any]) -> Dict[str, int
     return start_pos
 
 
-def strip_config(config: Dict[str, Any], strip_seed=False) -> Dict[str, Any]:
+def strip_config(config: Dict[str, Any], strip_seed: bool = False) -> Dict[str, Any]:
     """ Helper function to compare configs. """
 
     nonessential_params = ["save_name", "metrics_filename", "baseline_metrics_filename"]

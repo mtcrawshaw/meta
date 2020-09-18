@@ -4,12 +4,11 @@ actor/critic policy with some number of shared layers at the beginning followed 
 task-specific output head for each task.
 """
 
-from typing import Tuple, List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution, Categorical, Normal
-import numpy as np
 from gym.spaces import Space, Box, Discrete
 
 from meta.networks.base import BaseNetwork, init_base, init_final, init_recurrent
@@ -108,7 +107,7 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         # Initialize task-specific output heads for each task.
         actor_heads_list = []
         critic_heads_list = []
-        for task in range(self.num_tasks):
+        for _ in range(self.num_tasks):
 
             actor_task_layers = []
             critic_task_layers = []
@@ -149,7 +148,7 @@ class MultiTaskTrunkNetwork(BaseNetwork):
         # the policy distribution is Gaussian.
         if isinstance(self.action_space, Box):
             logstd_list = []
-            for task in range(self.num_tasks):
+            for _ in range(self.num_tasks):
                 logstd_list.append(AddBias(torch.zeros(self.output_size)))
             self.output_logstd = nn.ModuleList(logstd_list)
 

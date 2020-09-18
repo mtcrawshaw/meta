@@ -217,7 +217,7 @@ class VecNormalizeEnv(VecNormalize):
         self.epsilon = epsilon
         self.first_n = first_n
 
-    def _obfilt(self, obs):
+    def _obfilt(self, obs: np.ndarray) -> np.ndarray:
 
         # Take portion of observation to normalize, if necessary.
         if self.first_n is None:

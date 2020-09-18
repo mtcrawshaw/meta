@@ -5,8 +5,6 @@ Unit tests for grid search in meta/tune/tune.py.
 import os
 import json
 import itertools
-from typing import Dict, Any, Tuple
-from shutil import rmtree
 
 from meta.tune.tune import tune
 from meta.tune.params import update_config

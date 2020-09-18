@@ -1,3 +1,5 @@
+""" Methods for parameter mutation, i.e. perturbing parameter values randomly. """
+
 import random
 from typing import Dict, Any
 

@@ -4,11 +4,9 @@ Unit tests for IC grid search in meta/tune/tune.py.
 
 import os
 import json
-import itertools
 from typing import Dict, Any, Tuple
 
 from meta.tune.tune import tune
-from meta.tune.utils import tune_results_equal
 from tests.tune.templates import resume_template
 
 
