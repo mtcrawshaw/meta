@@ -9,8 +9,8 @@ Road map:
     Learned loss convexity regularization for MTL
 
 Current sprint (MT10/MT50 baselines):
---> Shared trunk architecture
-    Splitting networks
+    Shared trunk architecture
+--> Splitting networks
     PCGrad
     Other baselines (
         Branched MT networks,
@@ -23,16 +23,15 @@ Current sprint (MT10/MT50 baselines):
     )
     Refactoring
 
-Current task (Shared trunk architecture):
-    Add another directory level to package
-    Create base network class, extend it with PolicyNetwork
-    Shared trunk network with naive forward pass
-    Add trunk tests
-    Establish shared trunk baselines
-    Batch inputs from the same task in forward pass
-    Add option to include/exclude task index to forward pass
-    Evaluate trunk performance on MT10
---> Refactoring
+Current task (Splitting networks):
+--> Compute task-specific gradients for MLP
+    Set forward pass as a function of sharing variables (layers as regions)
+    Compute pairwise distances between task gradients at each region
+    Perform statistical tests on pairwise distances
+    Change sharing variables when statistical significance is reached
+    Allow regions to be individual units
+    Add support for convolutional networks
+    Refactoring
 
 Notes for current task:
 
@@ -72,7 +71,7 @@ Future additions:
   is more modular we should add these tests. For now I just manually inspected the
   values after loading and created a baseline to compare metrics against. The same goes
   for saving/loading hyperparameter random search runs (the other types of hp search
-  are reproducible).
+  are reproducible when saving/loading, so there's no need for it there).
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -87,7 +86,6 @@ Possible additions:
 - More robust way to save repository version along with results
 - Determine whether or not policy has solved environment (N successes in a row, usually)
 - Catch KeyboardInterrupt during training to optionally stop training early
-- Regularization terms from AdaShare when learning architecture
 - Make it so that, when resuming training from a checkpoint, training happens exactly as
   it would had if training had never been stopped. Not sure if this is possible, the
   main obstacle being pickling/loading the environment state, and mimicking random
