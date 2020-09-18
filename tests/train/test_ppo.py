@@ -132,8 +132,8 @@ def test_update_values() -> None:
         actual_loss += step_loss.item()
         step_loss.backward()
         policy.optimizer.step()
-        policy.after_step()
         n_steps += 1
+    policy.after_step()
 
     actual_loss /= n_steps
 
@@ -174,7 +174,9 @@ def test_lr_schedule_null() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.get_loss(rollout)
+        for step_loss in policy.get_loss(rollout):
+            step_loss.backward()
+            policy.optimizer.step()
         policy.after_step()
 
         # Check learning rate.
@@ -212,7 +214,9 @@ def test_lr_schedule_exponential() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.get_loss(rollout)
+        for step_loss in policy.get_loss(rollout):
+            step_loss.backward()
+            policy.optimizer.step()
         policy.after_step()
 
         # Check learning rate.
@@ -255,7 +259,9 @@ def test_lr_schedule_cosine() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.get_loss(rollout)
+        for step_loss in policy.get_loss(rollout):
+            step_loss.backward()
+            policy.optimizer.step()
         policy.after_step()
 
         # Check learning rate.
@@ -300,7 +306,9 @@ def test_lr_schedule_linear() -> None:
             settings["num_processes"],
             settings["device"],
         )
-        _ = policy.get_loss(rollout)
+        for step_loss in policy.get_loss(rollout):
+            step_loss.backward()
+            policy.optimizer.step()
         policy.after_step()
 
         # Check learning rate.
