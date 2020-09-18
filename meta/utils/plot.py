@@ -116,3 +116,4 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
 
     # Save out plot.
     plt.savefig(plot_path)
+    plt.close()
