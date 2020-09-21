@@ -286,15 +286,15 @@
                         "train_reward": {
                             "history": [
                                 12.0,
-                                12.0
+                                10.0
                             ],
                             "mean": [
                                 12.0,
-                                12.0
+                                11.0
                             ],
                             "stdev": [
                                 0.0,
-                                0.0
+                                1.0
                             ],
                             "maximum": 12.0
                         },
@@ -318,19 +318,19 @@
                                 8.6,
                                 9.4,
                                 9.2,
-                                8.6
+                                9.0
                             ],
                             "mean": [
                                 8.6,
                                 9.0,
                                 9.066666666666666,
-                                8.95
+                                9.05
                             ],
                             "stdev": [
                                 0.0,
                                 0.40000000000000036,
                                 0.3399346342395192,
-                                0.35707142142714265
+                                0.29580398915498096
                             ],
                             "maximum": 9.066666666666666
                         },
@@ -356,7 +356,7 @@
                             "maximum": 0.0
                         }
                     },
-                    "fitness": 8.95
+                    "fitness": 9.05
                 }
             ],
             "config": {
@@ -389,16 +389,16 @@
                 "evaluation_freq": 4,
                 "evaluation_episodes": 5,
                 "cuda": false,
-                "seed": 2,
+                "seed": 1,
                 "print_freq": 4,
                 "save_freq": null,
                 "load_from": null,
                 "time_limit": 20,
                 "metrics_filename": null,
-                "baseline_metrics_filename": "tune_IC_grid_0_0_1",
+                "baseline_metrics_filename": "tune_IC_grid",
                 "save_name": null
             },
-            "fitness": 11.95
+            "fitness": 12.0
         },
         {
             "trials": [
@@ -589,13 +589,13 @@
                 "evaluation_freq": 4,
                 "evaluation_episodes": 5,
                 "cuda": false,
-                "seed": 2,
+                "seed": 1,
                 "print_freq": 4,
                 "save_freq": null,
                 "load_from": null,
                 "time_limit": 20,
                 "metrics_filename": null,
-                "baseline_metrics_filename": "tune_IC_grid_0_1_1",
+                "baseline_metrics_filename": "tune_IC_grid",
                 "save_name": null
             },
             "fitness": 12.575
@@ -789,13 +789,13 @@
                 "evaluation_freq": 4,
                 "evaluation_episodes": 5,
                 "cuda": false,
-                "seed": 2,
+                "seed": 1,
                 "print_freq": 4,
                 "save_freq": null,
                 "load_from": null,
                 "time_limit": 20,
                 "metrics_filename": null,
-                "baseline_metrics_filename": "tune_IC_grid_1_0_1",
+                "baseline_metrics_filename": "tune_IC_grid",
                 "save_name": null
             },
             "fitness": 14.149999999999999
@@ -989,13 +989,13 @@
                 "evaluation_freq": 4,
                 "evaluation_episodes": 5,
                 "cuda": false,
-                "seed": 2,
+                "seed": 1,
                 "print_freq": 4,
                 "save_freq": null,
                 "load_from": null,
                 "time_limit": 20,
                 "metrics_filename": null,
-                "baseline_metrics_filename": "tune_IC_grid_1_1_1",
+                "baseline_metrics_filename": "tune_IC_grid",
                 "save_name": null
             },
             "fitness": 11.424999999999999
@@ -1189,13 +1189,13 @@
                 "evaluation_freq": 4,
                 "evaluation_episodes": 5,
                 "cuda": false,
-                "seed": 2,
+                "seed": 1,
                 "print_freq": 4,
                 "save_freq": null,
                 "load_from": null,
                 "time_limit": 20,
                 "metrics_filename": null,
-                "baseline_metrics_filename": "tune_IC_grid_1_0_1",
+                "baseline_metrics_filename": "tune_IC_grid",
                 "save_name": null
             },
             "fitness": 14.149999999999999
@@ -1231,13 +1231,13 @@
         "evaluation_freq": 4,
         "evaluation_episodes": 5,
         "cuda": false,
-        "seed": 2,
+        "seed": 1,
         "print_freq": 4,
         "save_freq": null,
         "load_from": null,
         "time_limit": 20,
         "metrics_filename": null,
-        "baseline_metrics_filename": "tune_IC_grid_0_0_1",
+        "baseline_metrics_filename": "tune_IC_grid",
         "save_name": null
     },
     "best_fitness": 14.149999999999999

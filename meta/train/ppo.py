@@ -1,7 +1,7 @@
 """ Definition of PPOPolicy, an object to perform acting and training with PPO. """
 
 import math
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Generator
 
 import torch
 import torch.nn as nn
@@ -288,7 +288,12 @@ class PPOPolicy:
         else:
             raise ValueError("Action space '%r' unsupported." % type(self.action_space))
 
+        # Compute entropy and if necessary, reduce over multiple subactions.
         action_dist_entropy = action_dist.entropy()
+        if len(action_dist_entropy.shape) > 1:
+            action_dist_entropy = action_dist_entropy.sum(
+                dim=tuple(range(1, len(action_dist_entropy.shape)))
+            )
 
         # This is to account for the fact that value has one more dimension than
         # value_preds_batch in get_loss(), since value is generated from input
@@ -394,7 +399,7 @@ class PPOPolicy:
 
         return returns, advantages
 
-    def get_loss(self, rollout: RolloutStorage) -> Dict[str, float]:
+    def get_loss(self, rollout: RolloutStorage) -> Generator[torch.Tensor, None, None]:
         """
         Train policy with PPO from rollout information in ``rollouts``.
 
@@ -404,22 +409,20 @@ class PPOPolicy:
             Storage container holding rollout information to train from. Contains
             observations, actions, rewards, etc. for one or more episodes.
 
-        Returns
+        Yields
         -------
-        loss_items : Dict[str, float]
-            Dictionary from loss names (e.g. action) to float loss values.
+        loss : torch.Tensor
+            Singleton tensor representing the PPO loss for a single minibatch.
         """
 
-        # Combine rollouts into one object and compute returns/advantages.
+        # Compute returns/advantages.
         returns, advantages = self.compute_returns_advantages(rollout)
 
         # Run multiple training steps on surrogate loss.
-        loss_names = ["action", "value", "entropy", "total"]
-        loss_items = {loss_name: 0.0 for loss_name in loss_names}
         for _ in range(self.num_ppo_epochs):
 
-            # Set minibatch generator based on whether or not are training a recurrent
-            # policy.
+            # Set minibatch generator based on whether or not we are training a
+            # recurrent policy.
             if self.recurrent:
                 minibatch_generator = rollout.recurrent_minibatch_generator(
                     self.num_minibatch
@@ -476,7 +479,7 @@ class PPOPolicy:
                     torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
                     * advantages_batch
                 )
-                action_loss = torch.min(surrogate1, surrogate2).mean()
+                action_loss = torch.min(surrogate1, surrogate2)
 
                 if self.clip_value_loss:
                     value_losses = (returns_batch - values_batch).pow(2)
@@ -486,26 +489,29 @@ class PPOPolicy:
                         self.clip_param,
                     )
                     clipped_value_losses = (returns_batch - clipped_value_preds).pow(2)
-                    value_loss = (
-                        0.5 * torch.max(value_losses, clipped_value_losses).mean()
-                    )
+                    value_loss = 0.5 * torch.max(value_losses, clipped_value_losses)
                 else:
                     value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
-                entropy_loss = action_dist_entropy_batch.mean()
+                entropy_loss = action_dist_entropy_batch
 
-                # Compute final loss.
+                # Compute total loss. `minibatch_loss` is a tensor of shape
+                # (minibatch_size), each value holding the loss for a single example of
+                # the minibatch.
                 self.optimizer.zero_grad()
-                loss = -(
+                minibatch_loss = -(
                     action_loss
                     - self.value_loss_coeff * value_loss
                     + self.entropy_loss_coeff * entropy_loss
                 )
 
+                # Compute final loss.
+                loss = minibatch_loss.sum()
+
                 yield loss
 
     def after_step(self) -> None:
-        """ Perform any post step actions. """
+        """ Perform any post training step actions. """
 
-        # Step learning rate schedule before yielding, if necessary.
+        # Step learning rate schedule, if necessary.
         if self.lr_schedule is not None:
             self.lr_schedule.step()

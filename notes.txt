@@ -35,9 +35,17 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Changed ppo.update() to a generator which returns loss values over multiple minibatches.
-Now we have to convert this so that it returns each task loss individually, instead of
-the total loss.
+While adapting code to compute task-specific losses, I realized that the entropy is
+being computed (somewhat) incorrectly. To compute the entropy of a joint distribution
+over multiple subactions, we are currently taking the mean of each subaction
+distribution's entropy instead of the sum. The sum is the correct way to compute entropy
+of a joint distribution, so use that instead.
+
+This is what we should do to get to task-specific loss:
+- Go back to previous version add fix entropy computation + compute sum of losses
+  instead of mean, add new baselines
+- Add in computation of task-specific loss and aggregation to train
+- Add tests for computing task-specific loss
 
 ----------------------------------------------------------------------------------------
 
@@ -62,8 +70,8 @@ Future additions:
     - Various network initialization schemes
     - Value function normalization
     - Independent options for normalizing observations and rewards
-- Multi-task architecture support for environments with observation spaces with
-  dimension greater than 1
+- Multi-task architecture support and computation of task-specific loss for environments
+  with observation spaces with dimension greater than 1.
 - When it comes time to add training for CV and NLP tasks, decouple the current network
   objects into model objects and network objects. For example, for the current RL setup
   we will have an actor critic model, which has two network objects as members, one
@@ -90,7 +98,7 @@ Possible additions:
 - More robust way to save repository version along with results
 - Determine whether or not policy has solved environment (N successes in a row, usually)
 - Catch KeyboardInterrupt during training to optionally stop training early
-- Make it so that, when resuming training from a checkpoint, training happens exactly as
+- Make it so that when resuming training from a checkpoint, training happens exactly as
   it would had if training had never been stopped. Not sure if this is possible, the
   main obstacle being pickling/loading the environment state, and mimicking random
   decisions.
@@ -107,6 +115,7 @@ Possible additions:
 - Monitor system resource utilization and recommend changes in config for maximum
   utilization, i.e. bigger batch sizes to increase GPU utilization, less processes if
   thrashing is present
+- Tests for solving simple openai gym environments in a small amount of time
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training

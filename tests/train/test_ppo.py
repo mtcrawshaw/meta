@@ -15,7 +15,7 @@ from meta.utils.storage import RolloutStorage
 from tests.helpers import get_policy, get_rollout, DEFAULT_SETTINGS
 
 
-TOL = 5e-6
+TOL = 2e-5
 
 
 def test_act_sizes() -> None:
@@ -135,10 +135,8 @@ def test_update_values() -> None:
         n_steps += 1
     policy.after_step()
 
-    actual_loss /= n_steps
-
     # Compare expected vs. actual.
-    diff = abs(actual_loss - expected_loss_items["total"])
+    diff = abs(float(actual_loss - expected_loss_items["total"]))
     print("loss diff: %.8f" % diff)
     assert abs(actual_loss - expected_loss_items["total"]) < TOL
 
@@ -432,11 +430,6 @@ def get_losses(
 
             # Compute entropy loss.
             loss_items["entropy"] += float(new_entropy)
-
-    # Divide to find average.
-    loss_items["action"] /= settings["rollout_length"]
-    loss_items["value"] /= settings["rollout_length"]
-    loss_items["entropy"] /= settings["rollout_length"]
 
     # Compute total loss.
     loss_items["total"] = -(
