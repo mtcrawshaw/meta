@@ -47,6 +47,8 @@ This is what we should do to get to task-specific loss:
 - Add in computation of task-specific loss and aggregation to train
 - Add tests for computing task-specific loss
 
+Also go back and re-save data/metrics/tune_grid.json with indent=4.
+
 ----------------------------------------------------------------------------------------
 
 Before merging to master:
@@ -140,7 +142,8 @@ Refactoring:
   - Clean up redundant options between "base_train_config" and "hp_config"
   - A billion other things, it's disgusting
 - Determine whether or not we save time by skipping the check that the end of each
-  observation is a one-hot vector in meta/networks/mt_trunk.py, forward()
+  observation is a one-hot vector in meta/networks/mt_trunk.py, forward() as well as in
+  meta/train/ppo.py, get_loss()
 - Change hyperparameter search to allow non-unique leaf node names in config
 - Include name of search parameter in name of results file for IC grid search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,

@@ -169,6 +169,25 @@ def get_single_env_creator(
     return env_creator
 
 
+def get_num_tasks(env_name: str) -> int:
+    """
+    Compute number of tasks to simultaneously handle. This will be 1 unless we are
+    training on a multi-task benchmark such as MetaWorld's MT10.
+    """
+
+    num_tasks = 1
+    metaworld_benchmark_names = get_metaworld_benchmark_names()
+    if env_name in metaworld_benchmark_names:
+        if env_name == "MT10":
+            num_tasks = 10
+        elif env_name == "MT50":
+            num_tasks = 50
+        else:
+            raise NotImplementedError
+
+    return num_tasks
+
+
 class VecNormalizeEnv(VecNormalize):
     """
     Environment wrapper to normalize observations and rewards. We modify VecNormalize

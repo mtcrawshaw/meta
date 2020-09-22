@@ -27,6 +27,7 @@ class PPOPolicy:
         rollout_length: int,
         num_updates: int,
         architecture_config: Dict[str, Any],
+        num_tasks: int = 1,
         num_ppo_epochs: int = 4,
         lr_schedule_type: str = None,
         initial_lr: float = 7e-4,
@@ -64,6 +65,15 @@ class PPOPolicy:
             which is either "vanilla" or "trunk", and all other entries should
             correspond to the keyword arguments for the corresponding network class,
             which is either VanillaNetwork or MultiTaskTrunkNetwork.
+        num_tasks : int
+            Number of tasks that will simultaneously be trained on. When `num_tasks` >
+            1, the policy expects observations to be flat vectors in which the last
+            `num_tasks` values form a one-hot vector denoting the task which produced
+            the observation. To save time, we do NOT explicitly check that this is true
+            for each observation, so the obligation is on the caller of this code to
+            ensure that their observations are formatted correctly. It is also important
+            to note that the case num_tasks > 1 will only work when the observation
+            space is a flat vector.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
         lr_schedule_type : str
@@ -95,6 +105,9 @@ class PPOPolicy:
             Which device to perform update on (forward pass is always on CPU).
         """
 
+        # Check for valid arguments.
+        assert isinstance(num_tasks, int) and num_tasks >= 1
+
         # Set policy state.
         self.observation_space = observation_space
         self.action_space = action_space
@@ -116,18 +129,20 @@ class PPOPolicy:
         self.clip_value_loss = clip_value_loss
         self.normalize_advantages = normalize_advantages
         self.device = device if device is not None else torch.device("cpu")
+        self.num_tasks = num_tasks
         self.train = True
 
         # Initialize policy network.
+        kwargs = dict(architecture_config)
         if architecture_config["type"] == "vanilla":
             network_cls = VanillaNetwork
         elif architecture_config["type"] == "trunk":
             network_cls = MultiTaskTrunkNetwork
+            kwargs["num_tasks"] = self.num_tasks
         else:
             raise ValueError(
                 "Invalid architecture type: %s" % architecture_config["type"]
             )
-        kwargs = dict(architecture_config)
         del kwargs["type"]
         self.policy_network = network_cls(
             observation_space=observation_space,
@@ -504,8 +519,24 @@ class PPOPolicy:
                     + self.entropy_loss_coeff * entropy_loss
                 )
 
-                # Compute final loss.
-                loss = minibatch_loss.sum()
+                # Compute final loss. In the single task case, this is a single value,
+                # while in the multi-task case we compute `self.num_tasks` task-specific
+                # losses.
+                if self.num_tasks == 1:
+                    loss = minibatch_loss.sum()
+                else:
+
+                    # Here we assume that each observation is a flat vector that ends
+                    # with a one-hot vector of length `self.num_tasks`. We do NOT
+                    # explicitly check these conditions.
+                    loss_list = [torch.zeros(1) for _ in range(self.num_tasks)]
+                    task_indices = obs_batch[:, -self.num_tasks :].nonzero()[:, 1]
+                    for task in range(self.num_tasks):
+                        task_specific_indices = (
+                            (task_indices == task).nonzero().squeeze(-1)
+                        )
+                        loss_list[task] = minibatch_loss[task_specific_indices].sum()
+                    loss = tuple(loss_list)
 
                 yield loss
 

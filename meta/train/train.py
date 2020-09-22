@@ -12,7 +12,7 @@ import gym
 from gym import Env
 
 from meta.train.ppo import PPOPolicy
-from meta.train.env import get_env
+from meta.train.env import get_env, get_num_tasks
 from meta.utils.storage import RolloutStorage
 from meta.utils.metrics import Metrics
 from meta.utils.plot import plot
@@ -155,6 +155,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         device = torch.device("cpu")
 
     # Set environment and policy.
+    num_tasks = get_num_tasks(config["env_name"])
     env = get_env(
         config["env_name"],
         config["num_processes"],
@@ -172,6 +173,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         rollout_length=config["rollout_length"],
         num_updates=config["num_updates"],
         architecture_config=config["architecture_config"],
+        num_tasks=num_tasks,
         num_ppo_epochs=config["num_ppo_epochs"],
         lr_schedule_type=config["lr_schedule_type"],
         initial_lr=config["initial_lr"],
@@ -238,6 +240,10 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
         # Compute update.
         for step_loss in policy.get_loss(rollout):
+
+            # If we are multi-task training, consolidate task-losses with weighted sum.
+            if num_tasks > 1:
+                step_loss = sum(step_loss)
 
             # Perform backward pass, clip gradient, and take optimizer step.
             step_loss.backward()
