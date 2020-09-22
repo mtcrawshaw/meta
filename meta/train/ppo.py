@@ -506,7 +506,7 @@ class PPOPolicy:
                     clipped_value_losses = (returns_batch - clipped_value_preds).pow(2)
                     value_loss = 0.5 * torch.max(value_losses, clipped_value_losses)
                 else:
-                    value_loss = 0.5 * (returns_batch - values_batch).pow(2).mean()
+                    value_loss = 0.5 * (returns_batch - values_batch).pow(2)
                 entropy_loss = action_dist_entropy_batch
 
                 # Compute total loss. `minibatch_loss` is a tensor of shape

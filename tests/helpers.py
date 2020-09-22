@@ -1,11 +1,12 @@
 """ Utilities for tests. """
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, List
 
 import torch
 from gym import Env
 
+from meta.train.env import get_num_tasks
 from meta.train.ppo import PPOPolicy
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import save_dir_from_name
@@ -54,6 +55,7 @@ DEFAULT_SETTINGS = {
 def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
     """ Return a PPOPolicy for ``env`` for use in test cases. """
 
+    num_tasks = get_num_tasks(settings["env_name"])
     policy = PPOPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -62,6 +64,7 @@ def get_policy(env: Env, settings: Dict[str, Any]) -> PPOPolicy:
         rollout_length=settings["rollout_length"],
         num_updates=settings["num_updates"],
         architecture_config=settings["architecture_config"],
+        num_tasks=num_tasks,
         lr_schedule_type=settings["lr_schedule_type"],
         initial_lr=settings["initial_lr"],
         final_lr=settings["final_lr"],
@@ -127,6 +130,111 @@ def get_rollout(
             )
 
     return rollout
+
+
+def get_task_rollouts(
+    env: Env,
+    policy: PPOPolicy,
+    num_tasks: int,
+    num_episodes: int,
+    episode_len: int,
+    num_processes: int,
+    device: torch.device,
+) -> Tuple[RolloutStorage, List[RolloutStorage]]:
+    """
+    Collects ``num_episodes`` episodes of size ``episode_len`` from ``env`` using
+    ``policy``. These episodes are aggregated into the returned value ``rollout``, but
+    ``task_rollouts`` contains the same rollout information partitioned by task. Note
+    that we explicitly call env.reset() here assuming that the environment will never
+    return done=True, so this function should not be used with an environment which may
+    return done=True. We are also assuming that each observation is a flat vector that
+    ends with a one-hot vector which denotes the task index.
+    """
+
+    # For ease of implementation, we assume that ``num_episodes`` is 1, which makes it
+    # easier to aggregate process rollouts by task. We also assume that the architecture
+    # is not recurrent, so that we don't have to deal with passing around the hidden
+    # state.
+    assert num_episodes == 1
+    assert not policy.recurrent
+
+    # Initialize rollout.
+    rollout_len = num_episodes * episode_len
+    rollout = RolloutStorage(
+        rollout_length=rollout_len,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        num_processes=num_processes,
+        hidden_state_size=1,
+        device=device,
+    )
+    rollout.set_initial_obs(env.reset())
+
+    # Get task IDs for each process, then instantiate task rollouts.
+    task_rollouts = []
+    task_processes = {task: [] for task in range(num_tasks)}
+
+    for proc in range(num_processes):
+        task_index = rollout.obs[0, proc, -num_tasks:].nonzero().item()
+        task_processes[task_index].append(proc)
+
+    for task in range(num_tasks):
+        if len(task_processes[task]) == 0:
+            task_rollouts.append(None)
+        else:
+            task_rollouts.append(
+                RolloutStorage(
+                    rollout_length=rollout_len,
+                    observation_space=env.observation_space,
+                    action_space=env.action_space,
+                    num_processes=len(task_processes[task]),
+                    hidden_state_size=1,
+                    device=device,
+                )
+            )
+
+    # Initialize observations in task rollouts.
+    for task in range(num_tasks):
+        if task_rollouts[task] is not None:
+            proc_indices = task_processes[task]
+            task_rollouts[task].set_initial_obs(rollout.obs[0, proc_indices])
+
+    # Generate rollout.
+    hidden_state = torch.zeros(1)
+    for _ in range(num_episodes):
+
+        for rollout_step in range(episode_len):
+
+            # Take step.
+            with torch.no_grad():
+                value_pred, action, action_log_prob, hidden_state = policy.act(
+                    rollout.obs[rollout_step], hidden_state, None
+                )
+            obs, reward, done, _ = env.step(action)
+
+            # Putting this here so that obs and done get set before adding to rollout.
+            if rollout_step == episode_len - 1:
+                obs = env.reset()
+                done = [True] * num_processes
+
+            # Add step to rollout and individual process rollouts.
+            rollout.add_step(
+                obs, action, done, action_log_prob, value_pred, reward, hidden_state
+            )
+            for task in range(num_tasks):
+                if task_rollouts[task] is not None:
+                    proc_indices = task_processes[task]
+                    task_rollouts[task].add_step(
+                        obs[proc_indices],
+                        action[proc_indices],
+                        [done[task] for task in proc_indices],
+                        action_log_prob[proc_indices],
+                        value_pred[proc_indices],
+                        reward[proc_indices],
+                        hidden_state,
+                    )
+
+    return rollout, task_rollouts
 
 
 def check_results_name(save_name: str) -> None:

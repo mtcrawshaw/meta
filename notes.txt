@@ -24,8 +24,8 @@ Current sprint (MT10/MT50 baselines):
     Refactoring
 
 Current task (Splitting networks):
---> Individually compute task losses
-    Compute task-specific gradients for MLP
+    Individually compute task losses
+--> Compute task-specific gradients for MLP
     Set forward pass as a function of sharing variables (layers as regions)
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
@@ -35,19 +35,6 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-While adapting code to compute task-specific losses, I realized that the entropy is
-being computed (somewhat) incorrectly. To compute the entropy of a joint distribution
-over multiple subactions, we are currently taking the mean of each subaction
-distribution's entropy instead of the sum. The sum is the correct way to compute entropy
-of a joint distribution, so use that instead.
-
-This is what we should do to get to task-specific loss:
-- Go back to previous version add fix entropy computation + compute sum of losses
-  instead of mean, add new baselines
-- Add in computation of task-specific loss and aggregation to train
-- Add tests for computing task-specific loss
-
-Also go back and re-save data/metrics/tune_grid.json with indent=4.
 
 ----------------------------------------------------------------------------------------
 
@@ -143,7 +130,9 @@ Refactoring:
   - A billion other things, it's disgusting
 - Determine whether or not we save time by skipping the check that the end of each
   observation is a one-hot vector in meta/networks/mt_trunk.py, forward() as well as in
-  meta/train/ppo.py, get_loss()
+  meta/train/ppo.py, get_loss(). It would be safer to perform the checks, but this might
+  cost time we don't want to use. If it does cost time, later we should add an
+  optimization level option that will skip checks when we want to go for speed.
 - Change hyperparameter search to allow non-unique leaf node names in config
 - Include name of search parameter in name of results file for IC grid search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
