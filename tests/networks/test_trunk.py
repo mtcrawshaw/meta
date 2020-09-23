@@ -1,5 +1,5 @@
 """
-Unit tests for meta/networks/mt_trunk.py.
+Unit tests for meta/networks/trunk.py.
 """
 
 from math import log
@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete
 
-from meta.networks.mt_trunk import MultiTaskTrunkNetwork
+from meta.networks.trunk import MultiTaskTrunkNetwork
 from tests.helpers import DEFAULT_SETTINGS
 
 

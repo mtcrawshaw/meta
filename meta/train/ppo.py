@@ -10,7 +10,7 @@ from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
 from meta.networks.vanilla import VanillaNetwork
-from meta.networks.mt_trunk import MultiTaskTrunkNetwork
+from meta.networks.trunk import MultiTaskTrunkNetwork
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import combine_first_two_dims
 

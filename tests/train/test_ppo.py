@@ -16,7 +16,7 @@ from tests.helpers import get_policy, get_rollout, get_task_rollouts, DEFAULT_SE
 
 
 TOL = 1e-6
-BIG_TOL = 5e-4
+BIG_TOL = 6e-4
 
 
 def test_act_sizes() -> None:

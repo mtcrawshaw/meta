@@ -11,7 +11,9 @@ import torch.nn as nn
 from torch.distributions import Distribution, Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.networks.base import BaseNetwork, init_base, init_final, init_recurrent
+from meta.networks.base import BaseNetwork
+from meta.networks.initialize import init_base, init_final
+from meta.networks.recurrent import RecurrentBlock
 from meta.utils.utils import AddBias
 
 
@@ -76,8 +78,14 @@ class MultiTaskTrunkNetwork(BaseNetwork):
 
         # Initialize recurrent layer, if necessary.
         if self.recurrent:
-            self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
-            self.hidden_state = torch.zeros(self.hidden_size)
+            self.recurrent_block = RecurrentBlock(
+                self.input_size,
+                self.hidden_size,
+                self.observation_space,
+                self.num_processes,
+                self.rollout_length,
+                self.device,
+            )
 
         # Initialize shared trunk of actor and critic.
         actor_trunk_layers = []
@@ -194,7 +202,7 @@ class MultiTaskTrunkNetwork(BaseNetwork):
 
         # Pass through recurrent layer, if necessary.
         if self.recurrent:
-            x, hidden_state = self.recurrent_forward(x, hidden_state, done)
+            x, hidden_state = self.recurrent_block(x, hidden_state, done)
 
         # Get task indices from each observation. We take the one-hot task vector from
         # the end of each observation in the batch and aggregate the task indices. Here

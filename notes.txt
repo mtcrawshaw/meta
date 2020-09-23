@@ -25,8 +25,9 @@ Current sprint (MT10/MT50 baselines):
 
 Current task (Splitting networks):
     Individually compute task losses
---> Compute task-specific gradients for MLP
+--> Separate network from model
     Set forward pass as a function of sharing variables (layers as regions)
+    Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
     Change sharing variables when statistical significance is reached
@@ -35,6 +36,22 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+The implementation of splitting networks won't be general until we decouple network
+architectures from the model (here model is actor critic). Do this before writing
+SplittingNetwork class.
+
+Current network classes:
+- BaseNetwork
+- VanillaNetwork
+- MultiTaskTrunkNetwork
+
+New network classes:
+- file with shared initialization functions
+- BaseNetwork -> RecurrentBlock
+- VanillaNetwork -> MLPNetwork
+- MultiTaskTrunk -> MultiTaskTrunkNetwork
+- SplittingNetwork (after making other changes)
+- VanillaNetwork -> ActorCritic
 
 ----------------------------------------------------------------------------------------
 
@@ -129,7 +146,7 @@ Refactoring:
   - Clean up redundant options between "base_train_config" and "hp_config"
   - A billion other things, it's disgusting
 - Determine whether or not we save time by skipping the check that the end of each
-  observation is a one-hot vector in meta/networks/mt_trunk.py, forward() as well as in
+  observation is a one-hot vector in meta/networks/trunk.py, forward() as well as in
   meta/train/ppo.py, get_loss(). It would be safer to perform the checks, but this might
   cost time we don't want to use. If it does cost time, later we should add an
   optimization level option that will skip checks when we want to go for speed.

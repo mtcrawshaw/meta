@@ -25,26 +25,6 @@ class AddBias(nn.Module):
         return x + self._bias
 
 
-def init(
-    module: nn.Module, weight_init: Any, bias_init: Any, gain: Union[float, int] = 1
-) -> nn.Module:
-    """ Helper function to initialize network weights. """
-
-    # This is a somewhat gross way to handle both Linear/Conv modules and GRU modules.
-    # It can probably be cleaned up.
-    if hasattr(module, "weight") and hasattr(module, "bias"):
-        weight_init(module.weight.data, gain=gain)
-        bias_init(module.bias.data)
-    else:
-        for name, param in module.named_parameters():
-            if "weight" in name:
-                weight_init(param)
-            elif "bias" in name:
-                bias_init(param)
-
-    return module
-
-
 def get_space_size(space: Space) -> int:
     """ Get the input/output size of an MLP whose input/output space is ``space``. """
 

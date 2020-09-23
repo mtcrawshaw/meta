@@ -10,7 +10,9 @@ import torch.nn as nn
 from torch.distributions import Distribution, Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.networks.base import BaseNetwork, init_base, init_final, init_recurrent
+from meta.networks.base import BaseNetwork
+from meta.networks.initialize import init_base, init_final
+from meta.networks.recurrent import RecurrentBlock
 from meta.utils.utils import AddBias
 
 
@@ -51,8 +53,14 @@ class VanillaNetwork(BaseNetwork):
 
         # Initialize recurrent layer, if necessary.
         if self.recurrent:
-            self.gru = init_recurrent(nn.GRU(self.input_size, self.hidden_size))
-            self.hidden_state = torch.zeros(self.hidden_size)
+            self.recurrent_block = RecurrentBlock(
+                self.input_size,
+                self.hidden_size,
+                self.observation_space,
+                self.num_processes,
+                self.rollout_length,
+                self.device,
+            )
 
         # Initialize feedforward actor/critic layers.
         actor_layers = []
@@ -123,7 +131,7 @@ class VanillaNetwork(BaseNetwork):
 
         # Pass through recurrent layer, if necessary.
         if self.recurrent:
-            x, hidden_state = self.recurrent_forward(x, hidden_state, done)
+            x, hidden_state = self.recurrent_block(x, hidden_state, done)
 
         # Pass through actor and critic networks.
         value_pred = self.critic(x)
