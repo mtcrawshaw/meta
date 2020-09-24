@@ -13,7 +13,6 @@ from tests.tune.templates import resume_template
 
 GRID_CONFIG_PATH = os.path.join("configs", "tune_grid.json")
 GRID_VALUES_CONFIG_PATH = os.path.join("configs", "tune_grid_values.json")
-GRID_TRIAL_CONFIG_PATH = os.path.join("configs", "tune_grid_trial.json")
 
 
 def test_tune_grid_values() -> None:

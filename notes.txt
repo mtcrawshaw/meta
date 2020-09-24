@@ -53,6 +53,9 @@ New network classes:
 - SplittingNetwork (after making other changes)
 - VanillaNetwork -> ActorCritic
 
+Currently we created the RecurrentBlock, MLPNetwork, and ActorCritic classes, and we
+have to re-implement MultiTaskTrunkNetwork.
+
 ----------------------------------------------------------------------------------------
 
 Before merging to master:
@@ -164,3 +167,6 @@ Refactoring:
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
 - Modify tests so that we don't have to save/load from/to disk during tests. Returning
   checkpoints from training functions would allow this.
+- Create config/architecture_config object so we don't have to mess with string-keyed
+  dictionaries everywhere
+- Remove redundant calls to "self.to(device)" in nested modules?

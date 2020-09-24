@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
     "normalize_transition": False,
     "normalize_first_n": None,
     "architecture_config": {
-        "type": "vanilla",
+        "type": "mlp",
         "num_layers": 3,
         "hidden_size": 64,
         "recurrent": False,

@@ -29,7 +29,7 @@
         "normalize_first_n": null,
 
         "architecture_config": {
-            "type": "vanilla",
+            "type": "mlp",
             "num_layers": 3,
             "hidden_size": 64,
             "recurrent": false

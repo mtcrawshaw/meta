@@ -9,8 +9,7 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.networks.vanilla import VanillaNetwork
-from meta.networks.trunk import MultiTaskTrunkNetwork
+from meta.networks.actorcritic import ActorCriticNetwork
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import combine_first_two_dims
 
@@ -62,9 +61,10 @@ class PPOPolicy:
             Number of total updates to be performed on policy.
         architecture_config: Dict[str, Any]
             Config dictionary for the architecture. Should contain an entry for "type",
-            which is either "vanilla" or "trunk", and all other entries should
-            correspond to the keyword arguments for the corresponding network class,
-            which is either VanillaNetwork or MultiTaskTrunkNetwork.
+            (either "mlp" or "trunk"), an entry for "recurrent" (either True or False),
+            and all other entries should correspond to the keyword arguments for the
+            corresponding network class, which is either MLPNetwork or
+            MultiTaskTrunkNetwork.
         num_tasks : int
             Number of tasks that will simultaneously be trained on. When `num_tasks` >
             1, the policy expects observations to be flat vectors in which the last
@@ -132,25 +132,14 @@ class PPOPolicy:
         self.num_tasks = num_tasks
         self.train = True
 
-        # Initialize policy network.
-        kwargs = dict(architecture_config)
-        if architecture_config["type"] == "vanilla":
-            network_cls = VanillaNetwork
-        elif architecture_config["type"] == "trunk":
-            network_cls = MultiTaskTrunkNetwork
-            kwargs["num_tasks"] = self.num_tasks
-        else:
-            raise ValueError(
-                "Invalid architecture type: %s" % architecture_config["type"]
-            )
-        del kwargs["type"]
-        self.policy_network = network_cls(
+        # Initialize actor critic network.
+        self.policy_network = ActorCriticNetwork(
             observation_space=observation_space,
             action_space=action_space,
             num_processes=num_processes,
             rollout_length=rollout_length,
+            architecture_config=dict(architecture_config),
             device=device,
-            **kwargs,
         )
 
         # Initialize optimizer.
