@@ -53,8 +53,9 @@ New network classes:
 - SplittingNetwork (after making other changes)
 - VanillaNetwork -> ActorCritic
 
-Currently we created the RecurrentBlock, MLPNetwork, and ActorCritic classes, and we
-have to re-implement MultiTaskTrunkNetwork.
+Currently we created the RecurrentBlock, MLPNetwork, MultiTaskTrunkNetwork, and
+ActorCritic classes. Now we need to fix the option to include/exclude task indices for
+the trunk network and add corresponding tests.
 
 ----------------------------------------------------------------------------------------
 
@@ -93,6 +94,7 @@ Future additions:
   values after loading and created a baseline to compare metrics against. The same goes
   for saving/loading hyperparameter random search runs (the other types of hp search
   are reproducible when saving/loading, so there's no need for it there).
+- Add option to exclude one-hot task vector from recurrent block
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick

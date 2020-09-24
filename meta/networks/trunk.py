@@ -1,220 +1,151 @@
 """
-Definition of MultiTaskTrunkNetwork, a module used to parameterize a multi-task
-actor/critic policy with some number of shared layers at the beginning followed by a
-task-specific output head for each task.
+Definition of MultiTaskTrunkNetwork, a module used to parameterize a multi-task network
+with some number of shared layers at the beginning followed by a task-specific output
+head for each task.
 """
 
-from typing import Tuple
+from typing import Callable
 
 import torch
 import torch.nn as nn
-from torch.distributions import Distribution, Categorical, Normal
-from gym.spaces import Space, Box, Discrete
-
-from meta.networks.base import BaseNetwork
-from meta.networks.initialize import init_base, init_final
-from meta.networks.recurrent import RecurrentBlock
-from meta.utils.utils import AddBias
 
 
-class MultiTaskTrunkNetwork(BaseNetwork):
+class MultiTaskTrunkNetwork(nn.Module):
     """
-    Module used to parameterize a multi-task actor/critic policy with a shared trunk.
+    Module used to parameterize a multi-task network with a shared trunk. `init_base` is
+    the initialization function used to initialize all layers except for the last, and
+    `init_final` is the initialization function used to initialize the last layer. Note
+    that `input_size` should be the size of the observation AFTER the one-hot task
+    vector is appended to it.
     """
 
     def __init__(
         self,
-        observation_space: Space,
-        action_space: Space,
-        num_processes: int,
-        rollout_length: int,
+        input_size: int,
+        output_size: int,
+        init_base: Callable[[nn.Module], nn.Module],
+        init_final: Callable[[nn.Module], nn.Module],
         num_tasks: int,
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
-        hidden_size: int = 64,
-        recurrent: bool = False,
-        device: torch.device = None,
         include_task_index: bool = True,
+        hidden_size: int = 64,
+        device: torch.device = None,
     ) -> None:
 
+        super(MultiTaskTrunkNetwork, self).__init__()
+
+        # Check number of layers.
+        if num_shared_layers < 1 or num_task_layers < 1:
+            raise ValueError(
+                "Number of shared layers and task-specific layers in network should "
+                "each be at least 1. Given values are: %d, %d"
+                % (num_shared_layers, num_task_layers)
+            )
+
+        # Set state.
+        self.input_size = input_size
+        self.output_size = output_size
+        self.init_base = init_base
+        self.init_final = init_final
         self.num_tasks = num_tasks
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
         self.include_task_index = include_task_index
-        if self.num_shared_layers < 1 or self.num_task_layers < 1:
-            raise ValueError(
-                "Number of shared layers and task-specific layers in network should "
-                "each be at least 1. Given values are: %d, %d"
-                % (self.num_shared_layers, self.num_task_layers)
-            )
+        self.hidden_size = hidden_size
 
-        # We only support environments whose observation spaces are flat vectors.
-        if not isinstance(observation_space, Box) or len(observation_space.shape) != 1:
-            raise NotImplementedError
-
-        # If the one-hot task vector isn't to be included in the network input, we need
-        # to resize the observation space. Note that we have to take low[0] and high[0]
-        # from the existing space since self.low is set to np.full(self.shape, low)
-        # during __init__, and similarly for self.high.
+        # Adjust input size if the one-hot task vector should be omitted from the input.
         if not self.include_task_index:
-            low = observation_space.low[0]
-            high = observation_space.high[0]
-            shape = (observation_space.shape[0] - self.num_tasks,)
-            dtype = observation_space.dtype
-            observation_space = Box(low, high, shape=shape, dtype=dtype)
+            self.input_size -= self.num_tasks
 
-        super(MultiTaskTrunkNetwork, self).__init__(
-            observation_space=observation_space,
-            action_space=action_space,
-            num_processes=num_processes,
-            rollout_length=rollout_length,
-            hidden_size=hidden_size,
-            recurrent=recurrent,
-            device=device,
-        )
+        # Set device.
+        self.device = device if device is not None else torch.device("cpu")
+
+        # Generate network layers.
+        self.initialize_network()
+
+        # Move model to device.
+        self.to(self.device)
 
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
-        # Initialize recurrent layer, if necessary.
-        if self.recurrent:
-            self.recurrent_block = RecurrentBlock(
-                self.input_size,
-                self.hidden_size,
-                self.observation_space,
-                self.num_processes,
-                self.rollout_length,
-                self.device,
-            )
-
-        # Initialize shared trunk of actor and critic.
-        actor_trunk_layers = []
-        critic_trunk_layers = []
+        # Initialize shared trunk.
+        trunk_layers = []
         for i in range(self.num_shared_layers):
 
             # Calcuate input size of layer.
-            layer_input_size = (
-                self.input_size if i == 0 and not self.recurrent else self.hidden_size
-            )
+            layer_input_size = self.input_size if i == 0 else self.hidden_size
 
-            # Initialize each layer.
-            actor_trunk_layers.append(
-                init_base(nn.Linear(layer_input_size, self.hidden_size))
-            )
-            critic_trunk_layers.append(
-                init_base(nn.Linear(layer_input_size, self.hidden_size))
+            # Initialize layer.
+            trunk_layers.append(
+                self.init_base(nn.Linear(layer_input_size, self.hidden_size))
             )
 
             # Activation functions.
-            actor_trunk_layers.append(nn.Tanh())
-            critic_trunk_layers.append(nn.Tanh())
+            trunk_layers.append(nn.Tanh())
 
-        self.actor_trunk = nn.Sequential(*actor_trunk_layers)
-        self.critic_trunk = nn.Sequential(*critic_trunk_layers)
+        self.trunk = nn.Sequential(*trunk_layers)
 
         # Initialize task-specific output heads for each task.
-        actor_heads_list = []
-        critic_heads_list = []
+        heads_list = []
         for _ in range(self.num_tasks):
 
-            actor_task_layers = []
-            critic_task_layers = []
+            task_layers = []
             for i in range(self.num_task_layers):
 
-                # Calculate output size of actor/critic layers.
-                actor_output_size = (
+                # Calculate output size of layer.
+                output_size = (
                     self.hidden_size
                     if i != self.num_task_layers - 1
                     else self.output_size
                 )
-                critic_output_size = (
-                    self.hidden_size if i != self.num_task_layers - 1 else 1
+
+                # Determine init function for layer.
+                layer_init = (
+                    self.init_base if i < self.num_task_layers - 1 else self.init_final
                 )
 
-                # Initialize each layer. We initialize the last layer of the actor with
-                # a different init function (see meta/networks/base.py).
-                init_actor = init_final if i == self.num_task_layers - 1 else init_base
-                actor_task_layers.append(
-                    init_actor(nn.Linear(self.hidden_size, actor_output_size))
-                )
-                critic_task_layers.append(
-                    init_base(nn.Linear(self.hidden_size, critic_output_size))
-                )
+                # Initialize layer.
+                task_layers.append(layer_init(nn.Linear(self.hidden_size, output_size)))
 
-                # Activation functions.
+                # Activation function.
                 if i != self.num_task_layers - 1:
-                    actor_task_layers.append(nn.Tanh())
-                    critic_task_layers.append(nn.Tanh())
+                    task_layers.append(nn.Tanh())
 
-            actor_heads_list.append(nn.Sequential(*actor_task_layers))
-            critic_heads_list.append(nn.Sequential(*critic_task_layers))
+            heads_list.append(nn.Sequential(*task_layers))
 
-        self.actor_output_heads = nn.ModuleList(actor_heads_list)
-        self.critic_output_heads = nn.ModuleList(critic_heads_list)
+        self.output_heads = nn.ModuleList(heads_list)
 
-        # Extra parameter vector for standard deviations in the case that
-        # the policy distribution is Gaussian.
-        if isinstance(self.action_space, Box):
-            logstd_list = []
-            for _ in range(self.num_tasks):
-                logstd_list.append(AddBias(torch.zeros(self.output_size)))
-            self.output_logstd = nn.ModuleList(logstd_list)
-
-    def forward(
-        self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
-    ) -> Tuple[torch.Tensor, Distribution, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass definition for MultiTaskTrunkNetwork. It is expected that each
-        observation is the concatenation of an environment observation with a one-hot
-        vector denoting the index of the task that the observation came from, that each
-        observation is a flat vector, and that the last ``self.num_tasks`` elements of
-        this vector make up the one-hot task vector.
+        Forward pass definition for MultiTaskTrunkNetwork.
 
         Arguments
         ---------
-        obs : torch.Tensor
-            Observation to be used as input to policy network. If the observation space
-            is discrete, this function expects the environment portion of ``obs`` to be
-            a one-hot vector.
-        hidden_state : torch.Tensor
-            Hidden state to use for recurrent layer, if necessary.
-        done : torch.Tensor
-            Whether or not the last step was a terminal step. We use this to clear the
-            hidden state of the network when necessary, if it is recurrent.
+        inputs : torch.Tensor
+            Inputs to trunk network. Each input should be a flat vector that ends with a
+            one-hot vector (of length self.num_tasks) denoting the task index
+            corresponding to the input. We do NOT explicitly check this condition so it
+            is up to you to make sure it is true when using this method.
+
+        task_indices : torch.Tensor
+            Task index for each input in ``inputs`` as an integer.
 
         Returns
         -------
-        value_pred : torch.Tensor
-            Predicted value output from critic.
-        action_dist : torch.distributions.Distribution
-            Distribution over action space to sample from.
-        hidden_state : torch.Tensor
-            New hidden state after forward pass.
+        outputs: torch.Tensor
+            Output of shared trunk network when given ``inputs`` as input.
         """
 
         # Omit one-hot task vector from network input, if necessary.
         if self.include_task_index:
-            task_index_pos = self.observation_space.shape[0] - self.num_tasks
-            x = obs
+            x = inputs
         else:
-            task_index_pos = self.observation_space.shape[0]
-            x = obs[:, :task_index_pos]
+            x = inputs[:, :task_index_pos]
 
-        # Pass through recurrent layer, if necessary.
-        if self.recurrent:
-            x, hidden_state = self.recurrent_block(x, hidden_state, done)
-
-        # Get task indices from each observation. We take the one-hot task vector from
-        # the end of each observation in the batch and aggregate the task indices. Here
-        # we commented out the check that these vectors are actually one-hot, just to
-        # save time.
-        nonzero_pos = obs[:, task_index_pos:].nonzero()
-        # assert nonzero_pos[:, 0] == torch.arange(obs.shape[0], device="cuda")
-        task_indices = nonzero_pos[:, 1]
-
-        # Pass through shared trunks.
-        actor_trunk_output = self.actor_trunk(x)
-        critic_trunk_output = self.critic_trunk(x)
+        # Pass input through shared trunk.
+        trunk_output = self.trunk(x)
 
         # To forward pass through the output heads, we first partition the inputs by
         # their task, so that we can perform only one forward pass through each
@@ -223,8 +154,7 @@ class MultiTaskTrunkNetwork(BaseNetwork):
             (task_indices == task).nonzero().squeeze(-1)
             for task in range(self.num_tasks)
         ]
-        actor_batch_outputs = []
-        critic_batch_outputs = []
+        batch_outputs = []
         for task in range(self.num_tasks):
 
             # Construct the batch of trunk outputs for a given task head.
@@ -232,44 +162,20 @@ class MultiTaskTrunkNetwork(BaseNetwork):
 
             # Don't perform forward pass if there are no inputs for the current task.
             if len(single_batch_indices) == 0:
-                actor_batch_outputs.append(torch.Tensor([0.0]))
-                critic_batch_outputs.append(torch.Tensor([0.0]))
+                batch_outputs.append(torch.Tensor([0.0]))
                 continue
 
             # Pass batch of trunk outputs through task head.
-            actor_batch = actor_trunk_output[single_batch_indices]
-            critic_batch = critic_trunk_output[single_batch_indices]
-            actor_batch_outputs.append(self.actor_output_heads[task](actor_batch))
-            critic_batch_outputs.append(self.critic_output_heads[task](critic_batch))
+            task_batch = trunk_output[single_batch_indices]
+            batch_outputs.append(self.output_heads[task](task_batch))
 
-        # Reconstruct batched outputs into a single tensor each for actor/critic.
-        actor_outputs = []
-        critic_outputs = []
+        # Reconstruct batched outputs into a single tensor.
+        outputs_list = []
         batch_counters = [0 for _ in range(self.num_tasks)]
         for task in task_indices:
             batch_counter = batch_counters[task]
-            actor_outputs.append(actor_batch_outputs[task][batch_counter])
-            critic_outputs.append(critic_batch_outputs[task][batch_counter])
+            outputs_list.append(batch_outputs[task][batch_counter])
             batch_counters[task] += 1
-        actor_output = torch.stack(actor_outputs)
-        value_pred = torch.stack(critic_outputs)
+        outputs = torch.stack(outputs_list)
 
-        # Construct action distribution from actor outputs.
-        if isinstance(self.action_space, Discrete):
-            action_dist = Categorical(logits=actor_output)
-        elif isinstance(self.action_space, Box):
-            action_logstds = []
-            logstd_shape = actor_output.shape[1:]
-            for i in range(task_indices.shape[0]):
-                task_index = task_indices[i]
-                action_logstds.append(
-                    self.output_logstd[task_index](
-                        torch.zeros(logstd_shape, device=self.device)
-                    )
-                )
-            action_logstd = torch.stack(action_logstds)
-            action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
-        else:
-            raise NotImplementedError
-
-        return value_pred, action_dist, hidden_state
+        return outputs

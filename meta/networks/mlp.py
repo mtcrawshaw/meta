@@ -7,15 +7,12 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from meta.networks.recurrent import RecurrentBlock
-from meta.utils.utils import AddBias
-
 
 class MLPNetwork(nn.Module):
     """
-    Module used to parameterize an actor/critic policy. `base_init` is the
-    initialization function used to initialize all layers except for the last, and
-    `final_init` is the initialization function used to initialize the last layer.
+    Module used to parameterize an MLP. `init_base` is the initialization function used
+    to initialize all layers except for the last, and `init_final` is the initialization
+    function used to initialize the last layer.
     """
 
     def __init__(
@@ -58,7 +55,7 @@ class MLPNetwork(nn.Module):
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
-        # Initialize feedforward actor/critic layers.
+        # Initialize layers.
         layers = []
         for i in range(self.num_layers):
 
@@ -68,10 +65,10 @@ class MLPNetwork(nn.Module):
                 self.output_size if i == self.num_layers - 1 else self.hidden_size
             )
 
-            # Determine init function for actor layer. Note that all layers of critic
-            # are initialized with init_base, so we only need to do this for actor.
+            # Determine init function for layer.
             layer_init = self.init_base if i < self.num_layers - 1 else self.init_final
 
+            # Initialize layer.
             layers.append(layer_init(nn.Linear(layer_input_size, layer_output_size)))
 
             # Activation function.

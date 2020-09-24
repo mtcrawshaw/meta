@@ -13,6 +13,7 @@ from gym.spaces import Space, Box, Discrete
 from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
+from meta.networks.trunk import MultiTaskTrunkNetwork
 from meta.utils.utils import AddBias, get_space_size
 
 
@@ -90,18 +91,50 @@ class ActorCriticNetwork(nn.Module):
                 **architecture_kwargs,
             )
 
+            # Extra parameter vector for standard deviations in the case that
+            # the policy distribution is Gaussian.
+            if isinstance(self.action_space, Box):
+                self.logstd = AddBias(torch.zeros(self.output_size))
+
         elif architecture_config["type"] == "trunk":
-            raise NotImplementedError
+
+            # We only support environments whose observation spaces are flat vectors.
+            if (
+                not isinstance(self.observation_space, Box)
+                or len(self.observation_space.shape) != 1
+            ):
+                raise NotImplementedError
+            self.num_tasks = architecture_config["num_tasks"]
+
+            self.actor = MultiTaskTrunkNetwork(
+                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                output_size=self.output_size,
+                init_base=init_base,
+                init_final=init_final,
+                device=self.device,
+                **architecture_kwargs,
+            )
+            self.critic = MultiTaskTrunkNetwork(
+                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                output_size=1,
+                init_base=init_base,
+                init_final=init_base,
+                device=self.device,
+                **architecture_kwargs,
+            )
+
+            # Extra parameter vectors (one for each task) for standard deviations in the
+            # case that the policy distribution is Gaussian.
+            if isinstance(self.action_space, Box):
+                logstd_list = []
+                for _ in range(architecture_config["num_tasks"]):
+                    logstd_list.append(AddBias(torch.zeros(self.output_size)))
+                self.output_logstd = nn.ModuleList(logstd_list)
 
         else:
             raise ValueError(
                 "Unsupported architecture type: %s" % str(architecture_config["type"])
             )
-
-        # Extra parameter vector for standard deviations in the case that
-        # the policy distribution is Gaussian.
-        if isinstance(self.action_space, Box):
-            self.logstd = AddBias(torch.zeros(self.output_size))
 
     def forward(
         self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
@@ -136,18 +169,54 @@ class ActorCriticNetwork(nn.Module):
         if self.recurrent:
             x, hidden_state = self.recurrent_block(x, hidden_state, done)
 
-        # Pass through actor and critic networks.
-        value_pred = self.critic(x)
-        actor_output = self.actor(x)
+        # Pass through actor and critic networks. We do this separately depending on the
+        # architecture type, since the trunk network needs the task index info included
+        # in obs in order to feed each observation to the correct output head, and this
+        # information isn't present in `x`.
+        if self.architecture_type == "mlp":
+            value_pred = self.critic(x)
+            actor_output = self.actor(x)
+
+        elif self.architecture_type == "trunk":
+            task_index_pos = self.input_size - self.num_tasks
+            task_indices = obs[:, task_index_pos:].nonzero()[:, 1]
+            value_pred = self.critic(x, task_indices)
+            actor_output = self.actor(x, task_indices)
+
+        else:
+            raise NotImplementedError
 
         # Construct action distribution from actor output.
         if isinstance(self.action_space, Discrete):
             action_dist = Categorical(logits=actor_output)
         elif isinstance(self.action_space, Box):
-            action_logstd = self.logstd(
-                torch.zeros(actor_output.size(), device=self.device)
-            )
+
+            # Use logstd to compute standard deviation of action distribution.
+            if self.architecture_type == "mlp":
+                action_logstd = self.logstd(
+                    torch.zeros(actor_output.size(), device=self.device)
+                )
+
+            elif self.architecture_type == "trunk":
+
+                # In the trunk case, we have to do account for the fact that each output
+                # head has its own copy of `logstd`.
+                action_logstds = []
+                logstd_shape = actor_output.shape[1:]
+                for i in range(len(task_indices)):
+                    task_index = task_indices[i]
+                    action_logstds.append(
+                        self.output_logstd[task_index](
+                            torch.zeros(logstd_shape, device=self.device)
+                        )
+                    )
+                action_logstd = torch.stack(action_logstds)
+
+            else:
+                raise NotImplementedError
+
             action_dist = Normal(loc=actor_output, scale=action_logstd.exp())
+
         else:
             raise NotImplementedError
 
