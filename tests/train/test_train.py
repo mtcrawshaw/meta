@@ -586,7 +586,7 @@ def test_train_MT10_trunk_exclude_task() -> None:
 
     # Modify default training config.
     config["architecture_config"]["include_task_index"] = False
-    config["baseline_metrics_filename"] = "MT10_trunk"
+    config["baseline_metrics_filename"] = "MT10_trunk_exclude_task"
 
     # Run training.
     train(config)
@@ -606,7 +606,7 @@ def test_train_MT10_trunk_recurrent_exclude_task() -> None:
     # Modify default training config.
     config["architecture_config"]["recurrent"] = True
     config["architecture_config"]["include_task_index"] = False
-    config["baseline_metrics_filename"] = "MT10_trunk_recurrent"
+    config["baseline_metrics_filename"] = "MT10_trunk_recurrent_exclude_task"
 
     # Run training.
     train(config)

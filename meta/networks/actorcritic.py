@@ -67,9 +67,14 @@ class ActorCriticNetwork(nn.Module):
             # trunk architecture.
             input_size = self.input_size
             observation_shape = get_space_shape(self.observation_space, "obs")
-            if architecture_config["type"] == "trunk" and not architecture_config["include_task_index"]:
+            if (
+                architecture_config["type"] == "trunk"
+                and not architecture_config["include_task_index"]
+            ):
                 input_size -= architecture_config["num_tasks"]
-                observation_shape = (observation_shape[0] - architecture_config["num_tasks"],)
+                observation_shape = (
+                    observation_shape[0] - architecture_config["num_tasks"],
+                )
 
             self.recurrent_block = RecurrentBlock(
                 input_size=input_size,

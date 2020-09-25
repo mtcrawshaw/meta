@@ -55,7 +55,7 @@ New network classes:
 
 Currently we created the RecurrentBlock, MLPNetwork, MultiTaskTrunkNetwork, and
 ActorCritic classes. Now we need to fix the option to include/exclude task indices for
-the trunk network and add corresponding tests.
+the actor/critic network and add corresponding tests.
 
 ----------------------------------------------------------------------------------------
 
