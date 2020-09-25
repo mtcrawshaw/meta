@@ -25,8 +25,8 @@ Current sprint (MT10/MT50 baselines):
 
 Current task (Splitting networks):
     Individually compute task losses
---> Separate network from model
-    Set forward pass as a function of sharing variables (layers as regions)
+    Separate network from model
+--> Set forward pass as a function of sharing variables (layers as regions)
     Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
@@ -36,26 +36,7 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-The implementation of splitting networks won't be general until we decouple network
-architectures from the model (here model is actor critic). Do this before writing
-SplittingNetwork class.
-
-Current network classes:
-- BaseNetwork
-- VanillaNetwork
-- MultiTaskTrunkNetwork
-
-New network classes:
-- file with shared initialization functions
-- BaseNetwork -> RecurrentBlock
-- VanillaNetwork -> MLPNetwork
-- MultiTaskTrunk -> MultiTaskTrunkNetwork
-- SplittingNetwork (after making other changes)
-- VanillaNetwork -> ActorCritic
-
-Currently we created the RecurrentBlock, MLPNetwork, MultiTaskTrunkNetwork, and
-ActorCritic classes. Now we need to fix the option to include/exclude task indices for
-the actor/critic network and add corresponding tests.
+Start building splitting network!
 
 ----------------------------------------------------------------------------------------
 
