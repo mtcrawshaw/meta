@@ -9,7 +9,6 @@ import torch.nn as nn
 from gym.spaces import Space
 
 from meta.networks.initialize import init_recurrent
-from meta.utils.utils import get_space_shape
 
 
 class RecurrentBlock(nn.Module):
@@ -19,7 +18,7 @@ class RecurrentBlock(nn.Module):
         self,
         input_size: int,
         hidden_size: int,
-        observation_space: Space,
+        observation_shape: Tuple[int, ...],
         num_processes: int,
         rollout_length: int,
         device: torch.device = None,
@@ -28,7 +27,7 @@ class RecurrentBlock(nn.Module):
         super(RecurrentBlock, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.observation_space = observation_space
+        self.observation_shape = observation_shape
         self.num_processes = num_processes
         self.rollout_length = rollout_length
 
@@ -75,8 +74,7 @@ class RecurrentBlock(nn.Module):
         # against the size of a single batch of observations. If a sequence is given,
         # the first two dimensions will be combined (this happens in the recurrent
         # minibatch generator).
-        observation_shape = get_space_shape(self.observation_space, "obs")
-        if inputs.shape == (self.num_processes, *observation_shape):
+        if inputs.shape == (self.num_processes, *self.observation_shape):
 
             # Clear the hidden state for any processes for which the environment just
             # finished.
@@ -90,7 +88,7 @@ class RecurrentBlock(nn.Module):
             output = output.squeeze(0)
             hidden_state = hidden_state.squeeze(0)
 
-        elif inputs.shape[1:] == observation_shape:
+        elif inputs.shape[1:] == self.observation_shape:
 
             # The first dimension should be made of concatenated trajectories from
             # mutiple processes, so that the length of this dimension should be a
@@ -101,7 +99,7 @@ class RecurrentBlock(nn.Module):
 
             # Flatten inputs and dones, and give hidden_state a temporal dimension.
             inputs = inputs.view(
-                self.rollout_length, num_trajectories, *observation_shape
+                self.rollout_length, num_trajectories, *self.observation_shape
             )
             hidden_state = hidden_state.unsqueeze(0)
             done = done.view(self.rollout_length, num_trajectories)

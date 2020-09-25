@@ -573,6 +573,45 @@ def test_train_MT10_trunk_recurrent() -> None:
     train(config)
 
 
+def test_train_MT10_trunk_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with shared trunk architecture, while
+    excluding the task index from the network input.
+    """
+
+    # Load default training config.
+    with open(TRUNK_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_trunk"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_trunk_recurrent_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent shared trunk architecture,
+    while excluding the task index from the network input.
+    """
+
+    # Load default training config.
+    with open(TRUNK_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_trunk_recurrent"
+
+    # Run training.
+    train(config)
+
+
 def test_train_save_load() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment

@@ -28,7 +28,6 @@ class MultiTaskTrunkNetwork(nn.Module):
         num_tasks: int,
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
-        include_task_index: bool = True,
         hidden_size: int = 64,
         device: torch.device = None,
     ) -> None:
@@ -51,12 +50,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.num_tasks = num_tasks
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
-        self.include_task_index = include_task_index
         self.hidden_size = hidden_size
-
-        # Adjust input size if the one-hot task vector should be omitted from the input.
-        if not self.include_task_index:
-            self.input_size -= self.num_tasks
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -138,14 +132,8 @@ class MultiTaskTrunkNetwork(nn.Module):
             Output of shared trunk network when given ``inputs`` as input.
         """
 
-        # Omit one-hot task vector from network input, if necessary.
-        if self.include_task_index:
-            x = inputs
-        else:
-            x = inputs[:, :task_index_pos]
-
         # Pass input through shared trunk.
-        trunk_output = self.trunk(x)
+        trunk_output = self.trunk(inputs)
 
         # To forward pass through the output heads, we first partition the inputs by
         # their task, so that we can perform only one forward pass through each

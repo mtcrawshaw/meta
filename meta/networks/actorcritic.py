@@ -14,7 +14,7 @@ from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from meta.utils.utils import AddBias, get_space_size
+from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
 
 class ActorCriticNetwork(nn.Module):
@@ -60,10 +60,21 @@ class ActorCriticNetwork(nn.Module):
 
         # Initialize recurrent block, if necessary.
         if architecture_config["recurrent"]:
+
+            # Correct recurrent input size if we should exclude task index. The line
+            # where we change the observation shape to reflect the exclusion assumes
+            # that len(observation) == 1, since this is the only supported case for the
+            # trunk architecture.
+            input_size = self.input_size
+            observation_shape = get_space_shape(self.observation_space, "obs")
+            if architecture_config["type"] == "trunk" and not architecture_config["include_task_index"]:
+                input_size -= architecture_config["num_tasks"]
+                observation_shape = (observation_shape[0] - architecture_config["num_tasks"],)
+
             self.recurrent_block = RecurrentBlock(
-                input_size=self.input_size,
+                input_size=input_size,
                 hidden_size=self.hidden_size,
-                observation_space=self.observation_space,
+                observation_shape=observation_shape,
                 num_processes=self.num_processes,
                 rollout_length=self.rollout_length,
                 device=self.device,
@@ -105,9 +116,22 @@ class ActorCriticNetwork(nn.Module):
             ):
                 raise NotImplementedError
             self.num_tasks = architecture_config["num_tasks"]
+            self.include_task_index = architecture_config["include_task_index"]
+
+            # Correct input size if we should exclude task index from the input and the
+            # architecture isn't recurrent. This is because: when we are excluding the
+            # task input and we have a recurrent block at the beginning of the
+            # architecture, we exclude the task index from the recurrent input, not the
+            # input to the trunk.
+            input_size = self.input_size
+            if self.recurrent:
+                input_size = self.hidden_size
+            elif not self.include_task_index:
+                input_size -= self.num_tasks
+            del architecture_kwargs["include_task_index"]
 
             self.actor = MultiTaskTrunkNetwork(
-                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                input_size=input_size,
                 output_size=self.output_size,
                 init_base=init_base,
                 init_final=init_final,
@@ -115,7 +139,7 @@ class ActorCriticNetwork(nn.Module):
                 **architecture_kwargs,
             )
             self.critic = MultiTaskTrunkNetwork(
-                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                input_size=input_size,
                 output_size=1,
                 init_base=init_base,
                 init_final=init_base,
@@ -164,6 +188,11 @@ class ActorCriticNetwork(nn.Module):
         """
 
         x = obs
+
+        # Exclude task index from obs, if necessary.
+        if self.architecture_type == "trunk" and not self.include_task_index:
+            task_index_pos = self.input_size - self.num_tasks
+            x = x[:, :task_index_pos]
 
         # Pass through recurrent layer, if necessary.
         if self.recurrent:
