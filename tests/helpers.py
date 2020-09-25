@@ -1,6 +1,7 @@
 """ Utilities for tests. """
 
 import os
+import random
 from typing import Dict, Any, Tuple, List
 
 import torch
@@ -249,3 +250,12 @@ def check_results_name(save_name: str) -> None:
             "Already exists saved results with name %s. This folder must be renamed "
             "or deleted in order for the test to run properly." % save_name
         )
+
+
+def one_hot_tensor(n: int) -> torch.Tensor:
+    """ Sample a one hot vector of length n, return as a torch Tensor. """
+
+    one_hot = torch.zeros(n)
+    k = random.randrange(n)
+    one_hot[k] = 1.0
+    return one_hot

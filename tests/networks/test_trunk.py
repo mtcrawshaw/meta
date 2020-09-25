@@ -3,7 +3,6 @@ Unit tests for meta/networks/trunk.py.
 """
 
 from math import log
-import random
 
 import numpy as np
 import torch
@@ -11,7 +10,7 @@ from gym.spaces import Box, Discrete
 
 from meta.networks.initialize import init_base, init_final
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from tests.helpers import DEFAULT_SETTINGS
+from tests.helpers import DEFAULT_SETTINGS, one_hot_tensor
 
 
 SETTINGS = {
@@ -23,15 +22,6 @@ SETTINGS = {
     "include_task_index": True,
     "device": torch.device("cpu"),
 }
-
-
-def one_hot_tensor(n: int) -> torch.Tensor:
-    """ Sample a one hot vector of length n, return as a torch Tensor. """
-
-    one_hot = torch.zeros(n)
-    k = random.randrange(n)
-    one_hot[k] = 1.0
-    return one_hot
 
 
 def test_forward() -> None:
