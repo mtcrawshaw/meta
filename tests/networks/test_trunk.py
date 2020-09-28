@@ -10,7 +10,7 @@ from gym.spaces import Box, Discrete
 
 from meta.networks.initialize import init_base, init_final
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from tests.helpers import DEFAULT_SETTINGS, one_hot_tensor
+from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
 SETTINGS = {
@@ -59,15 +59,11 @@ def test_forward() -> None:
         network.output_heads[i].load_state_dict(state_dict)
 
     # Construct batch of observations concatenated with one-hot task vectors.
-    obs_list = []
-    for _ in range(SETTINGS["num_processes"]):
-        ob = torch.Tensor(observation_subspace.sample())
-        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
-        obs_list.append(torch.cat([ob, task_vector]))
-    obs = torch.stack(obs_list)
-    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
-    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
-    task_indices = nonzero_pos[:, 1]
+    obs, task_indices = get_obs_batch(
+        batch_size=SETTINGS["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=SETTINGS["num_tasks"],
+    )
 
     # Get output of network.
     output = network(obs, task_indices)
@@ -129,16 +125,12 @@ def test_forward_obs_only() -> None:
         network.output_heads[i].load_state_dict(state_dict)
 
     # Construct batch of observations concatenated with one-hot task vectors.
-    obs_list = []
-    for _ in range(SETTINGS["num_processes"]):
-        ob = torch.Tensor(observation_subspace.sample())
-        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
-        obs_list.append(torch.cat([ob, task_vector]))
-    obs = torch.stack(obs_list)
-    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
-    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
-    task_indices = nonzero_pos[:, 1]
-    obs_only = obs[:, : SETTINGS["obs_dim"]]
+    obs, task_indices = get_obs_batch(
+        batch_size=SETTINGS["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=SETTINGS["num_tasks"],
+    )
+    obs_only = obs[:, :dim]
 
     # Get output of network.
     output = network(obs_only, task_indices)
@@ -180,15 +172,11 @@ def test_backward() -> None:
     )
 
     # Construct batch of observations concatenated with one-hot task vectors.
-    obs_list = []
-    for _ in range(SETTINGS["num_processes"]):
-        ob = torch.Tensor(observation_subspace.sample())
-        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
-        obs_list.append(torch.cat([ob, task_vector]))
-    obs = torch.stack(obs_list)
-    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
-    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
-    task_indices = nonzero_pos[:, 1]
+    obs, task_indices = get_obs_batch(
+        batch_size=SETTINGS["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=SETTINGS["num_tasks"],
+    )
 
     # Make sure every task gets at least one process.
     assert set(task_indices.tolist()) == set(range(SETTINGS["num_tasks"]))

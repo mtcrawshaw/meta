@@ -36,7 +36,8 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Start building splitting network!
+Implemented splitting network forward pass, needs to be tested. Implemented one test
+with network fully shared, but need others where splitting structure is non-trivial.
 
 ----------------------------------------------------------------------------------------
 

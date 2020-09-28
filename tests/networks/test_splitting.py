@@ -4,26 +4,28 @@ Unit tests for meta/networks/splitting.py.
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from gym.spaces import Box
 
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
-from tests.helpers import DEFAULT_SETTINGS, one_hot_tensor
+from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
 SETTINGS = {
-    "obs_dim": 8,
-    "num_processes": 6,
-    "num_tasks": 3,
+    "obs_dim": 2,
+    "num_processes": 3,
+    "num_tasks": 2,
     "num_layers": 3,
     "include_task_index": True,
     "device": torch.device("cpu"),
 }
 
 
-def test_forward() -> None:
+def test_forward_fully_shared() -> None:
     """
-    Test forward().
+    Test forward() when all regions of the splitting network are fully shared. The
+    function computed by the network should be f(x) = 3 * tanh(2 * tanh(x + 1) + 2) + 3.
     """
 
     # Set up case.
@@ -44,19 +46,27 @@ def test_forward() -> None:
         device=SETTINGS["device"],
     )
 
+    # Set network weights.
+    state_dict = network.state_dict()
+    for i in range(SETTINGS["num_layers"]):
+        weight_name = "regions.%d.0.0.weight" % i
+        bias_name = "regions.%d.0.0.bias" % i
+        state_dict[weight_name] = torch.Tensor((i + 1) * np.identity(dim))
+        state_dict[bias_name] = torch.Tensor((i + 1) * np.ones(dim))
+    network.load_state_dict(state_dict)
+
     # Construct batch of observations concatenated with one-hot task vectors.
-    obs_list = []
-    for i in range(SETTINGS["num_processes"]):
-        # ob = torch.Tensor(observation_subspace.sample())
-        ob = torch.Tensor([i] * SETTINGS["obs_dim"])
-        task_vector = one_hot_tensor(SETTINGS["num_tasks"])
-        obs_list.append(torch.cat([ob, task_vector]))
-    obs = torch.stack(obs_list)
-    nonzero_pos = obs[:, SETTINGS["obs_dim"] :].nonzero()
-    assert nonzero_pos[:, 0].tolist() == list(range(SETTINGS["num_processes"]))
-    task_indices = nonzero_pos[:, 1]
+    obs, task_indices = get_obs_batch(
+        batch_size=SETTINGS["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=SETTINGS["num_tasks"],
+    )
 
     # Get output of network.
     output = network(obs, task_indices)
 
-    assert False
+    # Computed expected output of network.
+    expected_output = 3 * torch.tanh(2 * torch.tanh(obs + 1) + 2) + 3
+
+    # Test output of network.
+    assert torch.allclose(output, expected_output)

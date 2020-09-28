@@ -6,6 +6,7 @@ from typing import Dict, Any, Tuple, List
 
 import torch
 from gym import Env
+from gym.spaces import Space
 
 from meta.train.env import get_num_tasks
 from meta.train.ppo import PPOPolicy
@@ -236,6 +237,31 @@ def get_task_rollouts(
                     )
 
     return rollout, task_rollouts
+
+
+def get_obs_batch(
+    batch_size: int, obs_space: Space, num_tasks: int
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Sample a batch of (multi-task) observations and task indices. Note that `obs_space`
+    must be one-dimensional.
+    """
+
+    obs_shape = obs_space.sample().shape
+    assert len(obs_shape) == 1
+    obs_len = obs_shape[0]
+
+    obs_list = []
+    for i in range(batch_size):
+        ob = torch.Tensor(obs_space.sample())
+        task_vector = one_hot_tensor(num_tasks)
+        obs_list.append(torch.cat([ob, task_vector]))
+    obs = torch.stack(obs_list)
+    nonzero_pos = obs[:, obs_len:].nonzero()
+    assert nonzero_pos[:, 0].tolist() == list(range(batch_size))
+    task_indices = nonzero_pos[:, 1]
+
+    return obs, task_indices
 
 
 def check_results_name(save_name: str) -> None:
