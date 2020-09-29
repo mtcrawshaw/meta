@@ -27,10 +27,13 @@ Current task (Splitting networks):
     Individually compute task losses
     Separate network from model
     Set forward pass as a function of sharing variables (layers as regions)
+    Add support for training with SplittingMLPNetwork
 --> Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
     Change sharing variables when statistical significance is reached
+    Stopping criterion
+    Add training tests
     Allow regions to be individual units
     Add support for convolutional networks
     Refactoring
@@ -107,6 +110,8 @@ Possible additions:
   utilization, i.e. bigger batch sizes to increase GPU utilization, less processes if
   thrashing is present
 - Tests for solving simple openai gym environments in a small amount of time
+- In actor/critic network, add splitting for action_logstd. Right now each task just has
+  a separate set of these parameters.
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training

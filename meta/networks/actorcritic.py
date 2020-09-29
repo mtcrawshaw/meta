@@ -14,6 +14,7 @@ from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
+from meta.networks.splitting import SplittingMLPNetwork
 from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
 
@@ -112,7 +113,7 @@ class ActorCriticNetwork(nn.Module):
             if isinstance(self.action_space, Box):
                 self.logstd = AddBias(torch.zeros(self.output_size))
 
-        elif architecture_config["type"] == "trunk":
+        elif architecture_config["type"] in ["trunk", "splitting"]:
 
             # We only support environments whose observation spaces are flat vectors.
             if (
@@ -135,7 +136,14 @@ class ActorCriticNetwork(nn.Module):
                 input_size -= self.num_tasks
             del architecture_kwargs["include_task_index"]
 
-            self.actor = MultiTaskTrunkNetwork(
+            if architecture_config["type"] == "trunk":
+                cls = MultiTaskTrunkNetwork
+            elif architecture_config["type"] == "splitting":
+                cls = SplittingMLPNetwork
+            else:
+                raise NotImplementedError
+
+            self.actor = cls(
                 input_size=input_size,
                 output_size=self.output_size,
                 init_base=init_base,
@@ -143,7 +151,7 @@ class ActorCriticNetwork(nn.Module):
                 device=self.device,
                 **architecture_kwargs,
             )
-            self.critic = MultiTaskTrunkNetwork(
+            self.critic = cls(
                 input_size=input_size,
                 output_size=1,
                 init_base=init_base,
@@ -204,14 +212,14 @@ class ActorCriticNetwork(nn.Module):
             x, hidden_state = self.recurrent_block(x, hidden_state, done)
 
         # Pass through actor and critic networks. We do this separately depending on the
-        # architecture type, since the trunk network needs the task index info included
-        # in obs in order to feed each observation to the correct output head, and this
-        # information isn't present in `x`.
+        # architecture type, since the multi-task networks need the task index info
+        # included in obs in order to feed each observation to the correct output head,
+        # and this information isn't present in `x`.
         if self.architecture_type == "mlp":
             value_pred = self.critic(x)
             actor_output = self.actor(x)
 
-        elif self.architecture_type == "trunk":
+        elif self.architecture_type in ["trunk", "splitting"]:
             task_index_pos = self.input_size - self.num_tasks
             task_indices = obs[:, task_index_pos:].nonzero()[:, 1]
             value_pred = self.critic(x, task_indices)
@@ -231,10 +239,10 @@ class ActorCriticNetwork(nn.Module):
                     torch.zeros(actor_output.size(), device=self.device)
                 )
 
-            elif self.architecture_type == "trunk":
+            elif self.architecture_type in ["trunk", "splitting"]:
 
-                # In the trunk case, we have to do account for the fact that each output
-                # head has its own copy of `logstd`.
+                # In the multi-task case, we have to do account for the fact that each
+                # output head has its own copy of `logstd`.
                 action_logstds = []
                 logstd_shape = actor_output.shape[1:]
                 for i in range(len(task_indices)):

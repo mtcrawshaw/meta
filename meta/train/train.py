@@ -77,9 +77,9 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Whether or not to normalize observations and rewards.
     architecture_config: Dict[str, Any]
         Config dictionary for the architecture. Should contain an entry for "type",
-        which is either "vanilla" or "trunk", and all other entries should correspond to
-        the keyword arguments for the corresponding network class, which is either
-        VanillaNetwork or MultiTaskTrunkNetwork.
+        which is either "vanilla", "trunk" or "splitting", and all other entries should
+        correspond to the keyword arguments for the corresponding network class, which
+        is either VanillaNetwork, MultiTaskTrunkNetwork, or SplittingMLPNetwork.
     cuda : bool
         Whether or not to train on GPU.
     seed : int
