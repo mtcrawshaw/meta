@@ -2,6 +2,7 @@
 Definition of SplittingMLPNetwork, a multi-layer perceptron splitting network.
 """
 
+from copy import deepcopy
 from typing import Callable, List
 
 import torch
@@ -154,6 +155,25 @@ class SplittingMLPNetwork(nn.Module):
 
         return x
 
+    def split(
+        self, region: int, copy: int, group_1: List[int], group_2: List[int]
+    ) -> None:
+        """
+        Split the `copy`-th copy of region `region`. The tasks with indices in `group_1`
+        will remain tied to copy `copy`, while the tasks with indices in `group_2` will
+        be assigned to the new copy. It is required that the combined task indices of
+        `group_1` and `group_2` make up all tasks assigned to copy `copy` at region
+        `region`.
+        """
+
+        # Split the map that describes the splitting structure, so that tasks with
+        # indices in `group_2` are assigned to the new copy.
+        self.maps[region].split(copy, group_1, group_2)
+
+        # Create a new module and add to parameters.
+        new_copy = deepcopy(self.regions[region][copy])
+        self.regions[region].append(new_copy)
+
 
 class SplittingMap:
     """
@@ -177,8 +197,8 @@ class SplittingMap:
         """
 
         # Check that precondition is satisfied.
-        assert set(group_1.extend(group_2)) == set(
-            [i for i in range(num_tasks) if self.module[i] == copy]
+        assert set(group_1 + group_2) == set(
+            [i for i in range(self.num_tasks) if self.module[i] == copy]
         )
 
         self.num_copies += 1

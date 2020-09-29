@@ -26,8 +26,8 @@ Current sprint (MT10/MT50 baselines):
 Current task (Splitting networks):
     Individually compute task losses
     Separate network from model
---> Set forward pass as a function of sharing variables (layers as regions)
-    Compute task-specific gradients for MLP
+    Set forward pass as a function of sharing variables (layers as regions)
+--> Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
     Change sharing variables when statistical significance is reached
@@ -36,8 +36,6 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Implemented splitting network forward pass, needs to be tested. Implemented one test
-with network fully shared, but need others where splitting structure is non-trivial.
 
 ----------------------------------------------------------------------------------------
 
