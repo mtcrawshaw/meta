@@ -101,7 +101,7 @@ class SplittingMLPNetwork(nn.Module):
         # Find size of biggest region. We use this to initialize tensors that hold
         # gradients with respect to specific regions.
         region_sizes = [
-            sum([param.nelement() for param in self.regions[i].parameters()])
+            sum([param.nelement() for param in self.regions[i][0].parameters()])
             for i in range(self.num_regions)
         ]
         self.max_region_size = max(region_sizes)
