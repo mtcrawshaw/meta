@@ -92,9 +92,19 @@ class SplittingMLPNetwork(nn.Module):
             region_list.append(region)
 
         self.regions = nn.ModuleList(region_list)
+        self.num_regions = len(self.regions)
 
-        # Initialize splitting maps.
+        # Initialize splitting maps. These are the variables that define the parameter
+        # sharing structure between tasks.
         self.maps = [SplittingMap(self.num_tasks) for _ in range(self.num_layers)]
+
+        # Find size of biggest region. We use this to initialize tensors that hold
+        # gradients with respect to specific regions.
+        region_sizes = [
+            sum([param.nelement() for param in self.regions[i].parameters()])
+            for i in range(self.num_regions)
+        ]
+        self.max_region_size = max(region_sizes)
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
@@ -154,6 +164,53 @@ class SplittingMLPNetwork(nn.Module):
             x = x[copy_reverse]
 
         return x
+
+    def check_for_split(self, task_losses: torch.Tensor) -> None:
+        """
+        Determine whether any splits should occur based on the task-specific losses from
+        the current batch. To do this, for each region we update our statistics that
+        estimate the pairwise differences of task gradients, and we check whether there
+        is a statistically significant difference in the gradient distribution between
+        two tasks. If so, we perform a split.
+        """
+
+        task_grads = self.get_task_grads(task_losses)
+
+    def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the task-specific gradients for each task at each region.
+
+        Arguments
+        ---------
+        task_losses : torch.Tensor
+            A tensor of shape `(self.num_tasks,)` holding the task-specific losses for a
+            batch.
+
+        Returns
+        -------
+        task_grads : torch.Tensor
+            A tensor of size `(self.num_tasks, self.num_regions, self.max_region_size)`.
+            `task_grads[i, j]` that holds the gradient of task loss `i` with respect to
+            region `j` padded with zeros to fit the size of the tensor.
+        """
+
+        task_grads = torch.zeros(
+            (self.num_tasks, self.num_regions, self.max_region_size)
+        )
+        for task in range(self.num_tasks):
+
+            self.zero_grad()
+            task_losses[task].backward(retain_graph=True)
+
+            for region in range(self.num_regions):
+                param_grad_list = []
+                copy = int(self.maps[region].module[task])
+                for param in self.regions[region][copy].parameters():
+                    param_grad_list.append(param.grad.view(-1))
+                region_grad = torch.cat(param_grad_list)
+                task_grads[task, region, : len(region_grad)] = region_grad
+
+        return task_grads
 
     def split(
         self, region: int, copy: int, group_1: List[int], group_2: List[int]

@@ -501,7 +501,6 @@ class PPOPolicy:
                 # Compute total loss. `minibatch_loss` is a tensor of shape
                 # (minibatch_size), each value holding the loss for a single example of
                 # the minibatch.
-                self.optimizer.zero_grad()
                 minibatch_loss = -(
                     action_loss
                     - self.value_loss_coeff * value_loss
@@ -518,14 +517,13 @@ class PPOPolicy:
                     # Here we assume that each observation is a flat vector that ends
                     # with a one-hot vector of length `self.num_tasks`. We do NOT
                     # explicitly check these conditions.
-                    loss_list = [torch.zeros(1) for _ in range(self.num_tasks)]
+                    loss = torch.zeros(self.num_tasks)
                     task_indices = obs_batch[:, -self.num_tasks :].nonzero()[:, 1]
                     for task in range(self.num_tasks):
                         task_specific_indices = (
                             (task_indices == task).nonzero().squeeze(-1)
                         )
-                        loss_list[task] = minibatch_loss[task_specific_indices].sum()
-                    loss = tuple(loss_list)
+                        loss[task] = minibatch_loss[task_specific_indices].sum()
 
                 yield loss
 

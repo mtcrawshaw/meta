@@ -39,6 +39,7 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+Write tests for computing task-specific gradients.
 
 ----------------------------------------------------------------------------------------
 
@@ -65,11 +66,6 @@ Future additions:
     - Independent options for normalizing observations and rewards
 - Multi-task architecture support and computation of task-specific loss for environments
   with observation spaces with dimension greater than 1.
-- When it comes time to add training for CV and NLP tasks, decouple the current network
-  objects into model objects and network objects. For example, for the current RL setup
-  we will have an actor critic model, which has two network objects as members, one
-  actor network and one critic network. Right now the only available network objects
-  have to be actor critic networks.
 - Add tests checking saved/loaded values for saving/loading training runs. This can't be
   done right now since the training function is so monolithic, we can't "look inside"
   and check the values of the local variabes of that function. Once this functionality
@@ -77,7 +73,12 @@ Future additions:
   values after loading and created a baseline to compare metrics against. The same goes
   for saving/loading hyperparameter random search runs (the other types of hp search
   are reproducible when saving/loading, so there's no need for it there).
-- Add option to exclude one-hot task vector from recurrent block
+- An option to turn on checks during inference (safe mode). We would check that each
+  observation in a multi-task setting ends with a one-hot tensor of size
+  `self.num_tasks`, and that task gradients from SplittingMLPNetwork.get_task_grads()
+  have the same zero padding structure before finding their difference, etc. This way we
+  still have the option to check and be safe, but we don't have to waste computation
+  time doing so if we don't want to.
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -112,6 +113,13 @@ Possible additions:
 - Tests for solving simple openai gym environments in a small amount of time
 - In actor/critic network, add splitting for action_logstd. Right now each task just has
   a separate set of these parameters.
+- Allow weights/biases to be split independently
+- Find some way to compute statistics of differences of task-specific gradients for each
+  region in parallel. Right now we can't put these values into a tensor because the size
+  of the gradients vary by region. We might be able to just pad with zeros to get this
+  to work, and it would hopefully be much faster than looping over the regions. Check
+  the implementation of SplittingMLPNetwork.check_for_split() to see where to convert
+  lists to tensors.
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
@@ -157,3 +165,12 @@ Refactoring:
 - Create config/architecture_config object so we don't have to mess with string-keyed
   dictionaries everywhere
 - Remove redundant calls to "self.to(device)" in nested modules?
+- In splitting networks, modify task gradient computation so that we don't perform a
+  redundant backwards pass. Right now, we pass over each task loss, then zero everything
+  out and pass over the sum of losses. We don't actually need to do that last backward
+  pass, but we need to do some stuff to get the task losses without zeroing out
+  gradients between each backward pass. Really we just need to take the successive
+  differences of gradients, and we also need to change the format of the backward pass
+  in general so that .backward() does get called on the entire loss if we aren't using
+  splitting networks.
+- Containerize this shit

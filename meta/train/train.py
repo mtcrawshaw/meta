@@ -241,11 +241,17 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # Compute update.
         for step_loss in policy.get_loss(rollout):
 
+            # If we're training a splitting network, pass it the task-specific losses.
+            if config["architecture_config"]["type"] == "splitting":
+                policy.policy_network.actor.check_for_split(step_loss)
+                policy.policy_network.critic.check_for_split(step_loss)
+
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if num_tasks > 1:
-                step_loss = sum(step_loss)
+                step_loss = torch.sum(step_loss)
 
             # Perform backward pass, clip gradient, and take optimizer step.
+            policy.policy_network.zero_grad()
             step_loss.backward()
             if config["max_grad_norm"] is not None:
                 nn.utils.clip_grad_norm_(
