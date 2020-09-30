@@ -453,6 +453,20 @@ def gradients_template(splits_args: List[Dict[str, Any]]) -> None:
 
     task_grads = network.get_task_grads(task_losses)
 
+    def get_task_activations(r, t, tasks):
+        """ Helper function to get activations from specific regions. """
+
+        c = network.maps[r].module[t]
+        copy_indices = network.maps[r].module[tasks]
+        sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
+        sorted_tasks = tasks[copy_permutation]
+        batch_indices = (sorted_copy_indices == c).nonzero().squeeze(-1)
+        task_batch_indices = sorted_tasks[batch_indices]
+        current_task_indices = (task_batch_indices == t).nonzero().squeeze(-1)
+        activations = activation["regions.%d.%d" % (r, c)][current_task_indices]
+
+        return activations
+
     # Compute expected gradients.
     state_dict = network.state_dict()
     expected_task_grads = torch.zeros(
@@ -472,9 +486,7 @@ def gradients_template(splits_args: List[Dict[str, Any]]) -> None:
             # Get copy index and layer input.
             copy = network.maps[region].module[task]
             if region > 0:
-                prev_copy = network.maps[region - 1].module[task]
-                layer_input = activation["regions.%d.%d" % (region - 1, prev_copy)]
-                layer_input = layer_input[task_input_indices]
+                layer_input = get_task_activations(region - 1, task, task_indices)
             else:
                 layer_input = obs[task_input_indices]
 
@@ -482,9 +494,7 @@ def gradients_template(splits_args: List[Dict[str, Any]]) -> None:
             if region == network.num_regions - 1:
                 local_grad[region] = -task_output
             else:
-                layer_output = activation["regions.%d.%d" % (region, copy)]
-                layer_output = layer_output[task_input_indices]
-
+                layer_output = get_task_activations(region, task, task_indices)
                 local_grad[region] = torch.zeros(len(layer_output), dim)
                 next_copy = network.maps[region + 1].module[task]
                 weights = state_dict["regions.%d.%d.0.weight" % (region + 1, next_copy)]

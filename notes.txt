@@ -39,8 +39,10 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Write tests for computing task-specific gradients. We've already done it for the fully
-shared case, just need to extend it to other cases, with hopefully no modifications.
+Write tests for computing task-specific gradients. The tests are written, but we need to
+modify them slightly. We should add (for both the gradient tests and the backward tests)
+random re-initialization the parameters of the new copies. We are testing less
+thoroughly if we let all copies have the same parameters.
 
 ----------------------------------------------------------------------------------------
 
