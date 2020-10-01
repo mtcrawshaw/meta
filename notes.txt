@@ -28,8 +28,8 @@ Current task (Splitting networks):
     Separate network from model
     Set forward pass as a function of sharing variables (layers as regions)
     Add support for training with SplittingMLPNetwork
---> Compute task-specific gradients for MLP
-    Compute pairwise distances between task gradients at each region
+    Compute task-specific gradients for MLP
+--> Compute pairwise distances between task gradients at each region
     Perform statistical tests on pairwise distances
     Change sharing variables when statistical significance is reached
     Stopping criterion
@@ -39,10 +39,6 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Write tests for computing task-specific gradients. The tests are written, but we need to
-modify them slightly. We should add (for both the gradient tests and the backward tests)
-random re-initialization the parameters of the new copies. We are testing less
-thoroughly if we let all copies have the same parameters.
 
 ----------------------------------------------------------------------------------------
 

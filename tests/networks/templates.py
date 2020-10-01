@@ -46,6 +46,17 @@ def gradients_template(
     for split_args in splits_args:
         network.split(**split_args)
 
+    # Re-initialize the new copies so different tasks will actually have different
+    # corresponding functions.
+    state_dict = network.state_dict()
+    for region in range(network.num_regions):
+        for copy in range(1, network.maps[region].num_copies):
+            weight_name = "regions.%d.%d.0.weight" % (region, copy)
+            bias_name = "regions.%d.%d.0.bias" % (region, copy)
+            state_dict[weight_name] = torch.rand(state_dict[weight_name].shape)
+            state_dict[bias_name] = torch.rand(state_dict[bias_name].shape)
+    network.load_state_dict(state_dict)
+
     # Register forward hooks to get activations later from each copy of each region.
     activation = {}
 
@@ -181,6 +192,17 @@ def backward_template(
     # Split the network according to `splits_args`.
     for split_args in splits_args:
         network.split(**split_args)
+
+    # Re-initialize the new copies so different tasks will actually have different
+    # corresponding functions.
+    state_dict = network.state_dict()
+    for region in range(network.num_regions):
+        for copy in range(1, network.maps[region].num_copies):
+            weight_name = "regions.%d.%d.0.weight" % (region, copy)
+            bias_name = "regions.%d.%d.0.bias" % (region, copy)
+            state_dict[weight_name] = torch.rand(state_dict[weight_name].shape)
+            state_dict[bias_name] = torch.rand(state_dict[bias_name].shape)
+    network.load_state_dict(state_dict)
 
     # Construct batch of observations concatenated with one-hot task vectors.
     obs, task_indices = get_obs_batch(
