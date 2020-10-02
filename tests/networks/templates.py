@@ -2,6 +2,7 @@
 Templates for tests in tests/networks.
 """
 
+from itertools import product
 from typing import List, Dict, Any
 from gym.spaces import Box
 
@@ -237,3 +238,58 @@ def backward_template(
                         assert not torch.allclose(param.grad, zero)
                     else:
                         assert torch.allclose(param.grad, zero)
+
+
+def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
+    task-specific gradients at each region.
+    """
+
+    # Set up case.
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(settings["obs_dim"],))
+    observation_subspace.seed(DEFAULT_SETTINGS["seed"])
+    hidden_size = dim
+
+    # Construct network.
+    network = SplittingMLPNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=hidden_size,
+        device=settings["device"],
+    )
+
+    # Construct dummy task gradients.
+    if grad_type == "zero":
+        task_grads = torch.zeros(
+            network.num_tasks, network.num_regions, network.max_region_size
+        )
+    elif grad_type == "rand_identical":
+        task_grads = torch.rand(1, network.num_regions, network.max_region_size)
+        task_grads = task_grads.expand(network.num_tasks, -1, -1)
+        pass
+    elif grad_type == "rand":
+        pass
+        task_grads = torch.rand(
+            network.num_tasks, network.num_regions, network.max_region_size
+        )
+    else:
+        raise NotImplementedError
+
+    # Compute pairwise differences of task gradients.
+    task_grad_diffs = network.get_task_grad_diffs(task_grads)
+
+    # Check computed differences.
+    for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
+        for region in range(network.num_regions):
+            expected_diff = torch.zeros(0)
+            if task1 < task2:
+                expected_diff = torch.sum(
+                    torch.pow(task_grads[task1, region] - task_grads[task2, region], 2)
+                )
+            assert torch.allclose(task_grad_diffs[task1, task2, region], expected_diff)

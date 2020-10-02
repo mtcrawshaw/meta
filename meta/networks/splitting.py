@@ -7,6 +7,7 @@ from typing import Callable, List
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class SplittingMLPNetwork(nn.Module):
@@ -174,7 +175,11 @@ class SplittingMLPNetwork(nn.Module):
         two tasks. If so, we perform a split.
         """
 
+        # Compute task-specific gradients.
         task_grads = self.get_task_grads(task_losses)
+
+        # Compute pairwise differences between task-specific gradients.
+        task_grad_differences = self.get_task_grad_diffs(task_grads)
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
         """
@@ -211,6 +216,48 @@ class SplittingMLPNetwork(nn.Module):
                 task_grads[task, region, : len(region_grad)] = region_grad
 
         return task_grads
+
+    def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
+        """
+        Compute the pairwise differences between task-specific gradients.
+
+        Arguments
+        ---------
+        task_grads : torch.Tensor
+            A tensor of size `(self.num_tasks, self.num_regions, self.max_region_size)`.
+            `task_grads[i, j]` that holds the gradient of task loss `i` with respect to
+            region `j` padded with zeros to fit the size of the tensor.
+
+        Returns
+        -------
+        task_grad_diffs : torch.Tensor
+            A tensor of size `(self.num_tasks, self.num_tasks, self.num_regions)`.
+            `task_grad_diffs[i, j, k]` holds the squared norm of the difference between
+            the task-specific gradients for tasks `i` and `j` at region `k`. Note that
+            we only fill this tensor at position `(i, j, k)` if `i < j` and tasks `i, j`
+            share parameters at region `k` according to `self.maps`, everything else is
+            zero.
+        """
+
+        task_grad_diffs = torch.zeros(self.num_tasks, self.num_tasks, self.num_regions)
+
+        # Compute pairwise difference for gradients at each region.
+        for region in range(self.num_regions):
+
+            # Use F.pdist to get pairwise distance of grads at each region.
+            region_grads = task_grads[:, region, :]
+            region_grad_diffs = torch.pow(F.pdist(region_grads), 2)
+
+            # Reshape pairwise distances. What we get back will fill the flattened upper
+            # triangle of `task_grad_diffs[:, :, region]`, which has shape
+            # `(self.num_tasks * (self.num_tasks - 1) / 2)` so we do some weirdness to
+            # reshape it quickly.
+            pos = 0
+            for i, n in enumerate(reversed(range(self.num_tasks))):
+                task_grad_diffs[i, i + 1 :, region] = region_grad_diffs[pos : pos + n]
+                pos += n
+
+        return task_grad_diffs
 
     def split(
         self, region: int, copy: int, group_1: List[int], group_2: List[int]

@@ -10,7 +10,11 @@ from gym.spaces import Box
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
-from tests.networks.templates import gradients_template, backward_template
+from tests.networks.templates import (
+    gradients_template,
+    backward_template,
+    grad_diffs_template,
+)
 
 
 SETTINGS = {
@@ -388,3 +392,31 @@ def test_task_grads_multiple() -> None:
         {"region": 2, "copy": 0, "group_1": [0, 3], "group_2": [1, 2]},
     ]
     gradients_template(SETTINGS, splits_args)
+
+
+def test_task_grad_diffs_zero() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
+    task-specific gradients at each region when these gradients are hard-coded to zero.
+    """
+
+    grad_diffs_template(SETTINGS, "zero")
+
+
+def test_task_grad_diffs_rand_identical() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
+    task-specific gradients at each region when these gradients are random, but
+    identical across tasks.
+    """
+
+    grad_diffs_template(SETTINGS, "rand_identical")
+
+
+def test_task_grad_diffs_rand() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
+    task-specific gradients at each region when these gradients are random.
+    """
+
+    grad_diffs_template(SETTINGS, "rand")

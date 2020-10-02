@@ -29,8 +29,8 @@ Current task (Splitting networks):
     Set forward pass as a function of sharing variables (layers as regions)
     Add support for training with SplittingMLPNetwork
     Compute task-specific gradients for MLP
---> Compute pairwise distances between task gradients at each region
-    Perform statistical tests on pairwise distances
+    Compute pairwise distances between task gradients at each region
+--> Perform statistical tests on pairwise distances
     Change sharing variables when statistical significance is reached
     Stopping criterion
     Add training tests
@@ -173,3 +173,7 @@ Refactoring:
   in general so that .backward() does get called on the entire loss if we aren't using
   splitting networks.
 - Containerize this shit
+- Refactor SplittingMLPNetwork.get_task_grad_diffs() to only compute pairwise
+  differences between task gradients for tasks that share a copy. Right now it is
+  computed for each pair of tasks at each region. We could also parallelize the
+  computation across regions but I'm not quite sure how to do that.
