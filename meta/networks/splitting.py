@@ -2,12 +2,17 @@
 Definition of SplittingMLPNetwork, a multi-layer perceptron splitting network.
 """
 
+import math
+from itertools import product
 from copy import deepcopy
-from typing import Callable, List
+from typing import Callable, List, Tuple
 
+from scipy.stats import norm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from meta.utils.estimate import RunningMean, RunningMeanStdev
 
 
 class SplittingMLPNetwork(nn.Module):
@@ -26,6 +31,8 @@ class SplittingMLPNetwork(nn.Module):
         num_tasks: int,
         num_layers: int = 3,
         hidden_size: int = 64,
+        split_alpha: float = 0.05,
+        split_step_threshold: int = 30,
         device: torch.device = None,
     ) -> None:
 
@@ -46,12 +53,24 @@ class SplittingMLPNetwork(nn.Module):
         self.num_tasks = num_tasks
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.split_alpha = split_alpha
+        self.split_step_threshold = split_step_threshold
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
 
         # Generate network layers.
         self.initialize_network()
+
+        # Initialize running estimates of gradient statistics.
+        self.grad_diff_stats = RunningMean(
+            shape=(self.num_tasks, self.num_tasks, self.num_regions)
+        )
+        self.grad_stats = RunningMeanStdev(condense=True)
+        self.num_steps = 0
+
+        # Compute critical value of z-statistic based on given value of `split_alpha`.
+        self.z_critical = norm.ppf(1 - self.split_alpha)
 
         # Move model to device.
         self.to(self.device)
@@ -99,13 +118,16 @@ class SplittingMLPNetwork(nn.Module):
         # sharing structure between tasks.
         self.maps = [SplittingMap(self.num_tasks) for _ in range(self.num_layers)]
 
-        # Find size of biggest region. We use this to initialize tensors that hold
+        # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
-        region_sizes = [
-            sum([param.nelement() for param in self.regions[i][0].parameters()])
-            for i in range(self.num_regions)
-        ]
-        self.max_region_size = max(region_sizes)
+        self.region_sizes = torch.Tensor(
+            [
+                sum([param.nelement() for param in self.regions[i][0].parameters()])
+                for i in range(self.num_regions)
+            ]
+        )
+        self.region_sizes = self.region_sizes.to(dtype=torch.long)
+        self.max_region_size = int(max(self.region_sizes))
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
@@ -179,7 +201,50 @@ class SplittingMLPNetwork(nn.Module):
         task_grads = self.get_task_grads(task_losses)
 
         # Compute pairwise differences between task-specific gradients.
-        task_grad_differences = self.get_task_grad_diffs(task_grads)
+        task_grad_diffs = self.get_task_grad_diffs(task_grads)
+
+        # Update our estimates of the mean pairwise distance between tasks and the
+        # standard deviation of the gradient of each individual weight. Since
+        # `task_grads` is a single tensor padded with zeros, we extract the non-pad
+        # values before updating `self.grad_stats`.
+        flattened_grad = torch.cat(
+            [
+                task_grads[t, r, : self.region_sizes[r]]
+                for t, r in product(range(self.num_tasks), range(self.num_regions))
+            ]
+        )
+        self.grad_diff_stats.update(task_grad_diffs)
+        self.grad_stats.update(flattened_grad)
+        self.num_steps += 1
+
+        # If `self.num_steps` is sufficiently large, compute the z-statistic for each
+        # pair of tasks at each region. Intuitively, the magnitude of this value
+        # represents the difference in the distributions of task gradients between each
+        # pair of tasks at each region. If a z-score is large enough, then we perform a
+        # split for the corresponding tasks/region.
+        if self.num_steps >= self.split_step_threshold:
+            mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2
+            mu = mu.expand(self.num_tasks, self.num_tasks, -1)
+            sigma = 2 * torch.sqrt(2 * self.region_sizes) * self.grad_stats.stdev ** 2
+            sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
+            z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.num_steps))
+
+            # Check if `z` is large enough to warrant any splits.
+            split_coords = (z > self.critical_z).nonzero()
+
+            # Perform any necessary splits.
+            for task1, task2, region in split_coords:
+                if self.maps[region].module[task1] != self.maps[region].module[task2]:
+                    continue
+                copy = self.maps[region].module[task1]
+
+                # Partition tasks into groups by distance to task1 and task2.
+                group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
+                group1 = group1.squeeze(-1).tolist()
+                group2 = [task for task in range(self.num_tasks) if task not in group1]
+
+                # Execute split.
+                self.split(region, copy, group1, group2)
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
         """
@@ -202,6 +267,7 @@ class SplittingMLPNetwork(nn.Module):
         task_grads = torch.zeros(
             (self.num_tasks, self.num_regions, self.max_region_size)
         )
+
         for task in range(self.num_tasks):
 
             self.zero_grad()
@@ -219,7 +285,7 @@ class SplittingMLPNetwork(nn.Module):
 
     def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
         """
-        Compute the pairwise differences between task-specific gradients.
+        Compute the squared pairwise differences between task-specific gradients.
 
         Arguments
         ---------
@@ -260,19 +326,19 @@ class SplittingMLPNetwork(nn.Module):
         return task_grad_diffs
 
     def split(
-        self, region: int, copy: int, group_1: List[int], group_2: List[int]
+        self, region: int, copy: int, group1: List[int], group2: List[int]
     ) -> None:
         """
-        Split the `copy`-th copy of region `region`. The tasks with indices in `group_1`
-        will remain tied to copy `copy`, while the tasks with indices in `group_2` will
+        Split the `copy`-th copy of region `region`. The tasks with indices in `group1`
+        will remain tied to copy `copy`, while the tasks with indices in `group2` will
         be assigned to the new copy. It is required that the combined task indices of
-        `group_1` and `group_2` make up all tasks assigned to copy `copy` at region
+        `group1` and `group2` make up all tasks assigned to copy `copy` at region
         `region`.
         """
 
         # Split the map that describes the splitting structure, so that tasks with
-        # indices in `group_2` are assigned to the new copy.
-        self.maps[region].split(copy, group_1, group_2)
+        # indices in `group2` are assigned to the new copy.
+        self.maps[region].split(copy, group1, group2)
 
         # Create a new module and add to parameters.
         new_copy = deepcopy(self.regions[region][copy])

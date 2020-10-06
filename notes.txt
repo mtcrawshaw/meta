@@ -30,7 +30,7 @@ Current task (Splitting networks):
     Add support for training with SplittingMLPNetwork
     Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
---> Perform statistical tests on pairwise distances
+--> Compute test statistic from pairwise distance
     Change sharing variables when statistical significance is reached
     Stopping criterion
     Add training tests
@@ -39,6 +39,22 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+Add calls to torch.no_grad() during splitting computation? Possibly instead use
+requires_grad=False. Also check that non-parameter tensors of module actually get moved
+to device.
+
+Also, we may want to consider either not using an EMA or decreasing the sample size used
+to compute the z-score. It seems like using an EMA is decreasing the effective sample
+size by increasing variance from focusing on a smaller pool of the sample, i.e. the most
+recent.
+
+Change computation of estimated standard deviation of task gradients so that we aren't
+computing one standard deviation which includes all weights. Instead, we should compute
+the standard deviations of the gradient for each individual task, then average these
+standard deviations. Otherwise the deviation of the gradients will seem much larger than
+they are, because of course there will be more variation for gradients across all tasks
+than across a single task: the gradients from different tasks point in different
+directions!
 
 ----------------------------------------------------------------------------------------
 

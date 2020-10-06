@@ -1,5 +1,6 @@
 pytest
 numpy
+scipy
 torch
 baselines
 gym[box2d]

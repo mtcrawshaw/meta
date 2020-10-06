@@ -27,6 +27,8 @@
         "num_tasks": 10,
         "num_layers": 3,
         "hidden_size": 32,
+        "split_alpha": 0.05,
+        "split_step_threshold": 30,
         "recurrent": false,
         "include_task_index": true
     },
