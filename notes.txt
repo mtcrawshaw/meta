@@ -30,8 +30,8 @@ Current task (Splitting networks):
     Add support for training with SplittingMLPNetwork
     Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
---> Compute test statistic from pairwise distance
-    Change sharing variables when statistical significance is reached
+    Compute test statistic from pairwise distance
+--> Change sharing variables when statistical significance is reached
     Stopping criterion
     Add training tests
     Allow regions to be individual units
@@ -39,6 +39,8 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+TEST THIS SHIT
+
 Add calls to torch.no_grad() during splitting computation? Possibly instead use
 requires_grad=False. Also check that non-parameter tensors of module actually get moved
 to device.

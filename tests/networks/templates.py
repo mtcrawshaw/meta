@@ -287,9 +287,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     # Check computed differences.
     for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
         for region in range(network.num_regions):
-            expected_diff = torch.zeros(0)
-            if task1 < task2:
-                expected_diff = torch.sum(
-                    torch.pow(task_grads[task1, region] - task_grads[task2, region], 2)
-                )
+            expected_diff = torch.sum(
+                torch.pow(task_grads[task1, region] - task_grads[task2, region], 2)
+            )
             assert torch.allclose(task_grad_diffs[task1, task2, region], expected_diff)

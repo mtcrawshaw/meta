@@ -337,7 +337,7 @@ def test_backward_single() -> None:
     """
 
     splits_args = [
-        {"region": 1, "copy": 0, "group_1": [0, 3], "group_2": [1, 2]},
+        {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     backward_template(SETTINGS, splits_args)
 
@@ -349,10 +349,10 @@ def test_backward_multiple() -> None:
     """
 
     splits_args = [
-        {"region": 0, "copy": 0, "group_1": [0, 1], "group_2": [2, 3]},
-        {"region": 1, "copy": 0, "group_1": [0, 2], "group_2": [1, 3]},
-        {"region": 1, "copy": 0, "group_1": [0], "group_2": [2]},
-        {"region": 2, "copy": 0, "group_1": [0, 3], "group_2": [1, 2]},
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 0, "group1": [0], "group2": [2]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     backward_template(SETTINGS, splits_args)
 
@@ -374,7 +374,7 @@ def test_task_grads_single() -> None:
     """
 
     splits_args = [
-        {"region": 1, "copy": 0, "group_1": [0, 3], "group_2": [1, 2]},
+        {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     gradients_template(SETTINGS, splits_args)
 
@@ -386,10 +386,10 @@ def test_task_grads_multiple() -> None:
     """
 
     splits_args = [
-        {"region": 0, "copy": 0, "group_1": [0, 1], "group_2": [2, 3]},
-        {"region": 1, "copy": 0, "group_1": [0, 2], "group_2": [1, 3]},
-        {"region": 1, "copy": 0, "group_1": [0], "group_2": [2]},
-        {"region": 2, "copy": 0, "group_1": [0, 3], "group_2": [1, 2]},
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 0, "group1": [0], "group2": [2]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     gradients_template(SETTINGS, splits_args)
 

@@ -7,6 +7,7 @@ from itertools import product
 from copy import deepcopy
 from typing import Callable, List, Tuple
 
+import numpy as np
 from scipy.stats import norm
 import torch
 import torch.nn as nn
@@ -70,7 +71,7 @@ class SplittingMLPNetwork(nn.Module):
         self.num_steps = 0
 
         # Compute critical value of z-statistic based on given value of `split_alpha`.
-        self.z_critical = norm.ppf(1 - self.split_alpha)
+        self.critical_z = norm.ppf(1 - self.split_alpha)
 
         # Move model to device.
         self.to(self.device)
@@ -225,23 +226,39 @@ class SplittingMLPNetwork(nn.Module):
         if self.num_steps >= self.split_step_threshold:
             mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2
             mu = mu.expand(self.num_tasks, self.num_tasks, -1)
-            sigma = 2 * torch.sqrt(2 * self.region_sizes) * self.grad_stats.stdev ** 2
+            float_region_sizes = self.region_sizes.to(dtype=torch.float32)
+            sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
             sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
             z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.num_steps))
 
             # Check if `z` is large enough to warrant any splits.
             split_coords = (z > self.critical_z).nonzero()
 
-            # Perform any necessary splits.
+            # Perform any necessary splits. Notice that we only do this for if `task1,
+            # task` current share the same copy of `region`, and if `task1 < task2`,
+            # since we don't want to split for both coords (task1, task2, region) and
+            # (task2, task1, region).
             for task1, task2, region in split_coords:
                 if self.maps[region].module[task1] != self.maps[region].module[task2]:
                     continue
+                if task1 >= task2:
+                    continue
                 copy = self.maps[region].module[task1]
 
-                # Partition tasks into groups by distance to task1 and task2.
+                # Partition tasks into groups by distance to task1 and task2. Notice
+                # that we have to filter the groups of tasks so that we are only
+                # including tasks that currently share the same copy of `region` with
+                # `task1` and `task2`.
                 group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
                 group1 = group1.squeeze(-1).tolist()
-                group2 = [task for task in range(self.num_tasks) if task not in group1]
+                group1 = [
+                    task for task in group1 if self.maps[region].module[task] == copy
+                ]
+                group2 = [
+                    task
+                    for task in range(self.num_tasks)
+                    if task not in group1 and self.maps[region].module[task] == copy
+                ]
 
                 # Execute split.
                 self.split(region, copy, group1, group2)
@@ -299,10 +316,7 @@ class SplittingMLPNetwork(nn.Module):
         task_grad_diffs : torch.Tensor
             A tensor of size `(self.num_tasks, self.num_tasks, self.num_regions)`.
             `task_grad_diffs[i, j, k]` holds the squared norm of the difference between
-            the task-specific gradients for tasks `i` and `j` at region `k`. Note that
-            we only fill this tensor at position `(i, j, k)` if `i < j` and tasks `i, j`
-            share parameters at region `k` according to `self.maps`, everything else is
-            zero.
+            the task-specific gradients for tasks `i` and `j` at region `k`.
         """
 
         task_grad_diffs = torch.zeros(self.num_tasks, self.num_tasks, self.num_regions)
@@ -317,11 +331,15 @@ class SplittingMLPNetwork(nn.Module):
             # Reshape pairwise distances. What we get back will fill the flattened upper
             # triangle of `task_grad_diffs[:, :, region]`, which has shape
             # `(self.num_tasks * (self.num_tasks - 1) / 2)` so we do some weirdness to
-            # reshape it quickly.
+            # reshape it quickly. We fill the upper triangle of `task_grad_diffs`, then
+            # we add the tensor to its transpose to fill the entire thing.
             pos = 0
             for i, n in enumerate(reversed(range(self.num_tasks))):
                 task_grad_diffs[i, i + 1 :, region] = region_grad_diffs[pos : pos + n]
                 pos += n
+
+        # Convert upper triangular tensor to symmetric tensor.
+        task_grad_diffs += torch.transpose(task_grad_diffs, 0, 1)
 
         return task_grad_diffs
 
@@ -356,7 +374,7 @@ class SplittingMap:
 
         self.num_tasks = num_tasks
         self.num_copies = 1
-        self.module = torch.zeros(self.num_tasks)
+        self.module = torch.zeros(self.num_tasks, dtype=torch.long)
 
     def split(self, copy: int, group_1: List[int], group_2: List[int]) -> None:
         """
