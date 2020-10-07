@@ -193,43 +193,23 @@ class SplittingMLPNetwork(nn.Module):
         """
         Determine whether any splits should occur based on the task-specific losses from
         the current batch. To do this, for each region we update our statistics that
-        estimate the pairwise differences of task gradients, and we check whether there
-        is a statistically significant difference in the gradient distribution between
-        two tasks. If so, we perform a split.
+        estimate the pairwise differences of task gradients, and we compute a z-score
+        over these differences that determine whether there is a statistically
+        significant difference in the gradient distribution between two tasks at a given
+        region. If so, we perform a split of those tasks at the given region.
         """
+
+        self.num_steps += 1
 
         # Compute task-specific gradients.
         task_grads = self.get_task_grads(task_losses)
 
-        # Compute pairwise differences between task-specific gradients.
-        task_grad_diffs = self.get_task_grad_diffs(task_grads)
+        # Update running estimates of gradient statistics.
+        self.update_grad_stats(task_grads)
 
-        # Update our estimates of the mean pairwise distance between tasks and the
-        # standard deviation of the gradient of each individual weight. Since
-        # `task_grads` is a single tensor padded with zeros, we extract the non-pad
-        # values before updating `self.grad_stats`.
-        flattened_grad = torch.cat(
-            [
-                task_grads[t, r, : self.region_sizes[r]]
-                for t, r in product(range(self.num_tasks), range(self.num_regions))
-            ]
-        )
-        self.grad_diff_stats.update(task_grad_diffs)
-        self.grad_stats.update(flattened_grad)
-        self.num_steps += 1
-
-        # If `self.num_steps` is sufficiently large, compute the z-statistic for each
-        # pair of tasks at each region. Intuitively, the magnitude of this value
-        # represents the difference in the distributions of task gradients between each
-        # pair of tasks at each region. If a z-score is large enough, then we perform a
-        # split for the corresponding tasks/region.
+        # Compute test statistics regarding difference of task gradient distributions.
         if self.num_steps >= self.split_step_threshold:
-            mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2
-            mu = mu.expand(self.num_tasks, self.num_tasks, -1)
-            float_region_sizes = self.region_sizes.to(dtype=torch.float32)
-            sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
-            sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
-            z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.num_steps))
+            z = self.get_split_statistics()
 
             # Check if `z` is large enough to warrant any splits.
             split_coords = (z > self.critical_z).nonzero()
@@ -300,6 +280,29 @@ class SplittingMLPNetwork(nn.Module):
 
         return task_grads
 
+    def update_grad_stats(self, task_grads: torch.Tensor) -> None:
+        """
+        Update our running estimates of gradient statistics. We keep running estimates
+        of the mean of the squared difference between task gradients at each region, and
+        an estimate of the standard deviation of the gradient of each weight.
+        """
+
+        # Compute pairwise differences between task-specific gradients.
+        task_grad_diffs = self.get_task_grad_diffs(task_grads)
+
+        # Update our estimates of the mean pairwise distance between tasks and the
+        # standard deviation of the gradient of each individual weight. Since
+        # `task_grads` is a single tensor padded with zeros, we extract the non-pad
+        # values before updating `self.grad_stats`.
+        flattened_grad = torch.cat(
+            [
+                task_grads[t, r, : self.region_sizes[r]]
+                for t, r in product(range(self.num_tasks), range(self.num_regions))
+            ]
+        )
+        self.grad_diff_stats.update(task_grad_diffs)
+        self.grad_stats.update(flattened_grad)
+
     def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
         """
         Compute the squared pairwise differences between task-specific gradients.
@@ -342,6 +345,23 @@ class SplittingMLPNetwork(nn.Module):
         task_grad_diffs += torch.transpose(task_grad_diffs, 0, 1)
 
         return task_grad_diffs
+
+    def get_split_statistics(self) -> torch.Tensor:
+        """
+        Compute the z-statistic for each pair of tasks at each region. Intuitively, the
+        magnitude of this value represents the difference in the distributions of task
+        gradients between each pair of tasks at each region. If a z-score is large
+        enough, then we will perform a split for the corresponding tasks/region.
+        """
+
+        mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2
+        mu = mu.expand(self.num_tasks, self.num_tasks, -1)
+        float_region_sizes = self.region_sizes.to(dtype=torch.float32)
+        sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
+        sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
+        z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.num_steps))
+
+        return z
 
     def split(
         self, region: int, copy: int, group1: List[int], group2: List[int]

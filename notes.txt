@@ -58,6 +58,9 @@ they are, because of course there will be more variation for gradients across al
 than across a single task: the gradients from different tasks point in different
 directions!
 
+How will our current implementation behave when a batch doesn't contain any samples from
+a given task? Figure this out!
+
 ----------------------------------------------------------------------------------------
 
 Before merging to master:
