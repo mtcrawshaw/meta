@@ -11,9 +11,9 @@ Road map:
 Current sprint (MT10/MT50 baselines):
     Shared trunk architecture
 --> FC splitting networks (regions = layers)
-    Training on CV tasks
-    Convolutional splitting networks (regions = layers)
     Meta splitting networks
+    Multi-task training on CV tasks
+    Convolutional splitting networks (regions = layers)
     Sparse splitting networks (regions = neurons/filters)
     Other baselines (
         PCGrad,

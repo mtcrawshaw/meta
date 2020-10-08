@@ -352,6 +352,13 @@ class SplittingMLPNetwork(nn.Module):
         magnitude of this value represents the difference in the distributions of task
         gradients between each pair of tasks at each region. If a z-score is large
         enough, then we will perform a split for the corresponding tasks/region.
+
+        Returns
+        -------
+        z : torch.Tensor
+            Tensor of size (self.num_tasks, self.num_tasks, self.num_regions), where
+            `z[i, j, k]` holds the z-score of the mean difference in task gradients of
+            tasks `i, j` at region `k`.
         """
 
         mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2

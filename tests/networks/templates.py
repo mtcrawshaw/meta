@@ -2,6 +2,7 @@
 Templates for tests in tests/networks.
 """
 
+import math
 from itertools import product
 from typing import List, Dict, Any
 from gym.spaces import Box
@@ -12,6 +13,9 @@ import torch
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
+
+
+TOL = 4e-5
 
 
 def gradients_template(
@@ -291,3 +295,65 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
                 torch.pow(task_grads[task1, region] - task_grads[task2, region], 2)
             )
             assert torch.allclose(task_grad_diffs[task1, task2, region], expected_diff)
+
+
+def split_stats_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients.
+
+    Arguments
+    ---------
+    settings : Dict[str, Any]
+        Dictionary holding misc settings for how to run trial.
+    task_grads : torch.Tensor
+        Tensor of size `(total_steps, network.num_tasks, network.num_regions,
+        network.max_region_size)` which holds the task gradients for multiple steps that
+        we will compute statistics over.
+    """
+
+    dim = settings["obs_dim"] + settings["num_tasks"]
+
+    # Construct network.
+    network = SplittingMLPNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        device=settings["device"],
+    )
+
+    # Check that the region sizes are what we think they are.
+    expected_region_sizes = torch.zeros(settings["num_layers"], dtype=torch.long)
+    expected_region_sizes[1:-1] = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    expected_region_sizes[0] = settings["hidden_size"] * (dim + 1)
+    expected_region_sizes[-1] = dim * (settings["hidden_size"] + 1)
+    assert torch.all(expected_region_sizes == network.region_sizes)
+
+    # Update the network's gradient statistics with our constructed task gradients,
+    # compute the split statistics at each step along the way, and compare the computed
+    # z-scores against the expected z-scores.
+    grad_std = math.sqrt(0.5)
+    for step in range(len(task_grads)):
+        network.num_steps += 1
+        network.update_grad_stats(task_grads[step])
+        z = network.get_split_statistics()
+        assert z.shape == (network.num_tasks, network.num_tasks, network.num_regions)
+
+        for task1, task2, region in product(
+            range(network.num_tasks),
+            range(network.num_tasks),
+            range(network.num_regions),
+        ):
+            region_size = int(network.region_sizes[region])
+            exp_mean = float(
+                region_size
+                * (task_grads[0, task1, 0, 0] - task_grads[0, task2, 0, 0]) ** 2
+            )
+            exp_mu = 2 * region_size * grad_std ** 2
+            exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
+            expected_z = (exp_mean - exp_mu) / (exp_sigma / math.sqrt(step + 1))
+            assert abs(z[task1, task2, region] - expected_z) < TOL

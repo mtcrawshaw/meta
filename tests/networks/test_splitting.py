@@ -2,6 +2,9 @@
 Unit tests for meta/networks/splitting.py.
 """
 
+import math
+from itertools import product
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -14,6 +17,7 @@ from tests.networks.templates import (
     gradients_template,
     backward_template,
     grad_diffs_template,
+    split_stats_template,
 )
 
 
@@ -22,6 +26,8 @@ SETTINGS = {
     "num_processes": 8,
     "num_tasks": 4,
     "num_layers": 3,
+    "split_alpha": 0.05,
+    "split_step_threshold": 30,
     "include_task_index": True,
     "device": torch.device("cpu"),
 }
@@ -420,3 +426,51 @@ def test_task_grad_diffs_rand() -> None:
     """
 
     grad_diffs_template(SETTINGS, "rand")
+
+
+def test_split_stats_simple_shared() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of identical gradients at each time step
+    and a fully shared network.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = settings["split_step_threshold"] + 10
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grad_vals = [0, -1, 1, 0]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for task, region in product(
+        range(settings["num_tasks"]), range(settings["num_layers"])
+    ):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, task, region, :region_size] = task_grad_vals[task]
+
+    split_stats_template(settings, task_grads)
+
+
+def test_split_stats_random_split() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of identical gradients at each time step
+    and a fully shared network.
+    """
+
+    pass
