@@ -10,9 +10,13 @@ Road map:
 
 Current sprint (MT10/MT50 baselines):
     Shared trunk architecture
---> Splitting networks
-    PCGrad
+--> FC splitting networks (regions = layers)
+    Training on CV tasks
+    Convolutional splitting networks (regions = layers)
+    Meta splitting networks
+    Sparse splitting networks (regions = neurons/filters)
     Other baselines (
+        PCGrad,
         Branched MT networks,
         soft layer ordering,
         modular meta learning (code available),
@@ -34,12 +38,12 @@ Current task (Splitting networks):
 --> Change sharing variables when statistical significance is reached
     Stopping criterion
     Add training tests
-    Allow regions to be individual units
-    Add support for convolutional networks
     Refactoring
 
 Notes for current task:
-TEST THIS SHIT
+Tomorrow: TEST THIS SHIT. Write a few cases with hand-crafted gradients and make sure
+that both z-stats are being computed correctly and splitting decisions are made
+correctly.
 
 Add calls to torch.no_grad() during splitting computation? Possibly instead use
 requires_grad=False. Also check that non-parameter tensors of module actually get moved
