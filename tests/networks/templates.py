@@ -12,10 +12,11 @@ import torch
 
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
+from meta.utils.estimate import EMA_THRESHOLD, EMA_ALPHA
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
-TOL = 4e-5
+TOL = 2e-4
 
 
 def gradients_template(
@@ -297,7 +298,11 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
             assert torch.allclose(task_grad_diffs[task1, task2, region], expected_diff)
 
 
-def split_stats_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> None:
+def split_stats_template(
+    settings: Dict[str, Any],
+    task_grads: torch.Tensor,
+    splits_args: List[Dict[str, Any]],
+) -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
     differences in task gradients.
@@ -310,6 +315,8 @@ def split_stats_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> 
         Tensor of size `(total_steps, network.num_tasks, network.num_regions,
         network.max_region_size)` which holds the task gradients for multiple steps that
         we will compute statistics over.
+    splits_args : List[Dict[str, Any]
+        List of splits to execute on network.
     """
 
     dim = settings["obs_dim"] + settings["num_tasks"]
@@ -326,34 +333,93 @@ def split_stats_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> 
         device=settings["device"],
     )
 
+    # Split the network according to `splits_args`.
+    for split_args in splits_args:
+        network.split(**split_args)
+
     # Check that the region sizes are what we think they are.
     expected_region_sizes = torch.zeros(settings["num_layers"], dtype=torch.long)
     expected_region_sizes[1:-1] = settings["hidden_size"] ** 2 + settings["hidden_size"]
     expected_region_sizes[0] = settings["hidden_size"] * (dim + 1)
     expected_region_sizes[-1] = dim * (settings["hidden_size"] + 1)
     assert torch.all(expected_region_sizes == network.region_sizes)
+    region_sizes = expected_region_sizes.tolist()
 
     # Update the network's gradient statistics with our constructed task gradients,
     # compute the split statistics at each step along the way, and compare the computed
     # z-scores against the expected z-scores.
-    grad_std = math.sqrt(0.5)
     for step in range(len(task_grads)):
         network.num_steps += 1
         network.update_grad_stats(task_grads[step])
         z = network.get_split_statistics()
         assert z.shape == (network.num_tasks, network.num_tasks, network.num_regions)
 
+        # Compute stdev over all gradient values up to `step`. We have to do this
+        # differently based on whether or not we have hit the EMA threshold.
+        if step + 1 <= EMA_THRESHOLD:
+            flattened_grads = get_flattened_grads(task_grads, region_sizes, 0, step + 1)
+            grad_std = float(torch.std(flattened_grads, unbiased=False))
+        else:
+            flattened_grads = get_flattened_grads(
+                task_grads, region_sizes, 0, EMA_THRESHOLD
+            )
+            grad_mean = float(torch.mean(flattened_grads))
+            grad_square_mean = float(torch.mean(flattened_grads ** 2))
+            for i in range(EMA_THRESHOLD, step + 1):
+                flattened_grads = get_flattened_grads(
+                    task_grads, region_sizes, i, i + 1
+                )
+                new_mean = float(torch.mean(flattened_grads))
+                new_square_mean = float(torch.mean(flattened_grads ** 2))
+                grad_mean = grad_mean * EMA_ALPHA + new_mean * (1.0 - EMA_ALPHA)
+                grad_square_mean = grad_square_mean * EMA_ALPHA + new_square_mean * (
+                    1.0 - EMA_ALPHA
+                )
+            grad_std = math.sqrt(grad_square_mean - grad_mean ** 2)
+
+        # Compare `z` to the expected value for each `(task1, task2, region)`.
         for task1, task2, region in product(
             range(network.num_tasks),
             range(network.num_tasks),
             range(network.num_regions),
         ):
             region_size = int(network.region_sizes[region])
-            exp_mean = float(
-                region_size
-                * (task_grads[0, task1, 0, 0] - task_grads[0, task2, 0, 0]) ** 2
-            )
+
+            # Computed the expected value of the mean of gradient differences between
+            # `task1, task2` at region `region`.
+            if step + 1 <= EMA_THRESHOLD:
+                task1_grads = task_grads[: step + 1, task1, region, :]
+                task2_grads = task_grads[: step + 1, task2, region, :]
+                diffs = torch.sum((task1_grads - task2_grads) ** 2, dim=1)
+                exp_mean = torch.mean(diffs)
+            else:
+                initial_task1_grads = task_grads[:EMA_THRESHOLD, task1, region, :]
+                initial_task2_grads = task_grads[:EMA_THRESHOLD, task2, region, :]
+                diffs = torch.sum(
+                    (initial_task1_grads - initial_task2_grads) ** 2, dim=1
+                )
+                exp_mean = torch.mean(diffs)
+                for i in range(EMA_THRESHOLD, step + 1):
+                    task1_grads = task_grads[i, task1, region, :]
+                    task2_grads = task_grads[i, task2, region, :]
+                    diff = torch.sum((task1_grads - task2_grads) ** 2)
+                    exp_mean = exp_mean * EMA_ALPHA + diff * (1.0 - EMA_ALPHA)
+
+            # Compute the expected z-score.
             exp_mu = 2 * region_size * grad_std ** 2
             exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
             expected_z = (exp_mean - exp_mu) / (exp_sigma / math.sqrt(step + 1))
             assert abs(z[task1, task2, region] - expected_z) < TOL
+
+
+def get_flattened_grads(
+    task_grads: torch.Tensor, region_sizes: List[int], begin: int, end: int
+):
+    """ Helper function to get flattened gradients from `task_grads`. """
+
+    flattened_grads = []
+    for region, region_size in enumerate(region_sizes):
+        flattened_grad = task_grads[begin:end, :, region, :region_size]
+        flattened_grad = flattened_grad.reshape(-1)
+        flattened_grads.append(flattened_grad)
+    return torch.cat(flattened_grads)

@@ -12,6 +12,7 @@ from gym.spaces import Box
 
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
+from meta.utils.estimate import EMA_THRESHOLD
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.templates import (
     gradients_template,
@@ -428,11 +429,13 @@ def test_task_grad_diffs_rand() -> None:
     grad_diffs_template(SETTINGS, "rand")
 
 
-def test_split_stats_simple_shared() -> None:
+def test_split_stats_arithmetic_simple_shared() -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
-    differences in task gradients in the case of identical gradients at each time step
-    and a fully shared network.
+    differences in task gradients in the case of identical gradients at each time step,
+    a fully shared network, and only using arithmetic means to keep track of gradient
+    statistics (this happens as long as the number of steps is less than
+    meta.utils.estimate.EMA_THRESHOLD).
     """
 
     # Set up case.
@@ -440,6 +443,9 @@ def test_split_stats_simple_shared() -> None:
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = []
 
     # Construct a sequence of task gradients. The network gradient statistics will be
     # updated with these task gradients, and the z-scores will be computed from these
@@ -463,14 +469,236 @@ def test_split_stats_simple_shared() -> None:
 
         task_grads[:, task, region, :region_size] = task_grad_vals[task]
 
-    split_stats_template(settings, task_grads)
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
 
 
-def test_split_stats_random_split() -> None:
+def test_split_stats_arithmetic_simple_split() -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
-    differences in task gradients in the case of identical gradients at each time step
-    and a fully shared network.
+    differences in task gradients in the case of identical gradients at each time step,
+    a split network, and only using arithmetic means to keep track of gradient
+    statistics (this happens as long as the number of steps is less than
+    meta.utils.estimate.EMA_THRESHOLD).
     """
 
-    pass
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = settings["split_step_threshold"] + 10
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grad_vals = [-2, 1, 0, -1]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for task, region in product(
+        range(settings["num_tasks"]), range(settings["num_layers"])
+    ):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, task, region, :region_size] = task_grad_vals[task]
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_arithmetic_random_shared() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of random gradients at each time step,
+    a fully shared network, and only using arithmetic means to keep track of gradient
+    statistics (this happens as long as the number of steps is less than
+    meta.utils.estimate.EMA_THRESHOLD).
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = settings["split_step_threshold"] + 10
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_arithmetic_random_split() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of identical gradients at each time step,
+    a split network, and only using arithmetic means to keep track of gradient
+    statistics (this happens as long as the number of steps is less than
+    meta.utils.estimate.EMA_THRESHOLD).
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = settings["split_step_threshold"] + 10
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_EMA_random_shared() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of random gradients at each time step, a
+    fully shared network, and using both arithmetic mean and EMA to keep track of
+    gradient statistics (this happens as long as the number of steps is at least
+    meta.utils.estimate.EMA_THRESHOLD).
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = EMA_THRESHOLD + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_EMA_random_split() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of random gradients at each time step, a
+    split network, and using both arithmetic mean and EMA to keep track of gradient
+    statistics (this happens as long as the number of steps is at least
+    meta.utils.estimate.EMA_THRESHOLD).
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = EMA_THRESHOLD + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)

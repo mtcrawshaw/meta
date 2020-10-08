@@ -41,9 +41,9 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Tomorrow: TEST THIS SHIT. Write a few cases with hand-crafted gradients and make sure
-that both z-stats are being computed correctly and splitting decisions are made
-correctly.
+Still have to write write one more test that randomly generates gradients assuming the
+null hypothesis, and check that the resulting z-scores follow a standard normal
+distribution. Afterwards, test that splitting decisions are made correctly.
 
 Add calls to torch.no_grad() during splitting computation? Possibly instead use
 requires_grad=False. Also check that non-parameter tensors of module actually get moved
