@@ -3,9 +3,12 @@ Unit tests for meta/networks/splitting.py.
 """
 
 import math
+import random
 from itertools import product
+from typing import Dict, Any
 
 import numpy as np
+from scipy import stats
 import torch
 import torch.nn.functional as F
 from gym.spaces import Box
@@ -702,3 +705,117 @@ def test_split_stats_EMA_random_split() -> None:
 
     # Run test.
     split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_distribution() -> None:
+    """
+    This is a sanity check on our computation of z-scores in `split_statistics()`. By
+    randomly generating task gradients according to the distribution of the
+    null-hypothesis, the resulting z-scores should follow a standard normal
+    distribution. We check this condition for a varying number of tasks, number of
+    layers, splitting configurations, etc. This test can be very flaky due to the
+    inherent variance of trying to empirically verify the underlying distribution from
+    samples. If it fails, try different seeds and see how it performs on average. It
+    should also be noted that `num_tasks` should probably stay at 2. If it's higher,
+    then the pool of z-scores will not have been independently sampled, so the apparent
+    distribution may not look like it's supposed to.
+    """
+
+    ALPHA = 0.05
+    TOTAL_STEPS = 500
+    START_STEP = 30
+    NUM_TASKS = 2
+    NUM_TRIALS = 50
+    reject_probs = []
+
+    # Construct list of options for each setting.
+    settings_vals = {
+        "obs_dim": [2, 4, 10],
+        "hidden_size": [2, 5, 10],
+        "num_layers": [3, 20, 100],
+        "splits_args": [[]],
+        "grad_sigma": [0.001, 0.1, 1.0],
+    }
+    used_settings = []
+
+    def get_settings() -> Dict[str, Any]:
+        """ Helper function to construct settings dictionary. """
+        return {name: random.choice(options) for name, options in settings_vals.items()}
+
+    for i in range(NUM_TRIALS):
+
+        # Construct unique settings.
+        settings = get_settings()
+        while settings in used_settings:
+            settings = get_settings()
+
+        # Construct network.
+        dim = settings["obs_dim"] + NUM_TASKS
+        network = SplittingMLPNetwork(
+            input_size=dim,
+            output_size=dim,
+            init_base=init_base,
+            init_final=init_base,
+            num_tasks=NUM_TASKS,
+            num_layers=settings["num_layers"],
+            hidden_size=settings["hidden_size"],
+        )
+
+        # Construct a sequence of task gradients according to the distribution of the null
+        # hypothesis. According to this distribution, each element has mean 0 and standard
+        # deviation `settings["grad_sigma"]`.
+        region_sizes = network.region_sizes.tolist()
+        task_grads = torch.zeros(
+            TOTAL_STEPS,
+            network.num_tasks,
+            network.num_regions,
+            network.max_region_size,
+        )
+        for region in range(network.num_regions):
+            mean = torch.zeros(TOTAL_STEPS, network.num_tasks, region_sizes[region])
+            std = torch.ones(TOTAL_STEPS, network.num_tasks, region_sizes[region])
+            std *= settings["grad_sigma"]
+            task_grads[:, :, region, : region_sizes[region]] = torch.normal(mean, std)
+
+        # Update the network's gradient statistics with our constructed task gradients, and
+        # compute the split statistics (z-scores) along the way.
+        reject_count = 0
+        print("\ntrial: %d" % i)
+        for step in range(TOTAL_STEPS):
+            network.num_steps += 1
+            network.update_grad_stats(task_grads[step])
+
+            if step >= START_STEP:
+                z = network.get_split_statistics().numpy()
+
+                # Before we check the distribution of z-scores, we have to remove all the
+                # scores outside of the upper triangle. This will remove duplicates
+                # (`(task1, task2, region)` vs `(task2, task1, region)`) as well as trivial
+                # scores of a task against itself (`(task, task, region)`).
+                filtered_z = []
+                for task in range(network.num_tasks):
+                    filtered_z.append(z[task, task + 1 :, :].reshape(-1))
+                filtered_z = np.concatenate(filtered_z)
+                assert (
+                    len(filtered_z)
+                    == network.num_tasks
+                    * (network.num_tasks - 1)
+                    * network.num_regions
+                    / 2
+                )
+                z = filtered_z
+
+                # Check that the set of computed z-scores follows a standard normal
+                # distribution using the Kolgomorov-Smirnov test.
+                s, p = stats.kstest(z, "norm")
+                if p <= ALPHA:
+                    reject_count += 1
+
+        reject_prob = reject_count / TOTAL_STEPS
+        reject_probs.append(reject_prob)
+
+    avg_reject_prob = sum(reject_probs) / len(reject_probs)
+    print("reject_probs: %s" % str(reject_probs))
+    print("avg reject_prob: %f" % avg_reject_prob)
+    # assert abs(avg_reject_prob - ALPHA) < ALPHA * 0.1
+    assert False

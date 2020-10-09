@@ -41,9 +41,20 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Still have to write write one more test that randomly generates gradients assuming the
-null hypothesis, and check that the resulting z-scores follow a standard normal
-distribution. Afterwards, test that splitting decisions are made correctly.
+Still have to finalize test that randomly generates gradients assuming the null
+hypothesis, and checks that the resulting z-scores follow a standard normal
+distribution. Right now, the test sort of works when we disable EMA for tracking
+gradient statistics, but the p-values are almost never below alpha. The percentage of
+time that they are below alpha should equal alpha, but instead it is very low. Gotta
+keep looking for an answer here and make sure that things are what we think they are.
+Note: EMA_THRESHOLD is currently set to 100, because we don't want to commit the version
+which is set to 1000, although we need it to be above 500 for the test to work. Another
+thing to consider is the fact that the splitting network uses the measured sigma to
+compute the expected mean and standard deviation, while the stats test uses the actual
+sigma. I doubt this these are different enough to account for the difference in
+behavior, but maybe there are other things like this.
+
+After this, we need to test that splitting decisions are made correctly.
 
 Add calls to torch.no_grad() during splitting computation? Possibly instead use
 requires_grad=False. Also check that non-parameter tensors of module actually get moved
