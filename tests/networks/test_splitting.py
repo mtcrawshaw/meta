@@ -722,11 +722,11 @@ def test_split_stats_distribution() -> None:
     """
 
     ALPHA = 0.05
-    TOTAL_STEPS = 500
-    START_STEP = 30
+    TOTAL_STEPS = 250
+    START_STEP = 200
     NUM_TASKS = 2
-    NUM_TRIALS = 50
-    reject_probs = []
+    NUM_TRIALS = 100
+    load = None
 
     # Construct list of options for each setting.
     settings_vals = {
@@ -737,6 +737,7 @@ def test_split_stats_distribution() -> None:
         "grad_sigma": [0.001, 0.1, 1.0],
     }
     used_settings = []
+    reject_probs = []
 
     def get_settings() -> Dict[str, Any]:
         """ Helper function to construct settings dictionary. """
@@ -748,6 +749,7 @@ def test_split_stats_distribution() -> None:
         settings = get_settings()
         while settings in used_settings:
             settings = get_settings()
+        used_settings.append(dict(settings))
 
         # Construct network.
         dim = settings["obs_dim"] + NUM_TASKS
@@ -771,16 +773,23 @@ def test_split_stats_distribution() -> None:
             network.num_regions,
             network.max_region_size,
         )
-        for region in range(network.num_regions):
-            mean = torch.zeros(TOTAL_STEPS, network.num_tasks, region_sizes[region])
-            std = torch.ones(TOTAL_STEPS, network.num_tasks, region_sizes[region])
-            std *= settings["grad_sigma"]
-            task_grads[:, :, region, : region_sizes[region]] = torch.normal(mean, std)
+
+        if load is None:
+            for region in range(network.num_regions):
+                mean = torch.zeros(TOTAL_STEPS, network.num_tasks, region_sizes[region])
+                std = torch.ones(TOTAL_STEPS, network.num_tasks, region_sizes[region])
+                std *= settings["grad_sigma"]
+                task_grads[:, :, region, : region_sizes[region]] = torch.normal(mean, std)
+        else:
+            # Load in generated values saved by scripts/stats_test.py, for debugging.
+            with open(load, "rb") as f:
+                grads_arr = np.load(f)
+            grads_arr = np.transpose(grads_arr, (0, 3, 1, 2))
+            task_grads = torch.Tensor(grads_arr)
 
         # Update the network's gradient statistics with our constructed task gradients, and
         # compute the split statistics (z-scores) along the way.
         reject_count = 0
-        print("\ntrial: %d" % i)
         for step in range(TOTAL_STEPS):
             network.num_steps += 1
             network.update_grad_stats(task_grads[step])
@@ -808,14 +817,15 @@ def test_split_stats_distribution() -> None:
                 # Check that the set of computed z-scores follows a standard normal
                 # distribution using the Kolgomorov-Smirnov test.
                 s, p = stats.kstest(z, "norm")
-                if p <= ALPHA:
+                if p < ALPHA:
                     reject_count += 1
 
-        reject_prob = reject_count / TOTAL_STEPS
+        reject_prob = reject_count / (TOTAL_STEPS - START_STEP)
         reject_probs.append(reject_prob)
 
     avg_reject_prob = sum(reject_probs) / len(reject_probs)
     print("reject_probs: %s" % str(reject_probs))
     print("avg reject_prob: %f" % avg_reject_prob)
+    print("num rejects: %d/%d" % (len([prob for prob in reject_probs if prob != 0.0]), len(reject_probs)))
     # assert abs(avg_reject_prob - ALPHA) < ALPHA * 0.1
     assert False

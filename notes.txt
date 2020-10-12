@@ -52,7 +52,9 @@ which is set to 1000, although we need it to be above 500 for the test to work. 
 thing to consider is the fact that the splitting network uses the measured sigma to
 compute the expected mean and standard deviation, while the stats test uses the actual
 sigma. I doubt this these are different enough to account for the difference in
-behavior, but maybe there are other things like this.
+behavior, but maybe there are other things like this. UPDATE: This approximation error
+is exactly the cause of the difference between the two distributions. We probably need
+to change the statistical test to account for unknown mean and variance.
 
 After this, we need to test that splitting decisions are made correctly.
 

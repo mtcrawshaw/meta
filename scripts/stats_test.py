@@ -10,24 +10,29 @@ from scipy import stats
 
 # Set constants.
 k_vals = [35, 30, 36]
-n_vals = [1, 98, 1]
+n_vals = [1, 18, 1]
 total_n = sum(n_vals)
 sigma = 0.01
-start_t = 400
-t = 500
+start_t = 200
+t = 250
 num_trials = 100
 alpha = 0.05
+load = "vecs.np"
 
-outliers = []
+reject_probs = []
 outlier_count = 0
 for m in range(num_trials):
 
     max_k = max(k_vals)
     vecs = np.zeros((t, total_n, max_k, 2))
-    start = 0
-    for k, n in zip(k_vals, n_vals):
-        vecs[:, start: start+n, :k, :] = np.random.normal(scale=sigma, size=(t, n, k, 2))
-        start = start + n
+    if load is None:
+        start = 0
+        for k, n in zip(k_vals, n_vals):
+            vecs[:, start: start+n, :k, :] = np.random.normal(scale=sigma, size=(t, n, k, 2))
+            start = start + n
+    else:
+        with open(load, "rb") as f:
+            vecs = np.load(f)
 
     count = 0
     for current_t in range(start_t, t):
@@ -45,7 +50,7 @@ for m in range(num_trials):
             diffs = vecs[:current_t+1, start: start + n, :, 0] - vecs[:current_t+1, start: start + n, :, 1]
             lengths = np.linalg.norm(diffs, ord=2, axis=2) ** 2
             sample_mean = np.mean(lengths, axis=0)
-            current_z = (sample_mean - length_mu) / (length_sigma / sqrt(current_t))
+            current_z = (sample_mean - length_mu) / (length_sigma / sqrt(current_t + 1))
             z.append(current_z)
 
             start = start + n
@@ -71,8 +76,8 @@ for m in range(num_trials):
         if p < alpha:
             count += 1
 
-    print("%d outliers: %d/%d" % (m, count, t - start_t))
-    outliers.append(count)
+    reject_prob = count / (t - start_t)
+    reject_probs.append(reject_prob)
     if count > 0:
         outlier_count += 1
 
@@ -80,5 +85,7 @@ for m in range(num_trials):
 for outlier in outliers:
     print("Total outliers: %d/%d" % (outlier, (t - start_t)))
 """
-print("Average outliers: %f" % (sum(outliers) / num_trials))
-print("Number of outlier trials: %d" % outlier_count)
+avg_reject_prob = sum(reject_probs) / len(reject_probs)
+print("reject_probs: %s" % str(reject_probs))
+print("avg reject_prob: %f" % avg_reject_prob)
+print("num rejects: %d/%d" % (outlier_count, num_trials))
