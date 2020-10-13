@@ -4,10 +4,12 @@ Unit tests for meta/utils/estimate.py.
 
 import torch
 
-from meta.utils.estimate import RunningMean, RunningMeanStdev, EMA_THRESHOLD, EMA_ALPHA
+from meta.utils.estimate import RunningMean, RunningMeanStdev, alpha_to_threshold 
 
 
 TOL = 1e-5
+EMA_ALPHA = 0.999
+EMA_THRESHOLD = alpha_to_threshold(EMA_ALPHA)
 
 
 def test_mean_arithmetic():
@@ -22,7 +24,7 @@ def test_mean_arithmetic():
     data = torch.stack(data)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape)
+    mean = RunningMean(shape=shape, ema_alpha=EMA_ALPHA)
     for i in range(len(data)):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1], dim=0))
@@ -36,7 +38,7 @@ def test_mean_rand_arithmetic():
     data = torch.rand(EMA_THRESHOLD, *shape)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape)
+    mean = RunningMean(shape=shape, ema_alpha=EMA_ALPHA)
     for i in range(len(data)):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1], dim=0))
@@ -56,7 +58,7 @@ def test_mean_ema():
     data = torch.stack(data)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape)
+    mean = RunningMean(shape=shape, ema_alpha=EMA_ALPHA)
     for i in range(EMA_THRESHOLD):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1], dim=0))
@@ -76,7 +78,7 @@ def test_mean_rand_ema():
     data = torch.rand(EMA_THRESHOLD + 200, *shape)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape)
+    mean = RunningMean(shape=shape, ema_alpha=EMA_ALPHA)
     for i in range(EMA_THRESHOLD):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1], dim=0))
@@ -212,7 +214,7 @@ def test_mean_condense_arithmetic():
     data = torch.stack(data)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape, condense=True)
+    mean = RunningMean(shape=shape, condense=True, ema_alpha=EMA_ALPHA)
     for i in range(len(data)):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1]))
@@ -229,7 +231,7 @@ def test_mean_condense_rand_arithmetic():
     data = torch.rand(EMA_THRESHOLD, *shape)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape, condense=True)
+    mean = RunningMean(shape=shape, condense=True, ema_alpha=EMA_ALPHA)
     for i in range(len(data)):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1]))
@@ -249,7 +251,7 @@ def test_mean_condense_ema():
     data = torch.stack(data)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape, condense=True)
+    mean = RunningMean(shape=shape, condense=True, ema_alpha=EMA_ALPHA)
     for i in range(EMA_THRESHOLD):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1]))
@@ -273,7 +275,7 @@ def test_mean_condense_rand_ema():
     data = torch.rand(EMA_THRESHOLD + 200, *shape)
 
     # Perform and check computation.
-    mean = RunningMean(shape=shape, condense=True)
+    mean = RunningMean(shape=shape, condense=True, ema_alpha=EMA_ALPHA)
     for i in range(EMA_THRESHOLD):
         mean.update(data[i])
         assert torch.allclose(mean.mean, torch.mean(data[0 : i + 1]))

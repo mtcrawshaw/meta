@@ -12,11 +12,13 @@ import torch
 
 from meta.networks.initialize import init_base
 from meta.networks.splitting import SplittingMLPNetwork
-from meta.utils.estimate import EMA_THRESHOLD, EMA_ALPHA
+from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
-TOL = 2e-4
+TOL = 2e-3
+EMA_ALPHA = 0.999
+EMA_THRESHOLD = alpha_to_threshold(EMA_ALPHA)
 
 
 def gradients_template(
@@ -330,6 +332,7 @@ def split_stats_template(
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
+        ema_alpha=settings["ema_alpha"],
         device=settings["device"],
     )
 

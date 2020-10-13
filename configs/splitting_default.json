@@ -29,6 +29,7 @@
         "hidden_size": 32,
         "split_alpha": 0.05,
         "split_step_threshold": 30,
+        "ema_alpha": 0.999,
         "recurrent": false,
         "include_task_index": true
     },

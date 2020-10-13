@@ -34,6 +34,7 @@ class SplittingMLPNetwork(nn.Module):
         hidden_size: int = 64,
         split_alpha: float = 0.05,
         split_step_threshold: int = 30,
+        ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
 
@@ -56,6 +57,7 @@ class SplittingMLPNetwork(nn.Module):
         self.hidden_size = hidden_size
         self.split_alpha = split_alpha
         self.split_step_threshold = split_step_threshold
+        self.ema_alpha = ema_alpha
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -65,9 +67,10 @@ class SplittingMLPNetwork(nn.Module):
 
         # Initialize running estimates of gradient statistics.
         self.grad_diff_stats = RunningMean(
-            shape=(self.num_tasks, self.num_tasks, self.num_regions)
+            shape=(self.num_tasks, self.num_tasks, self.num_regions),
+            ema_alpha=self.ema_alpha,
         )
-        self.grad_stats = RunningMeanStdev(condense=True)
+        self.grad_stats = RunningMeanStdev(condense=True, ema_alpha=self.ema_alpha)
         self.num_steps = 0
 
         # Compute critical value of z-statistic based on given value of `split_alpha`.
