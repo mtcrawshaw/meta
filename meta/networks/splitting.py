@@ -369,7 +369,7 @@ class SplittingMLPNetwork(nn.Module):
         float_region_sizes = self.region_sizes.to(dtype=torch.float32)
         sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
         sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
-        z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.num_steps))
+        z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.grad_stats.sample_size))
 
         return z
 

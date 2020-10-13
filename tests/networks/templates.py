@@ -409,9 +409,10 @@ def split_stats_template(
                     exp_mean = exp_mean * EMA_ALPHA + diff * (1.0 - EMA_ALPHA)
 
             # Compute the expected z-score.
+            sample_size = min(step + 1, EMA_THRESHOLD)
             exp_mu = 2 * region_size * grad_std ** 2
             exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
-            expected_z = (exp_mean - exp_mu) / (exp_sigma / math.sqrt(step + 1))
+            expected_z = (exp_mean - exp_mu) / (exp_sigma / math.sqrt(sample_size))
             assert abs(z[task1, task2, region] - expected_z) < TOL
 
 

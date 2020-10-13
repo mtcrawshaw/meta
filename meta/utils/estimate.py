@@ -32,10 +32,12 @@ class RunningMean:
         mean. `ema_alpha` is the coefficient used to compute an exponential moving
         average. Note that we compute an arithmetic mean for the first `ema_threshold`
         steps (as computed below), then switch to EMA. If `ema_alpha == 1.0`, then we
-        will never switch to EMA.
+        will never switch to EMA. `self.sample_size` is akin to `self.num_steps`, but we
+        stop increasing `self.sample_size` once we switch to EMA.
         """
 
         self.num_steps = 0
+        self.sample_size = 0
         self.condense = condense
         self.ema_alpha = ema_alpha
         self.ema_threshold = alpha_to_threshold(ema_alpha)
@@ -50,6 +52,7 @@ class RunningMean:
         """ Update running mean with new value. """
 
         self.num_steps += 1
+        self.sample_size = min(self.sample_size + 1, self.ema_threshold)
         if self.condense:
             self.mean = single_update(
                 self.mean,
@@ -85,6 +88,7 @@ class RunningMeanStdev:
         """
 
         self.num_steps = 0
+        self.sample_size = 0
         self.condense = condense
         self.ema_alpha = ema_alpha
         self.ema_threshold = alpha_to_threshold(ema_alpha)
@@ -105,6 +109,7 @@ class RunningMeanStdev:
         """ Update running mean with new value. """
 
         self.num_steps += 1
+        self.sample_size = min(self.sample_size + 1, self.ema_threshold)
         if self.condense:
             self.mean = single_update(
                 self.mean,
