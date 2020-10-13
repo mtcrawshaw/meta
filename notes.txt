@@ -41,42 +41,15 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-Still have to finalize test that randomly generates gradients assuming the null
-hypothesis, and checks that the resulting z-scores follow a standard normal
-distribution. Right now, the test sort of works when we disable EMA for tracking
-gradient statistics, but the p-values are almost never below alpha. The percentage of
-time that they are below alpha should equal alpha, but instead it is very low. Gotta
-keep looking for an answer here and make sure that things are what we think they are.
-Note: EMA_THRESHOLD is currently set to 100, because we don't want to commit the version
-which is set to 1000, although we need it to be above 500 for the test to work. Another
-thing to consider is the fact that the splitting network uses the measured sigma to
-compute the expected mean and standard deviation, while the stats test uses the actual
-sigma. I doubt this these are different enough to account for the difference in
-behavior, but maybe there are other things like this. UPDATE: This approximation error
-is exactly the cause of the difference between the two distributions. We probably need
-to change the statistical test to account for unknown mean and variance.
+
+Things to fix with split statistic:
+- Decrease effective sample size when using EMA
+- Compute task gradient stdev within tasks, then average them
+- Properly handle situations where batch doesn't contain data from all tasks
+- Check whether splitting computations require grad, make sure non-parameter tensor
+  operations are being executed on GPU
 
 After this, we need to test that splitting decisions are made correctly.
-
-Add calls to torch.no_grad() during splitting computation? Possibly instead use
-requires_grad=False. Also check that non-parameter tensors of module actually get moved
-to device.
-
-Also, we may want to consider either not using an EMA or decreasing the sample size used
-to compute the z-score. It seems like using an EMA is decreasing the effective sample
-size by increasing variance from focusing on a smaller pool of the sample, i.e. the most
-recent.
-
-Change computation of estimated standard deviation of task gradients so that we aren't
-computing one standard deviation which includes all weights. Instead, we should compute
-the standard deviations of the gradient for each individual task, then average these
-standard deviations. Otherwise the deviation of the gradients will seem much larger than
-they are, because of course there will be more variation for gradients across all tasks
-than across a single task: the gradients from different tasks point in different
-directions!
-
-How will our current implementation behave when a batch doesn't contain any samples from
-a given task? Figure this out!
 
 ----------------------------------------------------------------------------------------
 
@@ -151,12 +124,15 @@ Possible additions:
 - In actor/critic network, add splitting for action_logstd. Right now each task just has
   a separate set of these parameters.
 - Allow weights/biases to be split independently
-- Find some way to compute statistics of differences of task-specific gradients for each
-  region in parallel. Right now we can't put these values into a tensor because the size
-  of the gradients vary by region. We might be able to just pad with zeros to get this
-  to work, and it would hopefully be much faster than looping over the regions. Check
-  the implementation of SplittingMLPNetwork.check_for_split() to see where to convert
-  lists to tensors.
+- Fix statistical test for splitting: Right now we are using a statistical test of the
+  pairwise differences between task gradients that requires knowledge of the population
+  mean under the null hypothesis. This isn't the case, because we compute the population
+  mean as a function of the observed standard deviation of task gradients. However,
+  fixing the test is weird because ours is a very special case because we aren't
+  directly estimating the population mean, we are estimating it as a function of the
+  standard deviation of another variable. Not sure if there is even a way to handle
+  this, but something to keep in mind for the future. For now I think it is fine to keep
+  this way.
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
