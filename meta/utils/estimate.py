@@ -7,134 +7,84 @@ from typing import Tuple
 import torch
 
 
-alpha_to_threshold = lambda alpha: round(1.0 / (1.0 - alpha)) if alpha != 1.0 else float('inf')
+alpha_to_threshold = (
+    lambda alpha: round(1.0 / (1.0 - alpha)) if alpha != 1.0 else float("inf")
+)
 
 
-def single_update(
-    m: torch.Tensor, v: torch.Tensor, n: int, threshold: int, alpha: float
-) -> torch.Tensor:
-    if n <= threshold:
-        return (m * (n - 1) + v) / n
-    else:
-        return m * alpha + v * (1.0 - alpha)
-
-
-class RunningMean:
-    """ Utility class to compute running mean of torch.Tensor. """
+class RunningStats:
+    """
+    Utility class to compute running estimates of mean/stdev of torch.Tensor.
+    """
 
     def __init__(
-        self, shape: Tuple[int, ...] = None, condense: bool = False, ema_alpha=0.999
+        self,
+        compute_stdev: bool = False,
+        shape: Tuple[int, ...] = None,
+        condense_dims: Tuple[int, ...] = (),
+        ema_alpha: float = 0.999,
     ) -> None:
         """
-        Init function for RunningMean. `shape` is shape of input tensors, which is only
-        needed when `condense=False`. If `condense=True`, then we treat all elements of
-        the input tensors as samples of the same variable, and compute a single-valued
-        mean. `ema_alpha` is the coefficient used to compute an exponential moving
-        average. Note that we compute an arithmetic mean for the first `ema_threshold`
-        steps (as computed below), then switch to EMA. If `ema_alpha == 1.0`, then we
-        will never switch to EMA. `self.sample_size` is akin to `self.num_steps`, but we
-        stop increasing `self.sample_size` once we switch to EMA.
+        Init function for RunningStats. The running mean will always be computed, and a
+        running standard deviation is also computed if `compute_stdev = True`.
+
+        Arguments
+        ---------
+        compute_stdev : bool
+            Whether or not to compute a standard deviation along with a mean.
+        shape : Tuple[int, ...]
+            The shape of the tensors that we will be computing stats over.
+        condense_dims : Tuple[int, ...]
+            The indices of dimensions to condense. For example, if `shape=(2,3)` and
+            `condense=(1,)`, then a tensor `val` with shape `(2, 3)` will be treated as
+            3 samples of a random variable with shape `(2,)`.
+        ema_alpha : float
+            Coefficient used to compute exponential moving average. We compute an
+            arithmetic mean for the first `ema_threshold` steps (as computed below),
+            then switch to EMA. If `ema_alpha == 1.0`, then we will never switch to EMA.
         """
+
+        self.compute_stdev = compute_stdev
+        self.condense_dims = condense_dims
+        self.ema_alpha = ema_alpha
+        self.ema_threshold = alpha_to_threshold(ema_alpha)
+
+        self.shape = shape
+        self.condensed_shape = tuple(
+            [shape[i] for i in range(len(shape)) if i not in condense_dims]
+        )
+        self.mean = torch.zeros(self.condensed_shape)
+        if self.compute_stdev:
+            self.square_mean = torch.zeros(self.condensed_shape)
+            self.var = torch.zeros(self.condensed_shape)
+            self.stdev = torch.zeros(self.condensed_shape)
 
         self.num_steps = 0
         self.sample_size = 0
-        self.condense = condense
-        self.ema_alpha = ema_alpha
-        self.ema_threshold = alpha_to_threshold(ema_alpha)
-        if self.condense:
-            self.mean = torch.zeros(())
-        else:
-            assert shape is not None
-            self.shape = shape
-            self.mean = torch.zeros(*shape)
 
     def update(self, val: torch.Tensor) -> None:
         """ Update running mean with new value. """
 
         self.num_steps += 1
         self.sample_size = min(self.sample_size + 1, self.ema_threshold)
-        if self.condense:
-            self.mean = single_update(
-                self.mean,
-                torch.mean(val),
-                self.num_steps,
-                self.ema_threshold,
-                self.ema_alpha,
+        if len(self.condense_dims) > 0:
+            self.mean = self.single_update(
+                self.mean, torch.mean(val, dim=self.condense_dims)
             )
+            if self.compute_stdev:
+                self.square_mean = self.single_update(
+                    self.square_mean, torch.mean(val ** 2, dim=self.condense_dims),
+                )
         else:
-            self.mean = single_update(
-                self.mean, val, self.num_steps, self.ema_threshold, self.ema_alpha
-            )
+            self.mean = self.single_update(self.mean, val)
+            if self.compute_stdev:
+                self.square_mean = self.single_update(self.square_mean, val ** 2,)
+        if self.compute_stdev:
+            self.var = self.square_mean - self.mean ** 2
+            self.stdev = torch.sqrt(self.var)
 
-
-class RunningMeanStdev:
-    """
-    Utility class to compute running mean and standard deviation of torch.Tensor. We do
-    this by keeping a running estimate of the mean and a running estimate of the mean of
-    the square, and using the formula `Var[X] = E[X^2] - E[X]^2.
-    """
-
-    def __init__(
-        self, shape: Tuple[int, ...] = None, condense: bool = False, ema_alpha=0.999
-    ) -> None:
-        """
-        Init function for RunningMeanStd. `shape` is shape of input tensors, which is
-        only needed when `condense=False`. If `condense=True`, then we treat all
-        elements of the input tensors as samples of the same variable, and compute a
-        single-valued mean and standard deviation. `ema_alpha` is the coefficient used
-        to compute an exponential moving average. Note that we compute an arithmetic
-        mean for the first `ema_threshold` steps (as computed below), then switch to
-        EMA. If `ema_alpha == 1.0`, then we will never switch to EMA.
-        """
-
-        self.num_steps = 0
-        self.sample_size = 0
-        self.condense = condense
-        self.ema_alpha = ema_alpha
-        self.ema_threshold = alpha_to_threshold(ema_alpha)
-        if self.condense:
-            self.mean = torch.zeros(())
-            self.square_mean = torch.zeros(())
-            self.var = torch.zeros(())
-            self.stdev = torch.zeros(())
+    def single_update(self, m: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        if self.num_steps <= self.ema_threshold:
+            return (m * (self.num_steps - 1) + v) / self.num_steps
         else:
-            assert shape is not None
-            self.shape = shape
-            self.mean = torch.zeros(*shape)
-            self.square_mean = torch.zeros(*shape)
-            self.var = torch.zeros(*shape)
-            self.stdev = torch.zeros(*shape)
-
-    def update(self, val: torch.Tensor) -> None:
-        """ Update running mean with new value. """
-
-        self.num_steps += 1
-        self.sample_size = min(self.sample_size + 1, self.ema_threshold)
-        if self.condense:
-            self.mean = single_update(
-                self.mean,
-                torch.mean(val),
-                self.num_steps,
-                self.ema_threshold,
-                self.ema_alpha,
-            )
-            self.square_mean = single_update(
-                self.square_mean,
-                torch.mean(val ** 2),
-                self.num_steps,
-                self.ema_threshold,
-                self.ema_alpha,
-            )
-        else:
-            self.mean = single_update(
-                self.mean, val, self.num_steps, self.ema_threshold, self.ema_alpha
-            )
-            self.square_mean = single_update(
-                self.square_mean,
-                val ** 2,
-                self.num_steps,
-                self.ema_threshold,
-                self.ema_alpha,
-            )
-        self.var = self.square_mean - self.mean ** 2
-        self.stdev = torch.sqrt(self.var)
+            return m * self.ema_alpha + v * (1.0 - self.ema_alpha)

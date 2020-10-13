@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.utils.estimate import RunningMean, RunningMeanStdev
+from meta.utils.estimate import RunningStats
 
 
 class SplittingMLPNetwork(nn.Module):
@@ -66,11 +66,13 @@ class SplittingMLPNetwork(nn.Module):
         self.initialize_network()
 
         # Initialize running estimates of gradient statistics.
-        self.grad_diff_stats = RunningMean(
+        self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             ema_alpha=self.ema_alpha,
         )
-        self.grad_stats = RunningMeanStdev(condense=True, ema_alpha=self.ema_alpha)
+        self.grad_stats = RunningStats(
+            compute_stdev=True, condense=True, ema_alpha=self.ema_alpha
+        )
         self.num_steps = 0
 
         # Compute critical value of z-statistic based on given value of `split_alpha`.
@@ -369,7 +371,9 @@ class SplittingMLPNetwork(nn.Module):
         float_region_sizes = self.region_sizes.to(dtype=torch.float32)
         sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
         sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
-        z = (self.grad_diff_stats.mean - mu) / (sigma / math.sqrt(self.grad_stats.sample_size))
+        z = (self.grad_diff_stats.mean - mu) / (
+            sigma / math.sqrt(self.grad_stats.sample_size)
+        )
 
         return z
 

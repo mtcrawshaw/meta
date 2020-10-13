@@ -778,7 +778,9 @@ def split_stats_distribution() -> None:
                 mean = torch.zeros(TOTAL_STEPS, network.num_tasks, region_sizes[region])
                 std = torch.ones(TOTAL_STEPS, network.num_tasks, region_sizes[region])
                 std *= settings["grad_sigma"]
-                task_grads[:, :, region, : region_sizes[region]] = torch.normal(mean, std)
+                task_grads[:, :, region, : region_sizes[region]] = torch.normal(
+                    mean, std
+                )
         else:
             # Load in generated values saved by scripts/stats_test.py, for debugging.
             with open(load, "rb") as f:
@@ -825,6 +827,9 @@ def split_stats_distribution() -> None:
     avg_reject_prob = sum(reject_probs) / len(reject_probs)
     print("reject_probs: %s" % str(reject_probs))
     print("avg reject_prob: %f" % avg_reject_prob)
-    print("num rejects: %d/%d" % (len([prob for prob in reject_probs if prob != 0.0]), len(reject_probs)))
+    print(
+        "num rejects: %d/%d"
+        % (len([prob for prob in reject_probs if prob != 0.0]), len(reject_probs))
+    )
     # assert abs(avg_reject_prob - ALPHA) < ALPHA * 0.1
     assert False
