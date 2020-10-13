@@ -71,7 +71,10 @@ class SplittingMLPNetwork(nn.Module):
             ema_alpha=self.ema_alpha,
         )
         self.grad_stats = RunningStats(
-            compute_stdev=True, condense=True, ema_alpha=self.ema_alpha
+            shape=(self.num_tasks, self.total_region_size),
+            compute_stdev=True,
+            condense_dims=(1,),
+            ema_alpha=self.ema_alpha,
         )
         self.num_steps = 0
 
@@ -134,6 +137,7 @@ class SplittingMLPNetwork(nn.Module):
         )
         self.region_sizes = self.region_sizes.to(dtype=torch.long)
         self.max_region_size = int(max(self.region_sizes))
+        self.total_region_size = int(sum(self.region_sizes))
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
@@ -298,12 +302,11 @@ class SplittingMLPNetwork(nn.Module):
         # Update our estimates of the mean pairwise distance between tasks and the
         # standard deviation of the gradient of each individual weight. Since
         # `task_grads` is a single tensor padded with zeros, we extract the non-pad
-        # values before updating `self.grad_stats`.
+        # values before updating `self.grad_stats`. The non-pad values are extracted
+        # into a tensor of shape `(self.num_tasks, self.total_region_size)`.
         flattened_grad = torch.cat(
-            [
-                task_grads[t, r, : self.region_sizes[r]]
-                for t, r in product(range(self.num_tasks), range(self.num_regions))
-            ]
+            [task_grads[:, r, : self.region_sizes[r]] for r in range(self.num_regions)],
+            dim=1,
         )
         self.grad_diff_stats.update(task_grad_diffs)
         self.grad_stats.update(flattened_grad)
@@ -366,10 +369,11 @@ class SplittingMLPNetwork(nn.Module):
             tasks `i, j` at region `k`.
         """
 
-        mu = 2 * self.region_sizes * self.grad_stats.stdev ** 2
+        est_grad_var = torch.mean(self.grad_stats.var)
+        mu = 2 * self.region_sizes * est_grad_var
         mu = mu.expand(self.num_tasks, self.num_tasks, -1)
         float_region_sizes = self.region_sizes.to(dtype=torch.float32)
-        sigma = 2 * torch.sqrt(2 * float_region_sizes) * self.grad_stats.stdev ** 2
+        sigma = 2 * torch.sqrt(2 * float_region_sizes) * est_grad_var
         sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
         z = (self.grad_diff_stats.mean - mu) / (
             sigma / math.sqrt(self.grad_stats.sample_size)

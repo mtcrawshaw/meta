@@ -43,7 +43,6 @@ Current task (Splitting networks):
 Notes for current task:
 
 Things to fix with split statistic:
-- Compute task gradient stdev within tasks, then average them
 - Properly handle situations where batch doesn't contain data from all tasks
 - Check whether splitting computations require grad, make sure non-parameter tensor
   operations are being executed on GPU

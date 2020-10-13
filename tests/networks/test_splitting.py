@@ -36,8 +36,6 @@ SETTINGS = {
     "include_task_index": True,
     "device": torch.device("cpu"),
 }
-EMA_ALPHA = 0.999
-EMA_THRESHOLD = alpha_to_threshold(EMA_ALPHA)
 
 
 def test_forward_shared() -> None:
@@ -438,9 +436,9 @@ def test_task_grad_diffs_rand() -> None:
 def test_split_stats_arithmetic_simple_shared() -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
-    differences in task gradients in the case of identical gradients at each time step,
-    a fully shared network, and only using arithmetic means to keep track of gradient
-    statistics.
+    differences in task gradients in the case of (nearly) identical gradients at each
+    time step, a fully shared network, and only using arithmetic means to keep track of
+    gradient statistics.
     """
 
     # Set up case.
@@ -458,7 +456,7 @@ def test_split_stats_arithmetic_simple_shared() -> None:
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
     max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
-    task_grad_vals = [0, -1, 1, 0]
+    task_grad_vals = [[-2, 1, 0, -1], [2, -1, 1, 1]]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
@@ -472,7 +470,10 @@ def test_split_stats_arithmetic_simple_shared() -> None:
         else:
             region_size = max_region_size
 
-        task_grads[:, task, region, :region_size] = task_grad_vals[task]
+        task_grads[:, task, region, : region_size // 2] = task_grad_vals[0][task]
+        task_grads[:, task, region, region_size // 2 : region_size] = task_grad_vals[1][
+            task
+        ]
 
     # Run test.
     split_stats_template(settings, task_grads, splits_args)
@@ -481,9 +482,9 @@ def test_split_stats_arithmetic_simple_shared() -> None:
 def test_split_stats_arithmetic_simple_split() -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
-    differences in task gradients in the case of identical gradients at each time step,
-    a split network, and only using arithmetic means to keep track of gradient
-    statistics.
+    differences in task gradients in the case of (nealry) identical gradients at each
+    time step, a split network, and only using arithmetic means to keep track of
+    gradient statistics.
     """
 
     # Set up case.
@@ -506,7 +507,7 @@ def test_split_stats_arithmetic_simple_split() -> None:
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
     max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
-    task_grad_vals = [-2, 1, 0, -1]
+    task_grad_vals = [[-2, 1, 0, -1], [2, -1, 1, 1]]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
@@ -520,7 +521,10 @@ def test_split_stats_arithmetic_simple_split() -> None:
         else:
             region_size = max_region_size
 
-        task_grads[:, task, region, :region_size] = task_grad_vals[task]
+        task_grads[:, task, region, : region_size // 2] = task_grad_vals[0][task]
+        task_grads[:, task, region, region_size // 2 : region_size] = task_grad_vals[1][
+            task
+        ]
 
     # Run test.
     split_stats_template(settings, task_grads, splits_args)
@@ -627,7 +631,9 @@ def test_split_stats_EMA_random_shared() -> None:
     settings = dict(SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
+    settings["ema_alpha"] = 0.99
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
     splits_args = []
@@ -635,7 +641,7 @@ def test_split_stats_EMA_random_shared() -> None:
     # Construct a sequence of task gradients. The network gradient statistics will be
     # updated with these task gradients, and the z-scores will be computed from these
     # statistics.
-    total_steps = EMA_THRESHOLD + 20
+    total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
     max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
     task_grads = torch.zeros(
@@ -669,7 +675,9 @@ def test_split_stats_EMA_random_split() -> None:
     settings = dict(SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
+    settings["ema_alpha"] = 0.99
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
     splits_args = [
@@ -682,7 +690,7 @@ def test_split_stats_EMA_random_split() -> None:
     # Construct a sequence of task gradients. The network gradient statistics will be
     # updated with these task gradients, and the z-scores will be computed from these
     # statistics.
-    total_steps = EMA_THRESHOLD + 20
+    total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
     max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
     task_grads = torch.zeros(
@@ -708,7 +716,8 @@ def split_stats_distribution() -> None:
     """
     IMPORTANT: This test is currently disabled because it can't pass with the current
     implementation. Our statistical test isn't truly accurate (we use some heuristics)
-    so we can't exactly know the distribution of the z-scores.
+    so we can't exactly know the distribution of the z-scores. To re-enable the test,
+    just add "test_" to the beginning of the function name.
 
     This is a sanity check on our computation of z-scores in `split_statistics()`. By
     randomly generating task gradients according to the distribution of the

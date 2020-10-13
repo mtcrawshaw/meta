@@ -17,8 +17,6 @@ from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
 TOL = 2e-3
-EMA_ALPHA = 0.999
-EMA_THRESHOLD = alpha_to_threshold(EMA_ALPHA)
 
 
 def gradients_template(
@@ -335,6 +333,7 @@ def split_stats_template(
         ema_alpha=settings["ema_alpha"],
         device=settings["device"],
     )
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Split the network according to `splits_args`.
     for split_args in splits_args:
@@ -359,26 +358,34 @@ def split_stats_template(
 
         # Compute stdev over all gradient values up to `step`. We have to do this
         # differently based on whether or not we have hit the EMA threshold.
-        if step + 1 <= EMA_THRESHOLD:
-            flattened_grads = get_flattened_grads(task_grads, region_sizes, 0, step + 1)
-            grad_std = float(torch.std(flattened_grads, unbiased=False))
+        if step + 1 <= ema_threshold:
+            flattened_grads = get_flattened_grads(
+                task_grads, network.num_tasks, region_sizes, 0, step + 1
+            )
+            grad_std = float(
+                torch.sqrt(
+                    torch.mean(torch.var(flattened_grads, dim=1, unbiased=False))
+                )
+            )
         else:
             flattened_grads = get_flattened_grads(
-                task_grads, region_sizes, 0, EMA_THRESHOLD
+                task_grads, network.num_tasks, region_sizes, 0, ema_threshold
             )
-            grad_mean = float(torch.mean(flattened_grads))
-            grad_square_mean = float(torch.mean(flattened_grads ** 2))
-            for i in range(EMA_THRESHOLD, step + 1):
+            grad_mean = torch.mean(flattened_grads, dim=1)
+            grad_square_mean = torch.mean(flattened_grads ** 2, dim=1)
+            for i in range(ema_threshold, step + 1):
                 flattened_grads = get_flattened_grads(
-                    task_grads, region_sizes, i, i + 1
+                    task_grads, network.num_tasks, region_sizes, i, i + 1
                 )
-                new_mean = float(torch.mean(flattened_grads))
-                new_square_mean = float(torch.mean(flattened_grads ** 2))
-                grad_mean = grad_mean * EMA_ALPHA + new_mean * (1.0 - EMA_ALPHA)
-                grad_square_mean = grad_square_mean * EMA_ALPHA + new_square_mean * (
-                    1.0 - EMA_ALPHA
+                new_mean = torch.mean(flattened_grads, dim=1)
+                new_square_mean = torch.mean(flattened_grads ** 2, dim=1)
+                grad_mean = grad_mean * settings["ema_alpha"] + new_mean * (
+                    1.0 - settings["ema_alpha"]
                 )
-            grad_std = math.sqrt(grad_square_mean - grad_mean ** 2)
+                grad_square_mean = grad_square_mean * settings[
+                    "ema_alpha"
+                ] + new_square_mean * (1.0 - settings["ema_alpha"])
+            grad_std = float(torch.sqrt(torch.mean(grad_square_mean - grad_mean ** 2)))
 
         # Compare `z` to the expected value for each `(task1, task2, region)`.
         for task1, task2, region in product(
@@ -390,26 +397,28 @@ def split_stats_template(
 
             # Computed the expected value of the mean of gradient differences between
             # `task1, task2` at region `region`.
-            if step + 1 <= EMA_THRESHOLD:
+            if step + 1 <= ema_threshold:
                 task1_grads = task_grads[: step + 1, task1, region, :]
                 task2_grads = task_grads[: step + 1, task2, region, :]
                 diffs = torch.sum((task1_grads - task2_grads) ** 2, dim=1)
                 exp_mean = torch.mean(diffs)
             else:
-                initial_task1_grads = task_grads[:EMA_THRESHOLD, task1, region, :]
-                initial_task2_grads = task_grads[:EMA_THRESHOLD, task2, region, :]
+                initial_task1_grads = task_grads[:ema_threshold, task1, region, :]
+                initial_task2_grads = task_grads[:ema_threshold, task2, region, :]
                 diffs = torch.sum(
                     (initial_task1_grads - initial_task2_grads) ** 2, dim=1
                 )
                 exp_mean = torch.mean(diffs)
-                for i in range(EMA_THRESHOLD, step + 1):
+                for i in range(ema_threshold, step + 1):
                     task1_grads = task_grads[i, task1, region, :]
                     task2_grads = task_grads[i, task2, region, :]
                     diff = torch.sum((task1_grads - task2_grads) ** 2)
-                    exp_mean = exp_mean * EMA_ALPHA + diff * (1.0 - EMA_ALPHA)
+                    exp_mean = exp_mean * settings["ema_alpha"] + diff * (
+                        1.0 - settings["ema_alpha"]
+                    )
 
             # Compute the expected z-score.
-            sample_size = min(step + 1, EMA_THRESHOLD)
+            sample_size = min(step + 1, ema_threshold)
             exp_mu = 2 * region_size * grad_std ** 2
             exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
             expected_z = (exp_mean - exp_mu) / (exp_sigma / math.sqrt(sample_size))
@@ -417,13 +426,21 @@ def split_stats_template(
 
 
 def get_flattened_grads(
-    task_grads: torch.Tensor, region_sizes: List[int], begin: int, end: int
+    task_grads: torch.Tensor,
+    num_tasks: int,
+    region_sizes: List[int],
+    begin: int,
+    end: int,
 ):
     """ Helper function to get flattened gradients from `task_grads`. """
 
     flattened_grads = []
-    for region, region_size in enumerate(region_sizes):
-        flattened_grad = task_grads[begin:end, :, region, :region_size]
-        flattened_grad = flattened_grad.reshape(-1)
-        flattened_grads.append(flattened_grad)
-    return torch.cat(flattened_grads)
+    for task in range(num_tasks):
+        task_grad = []
+        for region, region_size in enumerate(region_sizes):
+            region_grad = task_grads[begin:end, task, region, :region_size]
+            region_grad = region_grad.reshape(-1)
+            task_grad.append(region_grad)
+        task_grad = torch.cat(task_grad)
+        flattened_grads.append(task_grad)
+    return torch.stack(flattened_grads)
