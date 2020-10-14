@@ -23,6 +23,7 @@ class RunningStats:
         shape: Tuple[int, ...] = None,
         condense_dims: Tuple[int, ...] = (),
         ema_alpha: float = 0.999,
+        device: torch.device = None,
     ) -> None:
         """
         Init function for RunningStats. The running mean will always be computed, and a
@@ -48,22 +49,23 @@ class RunningStats:
         self.condense_dims = condense_dims
         self.ema_alpha = ema_alpha
         self.ema_threshold = alpha_to_threshold(ema_alpha)
+        self.device = device if device is not None else torch.device("cpu")
 
         self.shape = shape
         self.condensed_shape = tuple(
             [shape[i] for i in range(len(shape)) if i not in condense_dims]
         )
-        self.mean = torch.zeros(self.condensed_shape)
+        self.mean = torch.zeros(self.condensed_shape, device=self.device)
         if self.compute_stdev:
-            self.square_mean = torch.zeros(self.condensed_shape)
-            self.var = torch.zeros(self.condensed_shape)
-            self.stdev = torch.zeros(self.condensed_shape)
+            self.square_mean = torch.zeros(self.condensed_shape, device=self.device)
+            self.var = torch.zeros(self.condensed_shape, device=self.device)
+            self.stdev = torch.zeros(self.condensed_shape, device=self.device)
 
         self.num_steps = 0
         self.sample_size = 0
 
     def update(self, val: torch.Tensor) -> None:
-        """ Update running mean with new value. """
+        """ Update running stats with new value. """
 
         self.num_steps += 1
         self.sample_size = min(self.sample_size + 1, self.ema_threshold)
@@ -78,7 +80,7 @@ class RunningStats:
         else:
             self.mean = self.single_update(self.mean, val)
             if self.compute_stdev:
-                self.square_mean = self.single_update(self.square_mean, val ** 2,)
+                self.square_mean = self.single_update(self.square_mean, val ** 2)
         if self.compute_stdev:
             self.var = self.square_mean - self.mean ** 2
             self.stdev = torch.sqrt(self.var)

@@ -69,12 +69,14 @@ class SplittingMLPNetwork(nn.Module):
         self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             ema_alpha=self.ema_alpha,
+            device=self.device,
         )
         self.grad_stats = RunningStats(
             shape=(self.num_tasks, self.total_region_size),
             compute_stdev=True,
             condense_dims=(1,),
             ema_alpha=self.ema_alpha,
+            device=self.device,
         )
         self.num_steps = 0
 
@@ -135,7 +137,7 @@ class SplittingMLPNetwork(nn.Module):
                 for i in range(self.num_regions)
             ]
         )
-        self.region_sizes = self.region_sizes.to(dtype=torch.long)
+        self.region_sizes = self.region_sizes.to(dtype=torch.long, device=self.device)
         self.max_region_size = int(max(self.region_sizes))
         self.total_region_size = int(sum(self.region_sizes))
 
@@ -271,7 +273,8 @@ class SplittingMLPNetwork(nn.Module):
         """
 
         task_grads = torch.zeros(
-            (self.num_tasks, self.num_regions, self.max_region_size)
+            (self.num_tasks, self.num_regions, self.max_region_size),
+            device=self.device,
         )
 
         for task in range(self.num_tasks):
@@ -330,7 +333,9 @@ class SplittingMLPNetwork(nn.Module):
             the task-specific gradients for tasks `i` and `j` at region `k`.
         """
 
-        task_grad_diffs = torch.zeros(self.num_tasks, self.num_tasks, self.num_regions)
+        task_grad_diffs = torch.zeros(
+            self.num_tasks, self.num_tasks, self.num_regions, device=self.device
+        )
 
         # Compute pairwise difference for gradients at each region.
         for region in range(self.num_regions):
