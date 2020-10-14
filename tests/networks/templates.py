@@ -305,7 +305,8 @@ def split_stats_template(
 ) -> None:
     """
     Test that `get_split_statistics()` correctly computes the z-score over the pairwise
-    differences in task gradients.
+    differences in task gradients, assuming that none of the task gradients are zero
+    across an entire task.
 
     Arguments
     ---------

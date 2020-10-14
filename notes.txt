@@ -44,8 +44,6 @@ Notes for current task:
 
 Things to fix with split statistic:
 - Properly handle situations where batch doesn't contain data from all tasks
-- Check whether splitting computations require grad, make sure non-parameter tensor
-  operations are being executed on GPU
 
 After this, we need to test that splitting decisions are made correctly.
 
@@ -189,3 +187,7 @@ Refactoring:
   differences between task gradients for tasks that share a copy. Right now it is
   computed for each pair of tasks at each region. We could also parallelize the
   computation across regions but I'm not quite sure how to do that.
+- Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
+  less brittle than checking whether the gradient vector is all zero. Maybe this is an
+  edge case that we actually want to account for. We could probably get this info from
+  `task_losses`.

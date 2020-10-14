@@ -218,12 +218,17 @@ class SplittingMLPNetwork(nn.Module):
         # Update running estimates of gradient statistics.
         self.update_grad_stats(task_grads)
 
-        # Compute test statistics regarding difference of task gradient distributions.
-        if self.num_steps >= self.split_step_threshold:
+        # Compute test statistics regarding difference of task gradient distributions,
+        # though only if there are any task pairs whose joint sample size is larger than
+        # `self.split_step_threshold`.
+        if torch.any(self.grad_diff_stats.num_steps >= self.split_step_threshold):
             z = self.get_split_statistics()
 
-            # Check if `z` is large enough to warrant any splits.
-            split_coords = (z > self.critical_z).nonzero()
+            # Check if `z` is large enough to warrant any splits, though only for the
+            # task pairs whose sample size is larger than `self.split_step_threshold`.
+            split_coords = z > self.critical_z
+            split_coords *= self.grad_diff_stats.num_steps > self.split_step_threshold
+            split_coords = split_coords.nonzero()
 
             # Perform any necessary splits. Notice that we only do this for if `task1,
             # task` current share the same copy of `region`, and if `task1 < task2`,
@@ -299,6 +304,14 @@ class SplittingMLPNetwork(nn.Module):
         an estimate of the standard deviation of the gradient of each weight.
         """
 
+        # Get indices of tasks with non-zero gradients. A task will have zero gradients
+        # when the current batch doesn't contain any data from that task, and in that
+        # case we do not want to update the gradient stats for this task.
+        task_flags = (task_grads.view(self.num_tasks, -1) != 0.0).any(dim=1)
+        task_pair_flags = task_flags.unsqueeze(0) * task_flags.unsqueeze(1)
+        task_pair_flags = task_pair_flags.unsqueeze(-1)
+        task_pair_flags = task_pair_flags.expand(-1, -1, self.num_regions)
+
         # Compute pairwise differences between task-specific gradients.
         task_grad_diffs = self.get_task_grad_diffs(task_grads)
 
@@ -311,8 +324,8 @@ class SplittingMLPNetwork(nn.Module):
             [task_grads[:, r, : self.region_sizes[r]] for r in range(self.num_regions)],
             dim=1,
         )
-        self.grad_diff_stats.update(task_grad_diffs)
-        self.grad_stats.update(flattened_grad)
+        self.grad_diff_stats.update(task_grad_diffs, task_pair_flags)
+        self.grad_stats.update(flattened_grad, task_flags)
 
     def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
         """
@@ -374,14 +387,21 @@ class SplittingMLPNetwork(nn.Module):
             tasks `i, j` at region `k`.
         """
 
-        est_grad_var = torch.mean(self.grad_stats.var)
+        est_grad_var = torch.sum(
+            self.grad_stats.var * self.grad_stats.sample_size
+        ) / torch.sum(self.grad_stats.sample_size)
+
         mu = 2 * self.region_sizes * est_grad_var
         mu = mu.expand(self.num_tasks, self.num_tasks, -1)
-        float_region_sizes = self.region_sizes.to(dtype=torch.float32)
-        sigma = 2 * torch.sqrt(2 * float_region_sizes) * est_grad_var
+
+        sigma = 2 * torch.sqrt(2 * self.region_sizes.to(dtype=torch.float32))
+        sigma *= est_grad_var
         sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
-        z = (self.grad_diff_stats.mean - mu) / (
-            sigma / math.sqrt(self.grad_stats.sample_size)
+
+        z = (
+            torch.sqrt(self.grad_diff_stats.sample_size.to(dtype=torch.float32))
+            * (self.grad_diff_stats.mean - mu)
+            / sigma
         )
 
         return z

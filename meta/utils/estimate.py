@@ -61,32 +61,70 @@ class RunningStats:
             self.var = torch.zeros(self.condensed_shape, device=self.device)
             self.stdev = torch.zeros(self.condensed_shape, device=self.device)
 
-        self.num_steps = 0
-        self.sample_size = 0
+        # Used to keep track of number of updates and effective sample size, which stops
+        # decreasing when we switch to using exponential moving averages.
+        self.num_steps = torch.zeros(self.condensed_shape, device=self.device)
+        self.sample_size = torch.zeros(self.condensed_shape, device=self.device)
 
-    def update(self, val: torch.Tensor) -> None:
-        """ Update running stats with new value. """
+    def update(self, val: torch.Tensor, flags: torch.Tensor) -> None:
+        """
+        Update running stats with new value.
 
-        self.num_steps += 1
-        self.sample_size = min(self.sample_size + 1, self.ema_threshold)
+        Arguments
+        ---------
+        val : torch.Tensor
+            Tensor with shape `self.shape` representing a new sample to update running
+            statistics.
+        flags : torch.Tensor
+            Tensor with shape `self.condensed_shape` representing whether or not to
+            update the stats at each element of the stats tensors (0/False for don't
+            update and 1/True for update). This allows us to only update a subset of the
+            means/stdevs in the case that we receive a sample for some of the elements,
+            but not all of them.
+        """
+
+        # Update `self.num_steps` and `self.sample_size`.
+        self.num_steps += flags
+        below = self.sample_size + flags < self.ema_threshold
+        above = torch.logical_not(below)
+        self.sample_size = (
+            self.sample_size + flags
+        ) * below + self.ema_threshold * above
+
+        # Condense dimensions of sample if necessary.
         if len(self.condense_dims) > 0:
-            self.mean = self.single_update(
-                self.mean, torch.mean(val, dim=self.condense_dims)
-            )
+            new_val = torch.mean(val, dim=self.condense_dims)
             if self.compute_stdev:
-                self.square_mean = self.single_update(
-                    self.square_mean, torch.mean(val ** 2, dim=self.condense_dims),
-                )
+                new_square_val = torch.mean(val ** 2, dim=self.condense_dims)
         else:
-            self.mean = self.single_update(self.mean, val)
+            new_val = val
             if self.compute_stdev:
-                self.square_mean = self.single_update(self.square_mean, val ** 2)
+                new_square_val = val ** 2
+
+        # Update stats.
+        self.mean = self.single_update(self.mean, new_val, flags)
         if self.compute_stdev:
+            self.square_mean = self.single_update(
+                self.square_mean, new_square_val, flags
+            )
             self.var = self.square_mean - self.mean ** 2
             self.stdev = torch.sqrt(self.var)
 
-    def single_update(self, m: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-        if self.num_steps <= self.ema_threshold:
+    def single_update(
+        self, m: torch.Tensor, v: torch.Tensor, flags: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Update a mean, either through computing the arithmetic mean or an exponential
+        moving average.
+        """
+
+        below = self.num_steps <= self.ema_threshold
+        above = torch.logical_not(below)
+        if torch.all(below):
             return (m * (self.num_steps - 1) + v) / self.num_steps
-        else:
+        elif torch.all(above):
             return m * self.ema_alpha + v * (1.0 - self.ema_alpha)
+        else:
+            arithmetic = (m * (self.num_steps - 1) + v) / self.num_steps
+            ema = m * self.ema_alpha + v * (1.0 - self.ema_alpha)
+            return arithmetic * below + ema * above
