@@ -121,10 +121,18 @@ class RunningStats:
         below = self.num_steps <= self.ema_threshold
         above = torch.logical_not(below)
         if torch.all(below):
-            return (m * (self.num_steps - 1) + v) / self.num_steps
+            new_m = (m * (self.num_steps - 1) + v) / self.num_steps
         elif torch.all(above):
-            return m * self.ema_alpha + v * (1.0 - self.ema_alpha)
+            new_m = m * self.ema_alpha + v * (1.0 - self.ema_alpha)
         else:
             arithmetic = (m * (self.num_steps - 1) + v) / self.num_steps
             ema = m * self.ema_alpha + v * (1.0 - self.ema_alpha)
-            return arithmetic * below + ema * above
+            new_m = arithmetic * below + ema * above
+
+        # Trick to set nans to zero (in case self.num_steps = 0 for any elements), since
+        # these values can only be overwritten in the return statement if set to zero.
+        nan_indices = self.num_steps == 0
+        if torch.any(nan_indices):
+            new_m[nan_indices] = 0
+
+        return new_m * flags + m * torch.logical_not(flags)
