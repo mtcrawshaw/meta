@@ -380,13 +380,13 @@ def split_stats_template(
             if int(sample_sizes[task]) == 0:
                 task_var = 0
             elif int(sample_sizes[task]) <= ema_threshold:
-                task_grad = task_grads[task_steps, task:task+1]
+                task_grad = task_grads[task_steps, task : task + 1]
                 flattened_grad = get_flattened_grads(
                     task_grad, 1, region_sizes, 0, int(sample_sizes[task]),
                 )[0]
                 task_var = torch.var(flattened_grad, unbiased=False)
             else:
-                task_grad = task_grads[task_steps, task:task+1]
+                task_grad = task_grads[task_steps, task : task + 1]
                 flattened_grad = get_flattened_grads(
                     task_grad, 1, region_sizes, 0, ema_threshold
                 )[0]

@@ -5,7 +5,7 @@ Road map:
 --> MT10/MT50 methods (baselines + splitting networks)
     ML10/ML45 methods (baselines + meta splitting networks)
     Hyperparameter optimization
-    Tests of statistical significance
+    Tests of statistical significance of results
     Learned loss convexity regularization for MTL
 
 Current sprint (MT10/MT50 baselines):
@@ -41,14 +41,7 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
-
-Things to fix with split statistic:
-- Properly handle situations where batch doesn't contain data from all tasks
-
-Write a test with hard-coded values and check the sample sizes, variances, means,
-z-scores, etc.
-
-After this, we need to test that splitting decisions are made correctly.
+Test that splitting decisions are made correctly.
 
 ----------------------------------------------------------------------------------------
 
