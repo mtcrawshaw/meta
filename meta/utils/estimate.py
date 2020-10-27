@@ -66,7 +66,7 @@ class RunningStats:
         self.num_steps = torch.zeros(self.condensed_shape, device=self.device)
         self.sample_size = torch.zeros(self.condensed_shape, device=self.device)
 
-    def update(self, val: torch.Tensor, flags: torch.Tensor) -> None:
+    def update(self, val: torch.Tensor, flags: torch.Tensor = None) -> None:
         """
         Update running stats with new value.
 
@@ -82,6 +82,9 @@ class RunningStats:
             means/stdevs in the case that we receive a sample for some of the elements,
             but not all of them.
         """
+
+        if flags is None:
+            flags = torch.ones(self.condensed_shape, device=self.device)
 
         # Update `self.num_steps` and `self.sample_size`.
         self.num_steps += flags

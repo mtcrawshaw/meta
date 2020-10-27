@@ -15,7 +15,7 @@ from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 SETTINGS = {
     "obs_dim": 8,
-    "num_processes": 6,
+    "num_processes": 8,
     "num_tasks": 3,
     "num_shared_layers": 2,
     "num_task_layers": 1,

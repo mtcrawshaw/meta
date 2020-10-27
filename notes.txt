@@ -192,3 +192,7 @@ Refactoring:
   sharing score and possibly splitting decisions.
 - Variations of splitting network training:
   - Continue increasing sample size even after using EMA
+- In tests/networks/test_trunk.py, test_backward() asserts that the generated
+  observation batch contains data from all tasks, but the obs batch isn't explicitly
+  constructed this way. It happens to pass by luck but we should enforce this so it
+  doesn't randomly break if seed or something else changes.
