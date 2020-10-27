@@ -223,41 +223,7 @@ class SplittingMLPNetwork(nn.Module):
         # `self.split_step_threshold`.
         if torch.any(self.grad_diff_stats.num_steps >= self.split_step_threshold):
             z = self.get_split_statistics()
-
-            # Check if `z` is large enough to warrant any splits, though only for the
-            # task pairs whose sample size is larger than `self.split_step_threshold`.
-            split_coords = z > self.critical_z
-            split_coords *= self.grad_diff_stats.num_steps > self.split_step_threshold
-            split_coords = split_coords.nonzero()
-
-            # Perform any necessary splits. Notice that we only do this for if `task1,
-            # task` current share the same copy of `region`, and if `task1 < task2`,
-            # since we don't want to split for both coords (task1, task2, region) and
-            # (task2, task1, region).
-            for task1, task2, region in split_coords:
-                if self.maps[region].module[task1] != self.maps[region].module[task2]:
-                    continue
-                if task1 >= task2:
-                    continue
-                copy = self.maps[region].module[task1]
-
-                # Partition tasks into groups by distance to task1 and task2. Notice
-                # that we have to filter the groups of tasks so that we are only
-                # including tasks that currently share the same copy of `region` with
-                # `task1` and `task2`.
-                group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
-                group1 = group1.squeeze(-1).tolist()
-                group1 = [
-                    task for task in group1 if self.maps[region].module[task] == copy
-                ]
-                group2 = [
-                    task
-                    for task in range(self.num_tasks)
-                    if task not in group1 and self.maps[region].module[task] == copy
-                ]
-
-                # Execute split.
-                self.split(region, copy, group1, group2)
+            self.split_from_stats(z)
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
         """
@@ -405,6 +371,46 @@ class SplittingMLPNetwork(nn.Module):
         )
 
         return z
+
+    def split_from_stats(self, z: torch.Tensor) -> None:
+        """
+        Given z-scores for the pairwise difference between task gradient distributions
+        at each region, split any pairs of tasks at a region with a sufficiently large
+        z-score.
+        """
+
+        # Check if `z` is large enough to warrant any splits, though only for the
+        # task pairs whose sample size is larger than `self.split_step_threshold`.
+        split_coords = z > self.critical_z
+        split_coords *= self.grad_diff_stats.num_steps > self.split_step_threshold
+        split_coords = split_coords.nonzero()
+
+        # Perform any necessary splits. Notice that we only do this for if `task1,
+        # task` current share the same copy of `region`, and if `task1 < task2`,
+        # since we don't want to split for both coords (task1, task2, region) and
+        # (task2, task1, region).
+        for task1, task2, region in split_coords:
+            if self.maps[region].module[task1] != self.maps[region].module[task2]:
+                continue
+            if task1 >= task2:
+                continue
+            copy = self.maps[region].module[task1]
+
+            # Partition tasks into groups by distance to task1 and task2. Notice
+            # that we have to filter the groups of tasks so that we are only
+            # including tasks that currently share the same copy of `region` with
+            # `task1` and `task2`.
+            group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
+            group1 = group1.squeeze(-1).tolist()
+            group1 = [task for task in group1 if self.maps[region].module[task] == copy]
+            group2 = [
+                task
+                for task in range(self.num_tasks)
+                if task not in group1 and self.maps[region].module[task] == copy
+            ]
+
+            # Execute split.
+            self.split(region, copy, group1, group2)
 
     def split(
         self, region: int, copy: int, group1: List[int], group2: List[int]

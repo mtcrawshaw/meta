@@ -42,6 +42,10 @@ Current task (Splitting networks):
 
 Notes for current task:
 Test that splitting decisions are made correctly.
+Factors of variation for splitting tests:
+- Include all tasks in each batch or only some tasks
+- Special case: z-score is always zero (never split)
+- Special case: one step has z-score always above critical
 
 ----------------------------------------------------------------------------------------
 
