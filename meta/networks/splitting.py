@@ -34,6 +34,7 @@ class SplittingMLPNetwork(nn.Module):
         hidden_size: int = 64,
         split_alpha: float = 0.05,
         split_step_threshold: int = 30,
+        sharing_threshold: float = 0.1,
         ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
@@ -57,6 +58,7 @@ class SplittingMLPNetwork(nn.Module):
         self.hidden_size = hidden_size
         self.split_alpha = split_alpha
         self.split_step_threshold = split_step_threshold
+        self.sharing_threshold = sharing_threshold
         self.ema_alpha = ema_alpha
 
         # Set device.
@@ -211,6 +213,10 @@ class SplittingMLPNetwork(nn.Module):
         """
 
         self.num_steps += 1
+
+        # Stop splitting when the sharing score is sufficiently low.
+        if self.get_sharing_score() <= self.sharing_threshold:
+            return
 
         # Compute task-specific gradients.
         task_grads = self.get_task_grads(task_losses)

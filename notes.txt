@@ -36,8 +36,8 @@ Current task (Splitting networks):
     Compute pairwise distances between task gradients at each region
     Compute test statistic from pairwise distance
     Change sharing variables when statistical significance is reached
---> Stopping criterion
-    Add training tests
+    Stopping criterion
+--> Add training tests
     Refactoring
 
 Notes for current task:
@@ -190,3 +190,5 @@ Refactoring:
   modify `self.map` (in SplittingMLPNetwork) to be an instance of SplittingMap, instead
   of a list. This way the map is parallelizable, and we can speed up the computation of
   sharing score and possibly splitting decisions.
+- Variations of splitting network training:
+  - Continue increasing sample size even after using EMA
