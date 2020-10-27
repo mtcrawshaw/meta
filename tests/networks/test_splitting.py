@@ -23,6 +23,7 @@ from tests.networks.templates import (
     backward_template,
     grad_diffs_template,
     split_stats_template,
+    split_template,
 )
 
 
@@ -1051,17 +1052,17 @@ def test_split_stats_manual() -> None:
         assert torch.allclose(z, expected_z[step], atol=TOL)
 
 
-def test_split() -> None:
+def test_split_rand_all_tasks() -> None:
     """
     Test whether splitting decisions are made correctly when given z-scores for the
-    pairwise difference in gradient distributions at each region.
+    pairwise difference in gradient distributions at each region, when z-scores are
+    generated randomly and all tasks are included in each batch.
     """
 
     # Set up case.
     settings = dict(SETTINGS)
     total_steps = settings["split_step_threshold"] + 20
     splits_args = []
-    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
 
     # Generate z-scores, ensuring that `z[:, task1, task2, :] == z[:, task2, task1, :]`.
     mean = torch.zeros(
@@ -1081,92 +1082,123 @@ def test_split() -> None:
         for task2 in range(task1 + 1, settings["num_tasks"]):
             z[:, task1, task2, :] = z[:, task2, task1, :]
 
-    # Instantiate network and perform splits.
-    network = SplittingMLPNetwork(
-        input_size=dim,
-        output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
-        num_tasks=settings["num_tasks"],
-        num_layers=settings["num_layers"],
-        hidden_size=dim,
-        ema_alpha=settings["ema_alpha"],
+    # Generate task grads. Since all tasks are included in each batch, none of these
+    # will be zero.
+    hidden_size = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = hidden_size ** 2 + hidden_size
+    task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
+    task_grads = torch.ones(total_steps, *task_grad_shape)
+
+    # Call template.
+    split_template(settings, z, task_grads, splits_args)
+
+
+def test_split_rand_some_tasks() -> None:
+    """
+    Test whether splitting decisions are made correctly when given z-scores for the
+    pairwise difference in gradient distributions at each region, when z-scores are
+    generated randomly and only some tasks are included in each batch.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    total_steps = 4 * settings["split_step_threshold"]
+    splits_args = []
+
+    # Generate z-scores, ensuring that `z[:, task1, task2, :] == z[:, task2, task1, :]`.
+    mean = torch.zeros(
+        total_steps,
+        settings["num_tasks"],
+        settings["num_tasks"],
+        settings["num_layers"],
     )
-    for split_args in splits_args:
-        network.split(**split_args)
-    task_grad_shape = (network.num_tasks, network.num_regions, network.max_region_size)
+    std = torch.ones(
+        total_steps,
+        settings["num_tasks"],
+        settings["num_tasks"],
+        settings["num_layers"],
+    )
+    z = torch.normal(mean, std)
+    for task1 in range(settings["num_tasks"] - 1):
+        for task2 in range(task1 + 1, settings["num_tasks"]):
+            z[:, task1, task2, :] = z[:, task2, task1, :]
 
-    # Compute initial splitting map.
-    splitting_map = [
-        [list(range(network.num_tasks))] for _ in range(network.num_regions)
-    ]
-    for split_args in splits_args:
-        region = split_args["region"]
-        copy = split_args["copy"]
-        group1 = split_args["group1"]
-        group2 = split_args["group2"]
-        assert set(splitting_map[region][copy]) == set(group1 + group2)
-        splitting_map[region][copy] = list(group1)
-        splitting_map[region].append(list(group))
-
-    def get_copy(smap: List[List[List[int]]], task: int, region: int) -> int:
-        """ Helper function to get copy index for a task/region pair. """
-        copies = [i for i in range(len(smap[region])) if task in smap[region][i]]
-        assert len(copies) == 1
-        return copies[0]
-
-    # Check split at each step. Note that we call update_grad_stats() with a dummy value
-    # to make sure that `network.grad_diff_stats.num_steps` gets increased past
-    # `network.split_step_threshold`, because otherwise the network would never split.
+    # Generate task grads. Since only some tasks are included in each batch, some grads
+    # in each batch will be set to zero.
+    hidden_size = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = hidden_size ** 2 + hidden_size
+    task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
+    task_grads = torch.ones(total_steps, *task_grad_shape)
+    task_probs = [1.0, 0.1, 1.0, 0.5]
     for step in range(total_steps):
+        for task in range(settings["num_tasks"]):
+            if random.random() >= task_probs[task]:
+                task_grads[step, task] = 0
 
-        # Perform network split.
-        network.num_steps += 1
-        network.update_grad_stats(torch.ones(task_grad_shape))
-        network.split_from_stats(z[step])
+    # Call template.
+    split_template(settings, z, task_grads, splits_args)
 
-        # Compute expected splitting map.
-        for task1 in range(network.num_tasks - 1):
-            for task2 in range(task1 + 1, network.num_tasks):
-                for region in range(network.num_regions):
-                    critical = float(z[step, task1, task2, region]) > network.critical_z
-                    sample = (
-                        network.grad_diff_stats.num_steps[task1, task2, region]
-                        > network.split_step_threshold
-                    )
-                    task1_copy = get_copy(splitting_map, task1, region)
-                    task2_copy = get_copy(splitting_map, task2, region)
-                    shared = task1_copy == task2_copy
 
-                    if critical and sample and shared:
-                        copy = task1_copy
-                        group1 = []
-                        group2 = []
-                        for task in splitting_map[region][copy]:
-                            if task == task1:
-                                group1.append(task)
-                                continue
-                            if task == task2:
-                                group2.append(task)
-                                continue
+def test_split_always() -> None:
+    """
+    Test whether splitting decisions are made correctly when given z-scores for the
+    pairwise difference in gradient distributions at each region, when z-scores are
+    always above the critical value.
+    """
 
-                            if (
-                                z[step, task, task1, region]
-                                < z[step, task, task2, region]
-                            ):
-                                group1.append(task)
-                            else:
-                                group2.append(task)
+    # Set up case.
+    settings = dict(SETTINGS)
+    total_steps = settings["split_step_threshold"] + 20
+    splits_args = []
 
-                        splitting_map[region][copy] = list(group1)
-                        splitting_map[region].append(list(group2))
+    # Generate z-scores, ensuring that `z[:, task1, task2, :] == z[:, task2, task1, :]`.
+    critical_z = stats.norm.ppf(1 - settings["split_alpha"])
+    z = torch.ones(
+        total_steps,
+        settings["num_tasks"],
+        settings["num_tasks"],
+        settings["num_layers"],
+    )
+    z *= critical_z + 1
 
-        # Compare network splitting map with expected splitting map.
-        for task in range(network.num_tasks):
-            for region in range(network.num_regions):
-                actual_copy = network.maps[region].module[task]
-                expected_copy = get_copy(splitting_map, task, region)
-                assert actual_copy == expected_copy
+    # Generate task grads.
+    hidden_size = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = hidden_size ** 2 + hidden_size
+    task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
+    task_grads = torch.ones(total_steps, *task_grad_shape)
+
+    # Call template.
+    split_template(settings, z, task_grads, splits_args)
+
+
+def test_split_never() -> None:
+    """
+    Test whether splitting decisions are made correctly when given z-scores for the
+    pairwise difference in gradient distributions at each region, when z-scores are
+    never above the critical value.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    total_steps = settings["split_step_threshold"] + 20
+    splits_args = []
+
+    # Generate z-scores, ensuring that `z[:, task1, task2, :] == z[:, task2, task1, :]`.
+    z = torch.zeros(
+        total_steps,
+        settings["num_tasks"],
+        settings["num_tasks"],
+        settings["num_layers"],
+    )
+
+    # Generate task grads.
+    hidden_size = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = hidden_size ** 2 + hidden_size
+    task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
+    task_grads = torch.ones(total_steps, *task_grad_shape)
+
+    # Call template.
+    split_template(settings, z, task_grads, splits_args)
 
 
 def split_stats_distribution() -> None:

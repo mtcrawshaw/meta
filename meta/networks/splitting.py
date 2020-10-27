@@ -409,6 +409,17 @@ class SplittingMLPNetwork(nn.Module):
                 if task not in group1 and self.maps[region].module[task] == copy
             ]
 
+            # Ensure that `task1` and `task2` are assigned to the correct groups. This
+            # can go wrong in the above code if multiple z-scores are exactly the same.
+            t1 = int(task1)
+            t2 = int(task2)
+            if t1 in group2:
+                group2.remove(t1)
+                group1.append(t1)
+            if t2 in group1:
+                group1.remove(t2)
+                group2.append(t2)
+
             # Execute split.
             self.split(region, copy, group1, group2)
 

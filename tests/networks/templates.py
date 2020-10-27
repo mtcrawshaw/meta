@@ -452,6 +452,111 @@ def split_stats_template(
             assert abs(z[task1, task2, region] - expected_z) < TOL
 
 
+def split_template(
+    settings: Dict[str, Any],
+    z: torch.Tensor,
+    task_grads: torch.Tensor,
+    splits_args: List[Dict[str, Any]],
+) -> None:
+    """
+    Test whether splitting decisions are made correctly when given z-scores for the
+    pairwise difference in gradient distributions at each region. `task_grads` is
+    essentially a dummy input, the gradient values themselves don't matter. This is just
+    used to update the network's gradient statistics in order to update
+    `network.grad_diff_stats.num_steps`, so the only thing about `task_grads` that
+    matters is whether or not the elements are non-zero.
+    """
+
+    # Set up case.
+    dim = settings["obs_dim"] + settings["num_tasks"]
+
+    # Instantiate network and perform splits.
+    network = SplittingMLPNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=dim,
+        ema_alpha=settings["ema_alpha"],
+    )
+    for split_args in splits_args:
+        network.split(**split_args)
+
+    # Compute initial splitting map.
+    splitting_map = [
+        [list(range(network.num_tasks))] for _ in range(network.num_regions)
+    ]
+    for split_args in splits_args:
+        region = split_args["region"]
+        copy = split_args["copy"]
+        group1 = split_args["group1"]
+        group2 = split_args["group2"]
+        assert set(splitting_map[region][copy]) == set(group1 + group2)
+        splitting_map[region][copy] = list(group1)
+        splitting_map[region].append(list(group))
+
+    def get_copy(smap: List[List[List[int]]], task: int, region: int) -> int:
+        """ Helper function to get copy index for a task/region pair. """
+        copies = [i for i in range(len(smap[region])) if task in smap[region][i]]
+        assert len(copies) == 1
+        return copies[0]
+
+    # Check split at each step. Note that we call update_grad_stats() with a dummy value
+    # to make sure that `network.grad_diff_stats.num_steps` gets increased past
+    # `network.split_step_threshold`, because otherwise the network would never split.
+    for step in range(z.shape[0]):
+
+        # Perform network split.
+        network.num_steps += 1
+        network.update_grad_stats(task_grads[step])
+        network.split_from_stats(z[step])
+
+        # Compute expected splitting map.
+        for task1 in range(network.num_tasks - 1):
+            for task2 in range(task1 + 1, network.num_tasks):
+                for region in range(network.num_regions):
+                    critical = float(z[step, task1, task2, region]) > network.critical_z
+                    sample = (
+                        network.grad_diff_stats.num_steps[task1, task2, region]
+                        > network.split_step_threshold
+                    )
+                    task1_copy = get_copy(splitting_map, task1, region)
+                    task2_copy = get_copy(splitting_map, task2, region)
+                    shared = task1_copy == task2_copy
+
+                    if critical and sample and shared:
+                        copy = task1_copy
+                        group1 = []
+                        group2 = []
+                        for task in splitting_map[region][copy]:
+                            if task == task1:
+                                group1.append(task)
+                                continue
+                            if task == task2:
+                                group2.append(task)
+                                continue
+
+                            if (
+                                z[step, task, task1, region]
+                                < z[step, task, task2, region]
+                            ):
+                                group1.append(task)
+                            else:
+                                group2.append(task)
+
+                        splitting_map[region][copy] = list(group1)
+                        splitting_map[region].append(list(group2))
+
+        # Compare network splitting map with expected splitting map.
+        for task in range(network.num_tasks):
+            for region in range(network.num_regions):
+                actual_copy = network.maps[region].module[task]
+                expected_copy = get_copy(splitting_map, task, region)
+                assert actual_copy == expected_copy
+
+
 def get_flattened_grads(
     task_grads: torch.Tensor,
     num_tasks: int,

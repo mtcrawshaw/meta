@@ -35,17 +35,12 @@ Current task (Splitting networks):
     Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Compute test statistic from pairwise distance
---> Change sharing variables when statistical significance is reached
-    Stopping criterion
+    Change sharing variables when statistical significance is reached
+--> Stopping criterion
     Add training tests
     Refactoring
 
 Notes for current task:
-Test that splitting decisions are made correctly.
-Factors of variation for splitting tests:
-- Include all tasks in each batch or only some tasks
-- Special case: z-score is always zero (never split)
-- Special case: one step has z-score always above critical
 
 ----------------------------------------------------------------------------------------
 
