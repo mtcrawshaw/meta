@@ -41,6 +41,9 @@ Current task (Splitting networks):
     Refactoring
 
 Notes for current task:
+One training test is failing: test_train_MT10_splitting_exclude_task. We probably just
+aren't excluding the task index at all from SplittingMLPNetwork, go fix it. Once it
+runs, save a baseline and then make sure the baseline is reproducible.
 
 ----------------------------------------------------------------------------------------
 

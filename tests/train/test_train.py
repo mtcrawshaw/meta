@@ -19,6 +19,7 @@ CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole_default.json")
 LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander_default.json")
 MT10_CONFIG_PATH = os.path.join("configs", "mt10_default.json")
 TRUNK_CONFIG_PATH = os.path.join("configs", "trunk_default.json")
+SPLITTING_CONFIG_PATH = os.path.join("configs", "splitting_default.json")
 
 
 def test_train_cartpole() -> None:
@@ -607,6 +608,80 @@ def test_train_MT10_trunk_recurrent_exclude_task() -> None:
     config["architecture_config"]["recurrent"] = True
     config["architecture_config"]["include_task_index"] = False
     config["baseline_metrics_filename"] = "MT10_trunk_recurrent_exclude_task"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with splitting network architecture.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "MT10_splitting"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent splitting network architecture.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["baseline_metrics_filename"] = "MT10_splitting_recurrent"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with splitting network architecture where
+    task index is excluded from input.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_splitting_exclude_task"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_recurrent_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent splitting network architecture
+    where task index is excluded from input.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_splitting_recurrent_exclude_task"
 
     # Run training.
     train(config)
