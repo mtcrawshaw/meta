@@ -24,6 +24,7 @@ from tests.networks.templates import (
     grad_diffs_template,
     split_stats_template,
     split_template,
+    score_template,
 )
 
 
@@ -1199,6 +1200,108 @@ def test_split_never() -> None:
 
     # Call template.
     split_template(settings, z, task_grads, splits_args)
+
+
+def test_sharing_score_shared() -> None:
+    """
+    Test that the sharing score is correctly computed for a fully shared network.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["hidden_size"] = dim
+    splits_args = []
+    expected_score = 1.0
+
+    # Call template.
+    score_template(settings, splits_args, expected_score)
+
+
+def test_sharing_score_separate() -> None:
+    """
+    Test that the sharing score is correctly computed for a fully separated network,
+    i.e. a network with no sharing.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["hidden_size"] = dim
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 0, "copy": 0, "group1": [0], "group2": [1]},
+        {"region": 0, "copy": 1, "group1": [2], "group2": [3]},
+        {"region": 1, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0], "group2": [1]},
+        {"region": 1, "copy": 1, "group1": [2], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 2, "copy": 0, "group1": [0], "group2": [1]},
+        {"region": 2, "copy": 1, "group1": [2], "group2": [3]},
+    ]
+    expected_score = 0.0
+
+    # Call template.
+    score_template(settings, splits_args, expected_score)
+
+
+def test_sharing_score_split_1() -> None:
+    """
+    Test that the sharing score is correctly computed for a network with half of each
+    region shared.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["hidden_size"] = dim
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+    expected_score = 2.0 / 3.0
+
+    # Call template.
+    score_template(settings, splits_args, expected_score)
+
+
+def test_sharing_score_split_2() -> None:
+    """
+    Test that the sharing score is correctly computed for a network with half of each
+    region shared.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    settings["input_size"] = settings["obs_dim"]
+    settings["output_size"] = dim
+    settings["hidden_size"] = dim
+    splits_args = [
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 2, "copy": 0, "group1": [0], "group2": [1, 2, 3]},
+        {"region": 2, "copy": 1, "group1": [1], "group2": [2, 3]},
+    ]
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = [
+        settings["obs_dim"] * dim + dim,
+        dim ** 2 + dim,
+        dim ** 2 + dim,
+    ]
+    region_scores = [1.0, 2.0 / 3.0, 1.0 / 3.0]
+    expected_score = sum(
+        [score * size for score, size in zip(region_scores, region_sizes)]
+    ) / sum(region_sizes)
+
+    # Call template.
+    score_template(settings, splits_args, expected_score)
 
 
 def split_stats_distribution() -> None:

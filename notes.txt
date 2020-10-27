@@ -186,3 +186,7 @@ Refactoring:
   less brittle than checking whether the gradient vector is all zero. Maybe this is an
   edge case that we actually want to account for. We could probably get this info from
   `task_losses`.
+- Modify SplittingMap to just be one tensor holding information for all regions, then
+  modify `self.map` (in SplittingMLPNetwork) to be an instance of SplittingMap, instead
+  of a list. This way the map is parallelizable, and we can speed up the computation of
+  sharing score and possibly splitting decisions.

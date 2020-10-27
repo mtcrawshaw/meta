@@ -442,6 +442,23 @@ class SplittingMLPNetwork(nn.Module):
         new_copy = deepcopy(self.regions[region][copy])
         self.regions[region].append(new_copy)
 
+    def get_sharing_score(self) -> float:
+        """
+        Compute and return the sharing score of the network, which is a value ranging
+        from 0 to 1. A score of 0 means that no parameters are shared between any tasks,
+        and a score of 1 means that all parameters are shared between all tasks. The
+        sharing score is roughly the degree of parameter sharing between all tasks.
+        """
+
+        region_scores = torch.zeros(self.num_regions)
+        for region, smap in enumerate(self.maps):
+            region_scores[region] = (self.num_tasks - smap.num_copies) / (
+                self.num_tasks - 1
+            )
+        sharing_score = torch.sum(region_scores * self.region_sizes)
+        sharing_score /= self.total_region_size
+        return sharing_score
+
 
 class SplittingMap:
     """

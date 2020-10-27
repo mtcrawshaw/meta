@@ -467,10 +467,8 @@ def split_template(
     matters is whether or not the elements are non-zero.
     """
 
-    # Set up case.
-    dim = settings["obs_dim"] + settings["num_tasks"]
-
     # Instantiate network and perform splits.
+    dim = settings["obs_dim"] + settings["num_tasks"]
     network = SplittingMLPNetwork(
         input_size=dim,
         output_size=dim,
@@ -555,6 +553,32 @@ def split_template(
                 actual_copy = network.maps[region].module[task]
                 expected_copy = get_copy(splitting_map, task, region)
                 assert actual_copy == expected_copy
+
+
+def score_template(
+    settings: Dict[str, Any], splits_args: List[Dict[str, Any]], expected_score: float
+) -> None:
+    """
+    Test that the sharing score is correctly computed.
+    """
+
+    # Instantiate network and perform splits.
+    network = SplittingMLPNetwork(
+        input_size=settings["input_size"],
+        output_size=settings["output_size"],
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        ema_alpha=settings["ema_alpha"],
+    )
+    for split_args in splits_args:
+        network.split(**split_args)
+
+    # Compare actual sharing score with expected sharing score.
+    actual_score = network.get_sharing_score()
+    assert actual_score == expected_score
 
 
 def get_flattened_grads(
