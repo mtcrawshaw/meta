@@ -129,7 +129,7 @@ class SplittingMLPNetwork(nn.Module):
 
         # Initialize splitting maps. These are the variables that define the parameter
         # sharing structure between tasks.
-        self.maps = [SplittingMap(self.num_tasks) for _ in range(self.num_layers)]
+        self.maps = [SplittingMap(self.num_tasks, device=self.device) for _ in range(self.num_layers)]
 
         # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
@@ -456,7 +456,7 @@ class SplittingMLPNetwork(nn.Module):
         sharing score is roughly the degree of parameter sharing between all tasks.
         """
 
-        region_scores = torch.zeros(self.num_regions)
+        region_scores = torch.zeros(self.num_regions, device=self.device)
         for region, smap in enumerate(self.maps):
             region_scores[region] = (self.num_tasks - smap.num_copies) / (
                 self.num_tasks - 1
@@ -472,12 +472,13 @@ class SplittingMap:
     splitting network.
     """
 
-    def __init__(self, num_tasks: int) -> None:
+    def __init__(self, num_tasks: int, device: torch.device = None) -> None:
         """ Init function for Splitting Variable. """
 
         self.num_tasks = num_tasks
         self.num_copies = 1
-        self.module = torch.zeros(self.num_tasks, dtype=torch.long)
+        self.device = device if device is not None else torch.device("cpu")
+        self.module = torch.zeros(self.num_tasks, dtype=torch.long, device=self.device)
 
     def split(self, copy: int, group_1: List[int], group_2: List[int]) -> None:
         """
