@@ -37,13 +37,30 @@ Current task (Splitting networks):
     Compute test statistic from pairwise distance
     Change sharing variables when statistical significance is reached
     Stopping criterion
---> Add training tests
-    Refactoring
+    Add training tests
+--> Refactoring
 
-Notes for current task:
-One training test is failing: test_train_MT10_splitting_exclude_task. We probably just
-aren't excluding the task index at all from SplittingMLPNetwork, go fix it. Once it
-runs, save a baseline and then make sure the baseline is reproducible.
+Refactoring:
+- Log splitting decisions during training
+- Make sure we can do hyperparameter search over splitting network parameters.
+- In splitting networks, modify task gradient computation so that we don't perform a
+  redundant backwards pass. Right now, we pass over each task loss, then zero everything
+  out and pass over the sum of losses. We don't actually need to do that last backward
+  pass, but we need to do some stuff to get the task losses without zeroing out
+  gradients between each backward pass. Really we just need to take the successive
+  differences of gradients, and we also need to change the format of the backward pass
+  in general so that .backward() does get called on the entire loss if we aren't using
+  splitting networks.
+- Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
+  less brittle than checking whether the gradient vector is all zero. Maybe this is an
+  edge case that we actually want to account for. We could probably get this info from
+  `task_losses`.
+- Modify SplittingMap to just be one tensor holding information for all regions, then
+  modify `self.map` (in SplittingMLPNetwork) to be an instance of SplittingMap, instead
+  of a list. This way the map is parallelizable, and we can speed up the computation of
+  sharing score and possibly splitting decisions.
+- Options for splitting network training:
+  - Continue increasing sample size even after using EMA
 
 ----------------------------------------------------------------------------------------
 
@@ -130,9 +147,7 @@ Possible additions:
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training
-  to CV and NLP. This is way in the future. It will be a pain because we will have to
-  call optimizer.step() at each PPO epoch. Maybe we can initialize it in train.py and
-  just pass a reference in to the policy.
+  to CV and NLP.
 - Optimize data transfer to GPU
 - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
   indexing to construct the batches instead of looping and stacking?
@@ -172,29 +187,11 @@ Refactoring:
 - Create config/architecture_config object so we don't have to mess with string-keyed
   dictionaries everywhere
 - Remove redundant calls to "self.to(device)" in nested modules?
-- In splitting networks, modify task gradient computation so that we don't perform a
-  redundant backwards pass. Right now, we pass over each task loss, then zero everything
-  out and pass over the sum of losses. We don't actually need to do that last backward
-  pass, but we need to do some stuff to get the task losses without zeroing out
-  gradients between each backward pass. Really we just need to take the successive
-  differences of gradients, and we also need to change the format of the backward pass
-  in general so that .backward() does get called on the entire loss if we aren't using
-  splitting networks.
 - Containerize this shit
 - Refactor SplittingMLPNetwork.get_task_grad_diffs() to only compute pairwise
   differences between task gradients for tasks that share a copy. Right now it is
   computed for each pair of tasks at each region. We could also parallelize the
   computation across regions but I'm not quite sure how to do that.
-- Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
-  less brittle than checking whether the gradient vector is all zero. Maybe this is an
-  edge case that we actually want to account for. We could probably get this info from
-  `task_losses`.
-- Modify SplittingMap to just be one tensor holding information for all regions, then
-  modify `self.map` (in SplittingMLPNetwork) to be an instance of SplittingMap, instead
-  of a list. This way the map is parallelizable, and we can speed up the computation of
-  sharing score and possibly splitting decisions.
-- Variations of splitting network training:
-  - Continue increasing sample size even after using EMA
 - In tests/networks/test_trunk.py, test_backward() asserts that the generated
   observation batch contains data from all tasks, but the obs batch isn't explicitly
   constructed this way. It happens to pass by luck but we should enforce this so it
