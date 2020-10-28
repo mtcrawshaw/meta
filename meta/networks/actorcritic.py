@@ -64,12 +64,12 @@ class ActorCriticNetwork(nn.Module):
 
             # Correct recurrent input size if we should exclude task index. The line
             # where we change the observation shape to reflect the exclusion assumes
-            # that len(observation) == 1, since this is the only supported case for the
-            # trunk architecture.
+            # that len(observation.shape) == 1, since this is the only supported case
+            # for the trunk and splitting architecture.
             input_size = self.input_size
             observation_shape = get_space_shape(self.observation_space, "obs")
             if (
-                architecture_config["type"] == "trunk"
+                architecture_config["type"] in ["trunk", "splitting"]
                 and not architecture_config["include_task_index"]
             ):
                 input_size -= architecture_config["num_tasks"]
@@ -128,7 +128,7 @@ class ActorCriticNetwork(nn.Module):
             # architecture isn't recurrent. This is because: when we are excluding the
             # task input and we have a recurrent block at the beginning of the
             # architecture, we exclude the task index from the recurrent input, not the
-            # input to the trunk.
+            # input to the trunk/splitting network.
             input_size = self.input_size
             if self.recurrent:
                 input_size = self.hidden_size
@@ -203,7 +203,10 @@ class ActorCriticNetwork(nn.Module):
         x = obs
 
         # Exclude task index from obs, if necessary.
-        if self.architecture_type == "trunk" and not self.include_task_index:
+        if (
+            self.architecture_type in ["trunk", "splitting"]
+            and not self.include_task_index
+        ):
             task_index_pos = self.input_size - self.num_tasks
             x = x[:, :task_index_pos]
 

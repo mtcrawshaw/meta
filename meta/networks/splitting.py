@@ -129,7 +129,10 @@ class SplittingMLPNetwork(nn.Module):
 
         # Initialize splitting maps. These are the variables that define the parameter
         # sharing structure between tasks.
-        self.maps = [SplittingMap(self.num_tasks, device=self.device) for _ in range(self.num_layers)]
+        self.maps = [
+            SplittingMap(self.num_tasks, device=self.device)
+            for _ in range(self.num_layers)
+        ]
 
         # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
