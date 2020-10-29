@@ -205,14 +205,15 @@ class SplittingMLPNetwork(nn.Module):
 
         return x
 
-    def check_for_split(self, task_losses: torch.Tensor) -> None:
+    def check_for_split(self, task_losses: torch.Tensor) -> bool:
         """
         Determine whether any splits should occur based on the task-specific losses from
         the current batch. To do this, for each region we update our statistics that
         estimate the pairwise differences of task gradients, and we compute a z-score
         over these differences that determine whether there is a statistically
         significant difference in the gradient distribution between two tasks at a given
-        region. If so, we perform a split of those tasks at the given region.
+        region. If so, we perform a split of those tasks at the given region. Returns
+        true if any splits are performed, and false otherwise.
         """
 
         self.num_steps += 1
@@ -230,9 +231,12 @@ class SplittingMLPNetwork(nn.Module):
         # Compute test statistics regarding difference of task gradient distributions,
         # though only if there are any task pairs whose joint sample size is larger than
         # `self.split_step_threshold`.
+        split = False
         if torch.any(self.grad_diff_stats.num_steps >= self.split_step_threshold):
             z = self.get_split_statistics()
-            self.split_from_stats(z)
+            split = self.split_from_stats(z)
+
+        return split
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
         """
@@ -381,11 +385,11 @@ class SplittingMLPNetwork(nn.Module):
 
         return z
 
-    def split_from_stats(self, z: torch.Tensor) -> None:
+    def split_from_stats(self, z: torch.Tensor) -> bool:
         """
         Given z-scores for the pairwise difference between task gradient distributions
         at each region, split any pairs of tasks at a region with a sufficiently large
-        z-score.
+        z-score. Returns true if any splits occur, and false otherwise.
         """
 
         # Check if `z` is large enough to warrant any splits, though only for the
@@ -398,6 +402,7 @@ class SplittingMLPNetwork(nn.Module):
         # task` current share the same copy of `region`, and if `task1 < task2`,
         # since we don't want to split for both coords (task1, task2, region) and
         # (task2, task1, region).
+        split = False
         for task1, task2, region in split_coords:
             if self.maps[region].module[task1] != self.maps[region].module[task2]:
                 continue
@@ -431,6 +436,9 @@ class SplittingMLPNetwork(nn.Module):
 
             # Execute split.
             self.split(region, copy, group1, group2)
+            split = True
+
+        return split
 
     def split(
         self, region: int, copy: int, group1: List[int], group2: List[int]
@@ -467,6 +475,26 @@ class SplittingMLPNetwork(nn.Module):
         sharing_score = torch.sum(region_scores * self.region_sizes)
         sharing_score /= self.total_region_size
         return sharing_score
+
+    def architecture_str(self) -> str:
+        """
+        Return a string representation of the current splitting architecture.
+        """
+
+        msg = ""
+        for region in range(self.num_regions):
+            msg += "Region %d: " % region
+            copies = [
+                [
+                    task
+                    for task in range(self.num_tasks)
+                    if self.maps[region].module[task] == copy
+                ]
+                for copy in range(self.maps[region].num_copies)
+            ]
+            msg += str(copies) + "\n"
+
+        return msg
 
 
 class SplittingMap:

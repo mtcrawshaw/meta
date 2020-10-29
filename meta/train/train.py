@@ -14,6 +14,7 @@ from gym import Env
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env, get_num_tasks
 from meta.utils.storage import RolloutStorage
+from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.utils.plot import plot
 from meta.utils.utils import (
@@ -129,6 +130,11 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         with open(config_path, "w") as config_file:
             json.dump(config, config_file, indent=4)
 
+        # Set logger path.
+        log_path = os.path.join(save_dir, "%s_log.txt" % config["save_name"])
+        logger.log_path = log_path
+        os.mknod(log_path)
+
         # Try to save repo git hash. This will only work when running training from
         # inside the repository.
         try:
@@ -243,8 +249,27 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
             # If we're training a splitting network, pass it the task-specific losses.
             if config["architecture_config"]["type"] == "splitting":
-                policy.policy_network.actor.check_for_split(step_loss)
-                policy.policy_network.critic.check_for_split(step_loss)
+                splits = {}
+                splits["actor"] = policy.policy_network.actor.check_for_split(step_loss)
+                splits["critic"] = policy.policy_network.critic.check_for_split(
+                    step_loss
+                )
+
+                # Log out splits.
+                for name in ["actor", "critic"]:
+                    if splits[name]:
+                        network = eval("policy.policy_network.%s" % name)
+                        log_msg = "Update %d: Splitting %s network.\n" % (
+                            update_iteration,
+                            name,
+                        )
+                        log_msg += (
+                            "New sharing score: %f\n" % network.get_sharing_score()
+                        )
+                        log_msg += "New architecture:\n"
+                        log_msg += network.architecture_str() + "\n"
+                        log_msg += "\n"
+                        logger.log(log_msg)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if num_tasks > 1:

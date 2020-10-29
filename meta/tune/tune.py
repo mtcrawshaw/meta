@@ -190,7 +190,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     # Save results and config.
-    if base_name is not None and early_stop is not None:
+    if base_name is not None:
 
         # Save results.
         results_path = os.path.join(save_dir, "%s_results.json" % base_name)
