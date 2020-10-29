@@ -41,14 +41,10 @@ Current task (Splitting networks):
 --> Refactoring
 
 Notes for current task:
-Potential big bug: We are currently zeroing out gradients after calling .backward on
-each of the task specific losses. I don't think that this would destroy training but it
-is definitely injecting noise.
 
 Refactoring:
-- Make sure we can do hyperparameter search over splitting network parameters.
+- Log out distribution of z-scores between shared tasks at each region during training.
 - Options for splitting network training:
-  - Continue increasing sample size even after using EMA
   - Reset gradient statistics after a split (this means we have to split highest
     z-values first)
   - Other options for mean/std of expected distribution?

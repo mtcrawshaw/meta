@@ -331,6 +331,7 @@ def split_stats_template(
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
+        cap_sample_size=settings["cap_sample_size"],
         ema_alpha=settings["ema_alpha"],
         device=settings["device"],
     )
@@ -445,7 +446,9 @@ def split_stats_template(
                     )
 
             # Compute the expected z-score.
-            sample_size = min(int(pair_sample_sizes[task1, task2]), ema_threshold)
+            sample_size = int(pair_sample_sizes[task1, task2])
+            if settings["cap_sample_size"]:
+                sample_size = min(sample_size, ema_threshold)
             exp_mu = 2 * region_size * grad_std ** 2
             exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
             expected_z = math.sqrt(sample_size) * (exp_mean - exp_mu) / exp_sigma

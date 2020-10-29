@@ -35,6 +35,7 @@ SETTINGS = {
     "num_layers": 3,
     "split_alpha": 0.05,
     "split_step_threshold": 30,
+    "cap_sample_size": True,
     "ema_alpha": 0.999,
     "include_task_index": True,
     "device": torch.device("cpu"),
@@ -766,6 +767,51 @@ def test_split_stats_EMA_random_split_batch() -> None:
             local_grad = torch.rand(settings["num_tasks"], 1, region_size)
             local_grad *= batch_tasks
             task_grads[step, :, region, :region_size] = local_grad
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_EMA_random_capped() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of random gradients at each time step,
+    using both arithmetic mean and EMA to keep track of gradient statistics, and not
+    capping the gradient statistic sample size.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["cap_sample_size"] = False
+    settings["ema_alpha"] = 0.99
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = ema_threshold + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
 
     # Run test.
     split_stats_template(settings, task_grads, splits_args)

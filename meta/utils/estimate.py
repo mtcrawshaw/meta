@@ -22,6 +22,7 @@ class RunningStats:
         compute_stdev: bool = False,
         shape: Tuple[int, ...] = None,
         condense_dims: Tuple[int, ...] = (),
+        cap_sample_size: bool = False,
         ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
@@ -39,6 +40,12 @@ class RunningStats:
             The indices of dimensions to condense. For example, if `shape=(2,3)` and
             `condense=(1,)`, then a tensor `val` with shape `(2, 3)` will be treated as
             3 samples of a random variable with shape `(2,)`.
+        cap_sample_size : bool
+            Whether or not to stop increasing the sample size when we switch to EMA.
+            This may be helpful because an EMA weights recent samples more than older
+            samples, which can increase variance. To offset this, we can leave the
+            sample size at a fixed value so that the sample size reflects the level of
+            variance.
         ema_alpha : float
             Coefficient used to compute exponential moving average. We compute an
             arithmetic mean for the first `ema_threshold` steps (as computed below),
@@ -47,6 +54,7 @@ class RunningStats:
 
         self.compute_stdev = compute_stdev
         self.condense_dims = condense_dims
+        self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
         self.ema_threshold = alpha_to_threshold(ema_alpha)
         self.device = device if device is not None else torch.device("cpu")
@@ -61,8 +69,8 @@ class RunningStats:
             self.var = torch.zeros(self.condensed_shape, device=self.device)
             self.stdev = torch.zeros(self.condensed_shape, device=self.device)
 
-        # Used to keep track of number of updates and effective sample size, which stops
-        # decreasing when we switch to using exponential moving averages.
+        # Used to keep track of number of updates and effective sample size, which may
+        # stop decreasing when we switch to using exponential moving averages.
         self.num_steps = torch.zeros(self.condensed_shape, device=self.device)
         self.sample_size = torch.zeros(self.condensed_shape, device=self.device)
 
@@ -88,11 +96,14 @@ class RunningStats:
 
         # Update `self.num_steps` and `self.sample_size`.
         self.num_steps += flags
-        below = self.sample_size + flags < self.ema_threshold
-        above = torch.logical_not(below)
-        self.sample_size = (
-            self.sample_size + flags
-        ) * below + self.ema_threshold * above
+        if self.cap_sample_size:
+            below = self.sample_size + flags < self.ema_threshold
+            above = torch.logical_not(below)
+            self.sample_size = (
+                self.sample_size + flags
+            ) * below + self.ema_threshold * above
+        else:
+            self.sample_size += flags
 
         # Condense dimensions of sample if necessary.
         if len(self.condense_dims) > 0:

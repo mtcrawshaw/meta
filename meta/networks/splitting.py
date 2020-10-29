@@ -35,6 +35,7 @@ class SplittingMLPNetwork(nn.Module):
         split_alpha: float = 0.05,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
+        cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
@@ -59,6 +60,7 @@ class SplittingMLPNetwork(nn.Module):
         self.split_alpha = split_alpha
         self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
+        self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
 
         # Set device.
@@ -70,6 +72,7 @@ class SplittingMLPNetwork(nn.Module):
         # Initialize running estimates of gradient statistics.
         self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
+            cap_sample_size=self.cap_sample_size,
             ema_alpha=self.ema_alpha,
             device=self.device,
         )
@@ -77,6 +80,7 @@ class SplittingMLPNetwork(nn.Module):
             shape=(self.num_tasks, self.total_region_size),
             compute_stdev=True,
             condense_dims=(1,),
+            cap_sample_size=self.cap_sample_size,
             ema_alpha=self.ema_alpha,
             device=self.device,
         )
