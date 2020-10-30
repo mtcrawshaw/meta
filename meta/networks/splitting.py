@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from meta.utils.estimate import RunningStats
+from meta.utils.logger import logger
 
 
 class SplittingMLPNetwork(nn.Module):
@@ -36,9 +37,52 @@ class SplittingMLPNetwork(nn.Module):
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         cap_sample_size: bool = True,
+        log_z: bool = True,
         ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
+        """
+        Init function for SplittingMLPNetwork.
+
+        Arguments
+        ---------
+        input_size : int
+            Input size for first layer of network.
+        output_size : int
+            Output size for last layer of network.
+        init_base : Callable[[nn.Module], nn.Module]
+            Initialization function used for all layers of the network except last.
+        init_final : Callable[[nn.Module], nn.Module]
+            Initialization function used for last layer of the network.
+        num_tasks : int
+            Number of tasks that we are training over.
+        num_layers : int = 3
+            Number of layers in network.
+        hidden_size : int = 64
+            Hidden size of network layers.
+        split_alpha : float = 0.05
+            Alpha value for statistical test when determining whether or not to split.
+            If the null hypothesis is true, then we will perform a split
+            `100*split_alpha` percent of the time.
+        split_step_threshold : int = 30
+            Number of updates before any splitting is performed. This is in place to
+            make sure that we don't perform any splits based on a tiny amount of data.
+        sharing_threshold : float = 0.1
+            Sharing score that the network can reach before splitting is disabled. The
+            sharing score is computed by `self.get_sharing_score()`.
+        cap_sample_size : bool = True
+            Whether or not to stop increasing the sample size when we switch to EMA.
+        log_z : bool = True
+            Whether or not to log out values of the z-scores throughout training. We
+            leave this as an option because it requires tracking z-score stats at every
+            update step, which will slow down training. This is essentially a diagnostic
+            tool to see why the network is/isn't splitting.
+        ema_alpha : float = 0.999
+            Coefficient used to compute exponential moving averages.
+        device : torch.device = None
+            Device to perform computation on, either `torch.device("cpu")` or
+            `torch.device("cuda:0")`.
+        """
 
         super(SplittingMLPNetwork, self).__init__()
 
@@ -61,6 +105,7 @@ class SplittingMLPNetwork(nn.Module):
         self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
         self.cap_sample_size = cap_sample_size
+        self.log_z = log_z
         self.ema_alpha = ema_alpha
 
         # Set device.
@@ -69,7 +114,9 @@ class SplittingMLPNetwork(nn.Module):
         # Generate network layers.
         self.initialize_network()
 
-        # Initialize running estimates of gradient statistics.
+        # Initialize running estimates of gradient statistics. `grad_diff_stats` and
+        # `grad_stats` hold statistics regarding the pairwise differences of task
+        # gradients and task gradients, respectively.
         self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             cap_sample_size=self.cap_sample_size,
@@ -239,6 +286,9 @@ class SplittingMLPNetwork(nn.Module):
         if torch.any(self.grad_diff_stats.num_steps >= self.split_step_threshold):
             z = self.get_split_statistics()
             split = self.split_from_stats(z)
+
+            if self.log_z:
+                self.log_current_z(z)
 
         return split
 
@@ -499,6 +549,34 @@ class SplittingMLPNetwork(nn.Module):
             msg += str(copies) + "\n"
 
         return msg
+
+    def log_current_z(self, z: torch.Tensor) -> None:
+        """ Prints summary of z-scores at each region to log. """
+
+        msg = "z-scores:\n"
+        for region in range(self.num_regions):
+            scores = []
+            for task1 in range(self.num_tasks - 1):
+                for task2 in range(task1 + 1, self.num_tasks):
+                    copy1 = self.maps[region].module[task1]
+                    copy2 = self.maps[region].module[task2]
+                    if copy1 == copy2:
+                        scores.append(z[task1, task2, region])
+            score_mean = None
+            score_min = None
+            score_max = None
+            if len(scores) > 0:
+                score_mean = np.mean(scores)
+                score_min = min(scores)
+                score_max = max(scores)
+            msg += "Region %d mean, min, max: %r, %r, %r\n" % (
+                region,
+                score_mean,
+                score_min,
+                score_max,
+            )
+        msg += "\n"
+        logger.log(msg)
 
 
 class SplittingMap:

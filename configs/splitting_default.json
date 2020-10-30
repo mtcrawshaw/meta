@@ -31,6 +31,7 @@
         "split_step_threshold": 30,
         "sharing_threshold": 0.2,
         "cap_sample_size": false,
+        "log_z": true,
         "ema_alpha": 0.999,
         "recurrent": false,
         "include_task_index": true

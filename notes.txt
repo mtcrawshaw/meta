@@ -199,3 +199,8 @@ Refactoring:
   observation batch contains data from all tasks, but the obs batch isn't explicitly
   constructed this way. It happens to pass by luck but we should enforce this so it
   doesn't randomly break if seed or something else changes.
+- Remove "init_base" and "init_final" arguments from network classes. We shouldn't have
+  to pass around initialization functions, that's just cluttering things up. Instead we
+  should just have an option as to whether or not the last layer of the network should
+  be initialized with 100x smaller weights, as that is the difference between init_base
+  and init_final.
