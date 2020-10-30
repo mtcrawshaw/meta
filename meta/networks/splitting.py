@@ -561,7 +561,7 @@ class SplittingMLPNetwork(nn.Module):
                     copy1 = self.maps[region].module[task1]
                     copy2 = self.maps[region].module[task2]
                     if copy1 == copy2:
-                        scores.append(z[task1, task2, region])
+                        scores.append(float(z[task1, task2, region]))
             score_mean = None
             score_min = None
             score_max = None

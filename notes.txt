@@ -43,7 +43,6 @@ Current task (Splitting networks):
 Notes for current task:
 
 Refactoring:
-- Log out distribution of z-scores between shared tasks at each region during training.
 - Options for splitting network training:
   - Reset gradient statistics after a split (this means we have to split highest
     z-values first)
