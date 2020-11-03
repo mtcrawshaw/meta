@@ -28,7 +28,9 @@ for m in range(num_trials):
     if load is None:
         start = 0
         for k, n in zip(k_vals, n_vals):
-            vecs[:, start: start+n, :k, :] = np.random.normal(scale=sigma, size=(t, n, k, 2))
+            vecs[:, start : start + n, :k, :] = np.random.normal(
+                scale=sigma, size=(t, n, k, 2)
+            )
             start = start + n
     else:
         with open(load, "rb") as f:
@@ -44,10 +46,13 @@ for m in range(num_trials):
 
             # Compute expected distribution of sample means.
             length_mu = 2 * k * (sigma ** 2)
-            length_sigma = 2 * sqrt(2*k) * (sigma ** 2)
+            length_sigma = 2 * sqrt(2 * k) * (sigma ** 2)
 
             # Compute sample means and z-scores.
-            diffs = vecs[:current_t+1, start: start + n, :, 0] - vecs[:current_t+1, start: start + n, :, 1]
+            diffs = (
+                vecs[: current_t + 1, start : start + n, :, 0]
+                - vecs[: current_t + 1, start : start + n, :, 1]
+            )
             lengths = np.linalg.norm(diffs, ord=2, axis=2) ** 2
             sample_mean = np.mean(lengths, axis=0)
             current_z = (sample_mean - length_mu) / (length_sigma / sqrt(current_t + 1))

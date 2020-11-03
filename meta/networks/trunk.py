@@ -77,7 +77,9 @@ class MultiTaskTrunkNetwork(nn.Module):
                 shape=(self.num_tasks, self.num_tasks, self.num_shared_layers),
                 device=self.device,
             )
-            self.layer_grad_conflicts = torch.zeros(self.num_shared_layers)
+            self.layer_grad_conflicts = torch.zeros(
+                self.num_shared_layers, device=self.device
+            )
 
         # Move model to device.
         self.to(self.device)
@@ -260,8 +262,8 @@ class MultiTaskTrunkNetwork(nn.Module):
 
         # Update running statistics measuring frequency of gradient conflicts.
         self.grad_conflict_stats.update(conflict_flags, task_pair_flags)
-        self.layer_grad_conflicts = torch.zeros(self.num_shared_layers)
-        total_sample_sizes = torch.zeros(self.num_shared_layers)
+        self.layer_grad_conflicts = torch.zeros_like(self.layer_grad_conflicts)
+        total_sample_sizes = torch.zeros(self.num_shared_layers, device=self.device)
         for task1 in range(self.num_tasks - 1):
             for task2 in range(task1 + 1, self.num_tasks):
                 self.layer_grad_conflicts += (
