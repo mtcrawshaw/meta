@@ -282,6 +282,16 @@ def test_check_conflicting_grads() -> None:
             ],
         ]
     )
+    expected_layer_conflicts = torch.Tensor(
+        [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.75, 0.5],
+            [0.75, 0.5],
+            [5.0 / 7.0, 2.0 / 7.0],
+            [0.7, 0.4],
+        ]
+    )
     expected_sizes = torch.Tensor(
         [
             [[[0], [0], [0]], [[0], [0], [0]], [[0], [0], [0]]],
@@ -299,6 +309,10 @@ def test_check_conflicting_grads() -> None:
         network.num_tasks,
         network.num_shared_layers,
     )
+    assert expected_layer_conflicts.shape == (
+        total_steps + 1,
+        network.num_shared_layers,
+    )
     assert expected_sizes.shape == (
         total_steps + 1,
         network.num_tasks,
@@ -313,6 +327,9 @@ def test_check_conflicting_grads() -> None:
         network.measure_conflicts_from_grads(task_grads[step])
         assert torch.all(
             network.grad_conflict_stats.mean == expected_conflicts[step + 1]
+        )
+        assert torch.all(
+            network.layer_grad_conflicts == expected_layer_conflicts[step + 1]
         )
         assert torch.all(
             network.grad_conflict_stats.sample_size == expected_sizes[step + 1]
