@@ -271,6 +271,15 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                         log_msg += "\n"
                         logger.log(log_msg)
 
+            # If we're training a trunk network, check for frequency of conflicting
+            # gradients.
+            if (
+                config["architecture_config"]["type"] == "trunk"
+                and config["architecture_config"]["measure_conflicting_grads"]
+            ):
+                policy.policy_network.actor.check_conflicting_grads(step_loss)
+                policy.policy_network.critic.check_conflicting_grads(step_loss)
+
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if num_tasks > 1:
                 step_loss = torch.sum(step_loss)

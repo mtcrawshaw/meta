@@ -4,10 +4,13 @@ with some number of shared layers at the beginning followed by a task-specific o
 head for each task.
 """
 
+from itertools import product
 from typing import Callable
 
 import torch
 import torch.nn as nn
+
+from meta.utils.estimate import RunningStats
 
 
 class MultiTaskTrunkNetwork(nn.Module):
@@ -30,6 +33,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         num_task_layers: int = 1,
         hidden_size: int = 64,
         device: torch.device = None,
+        measure_conflicting_grads: bool = False,
     ) -> None:
 
         super(MultiTaskTrunkNetwork, self).__init__()
@@ -51,12 +55,28 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
         self.hidden_size = hidden_size
+        self.measure_conflicting_grads = measure_conflicting_grads
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
 
         # Generate network layers.
         self.initialize_network()
+
+        if self.measure_conflicting_grads:
+
+            # Compute max shared layer size.
+            shared_layer_sizes = [
+                sum([param.nelement() for param in self.trunk[i].parameters()])
+                for i in range(self.num_shared_layers)
+            ]
+            self.max_shared_layer_size = int(max(shared_layer_sizes))
+
+            # Initialize running statistics for gradient conflicts between tasks.
+            self.grad_conflict_stats = RunningStats(
+                shape=(self.num_tasks, self.num_tasks, self.num_shared_layers),
+                device=self.device,
+            )
 
         # Move model to device.
         self.to(self.device)
@@ -68,16 +88,20 @@ class MultiTaskTrunkNetwork(nn.Module):
         trunk_layers = []
         for i in range(self.num_shared_layers):
 
+            layer_modules = []
+
             # Calcuate input size of layer.
             layer_input_size = self.input_size if i == 0 else self.hidden_size
 
             # Initialize layer.
-            trunk_layers.append(
+            layer_modules.append(
                 self.init_base(nn.Linear(layer_input_size, self.hidden_size))
             )
 
             # Activation functions.
-            trunk_layers.append(nn.Tanh())
+            layer_modules.append(nn.Tanh())
+
+            trunk_layers.append(nn.Sequential(*layer_modules))
 
         self.trunk = nn.Sequential(*trunk_layers)
 
@@ -167,3 +191,50 @@ class MultiTaskTrunkNetwork(nn.Module):
         outputs = torch.stack(outputs_list)
 
         return outputs
+
+    def check_conflicting_grads(self, task_losses: torch.Tensor) -> None:
+        """
+        Determine whether there are conflicting gradients between the task losses at
+        each region. This is purely for observation and investigating the multi-task
+        training dynamics.
+        """
+
+        # Compute task-specific gradients for the shared layers.
+        task_grads = torch.zeros(
+            (self.num_tasks, self.num_shared_layers, self.max_shared_layer_size),
+            device=self.device,
+        )
+        for task in range(self.num_tasks):
+
+            self.zero_grad()
+            task_losses[task].backward(retain_graph=True)
+
+            for layer in range(self.num_shared_layers):
+                param_grad_list = []
+                for param in self.trunk[layer].parameters():
+                    param_grad_list.append(param.grad.view(-1))
+                layer_grad = torch.cat(param_grad_list)
+                task_grads[task, layer, : len(layer_grad)] = layer_grad
+
+        # Get indices of tasks with non-zero gradients, i.e. the tasks that have data in
+        # the batch from which the losses were computed, and pairs of tasks that both
+        # have non-zero gradients.
+        task_flags = (task_grads.view(self.num_tasks, -1) != 0.0).any(dim=1)
+        task_pair_flags = task_flags.unsqueeze(0) * task_flags.unsqueeze(1)
+        task_pair_flags = task_pair_flags.unsqueeze(-1)
+        task_pair_flags = task_pair_flags.expand(-1, -1, self.num_shared_layers)
+
+        # Compute whether gradients are conflicting between each pair of tasks at each
+        # shared layer.
+        conflict_flags = torch.zeros(
+            (self.num_tasks, self.num_tasks, self.num_shared_layers),
+            device=self.device,
+        )
+        for task1, task2 in product(range(self.num_tasks), range(self.num_tasks)):
+            conflict_flags[task1, task2] = torch.sum(
+                task_grads[task1] * task_grads[task2], dim=1
+            )
+            conflict_flags[task1, task2] = conflict_flags[task1, task2] <= 0
+
+        # Update running statistics measuring frequency of gradient conflicts.
+        self.grad_conflict_stats.update(conflict_flags, task_pair_flags)
