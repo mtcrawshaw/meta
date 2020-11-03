@@ -54,8 +54,8 @@ def test_forward() -> None:
 
         # Set weights.
         state_dict = network.output_heads[i].state_dict()
-        state_dict["0.weight"] = torch.Tensor(i * np.identity(dim))
-        state_dict["0.bias"] = torch.Tensor(i * np.ones(dim))
+        state_dict["0.0.weight"] = torch.Tensor(i * np.identity(dim))
+        state_dict["0.0.bias"] = torch.Tensor(i * np.ones(dim))
         network.output_heads[i].load_state_dict(state_dict)
 
     # Construct batch of observations concatenated with one-hot task vectors.
@@ -111,8 +111,8 @@ def test_forward_obs_only() -> None:
 
     # Set shared trunk weights.
     trunk_state_dict = network.trunk.state_dict()
-    trunk_state_dict["0.weight"] = torch.Tensor(np.identity(hidden_size))
-    trunk_state_dict["0.bias"] = torch.zeros(hidden_size)
+    trunk_state_dict["0.0.weight"] = torch.Tensor(np.identity(hidden_size))
+    trunk_state_dict["0.0.bias"] = torch.zeros(hidden_size)
     network.trunk.load_state_dict(trunk_state_dict)
 
     # Set task-specific weights.
@@ -120,8 +120,8 @@ def test_forward_obs_only() -> None:
 
         # Set weights.
         state_dict = network.output_heads[i].state_dict()
-        state_dict["0.weight"] = torch.Tensor(i * np.identity(hidden_size))
-        state_dict["0.bias"] = i * torch.ones(hidden_size)
+        state_dict["0.0.weight"] = torch.Tensor(i * np.identity(hidden_size))
+        state_dict["0.0.bias"] = i * torch.ones(hidden_size)
         network.output_heads[i].load_state_dict(state_dict)
 
     # Construct batch of observations concatenated with one-hot task vectors.
@@ -204,6 +204,119 @@ def test_backward() -> None:
         for j in range(SETTINGS["num_tasks"]):
             nonzero = j == i
             check_gradients(network.output_heads[j], nonzero=nonzero)
+
+
+def test_check_conflicting_grads() -> None:
+    """ Check whether the frequency of conflicting gradients is measured correctly. """
+
+    # Construct network.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    total_steps = 5
+    network = MultiTaskTrunkNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_final,
+        num_tasks=SETTINGS["num_tasks"],
+        num_shared_layers=SETTINGS["num_shared_layers"],
+        num_task_layers=SETTINGS["num_task_layers"],
+        hidden_size=dim,
+        device=SETTINGS["device"],
+        measure_conflicting_grads=True,
+    )
+
+    # Construct a sequence of task gradients. The shape of `task_grads` is
+    # `(total_steps, network.num_tasks, network.num_shared_layers,
+    # network.max_shared_layer_size)`
+    task_grads = torch.Tensor(
+        [
+            [[[1.0], [2.0]], [[-1.0], [0.0]], [[0.0], [0.0]]],
+            [[[0.5], [1.5]], [[1.0], [1.0]], [[-1.0], [-2.0]]],
+            [[[0.0], [0.0]], [[1.0], [1.0]], [[0.0], [0.0]]],
+            [[[-0.5], [3.0]], [[1.0], [1.0]], [[1.0], [3.0]]],
+            [[[-2.0], [-1.0]], [[1.0], [1.0]], [[2.0], [2.0]]],
+        ]
+    )
+    task_grads = task_grads.expand(-1, -1, -1, network.max_shared_layer_size)
+    for layer in range(network.num_shared_layers):
+        task_grads[:, :, layer, network.shared_layer_sizes[layer] :] = 0.0
+    assert task_grads.shape == (
+        total_steps,
+        network.num_tasks,
+        network.num_shared_layers,
+        network.max_shared_layer_size,
+    )
+
+    # Construct expected conflict stats.
+    expected_conflicts = torch.Tensor(
+        [
+            [
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+            ],
+            [
+                [[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]],
+                [[1.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+            ],
+            [
+                [[0.0, 0.0], [0.5, 0.0], [1.0, 1.0]],
+                [[0.5, 0.0], [0.0, 0.0], [1.0, 1.0]],
+                [[1.0, 1.0], [1.0, 1.0], [0.0, 0.0]],
+            ],
+            [
+                [[0.0, 0.0], [0.5, 0.0], [1.0, 1.0]],
+                [[0.5, 0.0], [0.0, 0.0], [1.0, 1.0]],
+                [[1.0, 1.0], [1.0, 1.0], [0.0, 0.0]],
+            ],
+            [
+                [[0.0, 0.0], [2.0 / 3.0, 0.0], [1.0, 0.5]],
+                [[2.0 / 3.0, 0.0], [0.0, 0.0], [0.5, 0.5]],
+                [[1.0, 0.5], [0.5, 0.5], [0.0, 0.0]],
+            ],
+            [
+                [[0.0, 0.0], [0.75, 0.25], [1.0, 2.0 / 3.0]],
+                [[0.75, 0.25], [0.0, 0.0], [1.0 / 3.0, 1.0 / 3.0]],
+                [[1.0, 2.0 / 3.0], [1.0 / 3.0, 1.0 / 3.0], [0.0, 0.0]],
+            ],
+        ]
+    )
+    expected_sizes = torch.Tensor(
+        [
+            [[[0], [0], [0]], [[0], [0], [0]], [[0], [0], [0]]],
+            [[[1], [1], [0]], [[1], [1], [0]], [[0], [0], [0]]],
+            [[[2], [2], [1]], [[2], [2], [1]], [[1], [1], [1]]],
+            [[[2], [2], [1]], [[2], [3], [1]], [[1], [1], [1]]],
+            [[[3], [3], [2]], [[3], [4], [2]], [[2], [2], [2]]],
+            [[[4], [4], [3]], [[4], [5], [3]], [[3], [3], [3]]],
+        ]
+    )
+    expected_sizes = expected_sizes.expand(-1, -1, -1, network.num_shared_layers)
+    assert expected_conflicts.shape == (
+        total_steps + 1,
+        network.num_tasks,
+        network.num_tasks,
+        network.num_shared_layers,
+    )
+    assert expected_sizes.shape == (
+        total_steps + 1,
+        network.num_tasks,
+        network.num_tasks,
+        network.num_shared_layers,
+    )
+
+    # Check computed conflict frequency against expected.
+    assert torch.all(network.grad_conflict_stats.mean == expected_conflicts[0])
+    assert torch.all(network.grad_conflict_stats.sample_size == expected_sizes[0])
+    for step in range(total_steps):
+        network.measure_conflicts_from_grads(task_grads[step])
+        assert torch.all(
+            network.grad_conflict_stats.mean == expected_conflicts[step + 1]
+        )
+        assert torch.all(
+            network.grad_conflict_stats.sample_size == expected_sizes[step + 1]
+        )
 
 
 def check_gradients(m: torch.nn.Module, nonzero: bool) -> None:

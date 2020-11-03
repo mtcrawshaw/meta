@@ -43,6 +43,7 @@ Current task (Splitting networks):
 Notes for current task:
 
 Refactoring:
+- Measure frequency of conflicting task gradients in MultiTaskTrunkNetwork
 - Options for splitting network training:
   - Reset gradient statistics after a split (this means we have to split highest
     z-values first)
