@@ -39,15 +39,11 @@ Current task (Splitting networks):
     Stopping criterion
     Add training tests
 --> Refactoring
+    Variations of splitting criteria
 
 Notes for current task:
 
 Refactoring:
-- Measure frequency of conflicting task gradients in MultiTaskTrunkNetwork
-- Options for splitting network training:
-  - Reset gradient statistics after a split (this means we have to split highest
-    z-values first)
-  - Other options for mean/std of expected distribution?
 - In splitting networks, modify task gradient computation so that we don't perform a
   redundant backwards pass. Right now, we pass over each task loss, then zero everything
   out and pass over the sum of losses. We don't actually need to do that last backward
@@ -204,3 +200,6 @@ Refactoring:
   should just have an option as to whether or not the last layer of the network should
   be initialized with 100x smaller weights, as that is the difference between init_base
   and init_final.
+- Splitting networks variations:
+  - Reset splitting statistics after a split is performed (this means we have to split
+    regions with highest z-scores first)
