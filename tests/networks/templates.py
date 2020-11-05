@@ -56,7 +56,7 @@ def gradients_template(
     # corresponding functions.
     state_dict = network.state_dict()
     for region in range(network.num_regions):
-        for copy in range(1, network.maps[region].num_copies):
+        for copy in range(1, int(network.splitting_map.num_copies[region])):
             weight_name = "regions.%d.%d.0.weight" % (region, copy)
             bias_name = "regions.%d.%d.0.bias" % (region, copy)
             state_dict[weight_name] = torch.rand(state_dict[weight_name].shape)
@@ -73,7 +73,7 @@ def gradients_template(
         return hook
 
     for region in range(network.num_regions):
-        for copy in range(network.maps[region].num_copies):
+        for copy in range(int(network.splitting_map.num_copies[region])):
             name = "regions.%d.%d" % (region, copy)
             network.regions[region][copy].register_forward_hook(get_activation(name))
 
@@ -97,8 +97,8 @@ def gradients_template(
     def get_task_activations(r, t, tasks):
         """ Helper function to get activations from specific regions. """
 
-        c = network.maps[r].module[t]
-        copy_indices = network.maps[r].module[tasks]
+        c = network.splitting_map.copy[r, t]
+        copy_indices = network.splitting_map.copy[r, tasks]
         sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
         sorted_tasks = tasks[copy_permutation]
         batch_indices = (sorted_copy_indices == c).nonzero().squeeze(-1)
@@ -125,7 +125,7 @@ def gradients_template(
         for region in reversed(range(network.num_regions)):
 
             # Get copy index and layer input.
-            copy = network.maps[region].module[task]
+            copy = network.splitting_map.copy[region, task]
             if region > 0:
                 layer_input = get_task_activations(region - 1, task, task_indices)
             else:
@@ -137,7 +137,7 @@ def gradients_template(
             else:
                 layer_output = get_task_activations(region, task, task_indices)
                 local_grad[region] = torch.zeros(len(layer_output), dim)
-                next_copy = network.maps[region + 1].module[task]
+                next_copy = network.splitting_map.copy[region + 1, task]
                 weights = state_dict["regions.%d.%d.0.weight" % (region + 1, next_copy)]
                 for i in range(dim):
                     for j in range(dim):
@@ -203,7 +203,7 @@ def backward_template(
     # corresponding functions.
     state_dict = network.state_dict()
     for region in range(network.num_regions):
-        for copy in range(1, network.maps[region].num_copies):
+        for copy in range(1, int(network.splitting_map.num_copies[region])):
             weight_name = "regions.%d.%d.0.weight" % (region, copy)
             bias_name = "regions.%d.%d.0.bias" % (region, copy)
             state_dict[weight_name] = torch.rand(state_dict[weight_name].shape)
@@ -236,10 +236,10 @@ def backward_template(
 
         task_losses[task].backward(retain_graph=True)
         for region in range(len(network.regions)):
-            for copy in range(network.maps[region].num_copies):
+            for copy in range(int(network.splitting_map.num_copies[region])):
                 for param in network.regions[region][copy].parameters():
                     zero = torch.zeros(param.grad.shape)
-                    if network.maps[region].module[task] == copy:
+                    if network.splitting_map.copy[region, task] == copy:
                         assert not torch.allclose(param.grad, zero)
                     else:
                         assert torch.allclose(param.grad, zero)
@@ -553,7 +553,7 @@ def split_template(
         # Compare network splitting map with expected splitting map.
         for task in range(network.num_tasks):
             for region in range(network.num_regions):
-                actual_copy = network.maps[region].module[task]
+                actual_copy = network.splitting_map.copy[region, task]
                 expected_copy = get_copy(splitting_map, task, region)
                 assert actual_copy == expected_copy
 

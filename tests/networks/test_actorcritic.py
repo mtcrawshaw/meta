@@ -93,22 +93,22 @@ def actorcritic_exclude_task_template(settings: Dict[str, any]):
     for m_name in ["actor", "critic"]:
         m = getattr(network, m_name)
         trunk_state_dict = m.trunk.state_dict()
-        trunk_state_dict["0.weight"] = torch.Tensor(np.identity(hidden_size))
-        trunk_state_dict["0.bias"] = torch.zeros(hidden_size)
+        trunk_state_dict["0.0.weight"] = torch.Tensor(np.identity(hidden_size))
+        trunk_state_dict["0.0.bias"] = torch.zeros(hidden_size)
         m.trunk.load_state_dict(trunk_state_dict)
 
         for i in range(num_tasks):
             state_dict = m.output_heads[i].state_dict()
             if m_name == "actor":
-                state_dict["0.weight"] = torch.Tensor(
+                state_dict["0.0.weight"] = torch.Tensor(
                     i * np.ones((action_size, hidden_size))
                 )
-                state_dict["0.bias"] = i * torch.ones(action_size)
+                state_dict["0.0.bias"] = i * torch.ones(action_size)
             elif m_name == "critic":
-                state_dict["0.weight"] = torch.Tensor(
+                state_dict["0.0.weight"] = torch.Tensor(
                     i * np.ones(hidden_size)
                 ).unsqueeze(0)
-                state_dict["0.bias"] = i * torch.ones(1)
+                state_dict["0.0.bias"] = i * torch.ones(1)
             else:
                 raise NotImplementedError
 
@@ -128,14 +128,14 @@ def actorcritic_exclude_task_template(settings: Dict[str, any]):
         assert not hasattr(network, "recurrent_block")
     for m in [network.actor, network.critic]:
         if settings["architecture_config"]["recurrent"]:
-            assert m.trunk[0].in_features == hidden_size
+            assert m.trunk[0][0].in_features == hidden_size
         else:
-            assert m.trunk[0].in_features == obs_size - num_tasks
+            assert m.trunk[0][0].in_features == obs_size - num_tasks
         for i in range(num_tasks):
-            assert m.output_heads[i][0].in_features == hidden_size
+            assert m.output_heads[i][0][0].in_features == hidden_size
     for i in range(num_tasks):
-        assert network.actor.output_heads[i][0].out_features == action_size
-        assert network.critic.output_heads[i][0].out_features == 1
+        assert network.actor.output_heads[i][0][0].out_features == action_size
+        assert network.critic.output_heads[i][0][0].out_features == 1
 
     # Construct batch of observations concatenated with one-hot task vectors.
     obs_list = []

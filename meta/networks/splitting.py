@@ -180,10 +180,9 @@ class SplittingMLPNetwork(nn.Module):
 
         # Initialize splitting maps. These are the variables that define the parameter
         # sharing structure between tasks.
-        self.maps = [
-            SplittingMap(self.num_tasks, device=self.device)
-            for _ in range(self.num_layers)
-        ]
+        self.splitting_map = SplittingMap(
+            self.num_tasks, self.num_regions, device=self.device
+        )
 
         # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
@@ -238,14 +237,14 @@ class SplittingMLPNetwork(nn.Module):
 
             # Sort the inputs by copy index and construct reverse permutation to later
             # restore the original order.
-            copy_indices = self.maps[layer].module[task_indices]
+            copy_indices = self.splitting_map.copy[layer, task_indices]
             sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
             _, copy_reverse = torch.sort(copy_permutation)
             x = x[copy_permutation]
 
             # Pass through each copy of the region and stack outputs.
             copy_outputs = []
-            for copy in range(self.maps[layer].num_copies):
+            for copy in range(int(self.splitting_map.num_copies[layer])):
                 batch_indices = (sorted_copy_indices == copy).nonzero().squeeze(-1)
                 batch = x[batch_indices]
                 copy_outputs.append(self.regions[layer][copy](batch))
@@ -322,7 +321,7 @@ class SplittingMLPNetwork(nn.Module):
 
             for region in range(self.num_regions):
                 param_grad_list = []
-                copy = int(self.maps[region].module[task])
+                copy = int(self.splitting_map.copy[region, task])
                 for param in self.regions[region][copy].parameters():
                     param_grad_list.append(param.grad.view(-1))
                 region_grad = torch.cat(param_grad_list)
@@ -458,11 +457,14 @@ class SplittingMLPNetwork(nn.Module):
         # (task2, task1, region).
         split = False
         for task1, task2, region in split_coords:
-            if self.maps[region].module[task1] != self.maps[region].module[task2]:
+            if (
+                self.splitting_map.copy[region, task1]
+                != self.splitting_map.copy[region, task2]
+            ):
                 continue
             if task1 >= task2:
                 continue
-            copy = self.maps[region].module[task1]
+            copy = self.splitting_map.copy[region, task1]
 
             # Partition tasks into groups by distance to task1 and task2. Notice
             # that we have to filter the groups of tasks so that we are only
@@ -470,11 +472,13 @@ class SplittingMLPNetwork(nn.Module):
             # `task1` and `task2`.
             group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
             group1 = group1.squeeze(-1).tolist()
-            group1 = [task for task in group1 if self.maps[region].module[task] == copy]
+            group1 = [
+                task for task in group1 if self.splitting_map.copy[region, task] == copy
+            ]
             group2 = [
                 task
                 for task in range(self.num_tasks)
-                if task not in group1 and self.maps[region].module[task] == copy
+                if task not in group1 and self.splitting_map.copy[region, task] == copy
             ]
 
             # Ensure that `task1` and `task2` are assigned to the correct groups. This
@@ -507,7 +511,7 @@ class SplittingMLPNetwork(nn.Module):
 
         # Split the map that describes the splitting structure, so that tasks with
         # indices in `group2` are assigned to the new copy.
-        self.maps[region].split(copy, group1, group2)
+        self.splitting_map.split(region, copy, group1, group2)
 
         # Create a new module and add to parameters.
         new_copy = deepcopy(self.regions[region][copy])
@@ -521,11 +525,9 @@ class SplittingMLPNetwork(nn.Module):
         sharing score is roughly the degree of parameter sharing between all tasks.
         """
 
-        region_scores = torch.zeros(self.num_regions, device=self.device)
-        for region, smap in enumerate(self.maps):
-            region_scores[region] = (self.num_tasks - smap.num_copies) / (
-                self.num_tasks - 1
-            )
+        region_scores = (self.num_tasks - self.splitting_map.num_copies) / (
+            self.num_tasks - 1
+        )
         sharing_score = torch.sum(region_scores * self.region_sizes)
         sharing_score /= self.total_region_size
         return sharing_score
@@ -542,9 +544,9 @@ class SplittingMLPNetwork(nn.Module):
                 [
                     task
                     for task in range(self.num_tasks)
-                    if self.maps[region].module[task] == copy
+                    if self.splitting_map.copy[region, task] == copy
                 ]
-                for copy in range(self.maps[region].num_copies)
+                for copy in range(int(self.splitting_map.num_copies[region]))
             ]
             msg += str(copies) + "\n"
 
@@ -558,8 +560,8 @@ class SplittingMLPNetwork(nn.Module):
             scores = []
             for task1 in range(self.num_tasks - 1):
                 for task2 in range(task1 + 1, self.num_tasks):
-                    copy1 = self.maps[region].module[task1]
-                    copy2 = self.maps[region].module[task2]
+                    copy1 = self.splitting_map.copy[region, task1]
+                    copy2 = self.splitting_map.copy[region, task2]
                     if copy1 == copy2:
                         scores.append(float(z[task1, task2, region]))
             score_mean = None
@@ -581,31 +583,37 @@ class SplittingMLPNetwork(nn.Module):
 
 class SplittingMap:
     """
-    Data structure used to encode the splitting structure of a single region of a
-    splitting network.
+    Data structure used to encode the splitting structure of a splitting network.
     """
 
-    def __init__(self, num_tasks: int, device: torch.device = None) -> None:
-        """ Init function for Splitting Variable. """
+    def __init__(
+        self, num_tasks: int, num_regions: int, device: torch.device = None
+    ) -> None:
+        """ Init function for SplittingMap. """
 
         self.num_tasks = num_tasks
-        self.num_copies = 1
+        self.num_regions = num_regions
         self.device = device if device is not None else torch.device("cpu")
-        self.module = torch.zeros(self.num_tasks, dtype=torch.long, device=self.device)
+        self.num_copies = torch.ones(self.num_regions, device=self.device)
+        self.copy = torch.zeros(
+            self.num_regions, self.num_tasks, dtype=torch.long, device=self.device
+        )
 
-    def split(self, copy: int, group_1: List[int], group_2: List[int]) -> None:
+    def split(
+        self, region: int, copy: int, group_1: List[int], group_2: List[int]
+    ) -> None:
         """
-        Split a module with index `copy` into two modules, one corresponding to tasks
-        with inidices in `group_1` and the other to `group_2`. Note that to call this
-        function, it must be that the combined indices of `group_1` and `group_2` form
-        the set of indices i with self.module_map[i] = copy.
+        Split copy `copy` at region `region` into two modules, one corresponding to
+        tasks with inidices in `group_1` and the other to `group_2`. Note that to call
+        this function, it must be that the combined indices of `group_1` and `group_2`
+        form the set of indices i with self.module_map[i] = copy.
         """
 
         # Check that precondition is satisfied.
         assert set(group_1 + group_2) == set(
-            [i for i in range(self.num_tasks) if self.module[i] == copy]
+            [i for i in range(self.num_tasks) if self.copy[region, i] == copy]
         )
 
-        self.num_copies += 1
-        for task_index in group_2:
-            self.module[task_index] = self.num_copies - 1
+        self.num_copies[region] += 1
+        for task in group_2:
+            self.copy[region, task] = self.num_copies[region] - 1
