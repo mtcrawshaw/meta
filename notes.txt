@@ -42,20 +42,8 @@ Current task (Splitting networks):
     Variations of splitting criteria
 
 Notes for current task:
-
-Refactoring:
-- In splitting networks, modify task gradient computation so that we don't perform a
-  redundant backwards pass. Right now, we pass over each task loss, then zero everything
-  out and pass over the sum of losses. We don't actually need to do that last backward
-  pass, but we need to do some stuff to get the task losses without zeroing out
-  gradients between each backward pass. Really we just need to take the successive
-  differences of gradients, and we also need to change the format of the backward pass
-  in general so that .backward() does get called on the entire loss if we aren't using
-  splitting networks.
-- Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
-  less brittle than checking whether the gradient vector is all zero. Maybe this is an
-  edge case that we actually want to account for. We could probably get this info from
-  `task_losses`.
+Gonna likely have to create a splitting network base class with two subclasses, one for
+each splitting criterion.
 
 ----------------------------------------------------------------------------------------
 
@@ -183,10 +171,6 @@ Refactoring:
   dictionaries everywhere
 - Remove redundant calls to "self.to(device)" in nested modules?
 - Containerize this shit
-- Refactor SplittingMLPNetwork.get_task_grad_diffs() to only compute pairwise
-  differences between task gradients for tasks that share a copy. Right now it is
-  computed for each pair of tasks at each region. We could also parallelize the
-  computation across regions but I'm not quite sure how to do that.
 - In tests/networks/test_trunk.py, test_backward() asserts that the generated
   observation batch contains data from all tasks, but the obs batch isn't explicitly
   constructed this way. It happens to pass by luck but we should enforce this so it
@@ -196,6 +180,25 @@ Refactoring:
   should just have an option as to whether or not the last layer of the network should
   be initialized with 100x smaller weights, as that is the difference between init_base
   and init_final.
-- Splitting networks variations:
+- Splitting networks training variations:
   - Reset splitting statistics after a split is performed (this means we have to split
     regions with highest z-scores first)
+- Splitting networks implementation:
+  - Refactor SplittingMLPNetwork.get_task_grad_diffs() to only compute pairwise
+    differences between task gradients for tasks that share a copy. Right now it is
+    computed for each pair of tasks at each region. We could also parallelize the
+    computation across regions but I'm not quite sure how to do that.
+  - In splitting networks, modify task gradient computation so that we don't perform a
+    redundant backwards pass. Right now, we pass over each task loss, then zero everything
+    out and pass over the sum of losses. We don't actually need to do that last backward
+    pass, but we need to do some stuff to get the task losses without zeroing out
+    gradients between each backward pass. Really we just need to take the successive
+    differences of gradients, and we also need to change the format of the backward pass
+    in general so that .backward() does get called on the entire loss if we aren't using
+    splitting networks. Also, the problem is twice as bad as we originally thought: we are
+    calling backwards on each task loss twice! Once in check_for_splits() for the actor
+    and again for the critic. Fixing this inefficiency is gonna be messy.
+  - Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
+    less brittle than checking whether the gradient vector is all zero. Maybe this is an
+    edge case that we actually want to account for. We could probably get this info from
+    `task_losses`.
