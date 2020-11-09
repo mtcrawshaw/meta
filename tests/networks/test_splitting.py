@@ -34,6 +34,7 @@ SETTINGS = {
     "num_tasks": 4,
     "num_layers": 3,
     "split_alpha": 0.05,
+    "grad_var": None,
     "split_step_threshold": 30,
     "cap_sample_size": True,
     "ema_alpha": 0.999,
@@ -791,6 +792,57 @@ def test_split_stats_EMA_random_capped() -> None:
 
     # Construct series of splits.
     splits_args = []
+
+    # Construct a sequence of task gradients. The network gradient statistics will be
+    # updated with these task gradients, and the z-scores will be computed from these
+    # statistics.
+    total_steps = ema_threshold + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    task_grads = torch.zeros(
+        total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
+    )
+    for region in product(range(settings["num_layers"])):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = max_region_size
+
+        task_grads[:, :, region, :region_size] = torch.rand(
+            total_steps, settings["num_tasks"], 1, region_size
+        )
+
+    # Run test.
+    split_stats_template(settings, task_grads, splits_args)
+
+
+def test_split_stats_EMA_random_split_grad_var() -> None:
+    """
+    Test that `get_split_statistics()` correctly computes the z-score over the pairwise
+    differences in task gradients in the case of random gradients at each time step, a
+    split network, using both arithmetic mean and EMA to keep track of gradient
+    statistics, when the standard deviation of task-gradients is given as a
+    hyperparameter instead of measured online.
+    """
+
+    # Set up case.
+    settings = dict(SETTINGS)
+    settings["obs_dim"] = 2
+    settings["num_tasks"] = 4
+    settings["grad_var"] = 0.01
+    settings["ema_alpha"] = 0.99
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
 
     # Construct a sequence of task gradients. The network gradient statistics will be
     # updated with these task gradients, and the z-scores will be computed from these

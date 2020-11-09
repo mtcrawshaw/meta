@@ -38,12 +38,13 @@ Current task (Splitting networks):
     Change sharing variables when statistical significance is reached
     Stopping criterion
     Add training tests
---> Refactoring
-    Variations of splitting criteria
+    Refactoring
+--> Variations of splitting criteria
 
 Notes for current task:
-Gonna likely have to create a splitting network base class with two subclasses, one for
-each splitting criterion.
+If we implement a splitting criterion that is vastly different from the original one, we
+are likely gonna have to create a splitting network base class with two subclasses, one
+for each splitting criterion.
 
 ----------------------------------------------------------------------------------------
 
@@ -56,6 +57,8 @@ Before merging to master:
 Future additions:
 - Test PPO for environments with action space Box((n1, n2))
 - PPO training settings to add/consider:
+    - Option to deparallelize data collection processes (this way we can collect from a
+      large number of independent environments without causing thrashing)
     - Network architecture hyperparameters
       - Parameter sharing between actor and critic
       - Option to have separate recurrent layers

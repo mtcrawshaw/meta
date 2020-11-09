@@ -28,6 +28,7 @@
         "num_layers": 3,
         "hidden_size": 32,
         "split_alpha": 0.05,
+        "grad_var": null,
         "split_step_threshold": 30,
         "sharing_threshold": 0.2,
         "cap_sample_size": false,

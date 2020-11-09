@@ -331,6 +331,7 @@ def split_stats_template(
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
+        grad_var=settings["grad_var"],
         cap_sample_size=settings["cap_sample_size"],
         ema_alpha=settings["ema_alpha"],
         device=settings["device"],
@@ -409,8 +410,10 @@ def split_stats_template(
 
             task_vars[task] = task_var
 
-        weighted_var = torch.sum(task_vars * sample_sizes) / torch.sum(sample_sizes)
-        grad_std = float(torch.sqrt(weighted_var))
+        if settings["grad_var"] is None:
+            grad_var = torch.sum(task_vars * sample_sizes) / torch.sum(sample_sizes)
+        else:
+            grad_var = settings["grad_var"]
 
         # Compare `z` to the expected value for each `(task1, task2, region)`.
         for task1, task2, region in product(
@@ -449,8 +452,8 @@ def split_stats_template(
             sample_size = int(pair_sample_sizes[task1, task2])
             if settings["cap_sample_size"]:
                 sample_size = min(sample_size, ema_threshold)
-            exp_mu = 2 * region_size * grad_std ** 2
-            exp_sigma = 2 * math.sqrt(2 * region_size) * grad_std ** 2
+            exp_mu = 2 * region_size * grad_var
+            exp_sigma = 2 * math.sqrt(2 * region_size) * grad_var
             expected_z = math.sqrt(sample_size) * (exp_mean - exp_mu) / exp_sigma
             assert abs(z[task1, task2, region] - expected_z) < TOL
 

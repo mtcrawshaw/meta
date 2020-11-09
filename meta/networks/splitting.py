@@ -34,6 +34,7 @@ class SplittingMLPNetwork(nn.Module):
         num_layers: int = 3,
         hidden_size: int = 64,
         split_alpha: float = 0.05,
+        grad_var: float = None,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         cap_sample_size: bool = True,
@@ -64,6 +65,11 @@ class SplittingMLPNetwork(nn.Module):
             Alpha value for statistical test when determining whether or not to split.
             If the null hypothesis is true, then we will perform a split
             `100*split_alpha` percent of the time.
+        grad_var : float = None
+            Estimate of variance of each component of task-specific gradients (where
+            task-specific gradients are modeled as multi-variate Gaussians with diagonal
+            covariance matrices). If set to None, this value is estimated
+            online.
         split_step_threshold : int = 30
             Number of updates before any splitting is performed. This is in place to
             make sure that we don't perform any splits based on a tiny amount of data.
@@ -102,6 +108,7 @@ class SplittingMLPNetwork(nn.Module):
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.split_alpha = split_alpha
+        self.grad_var = grad_var
         self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
         self.cap_sample_size = cap_sample_size
@@ -116,21 +123,25 @@ class SplittingMLPNetwork(nn.Module):
 
         # Initialize running estimates of gradient statistics. `grad_diff_stats` and
         # `grad_stats` hold statistics regarding the pairwise differences of task
-        # gradients and task gradients, respectively.
+        # gradients and task gradients, respectively. Note that we only measure stats of
+        # individual gradients if `self.grad_var = None`, and otherwise we use
+        # `self.grad_var` as an estimate of the standard deviation of gradient
+        # components.
         self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             cap_sample_size=self.cap_sample_size,
             ema_alpha=self.ema_alpha,
             device=self.device,
         )
-        self.grad_stats = RunningStats(
-            shape=(self.num_tasks, self.total_region_size),
-            compute_stdev=True,
-            condense_dims=(1,),
-            cap_sample_size=self.cap_sample_size,
-            ema_alpha=self.ema_alpha,
-            device=self.device,
-        )
+        if self.grad_var is None:
+            self.grad_stats = RunningStats(
+                shape=(self.num_tasks, self.total_region_size),
+                compute_stdev=True,
+                condense_dims=(1,),
+                cap_sample_size=self.cap_sample_size,
+                ema_alpha=self.ema_alpha,
+                device=self.device,
+            )
         self.num_steps = 0
 
         # Compute critical value of z-statistic based on given value of `split_alpha`.
@@ -351,13 +362,19 @@ class SplittingMLPNetwork(nn.Module):
         # standard deviation of the gradient of each individual weight. Since
         # `task_grads` is a single tensor padded with zeros, we extract the non-pad
         # values before updating `self.grad_stats`. The non-pad values are extracted
-        # into a tensor of shape `(self.num_tasks, self.total_region_size)`.
-        flattened_grad = torch.cat(
-            [task_grads[:, r, : self.region_sizes[r]] for r in range(self.num_regions)],
-            dim=1,
-        )
+        # into a tensor of shape `(self.num_tasks, self.total_region_size)`. Note that
+        # we only need to estimate the standard deviation of the gradient of each weight
+        # when `self.grad_var` is None.
         self.grad_diff_stats.update(task_grad_diffs, task_pair_flags)
-        self.grad_stats.update(flattened_grad, task_flags)
+        if self.grad_var is None:
+            flattened_grad = torch.cat(
+                [
+                    task_grads[:, r, : self.region_sizes[r]]
+                    for r in range(self.num_regions)
+                ],
+                dim=1,
+            )
+            self.grad_stats.update(flattened_grad, task_flags)
 
     def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
         """
@@ -419,9 +436,12 @@ class SplittingMLPNetwork(nn.Module):
             tasks `i, j` at region `k`.
         """
 
-        est_grad_var = torch.sum(
-            self.grad_stats.var * self.grad_stats.sample_size
-        ) / torch.sum(self.grad_stats.sample_size)
+        if self.grad_var is None:
+            est_grad_var = torch.sum(
+                self.grad_stats.var * self.grad_stats.sample_size
+            ) / torch.sum(self.grad_stats.sample_size)
+        else:
+            est_grad_var = float(self.grad_var)
 
         mu = 2 * self.region_sizes * est_grad_var
         mu = mu.expand(self.num_tasks, self.num_tasks, -1)
