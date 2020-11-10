@@ -1,5 +1,5 @@
 """
-Definition of SplittingMLPNetwork, a multi-layer perceptron splitting network.
+Definition of MultiTaskSplittingNetwork, a multi-layer perceptron splitting network.
 """
 
 import math
@@ -17,12 +17,8 @@ from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
 
-class SplittingMLPNetwork(nn.Module):
-    """
-    Module used to parameterize a splitting MLP. `init_base` is the initialization
-    function used to initialize all layers except for the last, and `init_final` is the
-    initialization function used to initialize the last layer.
-    """
+class MultiTaskSplittingNetwork(nn.Module):
+    """ Module used to parameterize a splitting MLP. """
 
     def __init__(
         self,
@@ -43,7 +39,7 @@ class SplittingMLPNetwork(nn.Module):
         device: torch.device = None,
     ) -> None:
         """
-        Init function for SplittingMLPNetwork.
+        Init function for MultiTaskSplittingNetwork.
 
         Arguments
         ---------
@@ -90,7 +86,7 @@ class SplittingMLPNetwork(nn.Module):
             `torch.device("cuda:0")`.
         """
 
-        super(SplittingMLPNetwork, self).__init__()
+        super(MultiTaskSplittingNetwork, self).__init__()
 
         # Check number of layers.
         if num_layers < 1:
@@ -209,9 +205,9 @@ class SplittingMLPNetwork(nn.Module):
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass definition for SplittingMLPNetwork. For each layer of the network,
-        we aggregate the inputs by their assigned copy of each region, and pass the
-        inputs through the corresponding copy.
+        Forward pass definition for MultiTaskSplittingNetwork. For each layer of the
+        network, we aggregate the inputs by their assigned copy of each region, and pass
+        the inputs through the corresponding copy.
 
         Implementation note: As I see it, there are two ways that we can reasonably
         implement this function. The first is, at each region, sorting the inputs by

@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from gym.spaces import Box
 
 from meta.networks.initialize import init_base
-from meta.networks.splitting import SplittingMLPNetwork
+from meta.networks.splitting import MultiTaskSplittingNetwork
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.templates import (
@@ -56,7 +56,7 @@ def test_forward_shared() -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -108,7 +108,7 @@ def test_forward_single() -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -177,7 +177,7 @@ def test_forward_multiple() -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -260,7 +260,7 @@ def test_split_single() -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -303,7 +303,7 @@ def test_split_multiple() -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -1121,7 +1121,7 @@ def test_split_stats_manual() -> None:
     expected_pair_sample_size = expected_pair_sample_size.unsqueeze(-1)
 
     # Instantiate network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=input_size,
         output_size=output_size,
         init_base=init_base,
@@ -1451,7 +1451,7 @@ def split_stats_distribution() -> None:
 
         # Construct network.
         dim = settings["obs_dim"] + NUM_TASKS
-        network = SplittingMLPNetwork(
+        network = MultiTaskSplittingNetwork(
             input_size=dim,
             output_size=dim,
             init_base=init_base,

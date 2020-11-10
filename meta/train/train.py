@@ -80,7 +80,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Config dictionary for the architecture. Should contain an entry for "type",
         which is either "vanilla", "trunk" or "splitting", and all other entries should
         correspond to the keyword arguments for the corresponding network class, which
-        is either VanillaNetwork, MultiTaskTrunkNetwork, or SplittingMLPNetwork.
+        is either VanillaNetwork, MultiTaskTrunkNetwork, or MultiTaskSplittingNetwork.
     cuda : bool
         Whether or not to train on GPU.
     seed : int

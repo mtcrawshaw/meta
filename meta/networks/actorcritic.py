@@ -14,7 +14,7 @@ from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from meta.networks.splitting import SplittingMLPNetwork
+from meta.networks.splitting import MultiTaskSplittingNetwork
 from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
 
@@ -139,7 +139,7 @@ class ActorCriticNetwork(nn.Module):
             if architecture_config["type"] == "trunk":
                 cls = MultiTaskTrunkNetwork
             elif architecture_config["type"] == "splitting":
-                cls = SplittingMLPNetwork
+                cls = MultiTaskSplittingNetwork
             else:
                 raise NotImplementedError
 

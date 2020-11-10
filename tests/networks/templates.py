@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from meta.networks.initialize import init_base
-from meta.networks.splitting import SplittingMLPNetwork
+from meta.networks.splitting import MultiTaskSplittingNetwork
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
@@ -37,7 +37,7 @@ def gradients_template(
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -184,7 +184,7 @@ def backward_template(
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -258,7 +258,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -323,7 +323,7 @@ def split_stats_template(
     dim = settings["obs_dim"] + settings["num_tasks"]
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -475,7 +475,7 @@ def split_template(
 
     # Instantiate network and perform splits.
     dim = settings["obs_dim"] + settings["num_tasks"]
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -569,7 +569,7 @@ def score_template(
     """
 
     # Instantiate network and perform splits.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetwork(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
         init_base=init_base,
