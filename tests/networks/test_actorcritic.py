@@ -13,6 +13,9 @@ from meta.utils.utils import get_space_size
 from tests.helpers import DEFAULT_SETTINGS, one_hot_tensor
 
 
+TOL = 1e-5
+
+
 def test_actorcritic_exclude_task():
     """
     Test actorcritic properly excludes task index from trunk network input when
@@ -64,9 +67,7 @@ def test_actorcritic_exclude_task_recurrent():
 
 
 def actorcritic_exclude_task_template(settings: Dict[str, any]):
-    """
-    Template for the actorcritic_exclude_task tests.
-    """
+    """ Template for the actorcritic_exclude_task tests. """
 
     num_tasks = settings["architecture_config"]["num_tasks"]
 
@@ -172,5 +173,5 @@ def actorcritic_exclude_task_template(settings: Dict[str, any]):
 
     # Test output.
     print(action_dist.mean - expected_mean)
-    assert torch.allclose(action_dist.mean, expected_mean)
-    assert torch.allclose(value_pred, expected_value_pred)
+    assert torch.allclose(action_dist.mean, expected_mean, atol=TOL)
+    assert torch.allclose(value_pred, expected_value_pred, atol=TOL)
