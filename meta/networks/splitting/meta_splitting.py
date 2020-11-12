@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from meta.networks.splitting import MultiTaskSplittingNetwork
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
@@ -77,7 +78,7 @@ class MetaSplittingNetwork(nn.Module):
         # a region.
         alpha_list = []
         for i in range(self.num_regions):
-            copies = self.splitting_map.num_copies[i]
+            copies = int(self.splitting_map.num_copies[i])
             alpha_list.append(
                 nn.Parameter(1.0 / copies * torch.ones(copies, self.num_tasks))
             )

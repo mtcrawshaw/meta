@@ -46,6 +46,14 @@ If we implement a splitting criterion that is vastly different from the original
 are likely gonna have to create a splitting network base class with two subclasses, one
 for each splitting criterion.
 
+Tests for MetaSplittingNetwork:
+- test_forward (shared, single, multiple)
+- test_task_grads (shared, single, multiple)
+Haven't touched test_task_grads, one forward test is passing but the first test with any
+splits is failing. This may be due to numerical differences between the manual
+computation of the output vs. torch's computation of the output, but the difference is
+pretty large to be due to something like that.
+
 ----------------------------------------------------------------------------------------
 
 Before merging to master:

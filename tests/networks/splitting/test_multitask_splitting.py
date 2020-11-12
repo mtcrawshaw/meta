@@ -1,5 +1,5 @@
 """
-Unit tests for meta/networks/splitting.py.
+Unit tests for meta/networks/splitting/multitask_splitting.py.
 """
 
 import math
@@ -17,6 +17,7 @@ from meta.networks.initialize import init_base
 from meta.networks.splitting import MultiTaskSplittingNetwork
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
+from tests.networks.splitting import SETTINGS
 from tests.networks.templates import (
     TOL,
     gradients_template,
@@ -26,21 +27,6 @@ from tests.networks.templates import (
     split_template,
     score_template,
 )
-
-
-SETTINGS = {
-    "obs_dim": 8,
-    "num_processes": 8,
-    "num_tasks": 4,
-    "num_layers": 3,
-    "split_alpha": 0.05,
-    "grad_var": None,
-    "split_step_threshold": 30,
-    "cap_sample_size": True,
-    "ema_alpha": 0.999,
-    "include_task_index": True,
-    "device": torch.device("cpu"),
-}
 
 
 def test_forward_shared() -> None:
