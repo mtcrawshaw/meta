@@ -47,9 +47,7 @@ Notes for current task:
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
 
-If we implement a splitting criterion that is vastly different from the original one, we
-are likely gonna have to create a splitting network base class with two subclasses, one
-for each splitting criterion.
+Write tests for SplittingMap.shared_regions() and MultiTaskSplittingNetworkV2.
 
 ----------------------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 """
-Templates for tests in tests/networks.
+Templates for tests in tests/networks/splitting/.
 """
 
 import math
@@ -11,7 +11,10 @@ import numpy as np
 import torch
 
 from meta.networks.initialize import init_base
-from meta.networks.splitting import MultiTaskSplittingNetworkV1
+from meta.networks.splitting import (
+    BaseMultiTaskSplittingNetwork,
+    MultiTaskSplittingNetworkV1,
+)
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
@@ -37,7 +40,7 @@ def gradients_template(
     hidden_size = dim
 
     # Construct network.
-    network = MultiTaskSplittingNetworkV1(
+    network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -184,7 +187,7 @@ def backward_template(
     hidden_size = dim
 
     # Construct network.
-    network = MultiTaskSplittingNetworkV1(
+    network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -258,7 +261,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     hidden_size = dim
 
     # Construct network.
-    network = MultiTaskSplittingNetworkV1(
+    network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -571,7 +574,7 @@ def score_template(
     """
 
     # Instantiate network and perform splits.
-    network = MultiTaskSplittingNetworkV1(
+    network = BaseMultiTaskSplittingNetwork(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
         init_base=init_base,

@@ -20,9 +20,9 @@ from meta.utils.logger import logger
 
 class BaseMultiTaskSplittingNetwork(nn.Module):
     """
-    Base class used to represent a splitting MLP. This class shouldn't be instantiated,
-    as it will raise NotImplementedError. Only extensions of this class should be
-    instantiated.
+    Base class used to represent a splitting MLP. This class shouldn't be used for
+    training, as it will raise NotImplementedError when `check_for_split()` is called.
+    Only extensions of this class should be iused for training.
     """
 
     def __init__(
