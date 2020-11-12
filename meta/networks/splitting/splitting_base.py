@@ -34,6 +34,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         num_tasks: int,
         num_layers: int = 3,
         hidden_size: int = 64,
+        split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
@@ -58,6 +59,9 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             Number of layers in network.
         hidden_size : int
             Hidden size of network layers.
+        split_step_threshold : int
+            Number of updates before any splitting is performed. This is in place to
+            make sure that we don't perform any splits based on a tiny amount of data.
         sharing_threshold : float
             Sharing score that the network can reach before splitting is disabled. The
             sharing score is computed by `self.get_sharing_score()`.
@@ -87,6 +91,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.num_tasks = num_tasks
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
@@ -513,3 +518,27 @@ class SplittingMap:
         self.num_copies[region] += 1
         for task in group_2:
             self.copy[region, task] = self.num_copies[region] - 1
+
+    def shared_regions(self) -> torch.Tensor:
+        """
+        Returns a tensor of flags representing which regions are shared by which tasks.
+
+        Returns
+        -------
+        is_shared : torch.Tensor
+            Tensor of shape `(self.num_tasks, self.num_tasks, self.num_regions)` so that
+            `is_shared[i, j, k]` holds 1/True if tasks `i, j` are shared at region `j`,
+            and 0/False otherwise.
+        """
+
+        is_shared = torch.zeros(
+            self.num_tasks, self.num_tasks, self.num_regions, device=self.device
+        )
+
+        # Janky way to compute the tensor described above as fast as I can think of.
+        for region in range(self.num_regions):
+            r = self.copy[region]
+            is_shared[:, :, region] = (r.unsqueeze(0) + (-r).unsqueeze(1)) == 0
+        is_shared *= (1.0 - torch.eye(self.num_tasks)).unsqueeze(-1)
+
+        return is_shared

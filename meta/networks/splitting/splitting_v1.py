@@ -30,14 +30,12 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
         self,
         split_alpha: float = 0.05,
         grad_var: float = None,
-        split_step_threshold: int = 30,
         log_z: bool = True,
         **kwargs
     ) -> None:
         """
-        Init function for MultiTaskSplittingNetworkV1. The arguments listed below are
-        the expected elements of `splitting_config`, and the remaining kwargs should
-        hold the arguments for the init function of BaseMultiTaskSplittingNetwork.
+        Init function for MultiTaskSplittingNetworkV1. `kwargs` should hold the
+        arguments for the init function of BaseMultiTaskSplittingNetwork.
 
         Arguments
         ---------
@@ -50,9 +48,6 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
             task-specific gradients are modeled as multi-variate Gaussians with diagonal
             covariance matrices). If set to None, this value is estimated
             online.
-        split_step_threshold : int
-            Number of updates before any splitting is performed. This is in place to
-            make sure that we don't perform any splits based on a tiny amount of data.
         log_z : bool
             Whether or not to log out values of the z-scores throughout training. We
             leave this as an option because it requires tracking z-score stats at every
@@ -65,7 +60,6 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
         # Set state.
         self.split_alpha = split_alpha
         self.grad_var = grad_var
-        self.split_step_threshold = split_step_threshold
         self.log_z = log_z
 
         # Initialize running estimate of gradient statistics, in order to measure the
