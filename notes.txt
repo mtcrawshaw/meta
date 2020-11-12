@@ -31,7 +31,7 @@ Current task (Splitting networks):
     Individually compute task losses
     Separate network from model
     Set forward pass as a function of sharing variables (layers as regions)
-    Add support for training with SplittingMLPNetwork
+    Add support for training with MultiTaskSplittingNetwork
     Compute task-specific gradients for MLP
     Compute pairwise distances between task gradients at each region
     Compute test statistic from pairwise distance
@@ -42,6 +42,11 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
+- Split the k regions with largest squared task gradient distances every n steps.
+  Controlled by hyperparameters: sharing score, begin_split_step, end_split_step
+- Allow for different architecture configs for actor and critic. This is necessary
+  because grad_var needs to be very different between them
+
 If we implement a splitting criterion that is vastly different from the original one, we
 are likely gonna have to create a splitting network base class with two subclasses, one
 for each splitting criterion.
@@ -82,10 +87,10 @@ Future additions:
   are reproducible when saving/loading, so there's no need for it there).
 - An option to turn on checks during inference (safe mode). We would check that each
   observation in a multi-task setting ends with a one-hot tensor of size
-  `self.num_tasks`, and that task gradients from SplittingMLPNetwork.get_task_grads()
-  have the same zero padding structure before finding their difference, etc. This way we
-  still have the option to check and be safe, but we don't have to waste computation
-  time doing so if we don't want to.
+  `self.num_tasks`, and that task gradients from
+  MultiTaskSplittingNetwork.get_task_grads() have the same zero padding structure before
+  finding their difference, etc. This way we still have the option to check and be safe,
+  but we don't have to waste computation time doing so if we don't want to.
 
 Possible additions:
 - Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
@@ -187,7 +192,7 @@ Refactoring:
   - Reset splitting statistics after a split is performed (this means we have to split
     regions with highest z-scores first)
 - Splitting networks implementation:
-  - Refactor SplittingMLPNetwork.get_task_grad_diffs() to only compute pairwise
+  - Refactor MultiTaskSplittingNetwork.get_task_grad_diffs() to only compute pairwise
     differences between task gradients for tasks that share a copy. Right now it is
     computed for each pair of tasks at each region. We could also parallelize the
     computation across regions but I'm not quite sure how to do that.
@@ -201,7 +206,7 @@ Refactoring:
     splitting networks. Also, the problem is twice as bad as we originally thought: we are
     calling backwards on each task loss twice! Once in check_for_splits() for the actor
     and again for the critic. Fixing this inefficiency is gonna be messy.
-  - Refactor SplittingMLPNetwork.update_grad_stats() to get task flags in a way that is
-    less brittle than checking whether the gradient vector is all zero. Maybe this is an
-    edge case that we actually want to account for. We could probably get this info from
-    `task_losses`.
+  - Refactor MultiTaskSplittingNetwork.update_grad_stats() to get task flags in a way
+    that is less brittle than checking whether the gradient vector is all zero. Maybe
+    this is an edge case that we actually want to account for. We could probably get
+    this info from `task_losses`.

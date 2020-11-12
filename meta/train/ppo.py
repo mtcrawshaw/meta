@@ -64,7 +64,7 @@ class PPOPolicy:
             (either "mlp", "trunk", or "splitting"), an entry for "recurrent" (either
             True or False), and all other entries should correspond to the keyword
             arguments for the corresponding network class, which is either MLPNetwork,
-            MultiTaskTrunkNetwork, or SplittingMLPNetwork.
+            MultiTaskTrunkNetwork, or MultiTaskSplittingNetworkV1.
         num_tasks : int
             Number of tasks that will simultaneously be trained on. When `num_tasks` >
             1, the policy expects observations to be flat vectors in which the last

@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from meta.networks.initialize import init_base
-from meta.networks.splitting import SplittingMLPNetwork
+from meta.networks.splitting import MultiTaskSplittingNetworkV1
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
@@ -37,7 +37,7 @@ def gradients_template(
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -184,7 +184,7 @@ def backward_template(
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -258,7 +258,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     hidden_size = dim
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -323,7 +323,7 @@ def split_stats_template(
     dim = settings["obs_dim"] + settings["num_tasks"]
 
     # Construct network.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -475,7 +475,7 @@ def split_template(
 
     # Instantiate network and perform splits.
     dim = settings["obs_dim"] + settings["num_tasks"]
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
         init_base=init_base,
@@ -515,7 +515,9 @@ def split_template(
         # Perform network split.
         network.num_steps += 1
         network.update_grad_stats(task_grads[step])
-        network.split_from_stats(z[step])
+        should_split = z[step] > network.critical_z
+        should_split *= network.grad_diff_stats.num_steps > network.split_step_threshold
+        network.perform_splits(should_split)
 
         # Compute expected splitting map.
         for task1 in range(network.num_tasks - 1):
@@ -543,8 +545,8 @@ def split_template(
                                 continue
 
                             if (
-                                z[step, task, task1, region]
-                                < z[step, task, task2, region]
+                                network.grad_diff_stats.mean[task, task1, region]
+                                < network.grad_diff_stats.mean[task, task2, region]
                             ):
                                 group1.append(task)
                             else:
@@ -569,7 +571,7 @@ def score_template(
     """
 
     # Instantiate network and perform splits.
-    network = SplittingMLPNetwork(
+    network = MultiTaskSplittingNetworkV1(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
         init_base=init_base,

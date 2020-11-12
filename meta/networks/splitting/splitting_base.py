@@ -1,5 +1,6 @@
 """
-Definition of SplittingMLPNetwork, a multi-layer perceptron splitting network.
+Definition of BaseMultiTaskSplittingNetwork, the base class used to represent a
+multi-task splitting network.
 """
 
 import math
@@ -17,11 +18,11 @@ from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
 
-class SplittingMLPNetwork(nn.Module):
+class BaseMultiTaskSplittingNetwork(nn.Module):
     """
-    Module used to parameterize a splitting MLP. `init_base` is the initialization
-    function used to initialize all layers except for the last, and `init_final` is the
-    initialization function used to initialize the last layer.
+    Base class used to represent a splitting MLP. This class shouldn't be instantiated,
+    as it will raise NotImplementedError. Only extensions of this class should be
+    instantiated.
     """
 
     def __init__(
@@ -33,17 +34,13 @@ class SplittingMLPNetwork(nn.Module):
         num_tasks: int,
         num_layers: int = 3,
         hidden_size: int = 64,
-        split_alpha: float = 0.05,
-        grad_var: float = None,
-        split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         cap_sample_size: bool = True,
-        log_z: bool = True,
         ema_alpha: float = 0.999,
         device: torch.device = None,
     ) -> None:
         """
-        Init function for SplittingMLPNetwork.
+        Init function for BaseMultiTaskSplittingNetwork.
 
         Arguments
         ---------
@@ -57,40 +54,23 @@ class SplittingMLPNetwork(nn.Module):
             Initialization function used for last layer of the network.
         num_tasks : int
             Number of tasks that we are training over.
-        num_layers : int = 3
+        num_layers : int
             Number of layers in network.
-        hidden_size : int = 64
+        hidden_size : int
             Hidden size of network layers.
-        split_alpha : float = 0.05
-            Alpha value for statistical test when determining whether or not to split.
-            If the null hypothesis is true, then we will perform a split
-            `100*split_alpha` percent of the time.
-        grad_var : float = None
-            Estimate of variance of each component of task-specific gradients (where
-            task-specific gradients are modeled as multi-variate Gaussians with diagonal
-            covariance matrices). If set to None, this value is estimated
-            online.
-        split_step_threshold : int = 30
-            Number of updates before any splitting is performed. This is in place to
-            make sure that we don't perform any splits based on a tiny amount of data.
-        sharing_threshold : float = 0.1
+        sharing_threshold : float
             Sharing score that the network can reach before splitting is disabled. The
             sharing score is computed by `self.get_sharing_score()`.
-        cap_sample_size : bool = True
+        cap_sample_size : bool
             Whether or not to stop increasing the sample size when we switch to EMA.
-        log_z : bool = True
-            Whether or not to log out values of the z-scores throughout training. We
-            leave this as an option because it requires tracking z-score stats at every
-            update step, which will slow down training. This is essentially a diagnostic
-            tool to see why the network is/isn't splitting.
-        ema_alpha : float = 0.999
+        ema_alpha : float
             Coefficient used to compute exponential moving averages.
-        device : torch.device = None
+        device : torch.device
             Device to perform computation on, either `torch.device("cpu")` or
             `torch.device("cuda:0")`.
         """
 
-        super(SplittingMLPNetwork, self).__init__()
+        super(BaseMultiTaskSplittingNetwork, self).__init__()
 
         # Check number of layers.
         if num_layers < 1:
@@ -107,12 +87,8 @@ class SplittingMLPNetwork(nn.Module):
         self.num_tasks = num_tasks
         self.num_layers = num_layers
         self.hidden_size = hidden_size
-        self.split_alpha = split_alpha
-        self.grad_var = grad_var
-        self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
         self.cap_sample_size = cap_sample_size
-        self.log_z = log_z
         self.ema_alpha = ema_alpha
 
         # Set device.
@@ -121,34 +97,18 @@ class SplittingMLPNetwork(nn.Module):
         # Generate network layers.
         self.initialize_network()
 
-        # Initialize running estimates of gradient statistics. `grad_diff_stats` and
-        # `grad_stats` hold statistics regarding the pairwise differences of task
-        # gradients and task gradients, respectively. Note that we only measure stats of
-        # individual gradients if `self.grad_var = None`, and otherwise we use
-        # `self.grad_var` as an estimate of the standard deviation of gradient
-        # components.
+        # Initialize running estimates of pairwise differences of task gradients.
         self.grad_diff_stats = RunningStats(
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             cap_sample_size=self.cap_sample_size,
             ema_alpha=self.ema_alpha,
             device=self.device,
         )
-        if self.grad_var is None:
-            self.grad_stats = RunningStats(
-                shape=(self.num_tasks, self.total_region_size),
-                compute_stdev=True,
-                condense_dims=(1,),
-                cap_sample_size=self.cap_sample_size,
-                ema_alpha=self.ema_alpha,
-                device=self.device,
-            )
-        self.num_steps = 0
-
-        # Compute critical value of z-statistic based on given value of `split_alpha`.
-        self.critical_z = norm.ppf(1 - self.split_alpha)
 
         # Move model to device.
         self.to(self.device)
+
+        self.num_steps = 0
 
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
@@ -209,9 +169,9 @@ class SplittingMLPNetwork(nn.Module):
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass definition for SplittingMLPNetwork. For each layer of the network,
-        we aggregate the inputs by their assigned copy of each region, and pass the
-        inputs through the corresponding copy.
+        Forward pass definition for BaseMultiTaskSplittingNetwork. For each layer of the
+        network, we aggregate the inputs by their assigned copy of each region, and pass
+        the inputs through the corresponding copy.
 
         Implementation note: As I see it, there are two ways that we can reasonably
         implement this function. The first is, at each region, sorting the inputs by
@@ -269,12 +229,10 @@ class SplittingMLPNetwork(nn.Module):
     def check_for_split(self, task_losses: torch.Tensor) -> bool:
         """
         Determine whether any splits should occur based on the task-specific losses from
-        the current batch. To do this, for each region we update our statistics that
-        estimate the pairwise differences of task gradients, and we compute a z-score
-        over these differences that determine whether there is a statistically
-        significant difference in the gradient distribution between two tasks at a given
-        region. If so, we perform a split of those tasks at the given region. Returns
-        true if any splits are performed, and false otherwise.
+        the current batch. To do this, we compute task-specific gradients for each task,
+        update our running statistics measuring these gradients, then determine which
+        regions should be split (if any) by calling self.determine_splits(), which is
+        implemented differently for each subclass.
         """
 
         self.num_steps += 1
@@ -294,11 +252,8 @@ class SplittingMLPNetwork(nn.Module):
         # `self.split_step_threshold`.
         split = False
         if torch.any(self.grad_diff_stats.num_steps >= self.split_step_threshold):
-            z = self.get_split_statistics()
-            split = self.split_from_stats(z)
-
-            if self.log_z:
-                self.log_current_z(z)
+            should_split = self.determine_splits()
+            split = self.perform_splits(should_split)
 
         return split
 
@@ -341,11 +296,7 @@ class SplittingMLPNetwork(nn.Module):
         return task_grads
 
     def update_grad_stats(self, task_grads: torch.Tensor) -> None:
-        """
-        Update our running estimates of gradient statistics. We keep running estimates
-        of the mean of the squared difference between task gradients at each region, and
-        an estimate of the standard deviation of the gradient of each weight.
-        """
+        """ Update our running estimates of pairwise gradient statistics. """
 
         # Get indices of tasks with non-zero gradients. A task will have zero gradients
         # when the current batch doesn't contain any data from that task, and in that
@@ -355,26 +306,10 @@ class SplittingMLPNetwork(nn.Module):
         task_pair_flags = task_pair_flags.unsqueeze(-1)
         task_pair_flags = task_pair_flags.expand(-1, -1, self.num_regions)
 
-        # Compute pairwise differences between task-specific gradients.
+        # Compute pairwise differences between task-specific gradients and update
+        # running stats.
         task_grad_diffs = self.get_task_grad_diffs(task_grads)
-
-        # Update our estimates of the mean pairwise distance between tasks and the
-        # standard deviation of the gradient of each individual weight. Since
-        # `task_grads` is a single tensor padded with zeros, we extract the non-pad
-        # values before updating `self.grad_stats`. The non-pad values are extracted
-        # into a tensor of shape `(self.num_tasks, self.total_region_size)`. Note that
-        # we only need to estimate the standard deviation of the gradient of each weight
-        # when `self.grad_var` is None.
         self.grad_diff_stats.update(task_grad_diffs, task_pair_flags)
-        if self.grad_var is None:
-            flattened_grad = torch.cat(
-                [
-                    task_grads[:, r, : self.region_sizes[r]]
-                    for r in range(self.num_regions)
-                ],
-                dim=1,
-            )
-            self.grad_stats.update(flattened_grad, task_flags)
 
     def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
         """
@@ -421,61 +356,26 @@ class SplittingMLPNetwork(nn.Module):
 
         return task_grad_diffs
 
-    def get_split_statistics(self) -> torch.Tensor:
+    def determine_splits(self) -> torch.Tensor:
         """
-        Compute the z-statistic for each pair of tasks at each region. Intuitively, the
-        magnitude of this value represents the difference in the distributions of task
-        gradients between each pair of tasks at each region. If a z-score is large
-        enough, then we will perform a split for the corresponding tasks/region.
-
-        Returns
-        -------
-        z : torch.Tensor
-            Tensor of size (self.num_tasks, self.num_tasks, self.num_regions), where
-            `z[i, j, k]` holds the z-score of the mean difference in task gradients of
-            tasks `i, j` at region `k`.
+        Determine which regions (if any) should be split based on the current gradient
+        statistics. This function is implemented differently for each subclass.
         """
 
-        if self.grad_var is None:
-            est_grad_var = torch.sum(
-                self.grad_stats.var * self.grad_stats.sample_size
-            ) / torch.sum(self.grad_stats.sample_size)
-        else:
-            est_grad_var = float(self.grad_var)
+        raise NotImplementedError
 
-        mu = 2 * self.region_sizes * est_grad_var
-        mu = mu.expand(self.num_tasks, self.num_tasks, -1)
-
-        sigma = 2 * torch.sqrt(2 * self.region_sizes.to(dtype=torch.float32))
-        sigma *= est_grad_var
-        sigma = sigma.expand(self.num_tasks, self.num_tasks, -1)
-
-        z = (
-            torch.sqrt(self.grad_diff_stats.sample_size.to(dtype=torch.float32))
-            * (self.grad_diff_stats.mean - mu)
-            / sigma
-        )
-
-        return z
-
-    def split_from_stats(self, z: torch.Tensor) -> bool:
+    def perform_splits(self, should_split: torch.Tensor) -> bool:
         """
-        Given z-scores for the pairwise difference between task gradient distributions
-        at each region, split any pairs of tasks at a region with a sufficiently large
-        z-score. Returns true if any splits occur, and false otherwise.
+        Perform any splits as determined by `should_split`. Returns true if any splits
+        occur, and false otherwise.
         """
-
-        # Check if `z` is large enough to warrant any splits, though only for the
-        # task pairs whose sample size is larger than `self.split_step_threshold`.
-        split_coords = z > self.critical_z
-        split_coords *= self.grad_diff_stats.num_steps > self.split_step_threshold
-        split_coords = split_coords.nonzero()
 
         # Perform any necessary splits. Notice that we only do this for if `task1,
         # task` current share the same copy of `region`, and if `task1 < task2`,
         # since we don't want to split for both coords (task1, task2, region) and
         # (task2, task1, region).
         split = False
+        split_coords = should_split.nonzero()
         for task1, task2, region in split_coords:
             if (
                 self.splitting_map.copy[region, task1]
@@ -490,7 +390,10 @@ class SplittingMLPNetwork(nn.Module):
             # that we have to filter the groups of tasks so that we are only
             # including tasks that currently share the same copy of `region` with
             # `task1` and `task2`.
-            group1 = (z[task1, :, region] < z[task2, :, region]).nonzero()
+            group1 = (
+                self.grad_diff_stats.mean[task1, :, region]
+                < self.grad_diff_stats.mean[task2, :, region]
+            ).nonzero()
             group1 = group1.squeeze(-1).tolist()
             group1 = [
                 task for task in group1 if self.splitting_map.copy[region, task] == copy
@@ -502,7 +405,8 @@ class SplittingMLPNetwork(nn.Module):
             ]
 
             # Ensure that `task1` and `task2` are assigned to the correct groups. This
-            # can go wrong in the above code if multiple z-scores are exactly the same.
+            # can go wrong in the above code if multiple task gradient distances are
+            # exactly the same.
             t1 = int(task1)
             t2 = int(task2)
             if t1 in group2:
@@ -571,34 +475,6 @@ class SplittingMLPNetwork(nn.Module):
             msg += str(copies) + "\n"
 
         return msg
-
-    def log_current_z(self, z: torch.Tensor) -> None:
-        """ Prints summary of z-scores at each region to log. """
-
-        msg = "z-scores:\n"
-        for region in range(self.num_regions):
-            scores = []
-            for task1 in range(self.num_tasks - 1):
-                for task2 in range(task1 + 1, self.num_tasks):
-                    copy1 = self.splitting_map.copy[region, task1]
-                    copy2 = self.splitting_map.copy[region, task2]
-                    if copy1 == copy2:
-                        scores.append(float(z[task1, task2, region]))
-            score_mean = None
-            score_min = None
-            score_max = None
-            if len(scores) > 0:
-                score_mean = np.mean(scores)
-                score_min = min(scores)
-                score_max = max(scores)
-            msg += "Region %d mean, min, max: %r, %r, %r\n" % (
-                region,
-                score_mean,
-                score_min,
-                score_max,
-            )
-        msg += "\n"
-        logger.log(msg)
 
 
 class SplittingMap:
