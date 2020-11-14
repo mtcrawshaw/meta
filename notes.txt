@@ -47,7 +47,7 @@ Notes for current task:
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
 
-Write tests for SplittingMap.shared_regions() and MultiTaskSplittingNetworkV2.
+Write tests for MultiTaskSplittingNetworkV2.
 
 ----------------------------------------------------------------------------------------
 
@@ -208,3 +208,8 @@ Refactoring:
     that is less brittle than checking whether the gradient vector is all zero. Maybe
     this is an edge case that we actually want to account for. We could probably get
     this info from `task_losses`.
+- Change metrics measuring to be more like logging. Then we can just add anything to
+  metrics from anywhere. The metrics object should just accept a Dict[str, List[float]],
+  where keys are metric names and values are new metric values to add to that metric's
+  history. If the string is new, then we just start a history for a new metric. This
+  will be a lot more flexible than hand-coding in each individual metric.

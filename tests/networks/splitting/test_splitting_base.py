@@ -524,3 +524,124 @@ def test_sharing_score_split_2() -> None:
 
     # Call template.
     score_template(settings, splits_args, expected_score)
+
+
+def test_shared_regions_shared() -> None:
+    """
+    Test that the shared regions are correctly computed by
+    `SplittingMap.shared_regions()` in the case of a fully shared network.
+    """
+
+    # Construct network.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=SETTINGS["num_tasks"],
+        num_layers=SETTINGS["num_layers"],
+        hidden_size=dim,
+        device=SETTINGS["device"],
+    )
+
+    # Compute expected shared regions.
+    expected_is_shared = torch.zeros(
+        network.num_tasks, network.num_tasks, network.num_regions
+    )
+    for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
+        if task1 == task2:
+            continue
+        for region in range(network.num_regions):
+            expected_is_shared[task1, task2, region] = 1
+
+    # Compare expected to actual.
+    assert torch.all(expected_is_shared == network.splitting_map.shared_regions())
+
+
+def test_shared_regions_single() -> None:
+    """
+    Test that the shared regions are correctly computed by
+    `SplittingMap.shared_regions()` in the case of a network with a single split.
+    """
+
+    # Construct network.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=SETTINGS["num_tasks"],
+        num_layers=SETTINGS["num_layers"],
+        hidden_size=dim,
+        device=SETTINGS["device"],
+    )
+
+    # Perform splits.
+    network.split(1, 0, [0, 1], [2, 3])
+
+    # Compute expected shared regions.
+    expected_is_shared = torch.zeros(
+        network.num_tasks, network.num_tasks, network.num_regions
+    )
+    for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
+        if task1 == task2:
+            continue
+        for region in range(network.num_regions):
+            if region == 1 and (task1 // 2) != (task2 // 2):
+                expected_is_shared[task1, task2, region] = 0
+            else:
+                expected_is_shared[task1, task2, region] = 1
+
+    # Compare expected to actual.
+    print(expected_is_shared)
+    print(network.splitting_map.shared_regions())
+    assert torch.all(expected_is_shared == network.splitting_map.shared_regions())
+
+
+def test_shared_regions_multiple() -> None:
+    """
+    Test that the shared regions are correctly computed by
+    `SplittingMap.shared_regions()` in the case of a network with a single split.
+    """
+
+    # Construct network.
+    dim = SETTINGS["obs_dim"] + SETTINGS["num_tasks"]
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=SETTINGS["num_tasks"],
+        num_layers=SETTINGS["num_layers"],
+        hidden_size=dim,
+        device=SETTINGS["device"],
+    )
+
+    # Perform splits.
+    network.split(0, 0, [0, 1], [2, 3])
+    network.split(1, 0, [0, 2], [1, 3])
+    network.split(1, 0, [0], [2])
+    network.split(2, 0, [0, 3], [1, 2])
+
+    # Compute expected shared regions.
+    expected_is_shared = torch.zeros(
+        network.num_tasks, network.num_tasks, network.num_regions
+    )
+    for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
+        if task1 == task2:
+            continue
+        for region in range(network.num_regions):
+            val = 1
+            if region == 0 and (task1 // 2) != (task2 // 2):
+                val = 0
+            elif region == 1 and (task1, task2) not in [(1, 3), (3, 1)]:
+                val = 0
+            elif region == 2 and task1 + task2 != 3:
+                val = 0
+
+            expected_is_shared[task1, task2, region] = val
+
+    # Compare expected to actual.
+    assert torch.all(expected_is_shared == network.splitting_map.shared_regions())
