@@ -137,7 +137,7 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
         # Determine splits. The regions that are split are those with z-scores above the
         # critical value and a sufficiently large sample size.
         should_split = z > self.critical_z
-        should_split *= self.grad_diff_stats.num_steps > self.split_step_threshold
+        should_split *= self.grad_diff_stats.num_steps >= self.split_step_threshold
 
         return should_split
 

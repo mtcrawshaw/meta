@@ -42,12 +42,11 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Tiny refactor: Fix sample size thresholding in determine_splits() for both splitting
-  versions. Should be >= instead of >.
 - Do we need to fix the current V2 splitting criteria to divide by region sizes before
   finding the largest distances? Seems likely
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
+- Add training baselines for splitting v2
 
 ----------------------------------------------------------------------------------------
 

@@ -520,7 +520,9 @@ def split_v1_template(
         network.num_steps += 1
         network.update_grad_stats(task_grads[step])
         should_split = z[step] > network.critical_z
-        should_split *= network.grad_diff_stats.num_steps > network.split_step_threshold
+        should_split *= (
+            network.grad_diff_stats.num_steps >= network.split_step_threshold
+        )
         network.perform_splits(should_split)
 
         # Compute expected splitting map.
@@ -530,7 +532,7 @@ def split_v1_template(
                     critical = float(z[step, task1, task2, region]) > network.critical_z
                     sample = (
                         network.grad_diff_stats.num_steps[task1, task2, region]
-                        > network.split_step_threshold
+                        >= network.split_step_threshold
                     )
                     task1_copy = get_copy(splitting_map, task1, region)
                     task2_copy = get_copy(splitting_map, task2, region)
@@ -635,7 +637,7 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
                         ]
                         copy1 = get_copy(splitting_map, task1, region)
                         copy2 = get_copy(splitting_map, task2, region)
-                        if sample <= network.split_step_threshold or copy1 != copy2:
+                        if sample < network.split_step_threshold or copy1 != copy2:
                             continue
 
                         # If so, add its task gradient distance to the list.
@@ -662,7 +664,7 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
                         ]
                         copy1 = get_copy(splitting_map, task1, region)
                         copy2 = get_copy(splitting_map, task2, region)
-                        if sample <= network.split_step_threshold or copy1 != copy2:
+                        if sample < network.split_step_threshold or copy1 != copy2:
                             continue
 
                         # Check if region's gradient distance warrants a split.

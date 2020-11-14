@@ -67,7 +67,7 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
 
         # Don't perform splits if the number of steps is less than the minimum or if the
         # current step doesn't fall on a multiple of the splitting frequency.
-        if torch.all(self.grad_diff_stats.num_steps <= self.split_step_threshold):
+        if torch.all(self.grad_diff_stats.num_steps < self.split_step_threshold):
             return should_split
         if self.num_steps % self.split_freq != 0:
             return should_split
@@ -78,7 +78,7 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
         is_shared = self.splitting_map.shared_regions()
         distance_scores = self.grad_diff_stats.mean * is_shared
 
-        sufficient_sample = self.grad_diff_stats.num_steps > self.split_step_threshold
+        sufficient_sample = self.grad_diff_stats.num_steps >= self.split_step_threshold
         distance_scores *= sufficient_sample
 
         upper_triangle = torch.triu(
