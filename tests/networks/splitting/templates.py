@@ -640,10 +640,12 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
                         if sample < network.split_step_threshold or copy1 != copy2:
                             continue
 
-                        # If so, add its task gradient distance to the list.
-                        task_grad_dists.append(
-                            float(network.grad_diff_stats.mean[task1, task2, region])
+                        # If so, add its normalized task gradient distance to the list.
+                        grad_dist = float(
+                            network.grad_diff_stats.mean[task1, task2, region]
                         )
+                        region_size = int(network.region_sizes[region])
+                        task_grad_dists.append(grad_dist / region_size)
 
             # Get a threshold on the gradient distance to decide splitting.
             if len(task_grad_dists) >= network.splits_per_step:
@@ -667,11 +669,13 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
                         if sample < network.split_step_threshold or copy1 != copy2:
                             continue
 
-                        # Check if region's gradient distance warrants a split.
-                        if (
+                        # Check if region's normalized gradient distance warrants a split.
+                        grad_dist = float(
                             network.grad_diff_stats.mean[task1, task2, region]
-                            < distance_threshold
-                        ):
+                        )
+                        region_size = int(network.region_sizes[region])
+                        normalized_grad_dist = grad_dist / region_size
+                        if normalized_grad_dist < distance_threshold:
                             continue
 
                         # Perform split.

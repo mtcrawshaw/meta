@@ -72,11 +72,16 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
         if self.num_steps % self.split_freq != 0:
             return should_split
 
-        # Get distance scores, setting distance scores to zero for task/region pairs
-        # that aren't shared, have too small sample size, or have task1 < task 2 (this
-        # way we avoid duplicate values from (task1, task2) and (task2, task1).
+        # Get normalized distance scores. For each (task1, task2, region), we divide the
+        # corresponding squared gradient distance by the region size, to normalize the
+        # effect that squared gradient distance is linearly scaled by the region size.
+        distance_scores = self.grad_diff_stats.mean / self.region_sizes
+
+        # Set distance scores to zero for task/region pairs that aren't shared, have too
+        # small sample size, or have task1 < task 2 (this way we avoid duplicate values
+        # from (task1, task2) and (task2, task1).
         is_shared = self.splitting_map.shared_regions()
-        distance_scores = self.grad_diff_stats.mean * is_shared
+        distance_scores *= is_shared
 
         sufficient_sample = self.grad_diff_stats.num_steps >= self.split_step_threshold
         distance_scores *= sufficient_sample

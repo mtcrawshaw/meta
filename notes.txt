@@ -42,8 +42,6 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Do we need to fix the current V2 splitting criteria to divide by region sizes before
-  finding the largest distances? Seems likely
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
 - Add training baselines for splitting v2
@@ -65,6 +63,9 @@ Future additions:
       - Parameter sharing between actor and critic
       - Option to have separate recurrent layers
       - Recurrent layers throughout network, different types of recurrent layers
+      - Varying network size in hidden layers. Once this is implemented, write some
+        tests (particularly for non-vanilla architectures) that use networks with
+        varying hidden size.
     - Choice of optimizer and optimizer hyperparameters
     - More learning rate schedule options
         - torch.optim.lr_scheduler.ReduceLROnPlateau
