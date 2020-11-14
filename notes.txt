@@ -42,12 +42,12 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Split the k regions with largest squared task gradient distances every n steps.
-  Controlled by hyperparameters: sharing score, begin_split_step, end_split_step
+- Tiny refactor: Fix sample size thresholding in determine_splits() for both splitting
+  versions. Should be >= instead of >.
+- Do we need to fix the current V2 splitting criteria to divide by region sizes before
+  finding the largest distances? Seems likely
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
-
-Write tests for MultiTaskSplittingNetworkV2.
 
 ----------------------------------------------------------------------------------------
 

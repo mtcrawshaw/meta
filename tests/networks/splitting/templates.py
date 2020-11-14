@@ -14,6 +14,7 @@ from meta.networks.initialize import init_base
 from meta.networks.splitting import (
     BaseMultiTaskSplittingNetwork,
     MultiTaskSplittingNetworkV1,
+    MultiTaskSplittingNetworkV2,
 )
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
@@ -461,7 +462,7 @@ def split_stats_template(
             assert abs(z[task1, task2, region] - expected_z) < TOL
 
 
-def split_template(
+def split_v1_template(
     settings: Dict[str, Any],
     z: torch.Tensor,
     task_grads: torch.Tensor,
@@ -537,6 +538,142 @@ def split_template(
 
                     if critical and sample and shared:
                         copy = task1_copy
+                        group1 = []
+                        group2 = []
+                        for task in splitting_map[region][copy]:
+                            if task == task1:
+                                group1.append(task)
+                                continue
+                            if task == task2:
+                                group2.append(task)
+                                continue
+
+                            if (
+                                network.grad_diff_stats.mean[task, task1, region]
+                                < network.grad_diff_stats.mean[task, task2, region]
+                            ):
+                                group1.append(task)
+                            else:
+                                group2.append(task)
+
+                        splitting_map[region][copy] = list(group1)
+                        splitting_map[region].append(list(group2))
+
+        # Compare network splitting map with expected splitting map.
+        for task in range(network.num_tasks):
+            for region in range(network.num_regions):
+                actual_copy = network.splitting_map.copy[region, task]
+                expected_copy = get_copy(splitting_map, task, region)
+                assert actual_copy == expected_copy
+
+
+def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> None:
+    """
+    Test whether splitting decisions are made correctly when given task gradients at
+    each step.
+    """
+
+    # Instantiate network and perform splits.
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    network = MultiTaskSplittingNetworkV2(
+        input_size=dim,
+        output_size=dim,
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=dim,
+        ema_alpha=settings["ema_alpha"],
+        split_freq=settings["split_freq"],
+        splits_per_step=settings["splits_per_step"],
+    )
+
+    # Compute initial splitting map.
+    splitting_map = [
+        [list(range(network.num_tasks))] for _ in range(network.num_regions)
+    ]
+
+    def get_copy(smap: List[List[List[int]]], task: int, region: int) -> int:
+        """ Helper function to get copy index for a task/region pair. """
+        copies = [i for i in range(len(smap[region])) if task in smap[region][i]]
+        assert len(copies) == 1
+        return copies[0]
+
+    # Check split at each step.
+    total_steps = task_grads.shape[0]
+    for step in range(total_steps):
+
+        split = True
+
+        # Perform one training step and compute expected splits.
+        network.num_steps += 1
+        if network.get_sharing_score() <= network.sharing_threshold:
+            split = False
+        if (
+            step + 1 < network.split_step_threshold
+            or (step + 1) % network.split_freq != 0
+        ):
+            split = False
+        network.update_grad_stats(task_grads[step])
+        should_split = network.determine_splits()
+        network.perform_splits(should_split)
+
+        # Compute expected splitting map. If we've completed sufficiently many steps,
+        # then we will split `network.splits_per_step` regions every
+        # `network.split_freq` steps.
+        if split:
+
+            # Collect list of task gradient distances for shared regions.
+            task_grad_dists = []
+            for task1 in range(network.num_tasks - 1):
+                for task2 in range(task1 + 1, network.num_tasks):
+                    for region in range(network.num_regions):
+
+                        # Check if region is shared and has valid sample size.
+                        sample = network.grad_diff_stats.sample_size[
+                            task1, task2, region
+                        ]
+                        copy1 = get_copy(splitting_map, task1, region)
+                        copy2 = get_copy(splitting_map, task2, region)
+                        if sample <= network.split_step_threshold or copy1 != copy2:
+                            continue
+
+                        # If so, add its task gradient distance to the list.
+                        task_grad_dists.append(
+                            float(network.grad_diff_stats.mean[task1, task2, region])
+                        )
+
+            # Get a threshold on the gradient distance to decide splitting.
+            if len(task_grad_dists) >= network.splits_per_step:
+                distance_threshold = sorted(task_grad_dists)[-network.splits_per_step]
+            elif len(task_grad_dists) > 0:
+                distance_threshold = sorted(task_grad_dists)[0]
+            else:
+                distance_threshold = None
+
+            # Perform splits on any region with gradient distance larger than threshold.
+            for task1 in range(network.num_tasks - 1):
+                for task2 in range(task1 + 1, network.num_tasks):
+                    for region in range(network.num_regions):
+
+                        # Check if region is shared and has valid sample size.
+                        sample = network.grad_diff_stats.sample_size[
+                            task1, task2, region
+                        ]
+                        copy1 = get_copy(splitting_map, task1, region)
+                        copy2 = get_copy(splitting_map, task2, region)
+                        if sample <= network.split_step_threshold or copy1 != copy2:
+                            continue
+
+                        # Check if region's gradient distance warrants a split.
+                        if (
+                            network.grad_diff_stats.mean[task1, task2, region]
+                            < distance_threshold
+                        ):
+                            continue
+
+                        # Perform split.
+                        copy = copy1
                         group1 = []
                         group2 = []
                         for task in splitting_map[region][copy]:

@@ -17,14 +17,14 @@ from meta.networks.initialize import init_base
 from meta.networks.splitting import MultiTaskSplittingNetworkV1
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
-from tests.networks.splitting import SETTINGS
+from tests.networks.splitting import V1_SETTINGS
 from tests.networks.splitting.templates import (
     TOL,
     gradients_template,
     backward_template,
     grad_diffs_template,
     split_stats_template,
-    split_template,
+    split_v1_template,
     score_template,
 )
 
@@ -38,7 +38,7 @@ def test_split_stats_arithmetic_simple_shared() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
@@ -84,7 +84,7 @@ def test_split_stats_arithmetic_simple_split() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
@@ -135,7 +135,7 @@ def test_split_stats_arithmetic_random_shared() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
@@ -177,7 +177,7 @@ def test_split_stats_arithmetic_random_split() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
@@ -224,7 +224,7 @@ def test_split_stats_EMA_random_shared() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
@@ -268,7 +268,7 @@ def test_split_stats_EMA_random_split() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
@@ -318,7 +318,7 @@ def test_split_stats_EMA_random_split_batch() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
@@ -373,7 +373,7 @@ def test_split_stats_EMA_random_capped() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["cap_sample_size"] = False
@@ -419,7 +419,7 @@ def test_split_stats_EMA_random_split_grad_var() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["grad_var"] = 0.01
@@ -467,7 +467,7 @@ def test_split_stats_manual() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     settings["num_layers"] = 1
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.8
@@ -750,7 +750,7 @@ def test_split_rand_all_tasks() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     total_steps = settings["split_step_threshold"] + 20
     splits_args = []
 
@@ -780,7 +780,7 @@ def test_split_rand_all_tasks() -> None:
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
     # Call template.
-    split_template(settings, z, task_grads, splits_args)
+    split_v1_template(settings, z, task_grads, splits_args)
 
 
 def test_split_rand_some_tasks() -> None:
@@ -791,7 +791,7 @@ def test_split_rand_some_tasks() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     total_steps = 4 * settings["split_step_threshold"]
     splits_args = []
 
@@ -826,7 +826,7 @@ def test_split_rand_some_tasks() -> None:
                 task_grads[step, task] = 0
 
     # Call template.
-    split_template(settings, z, task_grads, splits_args)
+    split_v1_template(settings, z, task_grads, splits_args)
 
 
 def test_split_always() -> None:
@@ -837,7 +837,7 @@ def test_split_always() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     total_steps = settings["split_step_threshold"] + 20
     splits_args = []
 
@@ -858,7 +858,7 @@ def test_split_always() -> None:
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
     # Call template.
-    split_template(settings, z, task_grads, splits_args)
+    split_v1_template(settings, z, task_grads, splits_args)
 
 
 def test_split_never() -> None:
@@ -869,7 +869,7 @@ def test_split_never() -> None:
     """
 
     # Set up case.
-    settings = dict(SETTINGS)
+    settings = dict(V1_SETTINGS)
     total_steps = settings["split_step_threshold"] + 20
     splits_args = []
 
@@ -888,7 +888,7 @@ def test_split_never() -> None:
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
     # Call template.
-    split_template(settings, z, task_grads, splits_args)
+    split_v1_template(settings, z, task_grads, splits_args)
 
 
 def split_stats_distribution() -> None:
