@@ -37,9 +37,10 @@ DEFAULT_SETTINGS = {
     "normalize_first_n": None,
     "architecture_config": {
         "type": "mlp",
-        "num_layers": 3,
-        "hidden_size": 64,
         "recurrent": False,
+        "recurrent_hidden_size": None,
+        "actor_config": {"num_layers": 3, "hidden_size": 64,},
+        "critic_config": {"num_layers": 3, "hidden_size": 64,},
     },
     "evaluation_freq": 5,
     "evaluation_rollouts": 1,

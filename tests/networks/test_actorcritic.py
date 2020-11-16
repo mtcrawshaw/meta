@@ -28,12 +28,20 @@ def test_actorcritic_exclude_task():
     settings["env_name"] = "MT10"
     settings["architecture_config"] = {
         "type": "trunk",
-        "num_tasks": 10,
-        "num_shared_layers": 1,
-        "num_task_layers": 1,
-        "hidden_size": None,
         "recurrent": False,
+        "recurrent_hidden_size": None,
         "include_task_index": False,
+        "num_tasks": 10,
+        "actor_config": {
+            "num_shared_layers": 1,
+            "num_task_layers": 1,
+            "hidden_size": 9,
+        },
+        "critic_config": {
+            "num_shared_layers": 1,
+            "num_task_layers": 1,
+            "hidden_size": 9,
+        },
     }
     settings["num_processes"] = 8
 
@@ -53,12 +61,20 @@ def test_actorcritic_exclude_task_recurrent():
     settings["env_name"] = "MT10"
     settings["architecture_config"] = {
         "type": "trunk",
-        "num_tasks": 10,
-        "num_shared_layers": 1,
-        "num_task_layers": 1,
-        "hidden_size": None,
-        "recurrent": True,
+        "recurrent": False,
+        "recurrent_hidden_size": None,
         "include_task_index": False,
+        "num_tasks": 10,
+        "actor_config": {
+            "num_shared_layers": 1,
+            "num_task_layers": 1,
+            "hidden_size": 9,
+        },
+        "critic_config": {
+            "num_shared_layers": 1,
+            "num_task_layers": 1,
+            "hidden_size": 9,
+        },
     }
     settings["num_processes"] = 8
 
@@ -77,10 +93,9 @@ def actorcritic_exclude_task_template(settings: Dict[str, any]):
     )
     obs_size = get_space_size(env.observation_space)
     action_size = get_space_size(env.action_space)
+    hidden_size = obs_size - num_tasks
 
     # Create network.
-    settings["architecture_config"]["hidden_size"] = obs_size - num_tasks
-    hidden_size = settings["architecture_config"]["hidden_size"]
     network = ActorCriticNetwork(
         observation_space=env.observation_space,
         action_space=env.action_space,

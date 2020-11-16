@@ -41,7 +41,7 @@ class ActorCriticNetwork(nn.Module):
         self.device = device if device is not None else torch.device("cpu")
         self.architecture_type = architecture_config["type"]
         self.recurrent = architecture_config["recurrent"]
-        self.hidden_size = architecture_config["hidden_size"]
+        self.recurrent_hidden_size = architecture_config["recurrent_hidden_size"]
 
         # Compute input and output sizes.
         self.input_size = get_space_size(observation_space)
@@ -79,7 +79,7 @@ class ActorCriticNetwork(nn.Module):
 
             self.recurrent_block = RecurrentBlock(
                 input_size=input_size,
-                hidden_size=self.hidden_size,
+                hidden_size=self.recurrent_hidden_size,
                 observation_shape=observation_shape,
                 num_processes=self.num_processes,
                 rollout_length=self.rollout_length,
@@ -87,25 +87,28 @@ class ActorCriticNetwork(nn.Module):
             )
 
         # Initialize actor and critic networks.
-        architecture_kwargs = dict(architecture_config)
-        del architecture_kwargs["type"]
-        del architecture_kwargs["recurrent"]
+        actor_kwargs = dict(architecture_config["actor_config"])
+        critic_kwargs = dict(architecture_config["critic_config"])
         if architecture_config["type"] == "mlp":
             self.actor = MLPNetwork(
-                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                input_size=self.input_size
+                if not self.recurrent
+                else self.recurrent_hidden_size,
                 output_size=self.output_size,
                 init_base=init_base,
                 init_final=init_final,
                 device=self.device,
-                **architecture_kwargs,
+                **actor_kwargs,
             )
             self.critic = MLPNetwork(
-                input_size=self.input_size if not self.recurrent else self.hidden_size,
+                input_size=self.input_size
+                if not self.recurrent
+                else self.recurrent_hidden_size,
                 output_size=1,
                 init_base=init_base,
                 init_final=init_base,
                 device=self.device,
-                **architecture_kwargs,
+                **critic_kwargs,
             )
 
             # Extra parameter vector for standard deviations in the case that
@@ -122,6 +125,8 @@ class ActorCriticNetwork(nn.Module):
             ):
                 raise NotImplementedError
             self.num_tasks = architecture_config["num_tasks"]
+            actor_kwargs["num_tasks"] = self.num_tasks
+            critic_kwargs["num_tasks"] = self.num_tasks
             self.include_task_index = architecture_config["include_task_index"]
 
             # Correct input size if we should exclude task index from the input and the
@@ -131,10 +136,9 @@ class ActorCriticNetwork(nn.Module):
             # input to the trunk/splitting network.
             input_size = self.input_size
             if self.recurrent:
-                input_size = self.hidden_size
+                input_size = self.recurrent_hidden_size
             elif not self.include_task_index:
                 input_size -= self.num_tasks
-            del architecture_kwargs["include_task_index"]
 
             if architecture_config["type"] == "trunk":
                 cls = MultiTaskTrunkNetwork
@@ -149,7 +153,7 @@ class ActorCriticNetwork(nn.Module):
                 init_base=init_base,
                 init_final=init_final,
                 device=self.device,
-                **architecture_kwargs,
+                **actor_kwargs,
             )
             self.critic = cls(
                 input_size=input_size,
@@ -157,7 +161,7 @@ class ActorCriticNetwork(nn.Module):
                 init_base=init_base,
                 init_final=init_base,
                 device=self.device,
-                **architecture_kwargs,
+                **critic_kwargs,
             )
 
             # Extra parameter vectors (one for each task) for standard deviations in the

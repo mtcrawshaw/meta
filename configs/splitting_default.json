@@ -24,18 +24,33 @@
 
     "architecture_config": {
         "type": "splitting",
-        "num_tasks": 10,
-        "num_layers": 3,
-        "hidden_size": 32,
-        "split_alpha": 0.05,
-        "grad_var": null,
-        "split_step_threshold": 30,
-        "sharing_threshold": 0.2,
-        "cap_sample_size": false,
-        "log_z": true,
-        "ema_alpha": 0.999,
         "recurrent": false,
-        "include_task_index": true
+        "recurrent_hidden_size": null,
+        "include_task_index": true,
+        "num_tasks": 10,
+
+        "actor_config": {
+            "num_layers": 3,
+            "hidden_size": 32,
+            "split_alpha": 0.05,
+            "grad_var": null,
+            "split_step_threshold": 30,
+            "sharing_threshold": 0.2,
+            "cap_sample_size": false,
+            "log_z": true,
+            "ema_alpha": 0.999
+        },
+        "critic_config": {
+            "num_layers": 3,
+            "hidden_size": 32,
+            "split_alpha": 0.05,
+            "grad_var": null,
+            "split_step_threshold": 30,
+            "sharing_threshold": 0.2,
+            "cap_sample_size": false,
+            "log_z": true,
+            "ema_alpha": 0.999
+        }
     },
 
     "evaluation_freq": 5,

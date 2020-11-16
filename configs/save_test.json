@@ -24,9 +24,17 @@
 
     "architecture_config": {
         "type": "mlp",
-        "num_layers": 3,
-        "hidden_size": 64,
-        "recurrent": false
+        "recurrent": false,
+        "recurrent_hidden_size": null,
+
+        "actor_config": {
+            "num_layers": 3,
+            "hidden_size": 64
+        },
+        "critic_config": {
+            "num_layers": 3,
+            "hidden_size": 64
+        }
     },
 
     "evaluation_freq": 1,

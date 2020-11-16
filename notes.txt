@@ -45,6 +45,9 @@ Notes for current task:
 - Allow for different architecture configs for actor and critic. This is necessary
   because grad_var needs to be very different between them
 - Add training baselines for splitting v2
+- General cleaning (look around, pylint, mypy, black)
+  - Clean up splitting logging + trunk measuring conflicting grad freq
+  - Change metrics to behave like logging
 
 ----------------------------------------------------------------------------------------
 
@@ -124,15 +127,6 @@ Possible additions:
 - In actor/critic network, add splitting for action_logstd. Right now each task just has
   a separate set of these parameters.
 - Allow weights/biases to be split independently
-- Fix statistical test for splitting: Right now we are using a statistical test of the
-  pairwise differences between task gradients that requires knowledge of the population
-  mean under the null hypothesis. This isn't the case, because we compute the population
-  mean as a function of the observed standard deviation of task gradients. However,
-  fixing the test is weird because ours is a very special case because we aren't
-  directly estimating the population mean, we are estimating it as a function of the
-  standard deviation of another variable. Not sure if there is even a way to handle
-  this, but something to keep in mind for the future. For now I think it is fine to keep
-  this way.
 
 Refactoring:
 - Move optimizer and learning schedule outside of ppo.py in order to generalize training

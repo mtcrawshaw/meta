@@ -202,7 +202,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=config["num_processes"],
-        hidden_state_size=config["architecture_config"]["hidden_size"]
+        hidden_state_size=config["architecture_config"]["recurrent_hidden_size"]
         if policy.recurrent
         else 1,
         device=device,
@@ -273,12 +273,15 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
             # If we're training a trunk network, check for frequency of conflicting
             # gradients.
-            if (
-                config["architecture_config"]["type"] == "trunk"
-                and config["architecture_config"]["measure_conflicting_grads"]
-            ):
-                policy.policy_network.actor.check_conflicting_grads(step_loss)
-                policy.policy_network.critic.check_conflicting_grads(step_loss)
+            if config["architecture_config"]["type"] == "trunk":
+                if config["architecture_config"]["actor_config"][
+                    "measure_conflicting_grads"
+                ]:
+                    policy.policy_network.actor.check_conflicting_grads(step_loss)
+                if config["architecture_config"]["critic_config"][
+                    "measure_conflicting_grads"
+                ]:
+                    policy.policy_network.critic.check_conflicting_grads(step_loss)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if num_tasks > 1:
