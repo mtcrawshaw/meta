@@ -42,12 +42,11 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Allow for different architecture configs for actor and critic. This is necessary
-  because grad_var needs to be very different between them
 - Add training baselines for splitting v2
 - General cleaning (look around, pylint, mypy, black)
   - Clean up splitting logging + trunk measuring conflicting grad freq
   - Change metrics to behave like logging
+- Reorganize notes by section of the code
 
 ----------------------------------------------------------------------------------------
 
@@ -153,7 +152,17 @@ Refactoring:
   meta/train/ppo.py, get_loss(). It would be safer to perform the checks, but this might
   cost time we don't want to use. If it does cost time, later we should add an
   optimization level option that will skip checks when we want to go for speed.
-- Change hyperparameter search to allow non-unique leaf node names in config
+- Change hyperparameter search to allow non-unique leaf node names in config. After
+  allowing separate architecture configs for actor and critic networks, we have a bunch
+  of parameters with non-unique names. What this means is that parameters with the same
+  name will be tied together during the search process. To fix this, we need to change
+  the way that we specify search spaces for parameters. Right now each search space is
+  tied to a parameter just by its name, which is why we needed unique names, but what we
+  really need is for each search space to be tied to the path through the config tree to
+  the corresponding leaf. To do this, we should just specify the search spaces within
+  the base train config dictionary. Instead of having individual values within this
+  config, we just have a list of values, or another dict which describes the search
+  space.
 - Include name of search parameter in name of results file for IC grid search
 - Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
   and then it is resumed and trained for a longer period of time, the learning rate will
