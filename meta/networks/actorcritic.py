@@ -14,7 +14,10 @@ from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from meta.networks.splitting import MultiTaskSplittingNetworkV1, MultiTaskSplittingNetworkV2
+from meta.networks.splitting import (
+    MultiTaskSplittingNetworkV1,
+    MultiTaskSplittingNetworkV2,
+)
 from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
 

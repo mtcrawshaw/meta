@@ -249,7 +249,10 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         for step_loss in policy.get_loss(rollout):
 
             # If we're training a splitting network, pass it the task-specific losses.
-            if config["architecture_config"]["type"] in ["splitting_v1", "splitting_v2"]:
+            if config["architecture_config"]["type"] in [
+                "splitting_v1",
+                "splitting_v2",
+            ]:
                 splits = {}
                 splits["actor"] = policy.policy_network.actor.check_for_split(step_loss)
                 splits["critic"] = policy.policy_network.critic.check_for_split(

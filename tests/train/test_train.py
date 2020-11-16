@@ -705,6 +705,83 @@ def test_train_MT10_splitting_v1_recurrent_exclude_task() -> None:
     train(config)
 
 
+def test_train_MT10_splitting_v2() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with splitting v2 network architecture.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_V2_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "MT10_splitting_v2"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_v2_recurrent() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent splitting v2 network
+    architecture.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_V2_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["architecture_config"]["recurrent_hidden_size"] = 32
+    config["baseline_metrics_filename"] = "MT10_splitting_v2_recurrent"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_v2_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with splitting v2 network architecture where
+    task index is excluded from input.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_V2_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_splitting_v2_exclude_task"
+
+    # Run training.
+    train(config)
+
+
+def test_train_MT10_splitting_v2_recurrent_exclude_task() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for a multi-task
+    environment, running a single process, with recurrent splitting v2 network
+    architecture where task index is excluded from input.
+    """
+
+    # Load default training config.
+    with open(SPLITTING_V2_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["recurrent"] = True
+    config["architecture_config"]["recurrent_hidden_size"] = 32
+    config["architecture_config"]["include_task_index"] = False
+    config["baseline_metrics_filename"] = "MT10_splitting_v2_recurrent_exclude_task"
+
+    # Run training.
+    train(config)
+
+
 def test_train_save_load() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment

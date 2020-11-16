@@ -42,11 +42,10 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Add training baselines for splitting v2
+- Reorganize notes by section of the code
 - General cleaning (look around, pylint, mypy, black)
   - Clean up splitting logging + trunk measuring conflicting grad freq
   - Change metrics to behave like logging
-- Reorganize notes by section of the code
 
 ----------------------------------------------------------------------------------------
 
