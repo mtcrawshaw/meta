@@ -1,0 +1,66 @@
+{
+    "env_name": "MT10",
+
+    "num_updates": 5,
+    "rollout_length": 10,
+    "num_ppo_epochs": 1,
+    "num_minibatch": 1,
+    "num_processes": 1,
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "eps": 1e-5,
+    "value_loss_coeff": 0.5,
+    "entropy_loss_coeff": 0.01,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "max_grad_norm": 0.5,
+    "clip_param": 0.2,
+    "clip_value_loss": true,
+    "normalize_advantages": true,
+    "normalize_transition": true,
+    "normalize_first_n": 9,
+
+    "architecture_config": {
+        "type": "splitting_v2",
+        "recurrent": false,
+        "recurrent_hidden_size": null,
+        "include_task_index": true,
+        "num_tasks": 10,
+
+        "actor_config": {
+            "num_layers": 3,
+            "hidden_size": 32,
+            "split_step_threshold": 30,
+            "sharing_threshold": 0.5,
+            "cap_sample_size": false,
+            "split_freq": 1,
+            "splits_per_step": 1,
+            "ema_alpha": 0.999
+        },
+        "critic_config": {
+            "num_layers": 3,
+            "hidden_size": 32,
+            "split_step_threshold": 30,
+            "sharing_threshold": 0.5,
+            "cap_sample_size": false,
+            "split_freq": 1,
+            "splits_per_step": 1,
+            "ema_alpha": 0.999
+        }
+    },
+
+    "evaluation_freq": 5,
+    "evaluation_episodes": 1,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "time_limit": 8,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

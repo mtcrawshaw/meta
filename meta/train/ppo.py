@@ -61,10 +61,10 @@ class PPOPolicy:
             Number of total updates to be performed on policy.
         architecture_config: Dict[str, Any]
             Config dictionary for the architecture. Should contain an entry for "type",
-            (either "mlp", "trunk", or "splitting"), an entry for "recurrent" (either
-            True or False), and all other entries should correspond to the keyword
-            arguments for the corresponding network class, which is either MLPNetwork,
-            MultiTaskTrunkNetwork, or MultiTaskSplittingNetworkV1.
+            (either "mlp", "trunk", "splitting_v1", or "splitting_v2"), an entry for
+            "recurrent" (either True or False), and all other entries should correspond
+            to the keyword arguments for the corresponding network class, which is
+            either MLPNetwork, MultiTaskTrunkNetwork, or MultiTaskSplittingNetworkV1.
         num_tasks : int
             Number of tasks that will simultaneously be trained on. When `num_tasks` >
             1, the policy expects observations to be flat vectors in which the last

@@ -14,7 +14,7 @@ from meta.networks.initialize import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
-from meta.networks.splitting import MultiTaskSplittingNetworkV1
+from meta.networks.splitting import MultiTaskSplittingNetworkV1, MultiTaskSplittingNetworkV2
 from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
 
@@ -69,7 +69,7 @@ class ActorCriticNetwork(nn.Module):
             input_size = self.input_size
             observation_shape = get_space_shape(self.observation_space, "obs")
             if (
-                architecture_config["type"] in ["trunk", "splitting"]
+                architecture_config["type"] in ["trunk", "splitting_v1", "splitting_v2"]
                 and not architecture_config["include_task_index"]
             ):
                 input_size -= architecture_config["num_tasks"]
@@ -116,7 +116,7 @@ class ActorCriticNetwork(nn.Module):
             if isinstance(self.action_space, Box):
                 self.logstd = AddBias(torch.zeros(self.output_size))
 
-        elif architecture_config["type"] in ["trunk", "splitting"]:
+        elif architecture_config["type"] in ["trunk", "splitting_v1", "splitting_v2"]:
 
             # We only support environments whose observation spaces are flat vectors.
             if (
@@ -142,8 +142,10 @@ class ActorCriticNetwork(nn.Module):
 
             if architecture_config["type"] == "trunk":
                 cls = MultiTaskTrunkNetwork
-            elif architecture_config["type"] == "splitting":
+            elif architecture_config["type"] == "splitting_v1":
                 cls = MultiTaskSplittingNetworkV1
+            elif architecture_config["type"] == "splitting_v2":
+                cls = MultiTaskSplittingNetworkV2
             else:
                 raise NotImplementedError
 
@@ -208,7 +210,7 @@ class ActorCriticNetwork(nn.Module):
 
         # Exclude task index from obs, if necessary.
         if (
-            self.architecture_type in ["trunk", "splitting"]
+            self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]
             and not self.include_task_index
         ):
             task_index_pos = self.input_size - self.num_tasks
@@ -226,7 +228,7 @@ class ActorCriticNetwork(nn.Module):
             value_pred = self.critic(x)
             actor_output = self.actor(x)
 
-        elif self.architecture_type in ["trunk", "splitting"]:
+        elif self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]:
             task_index_pos = self.input_size - self.num_tasks
             task_indices = obs[:, task_index_pos:].nonzero()[:, 1]
             value_pred = self.critic(x, task_indices)
@@ -246,7 +248,7 @@ class ActorCriticNetwork(nn.Module):
                     torch.zeros(actor_output.size(), device=self.device)
                 )
 
-            elif self.architecture_type in ["trunk", "splitting"]:
+            elif self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]:
 
                 # In the multi-task case, we have to do account for the fact that each
                 # output head has its own copy of `logstd`.

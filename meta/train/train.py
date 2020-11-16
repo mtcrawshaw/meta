@@ -78,9 +78,10 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Whether or not to normalize observations and rewards.
     architecture_config: Dict[str, Any]
         Config dictionary for the architecture. Should contain an entry for "type",
-        which is either "vanilla", "trunk" or "splitting", and all other entries should
-        correspond to the keyword arguments for the corresponding network class, which
-        is either VanillaNetwork, MultiTaskTrunkNetwork, or MultiTaskSplittingNetworkV1.
+        which is either "vanilla", "trunk", "splitting_v1" or "splitting_v2", and all
+        other entries should correspond to the keyword arguments for the corresponding
+        network class, which is either VanillaNetwork, MultiTaskTrunkNetwork, or
+        MultiTaskSplittingNetworkV1.
     cuda : bool
         Whether or not to train on GPU.
     seed : int
@@ -248,7 +249,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         for step_loss in policy.get_loss(rollout):
 
             # If we're training a splitting network, pass it the task-specific losses.
-            if config["architecture_config"]["type"] == "splitting":
+            if config["architecture_config"]["type"] in ["splitting_v1", "splitting_v2"]:
                 splits = {}
                 splits["actor"] = policy.policy_network.actor.check_for_split(step_loss)
                 splits["critic"] = policy.policy_network.critic.check_for_split(
