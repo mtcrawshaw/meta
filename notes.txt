@@ -1,5 +1,6 @@
 Road Map
 
+
 Major versions:
     PPO for single task
     Multi-task/MetaWorld support
@@ -11,8 +12,8 @@ Major versions:
 
 Current minor version (MT10/MT50 baselines):
     Shared trunk architecture
---> FC splitting networks (regions = layers)
-    Meta splitting networks
+    FC splitting networks (regions = layers)
+--> Meta splitting networks
     Baselines (
         PCGrad,
         Branched MT networks,
@@ -26,30 +27,31 @@ Current minor version (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Splitting networks):
-    Individually compute task losses
-    Separate network from model
-    Set forward pass as a function of sharing variables (layers as regions)
-    Add support for training with MultiTaskSplittingNetwork
-    Compute task-specific gradients for MLP
-    Compute pairwise distances between task gradients at each region
-    Compute test statistic from pairwise distance
-    Change sharing variables when statistical significance is reached
-    Stopping criterion
-    Add training tests
-    Refactoring
---> Variations of splitting criteria
+--> Merge meta_splitting branch into develop
+    Add training options to replicate Meta-World's single task PPO experiments
+    MetaSplittingNetwork definition
+    Tests for MetaSplittingNetwork (forward, backward, ?)
+    Meta learning training infrastructure
+    Meta learning baseline (MAML?)
+    Benchmark splitting performance against baseline
+
 
 ----------------------------------------------------------------------------------------
 
+
 Practices
+
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
 - Make sure "pytest tests/" passes
 
+
 ----------------------------------------------------------------------------------------
 
+
 Future Plans
+
 
 DevOps:
 - Make sure that a clean install works properly (repo contains all data necessary for
