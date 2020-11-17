@@ -222,7 +222,7 @@ def test_check_conflicting_grads() -> None:
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=dim,
         device=SETTINGS["device"],
-        measure_conflicting_grads=True,
+        monitor_grads=True,
     )
 
     # Construct a sequence of task gradients. The shape of `task_grads` is

@@ -260,6 +260,9 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             should_split = self.determine_splits()
             split = self.perform_splits(should_split)
 
+        if split:
+            self.log_split()
+
         return split
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
@@ -460,6 +463,19 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         sharing_score = torch.sum(region_scores * self.region_sizes)
         sharing_score /= self.total_region_size
         return sharing_score
+
+    def log_split(self) -> None:
+        """
+        Log out network information.
+        """
+
+        msg = "Step %d\n" % self.num_steps
+        msg += "Sharing score: %f\n" % self.get_sharing_score()
+        msg += "Architecture:\n"
+        msg += self.architecture_str() + "\n"
+
+        msg += "\n"
+        logger.log(msg)
 
     def architecture_str(self) -> str:
         """

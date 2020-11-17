@@ -45,9 +45,6 @@ Current sprint (Splitting networks):
 
 Notes for current task:
 - General cleaning (look around, pylint, mypy, black)
-  - Clean up splitting logging + trunk measuring conflicting grad freq (could just have
-    a policy.backward() method and then do all the model-specific stuff in there)
-  - Change metrics to behave like logging
 
 ----------------------------------------------------------------------------------------
 
@@ -97,8 +94,6 @@ Training infrastructure:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
         - Learning rate schedules (ReduceLROnPlateau, cyclic LR)
-        - Network initialization options
-        - Independent options or normalizing observations and rewards
     - Multi-task architecture support for environments with observations whose
       dimension is greater than 1
     - Add tests checking saved/loaded values for saving/loading training runs. This
@@ -136,10 +131,10 @@ RL training:
     - Test PPO for environments with action space Box((n1, n2))
     - Option to deparallelize data collection processes (this way we can collect from a
       large number of independent environments without causing thrashing)
+    - Independent options for normalizing observations and rewards
     - Network architecture hyperparameters:
         - Parameter sharing between actor and critic (and separate recurrent layers)
         - Recurrent layers throughout network, different types of recurrent layers
-        - Varying network size in hidden layers
         - Value function normalization
     - Options to collect data from multiple tasks. Cycle through tasks, randomly pick
       next, randomly pick next that is different from previous. One option should ensure
@@ -159,6 +154,10 @@ Network architectures:
       be initialized with 100x smaller weights, as that is the difference between init_base
       and init_final.
 - Additions:
+    - Architecture hyperparameters:
+        - Varying network size in hidden layers
+        - Network initialization options
+        - ReLU + other activation functions
     - An option to turn on checks during inference (safe mode). We would check that each
       observation in a multi-task setting ends with a one-hot tensor of size
       `self.num_tasks`, and that task gradients from get_task_grads() from

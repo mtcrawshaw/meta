@@ -33,7 +33,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         num_task_layers: int = 1,
         hidden_size: int = 64,
         device: torch.device = None,
-        measure_conflicting_grads: bool = False,
+        monitor_grads: bool = False,
     ) -> None:
 
         super(MultiTaskTrunkNetwork, self).__init__()
@@ -55,7 +55,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
         self.hidden_size = hidden_size
-        self.measure_conflicting_grads = measure_conflicting_grads
+        self.monitor_grads = monitor_grads
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -63,7 +63,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         # Generate network layers.
         self.initialize_network()
 
-        if self.measure_conflicting_grads:
+        if self.monitor_grads:
 
             # Compute max shared layer size.
             self.shared_layer_sizes = [

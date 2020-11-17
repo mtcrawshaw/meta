@@ -249,42 +249,16 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         for step_loss in policy.get_loss(rollout):
 
             # If we're training a splitting network, pass it the task-specific losses.
-            if config["architecture_config"]["type"] in [
-                "splitting_v1",
-                "splitting_v2",
-            ]:
-                splits = {}
-                splits["actor"] = policy.policy_network.actor.check_for_split(step_loss)
-                splits["critic"] = policy.policy_network.critic.check_for_split(
-                    step_loss
-                )
-
-                # Log out splits.
-                for name in ["actor", "critic"]:
-                    if splits[name]:
-                        network = eval("policy.policy_network.%s" % name)
-                        log_msg = "Update %d: Splitting %s network.\n" % (
-                            update_iteration,
-                            name,
-                        )
-                        log_msg += (
-                            "New sharing score: %f\n" % network.get_sharing_score()
-                        )
-                        log_msg += "New architecture:\n"
-                        log_msg += network.architecture_str() + "\n"
-                        log_msg += "\n"
-                        logger.log(log_msg)
+            if policy.policy_network.architecture_type in ["splitting_v1", "splitting_v2"]:
+                policy.policy_network.actor.check_for_split(step_loss)
+                policy.policy_network.critic.check_for_split(step_loss)
 
             # If we're training a trunk network, check for frequency of conflicting
             # gradients.
-            if config["architecture_config"]["type"] == "trunk":
-                if config["architecture_config"]["actor_config"][
-                    "measure_conflicting_grads"
-                ]:
+            if policy.policy_network.architecture_type == "trunk":
+                if policy.policy_network.actor.monitor_grads:
                     policy.policy_network.actor.check_conflicting_grads(step_loss)
-                if config["architecture_config"]["critic_config"][
-                    "measure_conflicting_grads"
-                ]:
+                if policy.policy_network.critic.monitor_grads:
                     policy.policy_network.critic.check_conflicting_grads(step_loss)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
