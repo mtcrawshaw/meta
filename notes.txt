@@ -10,7 +10,7 @@ Major versions:
     Sparse splitting networks
     NLP support
 
-Current minor version (MT10/MT50 baselines):
+Minor versions (MT10/MT50 baselines):
     Shared trunk architecture
     FC splitting networks (regions = layers)
 --> Meta splitting networks
@@ -26,7 +26,7 @@ Current minor version (MT10/MT50 baselines):
     )
     Refactoring
 
-Current sprint (Splitting networks):
+Current sprint (Meta splitting networks):
 --> Merge meta_splitting branch into develop
     Add training options to replicate Meta-World's single task PPO experiments
     MetaSplittingNetwork definition
@@ -35,6 +35,19 @@ Current sprint (Splitting networks):
     Meta learning baseline (MAML?)
     Benchmark splitting performance against baseline
 
+
+Training options for single task PPO experiments:
+- ReLU activations
+- Deparallelization of environment copies
+
+
+Tests for MetaSplittingNetwork:
+- test_forward (shared, single, multiple)
+- test_task_grads (shared, single, multiple)
+Haven't touched test_task_grads, one forward test is passing but the first test with any
+splits is failing. This may be due to numerical differences between the manual
+computation of the output vs. torch's computation of the output, but the difference is
+pretty large to be due to something like that.
 
 ----------------------------------------------------------------------------------------
 

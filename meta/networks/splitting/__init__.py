@@ -3,3 +3,5 @@
 from meta.networks.splitting.splitting_base import BaseMultiTaskSplittingNetwork
 from meta.networks.splitting.splitting_v1 import MultiTaskSplittingNetworkV1
 from meta.networks.splitting.splitting_v2 import MultiTaskSplittingNetworkV2
+
+from meta.networks.splitting.meta_splitting import MetaSplittingNetwork
