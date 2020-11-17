@@ -1,4 +1,6 @@
-Road map:
+Road Map
+
+Major versions:
     PPO for single task
     Multi-task/MetaWorld support
     Training tools
@@ -8,7 +10,7 @@ Road map:
     Tests of statistical significance of results
     Learned loss convexity regularization for MTL
 
-Current sprint (MT10/MT50 baselines):
+Current minor version (MT10/MT50 baselines):
     Shared trunk architecture
 --> FC splitting networks (regions = layers)
     Meta splitting networks
@@ -27,7 +29,7 @@ Current sprint (MT10/MT50 baselines):
     )
     Refactoring
 
-Current task (Splitting networks):
+Current sprint (Splitting networks):
     Individually compute task losses
     Separate network from model
     Set forward pass as a function of sharing variables (layers as regions)
@@ -42,12 +44,14 @@ Current task (Splitting networks):
 --> Variations of splitting criteria
 
 Notes for current task:
-- Reorganize notes by section of the code
 - General cleaning (look around, pylint, mypy, black)
-  - Clean up splitting logging + trunk measuring conflicting grad freq
+  - Clean up splitting logging + trunk measuring conflicting grad freq (could just have
+    a policy.backward() method and then do all the model-specific stuff in there)
   - Change metrics to behave like logging
 
 ----------------------------------------------------------------------------------------
+
+Practices
 
 Before merging to master:
 - Use black, pylint, and mypy to clean up
@@ -55,163 +59,186 @@ Before merging to master:
 
 ----------------------------------------------------------------------------------------
 
-Future additions:
-- Test PPO for environments with action space Box((n1, n2))
-- PPO training settings to add/consider:
-    - Option to deparallelize data collection processes (this way we can collect from a
-      large number of independent environments without causing thrashing)
-    - Network architecture hyperparameters
-      - Parameter sharing between actor and critic
-      - Option to have separate recurrent layers
-      - Recurrent layers throughout network, different types of recurrent layers
-      - Varying network size in hidden layers. Once this is implemented, write some
-        tests (particularly for non-vanilla architectures) that use networks with
-        varying hidden size.
-    - Choice of optimizer and optimizer hyperparameters
-    - More learning rate schedule options
-        - torch.optim.lr_scheduler.ReduceLROnPlateau
-        - cyclic LR
-        - ?
-    - Various network initialization schemes
-    - Value function normalization
-    - Independent options for normalizing observations and rewards
-- Multi-task architecture support and computation of task-specific loss for environments
-  with observation spaces with dimension greater than 1.
-- Add tests checking saved/loaded values for saving/loading training runs. This can't be
-  done right now since the training function is so monolithic, we can't "look inside"
-  and check the values of the local variabes of that function. Once this functionality
-  is more modular we should add these tests. For now I just manually inspected the
-  values after loading and created a baseline to compare metrics against. The same goes
-  for saving/loading hyperparameter random search runs (the other types of hp search
-  are reproducible when saving/loading, so there's no need for it there).
-- An option to turn on checks during inference (safe mode). We would check that each
-  observation in a multi-task setting ends with a one-hot tensor of size
-  `self.num_tasks`, and that task gradients from
-  MultiTaskSplittingNetwork.get_task_grads() have the same zero padding structure before
-  finding their difference, etc. This way we still have the option to check and be safe,
-  but we don't have to waste computation time doing so if we don't want to.
+Future Plans
 
-Possible additions:
-- Different ways to collect data from multiple tasks. Cycle through tasks, randomly pick
-  one, randomly pick one that is different from previous.
-- Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes sense
-  for a variable in the range [0, 1]. Easy way to do this is to assume that tan^(-1)(X)
-  is normally distributed instead of X, compute mean + stdev and mean - stdev, then take
-  tan of everything tp put it back into interval [0, 1].
-- Rendering of episode videos
-- Time various parts of the training process, save along with metrics
-- Plots to show progression of various hyperparameters during hyperparameter search
-- More robust way to save repository version along with results
-- Determine whether or not policy has solved environment (N successes in a row, usually)
-- Catch KeyboardInterrupt during training to optionally stop training early
-- Make it so that when resuming training from a checkpoint, training happens exactly as
-  it would had if training had never been stopped. Not sure if this is possible, the
-  main obstacle being pickling/loading the environment state, and mimicking random
-  decisions.
-- Another hp search strategy: IC grid search, but which parameter to vary is chosen
-  automatically. Each parameter is varied once to get an initial tuning for each one,
-  then the next parameter to tune is sampled from a distribution in which the
-  probability that a parameter gets chosen is equal to some normalized estimate of the
-  potential gain from tuning that parameter. A natural choice is to use the standard
-  deviation of the rewards from the previous tuning as this estimate. Once a parameter
-  is chosen, we compute an interval to vary that parameter over based off of the
-  previous tuned value of that parameter and the interval type (arithmetic, geometric).
-  Not sure how this will work with discrete variables but we can at least use this for
-  continuous parameters.
-- Monitor system resource utilization and recommend changes in config for maximum
-  utilization, i.e. bigger batch sizes to increase GPU utilization, less processes if
-  thrashing is present
-- Tests for solving simple openai gym environments in a small amount of time
-- In actor/critic network, add splitting for action_logstd. Right now each task just has
-  a separate set of these parameters.
-- Allow weights/biases to be split independently
-
-Refactoring:
-- Move optimizer and learning schedule outside of ppo.py in order to generalize training
-  to CV and NLP.
-- Optimize data transfer to GPU
-- Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use good
-  indexing to construct the batches instead of looping and stacking?
-- Refactor naming in PPO implementation to clarify between episodes, rollouts, and
-  trajectories
-- Use Metrics objects outside of train() instead of state dictionary.
-- Rename PPO parameters (i.e. gamma -> discount)
-- Get rid of redundant functionality for saving metrics
-- Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
-  have to do so much bullshit to save/load/compare metrics if the functionality was
-  modular
-- Get rid of redundant settings inside and outside base_train_config for hyperparameter
-  search, i.e. seed, save name, etc
-- Clean up hyperparameter_search() a lot:
-  - Get rid of repeated code in different search strategies
-  - Clean up redundant options between "base_train_config" and "hp_config"
-  - A billion other things, it's disgusting
-- Determine whether or not we save time by skipping the check that the end of each
-  observation is a one-hot vector in meta/networks/trunk.py, forward() as well as in
-  meta/train/ppo.py, get_loss(). It would be safer to perform the checks, but this might
-  cost time we don't want to use. If it does cost time, later we should add an
-  optimization level option that will skip checks when we want to go for speed.
-- Change hyperparameter search to allow non-unique leaf node names in config. After
-  allowing separate architecture configs for actor and critic networks, we have a bunch
-  of parameters with non-unique names. What this means is that parameters with the same
-  name will be tied together during the search process. To fix this, we need to change
-  the way that we specify search spaces for parameters. Right now each search space is
-  tied to a parameter just by its name, which is why we needed unique names, but what we
-  really need is for each search space to be tied to the path through the config tree to
-  the corresponding leaf. To do this, we should just specify the search spaces within
-  the base train config dictionary. Instead of having individual values within this
-  config, we just have a list of values, or another dict which describes the search
-  space.
-- Include name of search parameter in name of results file for IC grid search
-- Fix learning rate schedule behavior when resuming runs. Right now, if a run finishes,
-  and then it is resumed and trained for a longer period of time, the learning rate will
-  not align with the original schedule. Really this could be fixed by creating two
-  different loading modes: resume and extend. Resume will follow the original schedule
-  for parameters, and extend will ditch the old one and follow the newly given one.
-- Fix cosine learning rate schedule definition (T_max should be num_updates - 1) and
-  create new corresponding baselines
+DevOps:
 - Make sure that a clean install works properly (repo contains all data necessary for
   tests, requirements contains all requirements, etc)
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
-- Modify tests so that we don't have to save/load from/to disk during tests. Returning
-  checkpoints from training functions would allow this.
-- Create config/architecture_config object so we don't have to mess with string-keyed
-  dictionaries everywhere
-- Remove redundant calls to "self.to(device)" in nested modules?
 - Containerize this shit
-- In tests/networks/test_trunk.py, test_backward() asserts that the generated
-  observation batch contains data from all tasks, but the obs batch isn't explicitly
-  constructed this way. It happens to pass by luck but we should enforce this so it
-  doesn't randomly break if seed or something else changes.
-- Remove "init_base" and "init_final" arguments from network classes. We shouldn't have
-  to pass around initialization functions, that's just cluttering things up. Instead we
-  should just have an option as to whether or not the last layer of the network should
-  be initialized with 100x smaller weights, as that is the difference between init_base
-  and init_final.
-- Splitting networks training variations:
-  - Reset splitting statistics after a split is performed (this means we have to split
-    regions with highest z-scores first)
-- Splitting networks implementation:
-  - Refactor MultiTaskSplittingNetwork.get_task_grad_diffs() to only compute pairwise
-    differences between task gradients for tasks that share a copy. Right now it is
-    computed for each pair of tasks at each region. We could also parallelize the
-    computation across regions but I'm not quite sure how to do that.
-  - In splitting networks, modify task gradient computation so that we don't perform a
-    redundant backwards pass. Right now, we pass over each task loss, then zero everything
-    out and pass over the sum of losses. We don't actually need to do that last backward
-    pass, but we need to do some stuff to get the task losses without zeroing out
-    gradients between each backward pass. Really we just need to take the successive
-    differences of gradients, and we also need to change the format of the backward pass
-    in general so that .backward() does get called on the entire loss if we aren't using
-    splitting networks. Also, the problem is twice as bad as we originally thought: we are
-    calling backwards on each task loss twice! Once in check_for_splits() for the actor
-    and again for the critic. Fixing this inefficiency is gonna be messy.
-  - Refactor MultiTaskSplittingNetwork.update_grad_stats() to get task flags in a way
-    that is less brittle than checking whether the gradient vector is all zero. Maybe
-    this is an edge case that we actually want to account for. We could probably get
-    this info from `task_losses`.
-- Change metrics measuring to be more like logging. Then we can just add anything to
-  metrics from anywhere. The metrics object should just accept a Dict[str, List[float]],
-  where keys are metric names and values are new metric values to add to that metric's
-  history. If the string is new, then we just start a history for a new metric. This
-  will be a lot more flexible than hand-coding in each individual metric.
+
+Training infrastructure:
+- Refactoring:
+    - Move optimizer and learning schedule outside of ppo.py in order to generalize
+      training to CV and NLP.
+    - Optimize data transfer to GPU
+    - Use Metrics objects outside of train() instead of state dictionary.
+    - Get rid of redundant functionality for saving metrics
+    - Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
+      have to do so much bullshit to save/load/compare metrics if the functionality was
+      modular
+    - Fix learning rate schedule behavior when resuming runs. Right now, if a run
+      finishes, and then it is resumed and trained for a longer period of time, the
+      learning rate will not align with the original schedule. Really this could be
+      fixed by creating two different loading modes: resume and extend. Resume will
+      follow the original schedule for parameters, and extend will ditch the old one and
+      follow the newly given one.
+    - Fix cosine learning rate schedule definition (T_max should be num_updates - 1) and
+      create new corresponding baselines
+    - Create config/architecture_config object so we don't have to mess with
+      string-keyed dictionaries everywhere
+    - Change metrics measuring to be more like logging. Then we can just add anything to
+      metrics from anywhere. The metrics object should just accept a Dict[str,
+      List[float]], where keys are metric names and values are new metric values to add
+      to that metric's history. If the string is new, then we just start a history for a
+      new metric. This will be a lot more flexible than hand-coding in each individual
+      metric.
+- Additions:
+    - Training options:
+        - Choice of optimizer and optimizer hyperparameters
+        - Learning rate schedules (ReduceLROnPlateau, cyclic LR)
+        - Network initialization options
+        - Independent options or normalizing observations and rewards
+    - Multi-task architecture support for environments with observations whose
+      dimension is greater than 1
+    - Add tests checking saved/loaded values for saving/loading training runs. This
+      can't be done right now since the training function is so monolithic, we can't
+      "look inside" and check the values of the local variabes of that function. Once
+      this functionality is more modular we should add these tests. For now I just
+      manually inspected the values after loading and created a baseline to compare
+      metrics against. The same goes for saving/loading hyperparameter random search
+      runs (the other types of hp search are reproducible when saving/loading, so
+      there's no need for it there).
+- Nice to have:
+    - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
+      sense for a variable in the range [0, 1]. Easy way to do this is to assume that
+      tan^(-1)(X) is normally distributed instead of X, compute mean + stdev and mean -
+      stdev, then take tan of everything tp put it back into interval [0, 1].
+    - Time various parts of the training process, save along with metrics
+    - More robust way to save repository version along with results
+    - Catch KeyboardInterrupt during training to optionally stop training early
+    - Make it so that when resuming training from a checkpoint, training happens exactly
+      as it would had if training had never been stopped. Not sure if this is possible,
+      the main obstacle being pickling/loading the environment state, and mimicking
+      random decisions.
+    - Monitor system resource utilization and recommend changes in config for maximum
+      utilization, i.e. bigger batch sizes to increase GPU utilization, less processes
+      if thrashing is present
+
+RL training:
+- Refactoring:
+    - Refactor RolloutStorage data generators. Put tensors into a dict. Can we just use
+      good indexing to construct the batches instead of looping and stacking?
+    - Refactor naming in PPO implementation to clarify between episodes, rollouts, and
+      trajectories
+    - Rename PPO parameters (i.e. gamma -> discount)
+- Additions:
+    - Test PPO for environments with action space Box((n1, n2))
+    - Option to deparallelize data collection processes (this way we can collect from a
+      large number of independent environments without causing thrashing)
+    - Network architecture hyperparameters:
+        - Parameter sharing between actor and critic (and separate recurrent layers)
+        - Recurrent layers throughout network, different types of recurrent layers
+        - Varying network size in hidden layers
+        - Value function normalization
+    - Options to collect data from multiple tasks. Cycle through tasks, randomly pick
+      next, randomly pick next that is different from previous. One option should ensure
+      that multi-process training is collecting data from tasks as uniformly as
+      possible.
+- Nice to have:
+    - Rendering of episode videos
+    - Determine whether or not policy has solved environment (N successes in a row,
+      usually)
+
+Network architectures:
+- Refactoring:
+    - Remove redundant calls to "self.to(device)" in nested modules?
+    - Remove "init_base" and "init_final" arguments from network classes. We shouldn't have
+      to pass around initialization functions, that's just cluttering things up. Instead we
+      should just have an option as to whether or not the last layer of the network should
+      be initialized with 100x smaller weights, as that is the difference between init_base
+      and init_final.
+- Additions:
+    - An option to turn on checks during inference (safe mode). We would check that each
+      observation in a multi-task setting ends with a one-hot tensor of size
+      `self.num_tasks`, and that task gradients from get_task_grads() from
+      MultiTaskSplittingNetwork have the same zero padding structure before finding
+      their difference, etc. This way we still have the option to check and be safe, but
+      we don't have to waste computation time doing so if we don't want to. This also
+      applies to checks of tensor structure in forward() of MultiTaskTrunkNetwork,
+      get_loss() from PPOPolicy, and probably a bunch of other places.
+- Nice to have:
+
+Splitting networks:
+- Refactoring:
+    - Refactor MultiTaskSplittingNetwork.get_task_grad_diffs() to only compute pairwise
+      differences between task gradients for tasks that share a copy. Right now it is
+      computed for each pair of tasks at each region. We could also parallelize the
+      computation across regions but I'm not quite sure how to do that.
+    - In splitting networks, modify task gradient computation so that we don't perform a
+      redundant backwards pass. Right now, we pass over each task loss, then zero
+      everything out and pass over the sum of losses. We don't actually need to do that
+      last backward pass, but we need to do some stuff to get the task losses without
+      zeroing out gradients between each backward pass. Really we just need to take the
+      successive differences of gradients, and we also need to change the format of the
+      backward pass in general so that .backward() does get called on the entire loss if
+      we aren't using splitting networks. Also, the problem is twice as bad as we
+      originally thought: we are calling backwards on each task loss twice! Once in
+      check_for_splits() for the actor and again for the critic. Fixing this
+      inefficiency is gonna be messy.
+    - Refactor MultiTaskSplittingNetwork.update_grad_stats() to get task flags in a way
+      that is less brittle than checking whether the gradient vector is all zero. Maybe
+      this is an edge case that we actually want to account for. We could probably get
+      this info from `task_losses`.
+- Additions:
+    - Splitting networks training variations:
+        - Reset splitting statistics after a split is performed (this means we have to
+          split regions with highest z-scores first)
+- Nice to have:
+    - In actor/critic network, add splitting for action_logstd. Right now each task just
+      has a separate set of these parameters.
+    - Allow weights/biases to be split independently
+
+Hyperparameter search:
+- Refactoring:
+    - Get rid of redundant settings inside and outside base_train_config for
+      hyperparameter search, i.e. seed, save name, etc
+    - Get rid of repeated code in different search strategies
+    - Clean up redundant options between "base_train_config" and "hp_config"
+    - Change hyperparameter search to allow non-unique leaf node names in config. After
+      allowing separate architecture configs for actor and critic networks, we have a
+      bunch of parameters with non-unique names. What this means is that parameters with
+      the same name will be tied together during the search process. To fix this, we
+      need to change the way that we specify search spaces for parameters. Right now
+      each search space is tied to a parameter just by its name, which is why we needed
+      unique names, but what we really need is for each search space to be tied to the
+      path through the config tree to the corresponding leaf. To do this, we should just
+      specify the search spaces within the base train config dictionary. Instead of
+      having individual values within this config, we just have a list of values, or
+      another dict which describes the search space.
+- Additions:
+    - Another hp search strategy: IC grid search, but which parameter to vary is chosen
+      automatically. Each parameter is varied once to get an initial tuning for each
+      one, then the next parameter to tune is sampled from a distribution in which the
+      probability that a parameter gets chosen is equal to some normalized estimate of
+      the potential gain from tuning that parameter. A natural choice is to use the
+      standard deviation of the rewards from the previous tuning as this estimate. Once
+      a parameter is chosen, we compute an interval to vary that parameter over based
+      off of the previous tuned value of that parameter and the interval type
+      (arithmetic, geometric).  Not sure how this will work with discrete variables but
+      we can at least use this for continuous parameters.
+- Nice to have:
+    - Plots to show progression of various hyperparameters during hyperparameter search
+    - Include name of search parameter in name of results file for IC grid search
+
+Tests:
+- Refactoring:
+    - Modify tests so that we don't have to save/load from/to disk during tests.
+      Returning checkpoints from training functions would allow this.
+    - In tests/networks/test_trunk.py, test_backward() asserts that the generated
+      observation batch contains data from all tasks, but the obs batch isn't explicitly
+      constructed this way. It happens to pass by luck but we should enforce this so it
+      doesn't randomly break if seed or something else changes.
+- Additions:
+    - Tests for solving simple openai gym environments in a small amount of time
+- Nice to have:
