@@ -1,5 +1,5 @@
 """
-Unit tests for meta/networks/splitting/splitting_v2.py.
+Unit tests for meta/networks/splitting/multi_splitting_v2.py.
 """
 
 import random

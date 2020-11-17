@@ -1,5 +1,5 @@
 """
-Unit tests for meta/networks/splitting/splitting_base.py.
+Unit tests for meta/networks/splitting/multi_splitting_base.py.
 """
 
 import math
