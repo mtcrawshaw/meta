@@ -2,7 +2,7 @@
 
 import os
 from functools import reduce
-from typing import Dict, List, Union, Any, Tuple
+from typing import Dict, List, Any, Tuple
 import pickle
 
 import torch

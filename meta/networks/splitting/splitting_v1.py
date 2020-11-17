@@ -4,16 +4,11 @@ are made by running tests of statistical significance on the differences between
 gradients.
 """
 
-import math
-from itertools import product
-from copy import deepcopy
-from typing import Callable, List, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.stats import norm
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from meta.networks.splitting import BaseMultiTaskSplittingNetwork
 from meta.utils.estimate import RunningStats
@@ -31,7 +26,7 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
         split_alpha: float = 0.05,
         grad_var: float = None,
         log_z: bool = True,
-        **kwargs
+        **kwargs: Any,
     ) -> None:
         """
         Init function for MultiTaskSplittingNetworkV1. `kwargs` should hold the

@@ -6,7 +6,6 @@ from typing import Tuple, List
 
 import torch
 import torch.nn as nn
-from gym.spaces import Space
 
 from meta.networks.initialize import init_recurrent
 

@@ -4,7 +4,6 @@ import math
 from typing import Tuple, Dict, Any, Generator
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete

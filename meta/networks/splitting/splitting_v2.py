@@ -4,20 +4,11 @@ are made simply by splitting the N regions with the largest task gradient distan
 K steps.
 """
 
-import math
-from itertools import product
-from copy import deepcopy
-from typing import Callable, List, Tuple
+from typing import Any
 
-import numpy as np
-from scipy.stats import norm
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from meta.networks.splitting import BaseMultiTaskSplittingNetwork
-from meta.utils.estimate import RunningStats
-from meta.utils.logger import logger
 
 
 class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
@@ -26,7 +17,7 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
     regions with the largest task gradient distance every K steps.
     """
 
-    def __init__(self, split_freq: int, splits_per_step: int, **kwargs) -> None:
+    def __init__(self, split_freq: int, splits_per_step: int, **kwargs: Any) -> None:
         """
         Init function for MultiTaskSplittingNetworkV2. `kwargs` should hold the
         arguments for the init function of BaseMultiTaskSplittingNetwork.

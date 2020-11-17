@@ -3,13 +3,9 @@ Definition of BaseMultiTaskSplittingNetwork, the base class used to represent a
 multi-task splitting network.
 """
 
-import math
-from itertools import product
 from copy import deepcopy
-from typing import Callable, List, Tuple
+from typing import Callable, List
 
-import numpy as np
-from scipy.stats import norm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -244,7 +240,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         # Stop splitting when the sharing score is sufficiently low.
         if self.get_sharing_score() <= self.sharing_threshold:
-            return
+            return False
 
         # Compute task-specific gradients.
         task_grads = self.get_task_grads(task_losses)
@@ -319,7 +315,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         task_grad_diffs = self.get_task_grad_diffs(task_grads)
         self.grad_diff_stats.update(task_grad_diffs, task_pair_flags)
 
-    def get_task_grad_diffs(self, task_grads: torch.Tensor) -> None:
+    def get_task_grad_diffs(self, task_grads: torch.Tensor) -> torch.Tensor:
         """
         Compute the squared pairwise differences between task-specific gradients.
 

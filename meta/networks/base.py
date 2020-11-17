@@ -3,15 +3,14 @@ Definition of BaseNetwork, which serves as an abstract class for an actor critic
 that is extended by other modules defined in this folder.
 """
 
-from typing import Tuple, List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution
-import numpy as np
 from gym.spaces import Space
 
-from meta.utils.utils import get_space_size, get_space_shape
+from meta.utils.utils import get_space_size
 
 
 class BaseNetwork(nn.Module):
