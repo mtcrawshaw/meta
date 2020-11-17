@@ -27,8 +27,8 @@ Minor versions (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Meta splitting networks):
---> Merge meta_splitting branch into develop
-    Add training options to replicate Meta-World's single task PPO experiments
+    Merge meta_splitting branch into develop
+--> Add training options to replicate Meta-World's single task PPO experiments
     MetaSplittingNetwork definition
     Tests for MetaSplittingNetwork (forward, backward, ?)
     Meta learning training infrastructure
@@ -39,7 +39,6 @@ Current sprint (Meta splitting networks):
 Training options for single task PPO experiments:
 - ReLU activations
 - Deparallelization of environment copies
-
 
 Tests for MetaSplittingNetwork:
 - test_forward (shared, single, multiple)
