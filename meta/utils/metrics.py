@@ -8,14 +8,6 @@ from typing import Dict, List, Any
 import numpy as np
 
 
-# Exponential moving average settings. ema_alpha is the coefficient used to
-# compute EMA. ema_threshold is the number of data points at which we switch
-# from a regular average to an EMA. Using a regular average reduces bias when
-# there are a small number data points, so we use it at the beginning.
-EMA_ALPHA = 0.999
-EMA_THRESHOLD = 1000
-
-
 class Metrics:
     """
     Metrics object, which stores and updates training performance metrics.
@@ -24,10 +16,10 @@ class Metrics:
     def __init__(self) -> None:
         """ Init function for Metrics object. """
 
-        self.train_reward = Metric()
-        self.train_success = Metric()
-        self.eval_reward = Metric(point_avg=True, ema_alpha=0.75, ema_threshold=10)
-        self.eval_success = Metric(point_avg=True, ema_alpha=0.75, ema_threshold=10)
+        self.train_reward = Metric(window_len=50)
+        self.train_success = Metric(window_len=50)
+        self.eval_reward = Metric(window_len=5, point_avg=True)
+        self.eval_success = Metric(window_len=5, point_avg=True)
 
         self.state_vars = [
             "train_reward",
@@ -87,17 +79,17 @@ class Metrics:
 class Metric:
     """ Class to store values for a single metric. """
 
-    def __init__(
-        self,
-        point_avg: bool = False,
-        ema_alpha: float = EMA_ALPHA,
-        ema_threshold: int = EMA_THRESHOLD,
-    ) -> None:
-        """ Init function for Metric. """
+    def __init__(self, window_len: int = 50, point_avg: bool = False) -> None:
+        """
+        Init function for Metric. We keep track of the total history of metric values, a
+        moving average of the past `window_len` values, a moving standard deviation of
+        the past `window_len` values, and a maximum average so far. If `point_avg` is
+        True, then `update` will condense the list of given values into their average
+        and treat it as a single update for the metric.
+        """
 
+        self.window_len = window_len
         self.point_avg = point_avg
-        self.ema_alpha = ema_alpha
-        self.ema_threshold = ema_threshold
 
         # Metric values.
         self.history: List[float] = []
@@ -140,25 +132,13 @@ class Metric:
         for value in values:
             self.history.append(value)
 
-            # Compute a regular average and standard deviation when the number of
-            # data points is small, otherwise compute an EMA.
-            if len(self.history) <= self.ema_threshold:
-                self.mean.append(np.mean(self.history))
-                self.stdev.append(np.std(self.history))
-            else:
-                old_second_moment = self.mean[-1] ** 2 + self.stdev[-1] ** 2
-                self.mean.append(self.ema_update(self.mean[-1], value))
-                new_second_moment = self.ema_update(old_second_moment, value ** 2)
-                self.stdev.append(sqrt(new_second_moment - self.mean[-1] ** 2))
+            # Update moving average and standard deviation.
+            self.mean.append(np.mean(self.history[-self.window_len :]))
+            self.stdev.append(np.std(self.history[-self.window_len :]))
 
             # Compute new maximum.
             if self.maximum is None or self.mean[-1] > self.maximum:
                 self.maximum = self.mean[-1]
-
-    def ema_update(self, average: float, new_value: float) -> float:
-        """ Compute one exponential moving average update. """
-
-        return average * self.ema_alpha + new_value * (1.0 - self.ema_alpha)
 
     def state(self) -> Dict[str, Any]:
         """ Return a dictionary with the value of all state variables. """
