@@ -36,10 +36,6 @@ Current sprint (Meta splitting networks):
     Benchmark splitting performance against baseline
 
 
-Training options for single task PPO experiments:
-- ReLU activations
-- Deparallelization of environment copies
-
 Tests for MetaSplittingNetwork:
 - test_forward (shared, single, multiple)
 - test_task_grads (shared, single, multiple)
@@ -135,6 +131,8 @@ RL training:
     - Refactor naming in PPO implementation to clarify between episodes, rollouts, and
       trajectories
     - Rename PPO parameters (i.e. gamma -> discount)
+    - Figure out the difference between our setup and other setups (such as multi-task
+      PPO in the Meta-World paper) which use a linear feature baseline.
 - Additions:
     - Test PPO for environments with action space Box((n1, n2))
     - Option to deparallelize data collection processes (this way we can collect from a
@@ -152,6 +150,30 @@ RL training:
     - Rendering of episode videos
     - Determine whether or not policy has solved environment (N successes in a row,
       usually)
+    - Deparallelization factor as an option. We include an option called
+      `rollouts_per_process` that dictates how many rollouts each process should execute
+      during a training step. Ideally, running 4 processes with 1 rollout per process
+      would be the same as running 2 processes with 2 rollouts per process, but having
+      the option to choose allows us to maximize the efficiency of whatever hardware we
+      are running on. On my laptop, the limiting factor is RAM, so decreasing
+      parallelization (i.e. increasing rollouts_per_process) is the way to go to avoid
+      thrashing. The reason I haven't implemented this yet is because there isn't really
+      a good answer to the following: should we reset the environment between
+      consecutive rollouts for the same process? If the answer is yes, then we will
+      never get past the first `rollout_length` steps of an episode, but if the answer
+      is no, then running multiple rollouts per process is effectively the same as just
+      increasing the rollout length. What we really want is to be able to reset the
+      environment between rollouts from the same process, then restore the environment
+      state of each rollout after the training step. However, this requires storing the
+      environment state (don't wanna do that) and would greatly increase memory cost,
+      which is the whole reason we want a deparallelization option in the first place.
+      The increase in memory wouldn't actually be that bad, because even though the
+      amount of memory needed for each process would increase by a factor of
+      `rollouts_per_process`, that memory would be partitioned into
+      `rollouts_per_process` pieces which each only need to exist in RAM one at a time,
+      so I don't think we would see thrashing here. Still, storing and restoring the
+      environment state is a pain and for now I'm just gonna increase the rollout
+      length.
 
 Network architectures:
 - Refactoring:
