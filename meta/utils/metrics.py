@@ -16,10 +16,10 @@ class Metrics:
     def __init__(self) -> None:
         """ Init function for Metrics object. """
 
-        self.train_reward = Metric(window_len=50)
-        self.train_success = Metric(window_len=50)
-        self.eval_reward = Metric(window_len=5, point_avg=True)
-        self.eval_success = Metric(window_len=5, point_avg=True)
+        self.train_reward = Metric(window_len=500)
+        self.train_success = Metric(window_len=500)
+        self.eval_reward = Metric(window_len=500)
+        self.eval_success = Metric(window_len=500)
 
         self.state_vars = [
             "train_reward",
