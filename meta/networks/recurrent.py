@@ -7,7 +7,7 @@ from typing import Tuple, List
 import torch
 import torch.nn as nn
 
-from meta.networks.initialize import init_recurrent
+from meta.networks.utils import init_recurrent
 
 
 class RecurrentBlock(nn.Module):

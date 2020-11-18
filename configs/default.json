@@ -28,10 +28,12 @@
         "recurrent_hidden_size": null,
 
         "actor_config": {
+            "activation": "tanh",
             "num_layers": 3,
             "hidden_size": 64
         },
         "critic_config": {
+            "activation": "tanh",
             "num_layers": 3,
             "hidden_size": 64
         }

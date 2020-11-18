@@ -13,7 +13,7 @@ import torch
 import torch.nn.functional as F
 from gym.spaces import Box
 
-from meta.networks.initialize import init_base
+from meta.networks.utils import init_base
 from meta.networks.splitting import MultiTaskSplittingNetworkV1
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch

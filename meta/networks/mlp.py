@@ -7,6 +7,8 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
+from meta.networks.utils import get_layer
+
 
 class MLPNetwork(nn.Module):
     """
@@ -21,6 +23,7 @@ class MLPNetwork(nn.Module):
         output_size: int,
         init_base: Callable[[nn.Module], nn.Module],
         init_final: Callable[[nn.Module], nn.Module],
+        activation: str = "tanh",
         num_layers: int = 3,
         hidden_size: int = 64,
         device: torch.device = None,
@@ -40,6 +43,7 @@ class MLPNetwork(nn.Module):
         self.output_size = output_size
         self.init_base = init_base
         self.init_final = init_final
+        self.activation = activation
         self.num_layers = num_layers
         self.hidden_size = hidden_size
 
@@ -69,11 +73,14 @@ class MLPNetwork(nn.Module):
             layer_init = self.init_base if i < self.num_layers - 1 else self.init_final
 
             # Initialize layer.
-            layers.append(layer_init(nn.Linear(layer_input_size, layer_output_size)))
-
-            # Activation function.
-            if i != self.num_layers - 1:
-                layers.append(nn.Tanh())
+            layers.append(
+                get_layer(
+                    in_size=layer_input_size,
+                    out_size=layer_output_size,
+                    activation=self.activation if i != self.num_layers - 1 else None,
+                    layer_init=layer_init,
+                )
+            )
 
         self.layers = nn.Sequential(*layers)
 

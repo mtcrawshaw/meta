@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from meta.networks.utils import get_layer
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
@@ -28,6 +29,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         init_base: Callable[[nn.Module], nn.Module],
         init_final: Callable[[nn.Module], nn.Module],
         num_tasks: int,
+        activation: str = "tanh",
         num_layers: int = 3,
         hidden_size: int = 64,
         split_step_threshold: int = 30,
@@ -84,6 +86,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.output_size = output_size
         self.init_base = init_base
         self.init_final = init_final
+        self.activation = activation
         self.num_tasks = num_tasks
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -118,8 +121,6 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         region_list = []
         for i in range(self.num_layers):
 
-            layer_modules = []
-
             # Calcuate input and output size of layer.
             layer_input_size = self.input_size if i == 0 else self.hidden_size
             layer_output_size = (
@@ -130,13 +131,12 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             layer_init = self.init_base if i < self.num_layers - 1 else self.init_final
 
             # Initialize layer.
-            layer_modules.append(
-                layer_init(nn.Linear(layer_input_size, layer_output_size))
+            layer = get_layer(
+                in_size=layer_input_size,
+                out_size=layer_output_size,
+                activation=self.activation if i != self.num_layers - 1 else None,
+                layer_init=layer_init,
             )
-
-            # Activation function.
-            if i != self.num_layers - 1:
-                layer_modules.append(nn.Tanh())
 
             # Combine linear transformation and activation into a single layer and add
             # to list of layers. Note that each element of `layers` is a list of layers,
@@ -144,7 +144,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             # `layers` represents all copies of a layer used by different subsets of all
             # tasks, but initially all layers are shared by all tasks, so we only have
             # one copy per region.
-            region = nn.ModuleList([nn.Sequential(*layer_modules)])
+            region = nn.ModuleList([layer])
             region_list.append(region)
 
         self.regions = nn.ModuleList(region_list)

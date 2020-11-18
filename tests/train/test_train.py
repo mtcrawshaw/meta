@@ -552,6 +552,26 @@ def test_train_cartpole_linear_lr() -> None:
     train(config)
 
 
+def test_train_cartpole_relu() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a discrete action space, running a single process, with a relu activation
+    function in the networks.
+    """
+
+    # Load default training config.
+    with open(CARTPOLE_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["architecture_config"]["actor_config"]["activation"] = "relu"
+    config["architecture_config"]["critic_config"]["activation"] = "relu"
+    config["baseline_metrics_filename"] = "cartpole_relu"
+
+    # Run training.
+    train(config)
+
+
 def test_train_MT10_trunk() -> None:
     """
     Runs training and compares reward curve against saved baseline for a multi-task

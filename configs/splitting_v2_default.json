@@ -30,6 +30,7 @@
         "num_tasks": 10,
 
         "actor_config": {
+            "activation": "tanh",
             "num_layers": 3,
             "hidden_size": 32,
             "split_step_threshold": 30,
@@ -40,6 +41,7 @@
             "ema_alpha": 0.999
         },
         "critic_config": {
+            "activation": "tanh",
             "num_layers": 3,
             "hidden_size": 32,
             "split_step_threshold": 30,

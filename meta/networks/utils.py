@@ -1,4 +1,6 @@
-from typing import Any, Union
+""" Misc functionality for meta/networks. """
+
+from typing import Any, Union, Callable
 
 import numpy as np
 import torch.nn as nn
@@ -22,6 +24,30 @@ def init(
                 bias_init(param)
 
     return module
+
+
+def get_layer(
+    in_size: int,
+    out_size: int,
+    activation: str,
+    layer_init: Callable[[nn.Module], nn.Module],
+) -> nn.Module:
+    """
+    Construct a fully-connected layer with the given input size, output size, activation
+    function, and initialization function.
+    """
+
+    layer = []
+    layer.append(layer_init(nn.Linear(in_size, out_size)))
+
+    if activation == "tanh":
+        layer.append(nn.Tanh())
+    elif activation == "relu":
+        layer.append(nn.ReLU())
+    elif activation is not None:
+        raise ValueError("Unsupported activation function: %s" % activation)
+
+    return nn.Sequential(*layer)
 
 
 # Initialization functions for network weights. init_final is only used for the last

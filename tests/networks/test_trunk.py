@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete
 
-from meta.networks.initialize import init_base, init_final
+from meta.networks.utils import init_base, init_final
 from meta.networks.trunk import MultiTaskTrunkNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 

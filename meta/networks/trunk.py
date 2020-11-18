@@ -10,6 +10,7 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
+from meta.networks.utils import get_layer
 from meta.utils.estimate import RunningStats
 
 
@@ -29,6 +30,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         init_base: Callable[[nn.Module], nn.Module],
         init_final: Callable[[nn.Module], nn.Module],
         num_tasks: int,
+        activation: str = "tanh",
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
         hidden_size: int = 64,
@@ -52,6 +54,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.init_base = init_base
         self.init_final = init_final
         self.num_tasks = num_tasks
+        self.activation = activation
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
         self.hidden_size = hidden_size
@@ -91,20 +94,18 @@ class MultiTaskTrunkNetwork(nn.Module):
         trunk_layers = []
         for i in range(self.num_shared_layers):
 
-            layer_modules = []
-
             # Calcuate input size of layer.
             layer_input_size = self.input_size if i == 0 else self.hidden_size
 
             # Initialize layer.
-            layer_modules.append(
-                self.init_base(nn.Linear(layer_input_size, self.hidden_size))
+            trunk_layers.append(
+                get_layer(
+                    in_size=layer_input_size,
+                    out_size=self.hidden_size,
+                    activation=self.activation,
+                    layer_init=self.init_base,
+                )
             )
-
-            # Activation functions.
-            layer_modules.append(nn.Tanh())
-
-            trunk_layers.append(nn.Sequential(*layer_modules))
 
         self.trunk = nn.Sequential(*trunk_layers)
 
@@ -114,8 +115,6 @@ class MultiTaskTrunkNetwork(nn.Module):
 
             task_layers = []
             for i in range(self.num_task_layers):
-
-                layer_modules = []
 
                 # Calculate output size of layer.
                 output_size = (
@@ -130,15 +129,16 @@ class MultiTaskTrunkNetwork(nn.Module):
                 )
 
                 # Initialize layer.
-                layer_modules.append(
-                    layer_init(nn.Linear(self.hidden_size, output_size))
+                task_layers.append(
+                    get_layer(
+                        in_size=self.hidden_size,
+                        out_size=output_size,
+                        activation=self.activation
+                        if i != self.num_task_layers - 1
+                        else None,
+                        layer_init=layer_init,
+                    )
                 )
-
-                # Activation function.
-                if i != self.num_task_layers - 1:
-                    layer_modules.append(nn.Tanh())
-
-                task_layers.append(nn.Sequential(*layer_modules))
 
             heads_list.append(nn.Sequential(*task_layers))
 

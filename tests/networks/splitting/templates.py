@@ -10,7 +10,7 @@ from gym.spaces import Box
 import numpy as np
 import torch
 
-from meta.networks.initialize import init_base
+from meta.networks.utils import init_base
 from meta.networks.splitting import (
     BaseMultiTaskSplittingNetwork,
     MultiTaskSplittingNetworkV1,
