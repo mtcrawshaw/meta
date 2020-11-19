@@ -28,9 +28,9 @@ Minor versions (MT10/MT50 baselines):
 
 Current sprint (Meta splitting networks):
     Merge meta_splitting branch into develop
---> Add training options to replicate Meta-World's single task PPO experiments
+    Add training options to replicate Meta-World's single task PPO experiments
     MetaSplittingNetwork definition
-    Tests for MetaSplittingNetwork (forward, backward, ?)
+--> Tests for MetaSplittingNetwork (forward, backward, ?)
     Meta learning training infrastructure
     Meta learning baseline (MAML?)
     Benchmark splitting performance against baseline
@@ -39,10 +39,6 @@ Current sprint (Meta splitting networks):
 Tests for MetaSplittingNetwork:
 - test_forward (shared, single, multiple)
 - test_task_grads (shared, single, multiple)
-Haven't touched test_task_grads, one forward test is passing but the first test with any
-splits is failing. This may be due to numerical differences between the manual
-computation of the output vs. torch's computation of the output, but the difference is
-pretty large to be due to something like that.
 
 ----------------------------------------------------------------------------------------
 
@@ -108,6 +104,10 @@ Training infrastructure:
       runs (the other types of hp search are reproducible when saving/loading, so
       there's no need for it there).
     - Tests of statistical significance of results when comparing different methods
+    - Allow for training on a sequence of configs by specifying a list of values in the
+      config file instead of a single value. Just getting training to work like this
+      will be easy, the more annoying part will be saving and loading over these
+      compound runs.
 - Nice to have:
     - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that
@@ -223,6 +223,10 @@ Splitting networks:
     - Splitting networks training variations:
         - Reset splitting statistics after a split is performed (this means we have to
           split regions with highest z-scores first)
+        - Try training splitting networks by measuring gradient variance online, just
+          with a smaller EMA alpha value. It might be that an EMA which moves too slowly
+          will yield a variance which is larger than it should be, making the test for
+          splitting not sensitive enough.
 - Nice to have:
     - In actor/critic network, add splitting for action_logstd. Right now each task just
       has a separate set of these parameters.

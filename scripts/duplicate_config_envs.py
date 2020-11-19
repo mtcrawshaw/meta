@@ -65,9 +65,7 @@ def main(args) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "target",
-        type=str,
-        help="Path to config file to duplicate.",
+        "target", type=str, help="Path to config file to duplicate.",
     )
     parser.add_argument(
         "num_copies", type=int, help="Number of copies to create of each config."

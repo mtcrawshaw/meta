@@ -125,17 +125,4 @@ class MetaSplittingNetwork(nn.Module):
     def architecture_str(self) -> str:
         """ Return a string representation of the current splitting architecture.  """
 
-        msg = ""
-        for region in range(self.num_regions):
-            msg += "Region %d: " % region
-            copies = [
-                [
-                    task
-                    for task in range(self.num_tasks)
-                    if self.splitting_map.copy[region, task] == copy
-                ]
-                for copy in range(int(self.splitting_map.num_copies[region]))
-            ]
-            msg += str(copies) + "\n"
-
-        return msg
+        return self.splitting_map.architecture_str()

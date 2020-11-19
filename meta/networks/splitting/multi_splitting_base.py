@@ -474,24 +474,9 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         logger.log(msg)
 
     def architecture_str(self) -> str:
-        """
-        Return a string representation of the current splitting architecture.
-        """
+        """ Return a string representation of the current splitting architecture. """
 
-        msg = ""
-        for region in range(self.num_regions):
-            msg += "Region %d: " % region
-            copies = [
-                [
-                    task
-                    for task in range(self.num_tasks)
-                    if self.splitting_map.copy[region, task] == copy
-                ]
-                for copy in range(int(self.splitting_map.num_copies[region]))
-            ]
-            msg += str(copies) + "\n"
-
-        return msg
+        return self.splitting_map.architecture_str()
 
 
 class SplittingMap:
@@ -554,3 +539,21 @@ class SplittingMap:
         is_shared *= (1.0 - torch.eye(self.num_tasks)).unsqueeze(-1)
 
         return is_shared
+
+    def architecture_str(self) -> str:
+        """ Return a string representation of the current splitting architecture. """
+
+        msg = ""
+        for region in range(self.num_regions):
+            msg += "Region %d: " % region
+            copies = [
+                [
+                    task
+                    for task in range(self.num_tasks)
+                    if self.copy[region, task] == copy
+                ]
+                for copy in range(int(self.num_copies[region]))
+            ]
+            msg += str(copies) + "\n"
+
+        return msg
