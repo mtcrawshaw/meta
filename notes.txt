@@ -108,6 +108,7 @@ Training infrastructure:
       config file instead of a single value. Just getting training to work like this
       will be easy, the more annoying part will be saving and loading over these
       compound runs.
+    - Measure training metrics on each individual task during multi-task training.
 - Nice to have:
     - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that

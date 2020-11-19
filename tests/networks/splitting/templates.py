@@ -4,7 +4,7 @@ Templates for tests in tests/networks/splitting/.
 
 import math
 from itertools import product
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable
 from gym.spaces import Box
 
 import numpy as np
@@ -15,6 +15,7 @@ from meta.networks.splitting import (
     BaseMultiTaskSplittingNetwork,
     MultiTaskSplittingNetworkV1,
     MultiTaskSplittingNetworkV2,
+    MetaSplittingNetwork,
 )
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
@@ -733,6 +734,56 @@ def score_template(
     # Compare actual sharing score with expected sharing score.
     actual_score = network.get_sharing_score()
     assert actual_score == expected_score
+
+
+def meta_forward_template(
+    settings: Dict[str, Any],
+    state_dict: Dict[str, torch.Tensor],
+    splits_args: List[Dict[str, Any]],
+    alpha: List[torch.Tensor],
+    get_expected_output: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+) -> None:
+    """ Test MetaSplittingNetwork.forward() correct computes network output. """
+
+    # Construct multi-task network.
+    multitask_network = BaseMultiTaskSplittingNetwork(
+        input_size=settings["input_size"],
+        output_size=settings["output_size"],
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        device=settings["device"],
+    )
+
+    # Split the network according to `splits_args`.
+    for split_args in splits_args:
+        multitask_network.split(**split_args)
+
+    # Load state dict.
+    multitask_network.load_state_dict(state_dict)
+
+    # Construct MetaSplittingNetwork from BaseMultiTaskSplittingNetwork.
+    meta_network = MetaSplittingNetwork(multitask_network, device=settings["device"])
+
+    # Set alpha weights of meta network.
+    for layer in range(meta_network.num_layers):
+        meta_network.alpha[layer].data = alpha[layer]
+
+    # Construct batch of observations concatenated with one-hot task vectors.
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(settings["obs_dim"],))
+    observation_subspace.seed(settings["seed"])
+    obs, task_indices = get_obs_batch(
+        batch_size=settings["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=settings["num_tasks"],
+    )
+
+    # Get and test output of network.
+    output = meta_network(obs, task_indices)
+    expected_output = get_expected_output(obs, task_indices)
+    assert torch.allclose(output, expected_output)
 
 
 def get_flattened_grads(
