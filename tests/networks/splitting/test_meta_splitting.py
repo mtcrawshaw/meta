@@ -10,7 +10,10 @@ from meta.networks.utils import init_base
 from meta.networks.splitting import BaseMultiTaskSplittingNetwork, MetaSplittingNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.splitting import BASE_SETTINGS
-from tests.networks.splitting.templates import meta_forward_template
+from tests.networks.splitting.templates import (
+    meta_forward_template,
+    meta_backward_template,
+)
 
 
 def test_forward_shared() -> None:
@@ -240,47 +243,120 @@ def test_forward_multiple() -> None:
     meta_forward_template(settings, state_dict, splits_args, alpha, get_expected_output)
 
 
-def test_task_grads_shared() -> None:
+def test_backward_shared() -> None:
     """
-    Test that `get_task_grads()` correctly computes task-specific gradients at each
-    region of the network in the case of a fully shared network.
+    Test that calling `backward()` correctly computes gradients for each parameter of
+    the meta splitting network in the case of a fully shared network.
     """
 
-    """
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"] + BASE_SETTINGS["num_tasks"]
+    settings = {}
+    settings["obs_dim"] = BASE_SETTINGS["obs_dim"]
+    settings["num_processes"] = BASE_SETTINGS["num_processes"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
+    settings["num_layers"] = BASE_SETTINGS["num_layers"]
+    settings["hidden_size"] = dim
+    settings["device"] = BASE_SETTINGS["device"]
+    settings["seed"] = DEFAULT_SETTINGS["seed"]
+
+    # Split the network at multiple layers.
+    num_copies = [1, 1, 1]
     splits_args = []
-    gradients_template(SETTINGS, splits_args)
-    """
-    raise NotImplementedError
+
+    # Set alpha weights in the meta network.
+    alpha = [
+        torch.zeros(num_copies[layer], settings["num_tasks"])
+        for layer in range(settings["num_layers"])
+    ]
+    for layer in range(settings["num_layers"]):
+        for task in range(settings["num_tasks"]):
+            alpha[layer][0, task] = layer + task + 1
+
+    # Call test template.
+    meta_backward_template(settings, splits_args, alpha)
 
 
-def test_task_grads_single() -> None:
+def test_backward_single() -> None:
     """
-    Test that `get_task_grads()` correctly computes task-specific gradients at each
-    region of the network in the case of a single split network.
+    Test that calling `backward()` correctly computes gradients for each parameter of
+    the meta splitting network in the case of a single split network.
     """
 
-    """
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"] + BASE_SETTINGS["num_tasks"]
+    settings = {}
+    settings["obs_dim"] = BASE_SETTINGS["obs_dim"]
+    settings["num_processes"] = BASE_SETTINGS["num_processes"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
+    settings["num_layers"] = BASE_SETTINGS["num_layers"]
+    settings["hidden_size"] = dim
+    settings["device"] = BASE_SETTINGS["device"]
+    settings["seed"] = DEFAULT_SETTINGS["seed"]
+
+    # Split the network at multiple layers.
+    num_copies = [1, 2, 1]
     splits_args = [
         {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
-    gradients_template(SETTINGS, splits_args)
-    """
-    raise NotImplementedError
+
+    # Set alpha weights in the meta network.
+    alpha = [
+        torch.zeros(num_copies[layer], settings["num_tasks"])
+        for layer in range(settings["num_layers"])
+    ]
+    for task in range(settings["num_tasks"]):
+        for layer in range(settings["num_layers"]):
+            alpha[layer][0, task] = layer + task + 1
+        alpha[1][1, task] = 4
+
+    # Call test template.
+    meta_backward_template(settings, splits_args, alpha)
 
 
-def test_task_grads_multiple() -> None:
+def test_backward_multiple() -> None:
     """
-    Test that `get_task_grads()` correctly computes task-specific gradients at each
-    region of the network in the case of a multiple split network.
+    Test that calling `backward()` correctly computes gradients for each parameter of
+    the meta splitting network in the case of a multiple split network.
     """
 
-    """
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"] + BASE_SETTINGS["num_tasks"]
+    settings = {}
+    settings["obs_dim"] = BASE_SETTINGS["obs_dim"]
+    settings["num_processes"] = BASE_SETTINGS["num_processes"]
+    settings["input_size"] = dim
+    settings["output_size"] = dim
+    settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
+    settings["num_layers"] = BASE_SETTINGS["num_layers"]
+    settings["hidden_size"] = dim
+    settings["device"] = BASE_SETTINGS["device"]
+    settings["seed"] = DEFAULT_SETTINGS["seed"]
+
+    # Split the network at multiple layers.
+    num_copies = [2, 3, 2]
     splits_args = [
         {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
         {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
         {"region": 1, "copy": 0, "group1": [0], "group2": [2]},
         {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
-    gradients_template(SETTINGS, splits_args)
-    """
-    raise NotImplementedError
+
+    # Set alpha weights in the meta network.
+    alpha = [
+        torch.zeros(num_copies[layer], settings["num_tasks"])
+        for layer in range(settings["num_layers"])
+    ]
+    alphas = [0.1, -0.5, 1.0]
+    for task in range(settings["num_tasks"]):
+        for layer in range(settings["num_layers"]):
+            for copy in range(num_copies[layer]):
+                idx = (task + layer + copy) % 3
+                alpha[layer][copy, task] = alphas[idx]
+
+    # Call test template.
+    meta_backward_template(settings, splits_args, alpha)

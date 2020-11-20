@@ -786,6 +786,74 @@ def meta_forward_template(
     assert torch.allclose(output, expected_output)
 
 
+def meta_backward_template(
+    settings: Dict[str, Any],
+    splits_args: List[Dict[str, Any]],
+    alpha: List[torch.Tensor],
+) -> None:
+    """
+    Template to test that the backward() function correctly computes gradients. We don't
+    actually compare the gradients against baseline values, instead we just check that
+    the gradients are non-zero for each of the alpha values and zero for the parameters
+    in each region.
+    """
+
+    # Construct multi-task network.
+    multitask_network = BaseMultiTaskSplittingNetwork(
+        input_size=settings["input_size"],
+        output_size=settings["output_size"],
+        init_base=init_base,
+        init_final=init_base,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        device=settings["device"],
+    )
+
+    # Split the network according to `splits_args`.
+    for split_args in splits_args:
+        multitask_network.split(**split_args)
+
+    # Construct MetaSplittingNetwork from BaseMultiTaskSplittingNetwork.
+    meta_network = MetaSplittingNetwork(multitask_network, device=settings["device"])
+
+    # Set alpha weights of meta network.
+    for layer in range(meta_network.num_layers):
+        meta_network.alpha[layer].data = alpha[layer]
+
+    # Construct batch of observations concatenated with one-hot task vectors.
+    observation_subspace = Box(low=-np.inf, high=np.inf, shape=(settings["obs_dim"],))
+    observation_subspace.seed(settings["seed"])
+    obs, task_indices = get_obs_batch(
+        batch_size=settings["num_processes"],
+        obs_space=observation_subspace,
+        num_tasks=settings["num_tasks"],
+    )
+
+    # Get output, compute a dummy loss, and perform backwards call.
+    output = meta_network(obs, task_indices)
+    loss = torch.sum(output ** 2)
+    meta_network.zero_grad()
+    loss.backward()
+
+    # Check that gradients of alpha values are non-zero.
+    batch_tasks = task_indices.tolist()
+    for layer in range(meta_network.num_layers):
+        for task in range(meta_network.num_tasks):
+            grad = meta_network.alpha[layer].grad[:, task]
+            assert grad is not None
+            if task in batch_tasks:
+                assert torch.all(grad != 0)
+            else:
+                assert torch.all(grad == 0)
+
+    # Check that gradients of regions are zero.
+    for region in range(meta_network.num_regions):
+        for copy in range(int(meta_network.splitting_map.num_copies[region])):
+            for param in meta_network.regions[region][copy].parameters():
+                assert param.grad is None
+
+
 def get_flattened_grads(
     task_grads: torch.Tensor,
     num_tasks: int,

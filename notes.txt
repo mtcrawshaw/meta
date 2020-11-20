@@ -30,7 +30,8 @@ Current sprint (Meta splitting networks):
     Merge meta_splitting branch into develop
     Add training options to replicate Meta-World's single task PPO experiments
     MetaSplittingNetwork definition
---> Tests for MetaSplittingNetwork (forward, backward, ?)
+    Tests for MetaSplittingNetwork
+--> Conversion of Policy into MetaPolicy
     Meta learning training infrastructure
     Meta learning baseline (MAML?)
     Benchmark splitting performance against baseline
