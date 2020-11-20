@@ -2,7 +2,6 @@
 Object definition for Metrics class, which stores and updates training performance metrics.
 """
 
-from math import sqrt
 from typing import Dict, List, Any
 
 import numpy as np

@@ -3,20 +3,10 @@ Definition of MetaSplittingNetwork, a trained BaseMultiTaskSplittingNetwork whic
 be adapted at meta-test time.
 """
 
-import math
-from itertools import product
-from copy import deepcopy
-from typing import Callable, List, Tuple
-
-import numpy as np
-from scipy.stats import norm
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from meta.networks.splitting import BaseMultiTaskSplittingNetwork
-from meta.utils.estimate import RunningStats
-from meta.utils.logger import logger
 
 
 class MetaSplittingNetwork(nn.Module):
