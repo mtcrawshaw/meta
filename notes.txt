@@ -36,10 +36,30 @@ Current sprint (Meta splitting networks):
     Meta learning baseline (MAML?)
     Benchmark splitting performance against baseline
 
+We need to figure out exactly how one-hot task vectors work with the ML10 and ML45
+benchmarks. Right now MetaSplittingNetwork just sets its number of tasks as the number
+of tasks from the given MultiTaskSplittingNetwork, but this isn't right. We need the
+number of meta-train tasks and the number of meta-test tasks. We also need to know if
+the given one-hot task vectors are overlapping, i.e. if we have 3 meta-train tasks and
+two meta-test tasks, do we have train/test vectors like [1, 0, 0]/[1, 0] or [1, 0, 0, 0,
+0]/[0, 0, 0, 1, 0].
 
-Tests for MetaSplittingNetwork:
-- test_forward (shared, single, multiple)
-- test_task_grads (shared, single, multiple)
+When running single task experiments, we need to clarify whether or not the goal should
+randomized. Right now, when we train on a single task, we instantiate the environment
+using the ML1 benchmark. Is that how it's supposed to be?
+
+After coming back from a holiday break:
+We need to choose a direction. The road map looks like this: reproduce single-task
+results, reproduce multi-task results, demonstrate good multi-task performance with
+splitting networks, demonstrate good meta-learning performance with splitting networks.
+The question is this: do we want to build the meta-learning infrastructure before we
+start focusing on producing good results? We already have a small amount of code written
+(in this commit) for meta-learning, so maybe it wouldn't be too bad to build on this to
+get the infrastructure there instead of throwing the existing code away. So here's the
+move: get meta splitting networks to run on ML10/ML45 (don't wanna tune performance
+here, just get it working), benchmark/improve single-task performance (PPO),
+benchmark/improve multi-task performance (multi-task splitting networks),
+benchmark/improve meta-learning performance (meta splitting networks).
 
 ----------------------------------------------------------------------------------------
 

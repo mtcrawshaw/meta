@@ -765,7 +765,11 @@ def meta_forward_template(
     multitask_network.load_state_dict(state_dict)
 
     # Construct MetaSplittingNetwork from BaseMultiTaskSplittingNetwork.
-    meta_network = MetaSplittingNetwork(multitask_network, device=settings["device"])
+    meta_network = MetaSplittingNetwork(
+        multitask_network,
+        num_test_tasks=settings["num_tasks"],
+        device=settings["device"],
+    )
 
     # Set alpha weights of meta network.
     for layer in range(meta_network.num_layers):
@@ -815,7 +819,11 @@ def meta_backward_template(
         multitask_network.split(**split_args)
 
     # Construct MetaSplittingNetwork from BaseMultiTaskSplittingNetwork.
-    meta_network = MetaSplittingNetwork(multitask_network, device=settings["device"])
+    meta_network = MetaSplittingNetwork(
+        multitask_network,
+        num_test_tasks=settings["num_tasks"],
+        device=settings["device"],
+    )
 
     # Set alpha weights of meta network.
     for layer in range(meta_network.num_layers):
@@ -839,7 +847,7 @@ def meta_backward_template(
     # Check that gradients of alpha values are non-zero.
     batch_tasks = task_indices.tolist()
     for layer in range(meta_network.num_layers):
-        for task in range(meta_network.num_tasks):
+        for task in range(meta_network.num_test_tasks):
             grad = meta_network.alpha[layer].grad[:, task]
             assert grad is not None
             if task in batch_tasks:

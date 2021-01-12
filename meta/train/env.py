@@ -123,12 +123,20 @@ def get_single_env_creator(
         elif env_name in metaworld_benchmark_names:
 
             # Again, import here so that we avoid importing metaworld if possible.
-            from metaworld.benchmarks import MT10, MT50
+            from metaworld.benchmarks import MT10, MT50, ML10, ML45
 
             if env_name == "MT10":
                 env = MT10.get_train_tasks()
             elif env_name == "MT50":
                 env = MT50.get_train_tasks()
+            elif env_name == "ML10":
+                env = ML10.get_train_tasks()
+            elif env_name == "ML45":
+                env = ML45.get_train_tasks()
+            elif env_name == "ML10_test":
+                env = ML10.get_test_tasks()
+            elif env_name == "ML45_test":
+                env = ML45.get_test_tasks()
             else:
                 raise NotImplementedError
 
@@ -182,6 +190,14 @@ def get_num_tasks(env_name: str) -> int:
             num_tasks = 10
         elif env_name == "MT50":
             num_tasks = 50
+        elif env_name == "ML10":
+            num_tasks = 10
+        elif env_name == "ML45":
+            num_tasks = 45
+        elif env_name == "ML10_test":
+            num_tasks = 5
+        elif env_name == "ML45_test":
+            num_tasks = 5
         else:
             raise NotImplementedError
 
@@ -361,7 +377,7 @@ class SuccessEnv(gym.Wrapper):
 def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
 
-    return ["MT10", "MT50"]
+    return ["MT10", "MT50", "ML10", "ML45", "ML10_test", "ML45_test"]
 
 
 def get_metaworld_env_names() -> List[str]:

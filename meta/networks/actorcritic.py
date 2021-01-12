@@ -17,6 +17,7 @@ from meta.networks.trunk import MultiTaskTrunkNetwork
 from meta.networks.splitting import (
     MultiTaskSplittingNetworkV1,
     MultiTaskSplittingNetworkV2,
+    MetaSplittingNetwork,
 )
 from meta.utils.utils import AddBias, get_space_size, get_space_shape
 
@@ -275,3 +276,33 @@ class ActorCriticNetwork(nn.Module):
             raise NotImplementedError
 
         return value_pred, action_dist, hidden_state
+
+    def meta_conversion(num_test_tasks: int) -> None:
+        """
+        Convert the actor and the critic models to their meta-learning counterparts. For
+        all architectures besides splitting networks, this is not implemented. For
+        splitting networks, we convert the actor and critic models from multi-task
+        splitting networks to meta splitting networks.
+
+        Arguments
+        ---------
+        num_test_tasks : int
+            Number of tasks for the model to perform at meta-test time.
+        """
+
+        # Convert `self.actor` and `self.critic` from multi-task splitting networks into
+        # meta-splitting networks.
+        if self.architecture_type in ["splitting_v1", "splitting_v2"]:
+            self.actor = MetaSplittingNetwork(
+                self.actor, num_test_tasks, device=self.device
+            )
+            self.critic = MetaSplittingNetwork(
+                self.critic, num_test_tasks, device=self.device
+            )
+            logstd_list = []
+            for _ in range(self.num_tasks):
+                logstd_list.append(AddBias(torch.zeros(self.output_size)))
+            self.output_logstd = nn.ModuleList(logstd_list)
+
+        else:
+            raise NotImplementedError

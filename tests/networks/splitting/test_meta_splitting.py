@@ -6,8 +6,6 @@ import numpy as np
 import torch
 from gym.spaces import Box
 
-from meta.networks.utils import init_base
-from meta.networks.splitting import BaseMultiTaskSplittingNetwork, MetaSplittingNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.splitting import BASE_SETTINGS
 from tests.networks.splitting.templates import (

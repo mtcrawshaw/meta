@@ -13,7 +13,10 @@ class MetaSplittingNetwork(nn.Module):
     """ Module used to parameterize a splitting MLP at meta-test time. """
 
     def __init__(
-        self, split_net: BaseMultiTaskSplittingNetwork, device: torch.device = None,
+        self,
+        split_net: BaseMultiTaskSplittingNetwork,
+        num_test_tasks: int,
+        device: torch.device = None,
     ) -> None:
         """
         Init function for MetaTaskSplittingNetwork.
@@ -39,11 +42,12 @@ class MetaSplittingNetwork(nn.Module):
         # Copy state from `split_net`.
         self.input_size = split_net.input_size
         self.output_size = split_net.output_size
-        self.num_tasks = split_net.num_tasks
+        self.num_train_tasks = split_net.num_tasks
         self.num_layers = split_net.num_layers
         self.hidden_size = split_net.hidden_size
 
-        # Set device.
+        # Set state.
+        self.num_test_tasks = num_test_tasks
         self.device = device if device is not None else torch.device("cpu")
 
         # Set network weights.
@@ -61,7 +65,9 @@ class MetaSplittingNetwork(nn.Module):
         for param in self.regions.parameters():
             param.requires_grad = False
 
-        # Copy splitting map from `split_net`.
+        # Copy splitting map from `split_net`. Be careful when accessing members of the
+        # splitting map, as the information there (such as .num_tasks) applies to the
+        # multi-task network and not necessarily this meta network.
         self.splitting_map = split_net.splitting_map
 
         # Initialize alpha values. These are linear combination weights for each copy of
@@ -70,7 +76,7 @@ class MetaSplittingNetwork(nn.Module):
         for i in range(self.num_regions):
             copies = int(self.splitting_map.num_copies[i])
             alpha_list.append(
-                nn.Parameter(1.0 / copies * torch.ones(copies, self.num_tasks))
+                nn.Parameter(1.0 / copies * torch.ones(copies, self.num_test_tasks))
             )
         self.alpha = nn.ParameterList(alpha_list)
 
