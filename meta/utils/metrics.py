@@ -17,8 +17,8 @@ class Metrics:
 
         self.train_reward = Metric(window_len=500)
         self.train_success = Metric(window_len=500)
-        self.eval_reward = Metric(window_len=500)
-        self.eval_success = Metric(window_len=500)
+        self.eval_reward = Metric(window_len=50, point_avg=True)
+        self.eval_success = Metric(window_len=50, point_avg=True)
 
         self.state_vars = [
             "train_reward",
