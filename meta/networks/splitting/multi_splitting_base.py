@@ -536,7 +536,7 @@ class SplittingMap:
         for region in range(self.num_regions):
             r = self.copy[region]
             is_shared[:, :, region] = (r.unsqueeze(0) + (-r).unsqueeze(1)) == 0
-        is_shared *= (1.0 - torch.eye(self.num_tasks)).unsqueeze(-1)
+        is_shared *= (1.0 - torch.eye(self.num_tasks, device=self.device)).unsqueeze(-1)
 
         return is_shared
 

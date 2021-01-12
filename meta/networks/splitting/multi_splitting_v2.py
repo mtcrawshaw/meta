@@ -78,7 +78,7 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
         distance_scores *= sufficient_sample
 
         upper_triangle = torch.triu(
-            torch.ones(self.num_tasks, self.num_tasks), diagonal=1
+            torch.ones(self.num_tasks, self.num_tasks, device=self.device), diagonal=1
         )
         upper_triangle = upper_triangle.unsqueeze(-1).expand(-1, -1, self.num_regions)
         distance_scores *= upper_triangle
