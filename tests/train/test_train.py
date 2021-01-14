@@ -899,13 +899,15 @@ def test_save_load() -> None:
 
     # Modify default training config and run training to save checkpoint.
     config["save_name"] = save_name
-    first_metrics = train(config)
+    checkpoint = train(config)
+    first_metrics = checkpoint["metrics"].state()
 
     # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
-    second_metrics = train(config)
+    checkpoint = train(config)
+    second_metrics = checkpoint["metrics"].state()
 
     # Compare metrics.
     assert list(first_metrics.keys()) == list(second_metrics.keys())
@@ -939,13 +941,15 @@ def test_save_load_multi() -> None:
     config["save_name"] = save_name
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
-    first_metrics = train(config)
+    checkpoint = train(config)
+    first_metrics = checkpoint["metrics"].state()
 
     # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
-    second_metrics = train(config)
+    checkpoint = train(config)
+    second_metrics = checkpoint["metrics"].state()
 
     # Compare metrics.
     assert list(first_metrics.keys()) == list(second_metrics.keys())

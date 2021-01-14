@@ -7,25 +7,20 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_layer
+from meta.networks.utils import get_layer, init_base, init_downscale
 
 
 class MLPNetwork(nn.Module):
-    """
-    Module used to parameterize an MLP. `init_base` is the initialization function used
-    to initialize all layers except for the last, and `init_final` is the initialization
-    function used to initialize the last layer.
-    """
+    """ Module used to parameterize an MLP. """
 
     def __init__(
         self,
         input_size: int,
         output_size: int,
-        init_base: Callable[[nn.Module], nn.Module],
-        init_final: Callable[[nn.Module], nn.Module],
         activation: str = "tanh",
         num_layers: int = 3,
         hidden_size: int = 64,
+        downscale_last_layer: bool = False,
         device: torch.device = None,
     ) -> None:
 
@@ -41,11 +36,10 @@ class MLPNetwork(nn.Module):
         # Set state.
         self.input_size = input_size
         self.output_size = output_size
-        self.init_base = init_base
-        self.init_final = init_final
         self.activation = activation
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.downscale_last_layer = downscale_last_layer
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -70,7 +64,10 @@ class MLPNetwork(nn.Module):
             )
 
             # Determine init function for layer.
-            layer_init = self.init_base if i < self.num_layers - 1 else self.init_final
+            if i == self.num_layers - 1 and self.downscale_last_layer:
+                layer_init = init_downscale
+            else:
+                layer_init = init_base
 
             # Initialize layer.
             layers.append(

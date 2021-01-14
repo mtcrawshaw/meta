@@ -47,8 +47,6 @@ def test_forward_shared() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=hidden_size,
@@ -101,8 +99,6 @@ def test_forward_single() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=hidden_size,
@@ -172,8 +168,6 @@ def test_forward_multiple() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=hidden_size,
@@ -257,8 +251,6 @@ def test_split_single() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=hidden_size,
@@ -302,8 +294,6 @@ def test_split_multiple() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=hidden_size,
@@ -547,8 +537,6 @@ def test_shared_regions_shared() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=dim,
@@ -580,8 +568,6 @@ def test_shared_regions_single() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=dim,
@@ -621,8 +607,6 @@ def test_shared_regions_multiple() -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
         hidden_size=dim,

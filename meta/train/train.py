@@ -29,11 +29,14 @@ from meta.utils.utils import (
 gym.logger.set_level(40)
 
 
-def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def train(
+    config: Dict[str, Any], policy: PPOPolicy = None
+) -> Dict[str, Dict[str, Any]]:
     """
-    Main function for train.py, runs PPO training using settings from ``config``.  The
-    expected entries of ``config`` are documented below. Returns a dictionary holding
-    values of performance metrics from training and evaluation.
+    Main function for train.py, runs PPO training using settings from `config`.  The
+    expected entries of `config` are documented below. If `policy` is None (the default
+    case), then one will be instantiated using settings from `config`. Returns a
+    dictionary holding values of performance metrics from training and evaluation.
 
     Parameters
     ----------
@@ -81,7 +84,8 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         which is either "vanilla", "trunk", "splitting_v1" or "splitting_v2", and all
         other entries should correspond to the keyword arguments for the corresponding
         network class, which is either VanillaNetwork, MultiTaskTrunkNetwork, or
-        MultiTaskSplittingNetworkV1.
+        MultiTaskSplittingNetworkV1. This can also be None in the case that `policy` is
+        not None.
     cuda : bool
         Whether or not to train on GPU.
     seed : int
@@ -172,30 +176,31 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         config["normalize_first_n"],
         allow_early_resets=True,
     )
-    policy = PPOPolicy(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        num_minibatch=config["num_minibatch"],
-        num_processes=config["num_processes"],
-        rollout_length=config["rollout_length"],
-        num_updates=config["num_updates"],
-        architecture_config=config["architecture_config"],
-        num_tasks=num_tasks,
-        num_ppo_epochs=config["num_ppo_epochs"],
-        lr_schedule_type=config["lr_schedule_type"],
-        initial_lr=config["initial_lr"],
-        final_lr=config["final_lr"],
-        eps=config["eps"],
-        value_loss_coeff=config["value_loss_coeff"],
-        entropy_loss_coeff=config["entropy_loss_coeff"],
-        gamma=config["gamma"],
-        gae_lambda=config["gae_lambda"],
-        clip_param=config["clip_param"],
-        max_grad_norm=config["max_grad_norm"],
-        clip_value_loss=config["clip_value_loss"],
-        normalize_advantages=config["normalize_advantages"],
-        device=device,
-    )
+    if policy is None:
+        policy = PPOPolicy(
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+            num_minibatch=config["num_minibatch"],
+            num_processes=config["num_processes"],
+            rollout_length=config["rollout_length"],
+            num_updates=config["num_updates"],
+            architecture_config=config["architecture_config"],
+            num_tasks=num_tasks,
+            num_ppo_epochs=config["num_ppo_epochs"],
+            lr_schedule_type=config["lr_schedule_type"],
+            initial_lr=config["initial_lr"],
+            final_lr=config["final_lr"],
+            eps=config["eps"],
+            value_loss_coeff=config["value_loss_coeff"],
+            entropy_loss_coeff=config["entropy_loss_coeff"],
+            gamma=config["gamma"],
+            gae_lambda=config["gae_lambda"],
+            clip_param=config["clip_param"],
+            max_grad_norm=config["max_grad_norm"],
+            clip_value_loss=config["clip_value_loss"],
+            normalize_advantages=config["normalize_advantages"],
+            device=device,
+        )
 
     # Construct object to store rollout information.
     rollout = RolloutStorage(
@@ -227,11 +232,8 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         # Make sure current config and previous config line up.
         assert aligned_train_configs(config, checkpoint["config"])
 
-        # Set policy, optimizer, lr schedule, and metrics appropriately.
-        policy.policy_network.load_state_dict(checkpoint["network_state_dict"])
-        policy.optimizer.load_state_dict(checkpoint["optim_state_dict"])
-        if config["lr_schedule_type"] is not None:
-            policy.lr_schedule.load_state_dict(checkpoint["lr_schedule_state_dict"])
+        # Load policy, metrics, and update iteration.
+        policy = checkpoint["policy"]
         metrics = checkpoint["metrics"]
         update_iteration = checkpoint["update_iteration"]
 
@@ -334,10 +336,7 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             )
         ):
             checkpoint = {}
-            checkpoint["network_state_dict"] = policy.policy_network.state_dict()
-            checkpoint["optim_state_dict"] = policy.optimizer.state_dict()
-            if policy.lr_schedule is not None:
-                checkpoint["lr_schedule_state_dict"] = policy.lr_schedule.state_dict()
+            checkpoint["policy"] = policy
             checkpoint["metrics"] = metrics
             checkpoint["update_iteration"] = update_iteration + 1
             checkpoint["config"] = config
@@ -378,7 +377,14 @@ def train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
         plot(metrics.state(), plot_path)
 
-    return metrics.state()
+    # Construct checkpoint.
+    checkpoint = {}
+    checkpoint["policy"] = policy
+    checkpoint["metrics"] = metrics
+    checkpoint["update_iteration"] = update_iteration + 1
+    checkpoint["config"] = config
+
+    return checkpoint
 
 
 def collect_rollout(

@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete
 
-from meta.networks.utils import init_base, init_final
 from meta.networks.trunk import MultiTaskTrunkNetwork
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
@@ -42,12 +41,11 @@ def test_forward() -> None:
     network = MultiTaskTrunkNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_final,
         num_tasks=SETTINGS["num_tasks"],
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
+        downscale_last_layer=True,
         device=SETTINGS["device"],
     )
     for i in range(SETTINGS["num_tasks"]):
@@ -100,12 +98,11 @@ def test_forward_obs_only() -> None:
     network = MultiTaskTrunkNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_final,
         num_tasks=SETTINGS["num_tasks"],
         num_shared_layers=num_shared_layers,
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
+        downscale_last_layer=True,
         device=SETTINGS["device"],
     )
 
@@ -162,12 +159,11 @@ def test_backward() -> None:
     network = MultiTaskTrunkNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_final,
         num_tasks=SETTINGS["num_tasks"],
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=hidden_size,
+        downscale_last_layer=True,
         device=SETTINGS["device"],
     )
 
@@ -215,12 +211,11 @@ def test_check_conflicting_grads() -> None:
     network = MultiTaskTrunkNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_final,
         num_tasks=SETTINGS["num_tasks"],
         num_shared_layers=SETTINGS["num_shared_layers"],
         num_task_layers=SETTINGS["num_task_layers"],
         hidden_size=dim,
+        downscale_last_layer=True,
         device=SETTINGS["device"],
         monitor_grads=True,
     )

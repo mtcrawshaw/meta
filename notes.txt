@@ -73,7 +73,8 @@ convenient. Steps:
 1. Make train() return a checkpoint including model and results.
 2. Create "meta-train" command that will call train() twice, the second time using the
    model returned from the first.
-3. Optional: Move baseline comparison out of train() and into its own function, and
+3. Optional: Change tests so that we no longer save/load to/from disk.
+4. Optional: Move baseline comparison out of train() and into its own function, and
    clean up corresponding calls to this functionality.
 
 ----------------------------------------------------------------------------------------
@@ -217,11 +218,6 @@ RL training:
 Network architectures:
 - Refactoring:
     - Remove redundant calls to "self.to(device)" in nested modules?
-    - Remove "init_base" and "init_final" arguments from network classes. We shouldn't have
-      to pass around initialization functions, that's just cluttering things up. Instead we
-      should just have an option as to whether or not the last layer of the network should
-      be initialized with 100x smaller weights, as that is the difference between init_base
-      and init_final.
 - Additions:
     - Architecture hyperparameters:
         - Varying network size in hidden layers
@@ -305,8 +301,8 @@ Hyperparameter search:
 
 Tests:
 - Refactoring:
-    - Modify tests so that we don't have to save/load from/to disk during tests.
-      Returning checkpoints from training functions would allow this.
+    - Modify tests so that we don't have to save/load from/to disk during tests, which
+      is possible now that we return checkpoints from train().
     - In tests/networks/test_trunk.py, test_backward() asserts that the generated
       observation batch contains data from all tasks, but the obs batch isn't explicitly
       constructed this way. It happens to pass by luck but we should enforce this so it

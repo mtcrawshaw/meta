@@ -45,8 +45,6 @@ def gradients_template(
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=hidden_size,
@@ -192,8 +190,6 @@ def backward_template(
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=hidden_size,
@@ -266,8 +262,6 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     network = BaseMultiTaskSplittingNetwork(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=hidden_size,
@@ -331,8 +325,6 @@ def split_stats_template(
     network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
@@ -483,8 +475,6 @@ def split_v1_template(
     network = MultiTaskSplittingNetworkV1(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=dim,
@@ -581,8 +571,6 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
     network = MultiTaskSplittingNetworkV2(
         input_size=dim,
         output_size=dim,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=dim,
@@ -721,8 +709,6 @@ def score_template(
     network = BaseMultiTaskSplittingNetwork(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
@@ -749,8 +735,6 @@ def meta_forward_template(
     multitask_network = BaseMultiTaskSplittingNetwork(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
@@ -806,8 +790,6 @@ def meta_backward_template(
     multitask_network = BaseMultiTaskSplittingNetwork(
         input_size=settings["input_size"],
         output_size=settings["output_size"],
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],

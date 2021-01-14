@@ -41,7 +41,8 @@
                 "sharing_threshold": 0.2,
                 "cap_sample_size": false,
                 "log_z": true,
-                "ema_alpha": 0.999
+                "ema_alpha": 0.999,
+                "downscale_last_layer": true
             },
             "critic_config": {
                 "activation": "tanh",
@@ -53,7 +54,8 @@
                 "sharing_threshold": 0.2,
                 "cap_sample_size": false,
                 "log_z": true,
-                "ema_alpha": 0.999
+                "ema_alpha": 0.999,
+                "downscale_last_layer": false
             }
         },
 
@@ -85,6 +87,8 @@
         "normalize_advantages": true,
         "normalize_transition": true,
         "normalize_first_n": 9,
+
+        "architecture_config": null,
 
         "evaluation_freq": 5,
         "evaluation_episodes": 1

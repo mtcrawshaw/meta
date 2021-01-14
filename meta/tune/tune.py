@@ -778,7 +778,8 @@ def train_single_config(
         train_config["seed"] = seed + trial
 
         # Run training and get fitness.
-        metrics = train(train_config)
+        checkpoint = train(train_config)
+        metrics = checkpoint["metrics"].state()
         trial_fitness = fitness_fn(metrics)
         fitness += trial_fitness
 

@@ -715,8 +715,6 @@ def test_split_stats_manual() -> None:
     network = MultiTaskSplittingNetworkV1(
         input_size=input_size,
         output_size=output_size,
-        init_base=init_base,
-        init_final=init_base,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=settings["hidden_size"],
@@ -943,8 +941,6 @@ def split_stats_distribution() -> None:
         network = MultiTaskSplittingNetworkV1(
             input_size=dim,
             output_size=dim,
-            init_base=init_base,
-            init_final=init_base,
             num_tasks=NUM_TASKS,
             num_layers=settings["num_layers"],
             hidden_size=settings["hidden_size"],

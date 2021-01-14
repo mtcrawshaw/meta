@@ -50,10 +50,10 @@ def get_layer(
     return nn.Sequential(*layer)
 
 
-# Initialization functions for network weights. init_final is only used for the last
-# layer of the actor network, init_recurrent is used for the recurrent block, and
-# init_base is used for all other layers in actor/critic networks. We initialize the
-# final layer of the actor network with much smaller weights than all other network
+# Initialization functions for network weights. `init_downscale` is usually only used for
+# the last layer of the actor network, `init_recurrent` is used for the recurrent block,
+# and `init_base` is used for all other layers in actor/critic networks. We initialize
+# the final layer of the actor network with much smaller weights than all other network
 # layers, as recommended by https://arxiv.org/abs/2006.05990.
 init_recurrent = lambda m: init(
     m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.0
@@ -61,6 +61,6 @@ init_recurrent = lambda m: init(
 init_base = lambda m: init(
     m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
 )
-init_final = lambda m: init(
+init_downscale = lambda m: init(
     m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), gain=0.01
 )

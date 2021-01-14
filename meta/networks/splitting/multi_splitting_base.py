@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.networks.utils import get_layer
+from meta.networks.utils import get_layer, init_base, init_downscale
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
@@ -26,8 +26,6 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self,
         input_size: int,
         output_size: int,
-        init_base: Callable[[nn.Module], nn.Module],
-        init_final: Callable[[nn.Module], nn.Module],
         num_tasks: int,
         activation: str = "tanh",
         num_layers: int = 3,
@@ -36,6 +34,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         sharing_threshold: float = 0.1,
         cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
+        downscale_last_layer: bool = False,
         device: torch.device = None,
     ) -> None:
         """
@@ -47,10 +46,6 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             Input size for first layer of network.
         output_size : int
             Output size for last layer of network.
-        init_base : Callable[[nn.Module], nn.Module]
-            Initialization function used for all layers of the network except last.
-        init_final : Callable[[nn.Module], nn.Module]
-            Initialization function used for last layer of the network.
         num_tasks : int
             Number of tasks that we are training over.
         num_layers : int
@@ -84,8 +79,6 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         # Set state.
         self.input_size = input_size
         self.output_size = output_size
-        self.init_base = init_base
-        self.init_final = init_final
         self.activation = activation
         self.num_tasks = num_tasks
         self.num_layers = num_layers
@@ -94,6 +87,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.sharing_threshold = sharing_threshold
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
+        self.downscale_last_layer = downscale_last_layer
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -128,7 +122,10 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             )
 
             # Determine init function for layer.
-            layer_init = self.init_base if i < self.num_layers - 1 else self.init_final
+            if i == self.num_layers - 1 and self.downscale_last_layer:
+                layer_init = init_downscale
+            else:
+                layer_init = init_base
 
             # Initialize layer.
             layer = get_layer(

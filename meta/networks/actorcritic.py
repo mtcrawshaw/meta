@@ -10,7 +10,6 @@ import torch.nn as nn
 from torch.distributions import Distribution, Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
-from meta.networks.utils import init_base, init_final
 from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
@@ -99,8 +98,6 @@ class ActorCriticNetwork(nn.Module):
                 if not self.recurrent
                 else self.recurrent_hidden_size,
                 output_size=self.output_size,
-                init_base=init_base,
-                init_final=init_final,
                 device=self.device,
                 **actor_kwargs,
             )
@@ -109,8 +106,6 @@ class ActorCriticNetwork(nn.Module):
                 if not self.recurrent
                 else self.recurrent_hidden_size,
                 output_size=1,
-                init_base=init_base,
-                init_final=init_base,
                 device=self.device,
                 **critic_kwargs,
             )
@@ -156,16 +151,12 @@ class ActorCriticNetwork(nn.Module):
             self.actor = cls(
                 input_size=input_size,
                 output_size=self.output_size,
-                init_base=init_base,
-                init_final=init_final,
                 device=self.device,
                 **actor_kwargs,
             )
             self.critic = cls(
                 input_size=input_size,
                 output_size=1,
-                init_base=init_base,
-                init_final=init_base,
                 device=self.device,
                 **critic_kwargs,
             )

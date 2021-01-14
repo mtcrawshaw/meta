@@ -38,7 +38,8 @@
             "cap_sample_size": false,
             "split_freq": 1,
             "splits_per_step": 1,
-            "ema_alpha": 0.999
+            "ema_alpha": 0.999,
+            "downscale_last_layer": true
         },
         "critic_config": {
             "activation": "tanh",
@@ -49,7 +50,8 @@
             "cap_sample_size": false,
             "split_freq": 1,
             "splits_per_step": 1,
-            "ema_alpha": 0.999
+            "ema_alpha": 0.999,
+            "downscale_last_layer": false
         }
     },
 

@@ -30,12 +30,14 @@
         "actor_config": {
             "activation": "tanh",
             "num_layers": 3,
-            "hidden_size": 64
+            "hidden_size": 64,
+            "downscale_last_layer": true
         },
         "critic_config": {
             "activation": "tanh",
             "num_layers": 3,
-            "hidden_size": 64
+            "hidden_size": 64,
+            "downscale_last_layer": false
         }
     },
 

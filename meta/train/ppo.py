@@ -532,3 +532,10 @@ class PPOPolicy:
         # Step learning rate schedule, if necessary.
         if self.lr_schedule is not None:
             self.lr_schedule.step()
+
+    def meta_conversion(num_test_tasks: int) -> None:
+        """
+        Convert the underlying actor/critic network into it's meta-learning counterpart
+        to be used at meta-test time.
+        """
+        self.policy_network.meta_conversion(num_test_tasks)

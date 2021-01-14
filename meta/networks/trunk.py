@@ -10,30 +10,27 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_layer
+from meta.networks.utils import get_layer, init_downscale, init_base
 from meta.utils.estimate import RunningStats
 
 
 class MultiTaskTrunkNetwork(nn.Module):
     """
-    Module used to parameterize a multi-task network with a shared trunk. `init_base` is
-    the initialization function used to initialize all layers except for the last, and
-    `init_final` is the initialization function used to initialize the last layer. Note
-    that `input_size` should be the size of the observation AFTER the one-hot task
-    vector is appended to it.
+    Module used to parameterize a multi-task network with a shared trunk. Note that
+    `input_size` should be the size of the observation AFTER the one-hot task vector is
+    appended to it.
     """
 
     def __init__(
         self,
         input_size: int,
         output_size: int,
-        init_base: Callable[[nn.Module], nn.Module],
-        init_final: Callable[[nn.Module], nn.Module],
         num_tasks: int,
         activation: str = "tanh",
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
         hidden_size: int = 64,
+        downscale_last_layer: bool = False,
         device: torch.device = None,
         monitor_grads: bool = False,
     ) -> None:
@@ -51,13 +48,12 @@ class MultiTaskTrunkNetwork(nn.Module):
         # Set state.
         self.input_size = input_size
         self.output_size = output_size
-        self.init_base = init_base
-        self.init_final = init_final
         self.num_tasks = num_tasks
         self.activation = activation
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
         self.hidden_size = hidden_size
+        self.downscale_last_layer = downscale_last_layer
         self.monitor_grads = monitor_grads
 
         # Set device.
@@ -103,7 +99,7 @@ class MultiTaskTrunkNetwork(nn.Module):
                     in_size=layer_input_size,
                     out_size=self.hidden_size,
                     activation=self.activation,
-                    layer_init=self.init_base,
+                    layer_init=init_base,
                 )
             )
 
@@ -124,9 +120,10 @@ class MultiTaskTrunkNetwork(nn.Module):
                 )
 
                 # Determine init function for layer.
-                layer_init = (
-                    self.init_base if i < self.num_task_layers - 1 else self.init_final
-                )
+                if i == self.num_task_layers - 1 and self.downscale_last_layer:
+                    layer_init = init_downscale
+                else:
+                    layer_init = init_base
 
                 # Initialize layer.
                 task_layers.append(
