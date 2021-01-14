@@ -129,9 +129,9 @@ def get_single_env_creator(
                 env = MT10.get_train_tasks()
             elif env_name == "MT50":
                 env = MT50.get_train_tasks()
-            elif env_name == "ML10":
+            elif env_name == "ML10_train":
                 env = ML10.get_train_tasks()
-            elif env_name == "ML45":
+            elif env_name == "ML45_train":
                 env = ML45.get_train_tasks()
             elif env_name == "ML10_test":
                 env = ML10.get_test_tasks()
@@ -190,9 +190,9 @@ def get_num_tasks(env_name: str) -> int:
             num_tasks = 10
         elif env_name == "MT50":
             num_tasks = 50
-        elif env_name == "ML10":
+        elif env_name == "ML10_train":
             num_tasks = 10
-        elif env_name == "ML45":
+        elif env_name == "ML45_train":
             num_tasks = 45
         elif env_name == "ML10_test":
             num_tasks = 5
@@ -377,7 +377,7 @@ class SuccessEnv(gym.Wrapper):
 def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
 
-    return ["MT10", "MT50", "ML10", "ML45", "ML10_test", "ML45_test"]
+    return ["MT10", "MT50", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
 
 
 def get_metaworld_env_names() -> List[str]:

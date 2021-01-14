@@ -31,10 +31,8 @@ Current sprint (Meta splitting networks):
     Add training options to replicate Meta-World's single task PPO experiments
     MetaSplittingNetwork definition
     Tests for MetaSplittingNetwork
---> Conversion of Policy into MetaPolicy
-    Meta learning training infrastructure
-    Meta learning baseline (MAML?)
-    Benchmark splitting performance against baseline
+    Conversion of Policy into MetaPolicy
+--> Meta learning training infrastructure
 
 We need to figure out exactly how one-hot task vectors work with the ML10 and ML45
 benchmarks. Right now MetaSplittingNetwork just sets its number of tasks as the number
@@ -60,6 +58,23 @@ move: get meta splitting networks to run on ML10/ML45 (don't wanna tune performa
 here, just get it working), benchmark/improve single-task performance (PPO),
 benchmark/improve multi-task performance (multi-task splitting networks),
 benchmark/improve meta-learning performance (meta splitting networks).
+
+Notes for tomorrow:
+To implement the meta learning training infrastructure, really the only changes that we
+need to make should be in meta/train/train.py and above (by above I mean between this
+file and the command line). We are probably going to want to create a whole new
+command-line option called "meta-train" and call train() twice: once for meta-training
+and once for meta-testing. In order to make this work, we need train() to return the
+model. This will actually work out well because returning a checkpoint (the finished
+model + results and any other state) is something that would make some tests more
+convenient. Steps:
+0. Create a meta-train config file template, with separate configs for
+   meta-train/meta-test.
+1. Make train() return a checkpoint including model and results.
+2. Create "meta-train" command that will call train() twice, the second time using the
+   model returned from the first.
+3. Optional: Move baseline comparison out of train() and into its own function, and
+   clean up corresponding calls to this functionality.
 
 ----------------------------------------------------------------------------------------
 
@@ -110,6 +125,8 @@ Training infrastructure:
       to that metric's history. If the string is new, then we just start a history for a
       new metric. This will be a lot more flexible than hand-coding in each individual
       metric.
+    - Convert string literals in config (network architecture type, lr schedule type,
+      environment names, etc) into enums.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
