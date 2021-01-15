@@ -15,12 +15,12 @@ from tests.helpers import get_policy, check_results_name, DEFAULT_SETTINGS
 
 
 MP_FACTOR = 4
-CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole_default.json")
-LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander_default.json")
-MT10_CONFIG_PATH = os.path.join("configs", "mt10_default.json")
-TRUNK_CONFIG_PATH = os.path.join("configs", "trunk_default.json")
-SPLITTING_V1_CONFIG_PATH = os.path.join("configs", "splitting_v1_default.json")
-SPLITTING_V2_CONFIG_PATH = os.path.join("configs", "splitting_v2_default.json")
+CARTPOLE_CONFIG_PATH = os.path.join("configs", "cartpole.json")
+LUNAR_LANDER_CONFIG_PATH = os.path.join("configs", "lunar_lander.json")
+MT10_CONFIG_PATH = os.path.join("configs", "mt10.json")
+TRUNK_CONFIG_PATH = os.path.join("configs", "trunk.json")
+SPLITTING_V1_CONFIG_PATH = os.path.join("configs", "splitting_v1.json")
+SPLITTING_V2_CONFIG_PATH = os.path.join("configs", "splitting_v2.json")
 
 
 def test_train_cartpole() -> None:
