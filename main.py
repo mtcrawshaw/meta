@@ -2,6 +2,7 @@ import argparse
 import json
 
 from meta.train.train import train
+from meta.train.meta_train import meta_train
 from meta.tune.tune import tune
 
 
@@ -26,5 +27,7 @@ if __name__ == "__main__":
         train(config)
     elif args.command == "tune":
         tune(config)
+    elif args.command == "meta_train":
+        meta_train(config)
     else:
         raise ValueError("Unsupported command: '%s'" % args.command)

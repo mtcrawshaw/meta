@@ -148,6 +148,7 @@ Training infrastructure:
       will be easy, the more annoying part will be saving and loading over these
       compound runs.
     - Measure training metrics on each individual task during multi-task training.
+    - Saving/loading for meta-learning runs.
 - Nice to have:
     - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that
@@ -295,6 +296,7 @@ Hyperparameter search:
       off of the previous tuned value of that parameter and the interval type
       (arithmetic, geometric).  Not sure how this will work with discrete variables but
       we can at least use this for continuous parameters.
+    - Add option to use meta_train() instead of train().
 - Nice to have:
     - Plots to show progression of various hyperparameters during hyperparameter search
     - Include name of search parameter in name of results file for IC grid search
