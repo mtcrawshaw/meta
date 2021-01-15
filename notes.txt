@@ -99,6 +99,7 @@ DevOps:
   tests, requirements contains all requirements, etc)
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
 - Containerize this shit
+- Update MetaWorld version and make corresponding changes
 
 Training infrastructure:
 - Refactoring:

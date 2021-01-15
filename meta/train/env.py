@@ -344,7 +344,7 @@ class MultiTaskEnv(gym.Wrapper):
     def reset(self, **kwargs: Dict[str, Any]) -> Any:
         """ Reset function for environment wrapper. """
 
-        new_task = np.random.randint(self.num_tasks)
+        new_task = self.sample_tasks(1)[0]
         self.set_task(new_task)
         return self.env.reset(**kwargs)
 
