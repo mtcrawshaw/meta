@@ -533,7 +533,7 @@ class PPOPolicy:
         if self.lr_schedule is not None:
             self.lr_schedule.step()
 
-    def meta_conversion(num_test_tasks: int) -> None:
+    def meta_conversion(self, num_test_tasks: int) -> None:
         """
         Convert the underlying actor/critic network into it's meta-learning counterpart
         to be used at meta-test time.

@@ -110,6 +110,7 @@ def get_single_env_creator(
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
         metaworld_benchmark_names = get_metaworld_benchmark_names()
+        metaworld_ml_benchmark_names = get_metaworld_ml_benchmark_names()
         if env_name in metaworld_env_names:
 
             # We import here so that we avoid importing metaworld if possible, since it is
@@ -162,6 +163,10 @@ def get_single_env_creator(
         # Add environment wrapper to change task when done for multi-task environments.
         if env_name in metaworld_benchmark_names:
             env = MultiTaskEnv(env)
+
+        # Add environment wrapper to append one-hot task vector to observation.
+        if env_name in metaworld_ml_benchmark_names:
+            env = MetaEnv(env, env_name)
 
         # Add environment wrapper to monitor rewards.
         env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
@@ -349,6 +354,64 @@ class MultiTaskEnv(gym.Wrapper):
         return self.env.reset(**kwargs)
 
 
+class MetaEnv(gym.Wrapper):
+    """
+    Environment wrapper to append the task index as a one-hot vector to each
+    observation. Only to be used with MetaWorld meta-learning benchmark objects.
+    """
+
+    def __init__(self, env: Env, env_name: str) -> None:
+        """ Init function for environment wrapper. """
+
+        super().__init__(env)
+
+        # Here we overwrite the observation space defined in the underlying Meta-World
+        # environment. This could potentially be dangerous down the line, especially if
+        # we decide to vary the format of observations (e.g. whether or not to include
+        # goal coordinates in observation).
+        # HARDCODE
+        obs_dim = 9 + self.env.num_tasks
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dim,))
+
+        # Construct dictionary to translate task index out of 50 to task index out of
+        # effective tasks.
+        # HARDCODE
+        if env_name == "ML10_train":
+            self.effective_task_index = {}
+            self.effective_task_index.update({0: 0, 1: 1, 2: 2, 3: 3})
+            self.effective_task_index.update({5: 4, 6: 5, 7: 6, 8: 7})
+            self.effective_task_index.update({30: 8, 37: 9})
+        elif env_name == "ML10_test":
+            self.effective_task_index = {4: 0, 10: 1, 38: 2, 41: 3, 42: 4}
+        elif env_name == "ML45_train":
+            self.effective_task_index = {i: i for i in range(45)}
+        elif env_name == "ML45_test":
+            self.effective_task_index = {i: i - 45 for i in range(45, 50)}
+
+    def reset(self) -> Any:
+        """ Reset function for environment wrapper. """
+
+        obs = self.env.reset()
+        return self.augment_with_task(obs)
+
+    def step(self, action: Any) -> Any:
+        """ Step function for environment wrapper. """
+
+        observation, reward, done, info = self.env.step(action)
+        return self.augment_with_task(observation), reward, done, info
+
+    def augment_with_task(self, obs: Any) -> Any:
+        """ Augment an observation with the one-hot task index. """
+
+        assert len(obs.shape) == 1
+        effective_task_index = self.effective_task_index[self.env.active_task]
+        one_hot = np.zeros(self.env.num_tasks)
+        one_hot[effective_task_index] = 1.0
+        new_obs = np.concatenate([obs, one_hot])
+
+        return new_obs
+
+
 class SuccessEnv(gym.Wrapper):
     """
     Environment wrapper to compute success/failure for each episode.
@@ -378,6 +441,18 @@ def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
 
     return ["MT10", "MT50", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
+
+
+def get_metaworld_mt_benchmark_names() -> List[str]:
+    """ Returns a list of Metaworld multi-task benchmark names. """
+
+    return ["MT10", "MT50"]
+
+
+def get_metaworld_ml_benchmark_names() -> List[str]:
+    """ Returns a list of Metaworld meta-learning benchmark names. """
+
+    return ["ML10_train", "ML45_train", "ML10_test", "ML45_test"]
 
 
 def get_metaworld_env_names() -> List[str]:

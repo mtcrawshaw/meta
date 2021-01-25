@@ -268,7 +268,7 @@ class ActorCriticNetwork(nn.Module):
 
         return value_pred, action_dist, hidden_state
 
-    def meta_conversion(num_test_tasks: int) -> None:
+    def meta_conversion(self, num_test_tasks: int) -> None:
         """
         Convert the actor and the critic models to their meta-learning counterparts. For
         all architectures besides splitting networks, this is not implemented. For

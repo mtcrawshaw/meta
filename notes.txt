@@ -59,7 +59,6 @@ here, just get it working), benchmark/improve single-task performance (PPO),
 benchmark/improve multi-task performance (multi-task splitting networks),
 benchmark/improve meta-learning performance (meta splitting networks).
 
-Notes for tomorrow:
 To implement the meta learning training infrastructure, really the only changes that we
 need to make should be in meta/train/train.py and above (by above I mean between this
 file and the command line). We are probably going to want to create a whole new

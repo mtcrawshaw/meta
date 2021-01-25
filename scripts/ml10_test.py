@@ -1,12 +1,13 @@
 import numpy as np
 
-from metaworld.benchmarks import ML10, ML45
+from meta.train.ml_benchmarks import ML10, ML45
 
 
 env = ML45.get_test_tasks()
 
 print("num tasks: %s" % env.num_tasks)
 
+"""
 for i in range(env.num_tasks):
 
     # Sample new task and reset environment.
@@ -23,3 +24,14 @@ for i in range(env.num_tasks):
     # print("%d second obs: %s\n" % (i, str(obs)))
     print(str(obs))
     print("\n")
+"""
+
+tasks = []
+for _ in range(1000):
+    env.set_task(env.sample_tasks(1)[0])
+    task = env.active_task
+    if task not in tasks:
+        tasks.append(task)
+
+tasks = sorted(tasks)
+print(tasks)
