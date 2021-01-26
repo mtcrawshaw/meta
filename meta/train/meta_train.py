@@ -51,7 +51,7 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     # Check for unsupported options.
     unsupported_options = ["load_from", "metrics_filename", "baseline_metrics_filename"]
     for unsupported in unsupported_options:
-        if config[unsupported] != None:
+        if config[unsupported] is not None:
             raise NotImplementedError
     if config["meta_train_config"]["architecture_config"]["include_task_index"]:
         raise NotImplementedError

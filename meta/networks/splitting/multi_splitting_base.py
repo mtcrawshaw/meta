@@ -4,7 +4,7 @@ multi-task splitting network.
 """
 
 from copy import deepcopy
-from typing import Callable, List
+from typing import List
 
 import torch
 import torch.nn as nn

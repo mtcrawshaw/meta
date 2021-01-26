@@ -13,8 +13,8 @@ Major versions:
 Minor versions (MT10/MT50 baselines):
     Shared trunk architecture
     FC splitting networks (regions = layers)
---> Meta splitting networks
-    Baselines (
+    Meta splitting networks
+--> Baselines (
         PCGrad,
         Branched MT networks,
         soft layer ordering,
@@ -27,25 +27,13 @@ Minor versions (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Meta splitting networks):
-    Merge meta_splitting branch into develop
-    Add training options to replicate Meta-World's single task PPO experiments
-    MetaSplittingNetwork definition
-    Tests for MetaSplittingNetwork
-    Conversion of Policy into MetaPolicy
-    Meta learning training infrastructure
---> Refactoring
-
-
-Notes on current task (refactoring):
-- Add option to load a trained multi-task model for meta-testing
-- Modify tests so that we never save/load to/from disk
-- Move baseline comparison into it's own separate function
-
-After current task:
-We've implemented functionality for everything that we would hypothetically need for a
-full research project (single task RL, multi-task RL with splitting networks, meta RL
-with splitting networks), other than baselines. From here, we should benchmark all three
-of these regimes, then improve perfomance on them one by one.
+--> Benchmark performance for single-task learning
+    Benchmark performance for multi-task learning with splitting networks and multi-task PPO
+    Benchmark performance for meta-learning with splitting networks
+    Improve performance for single-task learning
+    Improve performance for multi-task learning with splitting networks
+    Improve performance for meta-learning with splitting networks
+    Baselines?
 
 
 ----------------------------------------------------------------------------------------
