@@ -205,7 +205,8 @@ class ActorCriticNetwork(nn.Module):
 
         # Exclude task index from obs, if necessary.
         if (
-            self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]
+            self.architecture_type
+            in ["trunk", "splitting_v1", "splitting_v2", "meta_splitting"]
             and not self.include_task_index
         ):
             task_index_pos = self.input_size - self.num_tasks
@@ -223,7 +224,12 @@ class ActorCriticNetwork(nn.Module):
             value_pred = self.critic(x)
             actor_output = self.actor(x)
 
-        elif self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]:
+        elif self.architecture_type in [
+            "trunk",
+            "splitting_v1",
+            "splitting_v2",
+            "meta_splitting",
+        ]:
             task_index_pos = self.input_size - self.num_tasks
             task_indices = obs[:, task_index_pos:].nonzero()[:, 1]
             value_pred = self.critic(x, task_indices)
@@ -243,7 +249,12 @@ class ActorCriticNetwork(nn.Module):
                     torch.zeros(actor_output.size(), device=self.device)
                 )
 
-            elif self.architecture_type in ["trunk", "splitting_v1", "splitting_v2"]:
+            elif self.architecture_type in [
+                "trunk",
+                "splitting_v1",
+                "splitting_v2",
+                "meta_splitting",
+            ]:
 
                 # In the multi-task case, we have to do account for the fact that each
                 # output head has its own copy of `logstd`.
@@ -294,6 +305,8 @@ class ActorCriticNetwork(nn.Module):
             for _ in range(self.num_tasks):
                 logstd_list.append(AddBias(torch.zeros(self.output_size)))
             self.output_logstd = nn.ModuleList(logstd_list)
+
+            self.architecture_type = "meta_splitting"
 
         else:
             raise NotImplementedError

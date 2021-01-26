@@ -382,7 +382,7 @@ class MetaEnv(gym.Wrapper):
             self.effective_task_index.update({5: 4, 6: 5, 7: 6, 8: 7})
             self.effective_task_index.update({30: 8, 37: 9})
         elif env_name == "ML10_test":
-            self.effective_task_index = {4: 0, 10: 1, 38: 2, 41: 3, 42: 4}
+            self.effective_task_index = {4: 0, 10: 1, 38: 2, 41: 3, 43: 4}
         elif env_name == "ML45_train":
             self.effective_task_index = {i: i for i in range(45)}
         elif env_name == "ML45_test":

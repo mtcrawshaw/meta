@@ -538,4 +538,6 @@ class PPOPolicy:
         Convert the underlying actor/critic network into it's meta-learning counterpart
         to be used at meta-test time.
         """
+
+        self.num_tasks = num_test_tasks
         self.policy_network.meta_conversion(num_test_tasks)

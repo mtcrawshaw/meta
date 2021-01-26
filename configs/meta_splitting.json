@@ -28,7 +28,7 @@
             "type": "splitting_v1",
             "recurrent": false,
             "recurrent_hidden_size": null,
-            "include_task_index": true,
+            "include_task_index": false,
             "num_tasks": 10,
 
             "actor_config": {

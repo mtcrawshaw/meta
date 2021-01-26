@@ -1,9 +1,9 @@
 import numpy as np
 
-from meta.train.ml_benchmarks import ML10, ML45
+from metaworld.benchmarks import ML10, ML45
 
 
-env = ML45.get_test_tasks()
+env = ML10.get_test_tasks()
 
 print("num tasks: %s" % env.num_tasks)
 
