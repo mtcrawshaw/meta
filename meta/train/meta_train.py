@@ -72,8 +72,8 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         meta_train_config["save_name"] = None
         meta_test_config["save_name"] = None
     else:
-        meta_train_config["save_name"] = os.path.join(config["save_name"], "meta_train")
-        meta_test_config["save_name"] = os.path.join(config["save_name"], "meta_test")
+        meta_train_config["save_name"] = "%s_meta_train" % config["save_name"]
+        meta_test_config["save_name"] = "%s_meta_test" % config["save_name"]
 
     # Perform meta-training.
     print("Meta-Training:")
