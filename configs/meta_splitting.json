@@ -3,7 +3,7 @@
 
         "env_name": "ML10_train",
 
-        "num_updates": 5,
+        "num_updates": 6,
         "rollout_length": 10,
         "num_ppo_epochs": 1,
         "num_minibatch": 1,
@@ -59,7 +59,7 @@
             }
         },
 
-        "evaluation_freq": 5,
+        "evaluation_freq": 1,
         "evaluation_episodes": 1
     },
 
@@ -67,7 +67,7 @@
 
         "env_name": "ML10_test",
 
-        "num_updates": 5,
+        "num_updates": 6,
         "rollout_length": 10,
         "num_ppo_epochs": 1,
         "num_minibatch": 1,
@@ -90,7 +90,7 @@
 
         "architecture_config": null,
 
-        "evaluation_freq": 5,
+        "evaluation_freq": 1,
         "evaluation_episodes": 1
     },
 

@@ -208,7 +208,7 @@ def train(
         observation_space=env.observation_space,
         action_space=env.action_space,
         num_processes=config["num_processes"],
-        hidden_state_size=config["architecture_config"]["recurrent_hidden_size"]
+        hidden_state_size=policy.policy_network.recurrent_hidden_size
         if policy.recurrent
         else 1,
         device=device,
