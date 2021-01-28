@@ -35,6 +35,10 @@ Current sprint (Meta splitting networks):
     Improve performance for meta-learning with splitting networks
     Baselines?
 
+Notes for current task:
+Gotta finish testing for meta RL. Multi-processing tests are failing because they are
+flaky?
+
 
 ----------------------------------------------------------------------------------------
 
