@@ -303,7 +303,9 @@ class ActorCriticNetwork(nn.Module):
             )
             logstd_list = []
             for _ in range(self.num_tasks):
-                logstd_list.append(AddBias(torch.zeros(self.output_size, device=self.device)))
+                logstd_list.append(
+                    AddBias(torch.zeros(self.output_size, device=self.device))
+                )
             self.output_logstd = nn.ModuleList(logstd_list)
 
             self.architecture_type = "meta_splitting"

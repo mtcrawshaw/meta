@@ -27,7 +27,8 @@ Minor versions (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Meta splitting networks):
---> Benchmark performance for single-task learning
+--> Add option to perform single-task training on Meta-World without resampling goals
+    Benchmark performance for single-task learning
     Benchmark performance for multi-task learning with splitting networks and multi-task PPO
     Benchmark performance for meta-learning with splitting networks
     Improve performance for single-task learning
@@ -36,29 +37,6 @@ Current sprint (Meta splitting networks):
     Baselines?
 
 Notes for current task:
-Gotta finish testing for meta RL. Multi-processing tests are failing because they are
-flaky? Learned that this is happening for all tests. The goals sampled within the
-Meta-World tasks are different between runs, though only during meta-testing! They line
-up during meta-training. I don't know why this is. The goals are sampled from using
-np.ndarray.sample(), and we do set the np seeds at the beginning of each training run.
-But we are setting the seeds identically, so shouldn't the sampled goals match? The fact
-that this is only happening during meta-training makes me feel like this is an issue
-with setting the seed twice, but I don't see how that could be true. Also, why isn't the
-goal a part of the observation? And how are the rewards identical for varying goals?
-
-Meta-World issues/uncertainties:
-- For ML benchmarks, neither the task ID nor the goal are provided as a part of the
-  observation. What? How? Why? Is this is a bug that was fixed in the later version? Or
-  is this actually intended? Answer: This is actually intended. It is still strange to
-  me that they don't provide the task ID or the goal but apparently the authors intended
-  for the model to infer this information.
-- When we run training on single tasks, are we randomly sampling goals? Are we supposed
-  to be randomly sampling goals? Are the single-task PPO results in the Meta-World paper
-  reported for sampled goals? Answer: Yes, no, no! We have been randomly sampling goals
-  during single-task training, turns out this isn't how the single task results are
-  reported in the Meta-World paper! So that's good. This means that our poor single-task
-  results are still redeemable. We just have to try training on an environment with a
-  fixed goal.
 
 
 ----------------------------------------------------------------------------------------
@@ -113,6 +91,16 @@ Training infrastructure:
       metric.
     - Convert string literals in config (network architecture type, lr schedule type,
       environment names, etc) into enums.
+    - Fix reproducibility issue with meta RL. At the moment, the goals sampled in the
+      Meta-World environments are inconsistent between training runs, but only during
+      meta-testing. Right now, we are only testing that the baselines line up for
+      meta-training, which I actually think is fine for now since meta-testing is
+      essentially just an evaluation, and is much shorter in practice than
+      meta-training. The goals are sampled from using np.ndarray.sample(), and we do set
+      the np seeds at the beginning of both meta-training and meta-testing. The fact
+      that this is only happening during meta-training makes me feel like this is an
+      issue with setting the seed twice, but I don't see how that could be true. It may
+      also be specific to the Meta-World environments somehow.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
