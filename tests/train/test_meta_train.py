@@ -24,7 +24,7 @@ def test_meta_train_splitting_v1() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["baseline_metrics_filename"] = "meta_splitting_v1"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v1"
 
     # Run training.
     meta_train(config)
@@ -43,7 +43,9 @@ def test_meta_train_splitting_v1_recurrent() -> None:
     # Modify default training config.
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v1_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v1_recurrent"
 
     # Run training.
     meta_train(config)
@@ -64,7 +66,7 @@ def test_meta_train_splitting_v1_multi() -> None:
     config["meta_train_config"]["num_processes"] *= MP_FACTOR
     config["meta_test_config"]["num_updates"] //= MP_FACTOR
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
-    config["baseline_metrics_filename"] = "meta_splitting_v1_multi"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v1_multi"
 
     # Run training.
     meta_train(config)
@@ -88,7 +90,9 @@ def test_meta_train_splitting_v1_multi_recurrent() -> None:
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v1_multi_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v1_multi_recurrent"
 
     # Run training.
     meta_train(config)
@@ -106,7 +110,7 @@ def test_meta_train_splitting_v1_gpu() -> None:
 
     # Modify default training config.
     config["cuda"] = True
-    config["baseline_metrics_filename"] = "meta_splitting_v1_gpu"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v1_gpu"
 
     # Run training.
     meta_train(config)
@@ -127,7 +131,9 @@ def test_meta_train_splitting_v1_gpu_recurrent() -> None:
     config["cuda"] = True
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v1_gpu_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v1_gpu_recurrent"
 
     # Run training.
     meta_train(config)
@@ -150,7 +156,9 @@ def test_meta_train_splitting_v1_multi_gpu() -> None:
     config["meta_test_config"]["num_updates"] //= MP_FACTOR
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
     config["cuda"] = True
-    config["baseline_metrics_filename"] = "meta_splitting_v1_multi_gpu"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v1_multi_gpu"
 
     # Run training.
     meta_train(config)
@@ -175,7 +183,9 @@ def test_meta_train_splitting_v1_multi_gpu_recurrent() -> None:
     config["cuda"] = True
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v1_multi_gpu_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v1_multi_gpu_recurrent"
 
     # Run training.
     meta_train(config)
@@ -192,7 +202,7 @@ def test_meta_train_splitting_v2() -> None:
         config = json.load(config_file)
 
     # Modify default training config.
-    config["baseline_metrics_filename"] = "meta_splitting_v2"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v2"
 
     # Run training.
     meta_train(config)
@@ -211,7 +221,9 @@ def test_meta_train_splitting_v2_recurrent() -> None:
     # Modify default training config.
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v2_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v2_recurrent"
 
     # Run training.
     meta_train(config)
@@ -232,7 +244,7 @@ def test_meta_train_splitting_v2_multi() -> None:
     config["meta_train_config"]["num_processes"] *= MP_FACTOR
     config["meta_test_config"]["num_updates"] //= MP_FACTOR
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
-    config["baseline_metrics_filename"] = "meta_splitting_v2_multi"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v2_multi"
 
     # Run training.
     meta_train(config)
@@ -256,7 +268,9 @@ def test_meta_train_splitting_v2_multi_recurrent() -> None:
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v2_multi_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v2_multi_recurrent"
 
     # Run training.
     meta_train(config)
@@ -274,7 +288,7 @@ def test_meta_train_splitting_v2_gpu() -> None:
 
     # Modify default training config.
     config["cuda"] = True
-    config["baseline_metrics_filename"] = "meta_splitting_v2_gpu"
+    config["meta_train_config"]["baseline_metrics_filename"] = "meta_splitting_v2_gpu"
 
     # Run training.
     meta_train(config)
@@ -295,7 +309,9 @@ def test_meta_train_splitting_v2_gpu_recurrent() -> None:
     config["cuda"] = True
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v2_gpu_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v2_gpu_recurrent"
 
     # Run training.
     meta_train(config)
@@ -318,7 +334,9 @@ def test_meta_train_splitting_v2_multi_gpu() -> None:
     config["meta_test_config"]["num_updates"] //= MP_FACTOR
     config["meta_test_config"]["num_processes"] *= MP_FACTOR
     config["cuda"] = True
-    config["baseline_metrics_filename"] = "meta_splitting_v2_multi_gpu"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v2_multi_gpu"
 
     # Run training.
     meta_train(config)
@@ -343,7 +361,9 @@ def test_meta_train_splitting_v2_multi_gpu_recurrent() -> None:
     config["cuda"] = True
     config["meta_train_config"]["architecture_config"]["recurrent"] = True
     config["meta_train_config"]["architecture_config"]["recurrent_hidden_size"] = 64
-    config["baseline_metrics_filename"] = "meta_splitting_v2_multi_gpu_recurrent"
+    config["meta_train_config"][
+        "baseline_metrics_filename"
+    ] = "meta_splitting_v2_multi_gpu_recurrent"
 
     # Run training.
     meta_train(config)

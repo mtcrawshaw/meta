@@ -32,13 +32,6 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         Path of checkpoint file (as saved by this function) to load from in order to
         resume training. NOTE: This should be included in the config file but isn't yet
         supported for meta-training.
-    metrics_filename : str
-        Name to save metric values under. Each experiment (meta-train and meta-test)
-        will be given their own value of `metrics_filename` based on this one.
-    baseline_metrics_filename : str
-        Name of metrics baseline file to compare against. Each experiment (meta-train
-        and meta-test) will be given their own value of `baseline_metrics_filename`
-        based on this one.
     print_freq : int
         Number of training iterations between metric printing.
     save_freq : int
@@ -65,8 +58,6 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     common_settings.remove("meta_train_config")
     common_settings.remove("meta_test_config")
     common_settings.remove("save_name")
-    common_settings.remove("metrics_filename")
-    common_settings.remove("baseline_metrics_filename")
     for setting in common_settings:
         meta_train_config[setting] = config[setting]
         meta_test_config[setting] = config[setting]
@@ -78,22 +69,6 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     else:
         meta_train_config["save_name"] = "%s_meta_train" % config["save_name"]
         meta_test_config["save_name"] = "%s_meta_test" % config["save_name"]
-
-    # Construct metrics filenames for meta-training and meta-testing.
-    if config["metrics_filename"] is None:
-        meta_train_config["metrics_filename"] = None
-        meta_test_config["metrics_filename"] = None
-    else:
-        meta_train_config["metrics_filename"] = "%s_meta_train" % config["metrics_filename"]
-        meta_test_config["metrics_filename"] = "%s_meta_test" % config["metrics_filename"]
-
-    # Construct baseline metrics filenames for meta-training and meta-testing.
-    if config["baseline_metrics_filename"] is None:
-        meta_train_config["baseline_metrics_filename"] = None
-        meta_test_config["baseline_metrics_filename"] = None
-    else:
-        meta_train_config["baseline_metrics_filename"] = "%s_meta_train" % config["baseline_metrics_filename"]
-        meta_test_config["baseline_metrics_filename"] = "%s_meta_test" % config["baseline_metrics_filename"]
 
     # Perform meta-training.
     print("Meta-Training:")

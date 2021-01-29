@@ -58,7 +58,9 @@
         },
 
         "evaluation_freq": 1,
-        "evaluation_episodes": 1
+        "evaluation_episodes": 1,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
     },
 
     "meta_test_config": {
@@ -89,7 +91,9 @@
         "architecture_config": null,
 
         "evaluation_freq": 1,
-        "evaluation_episodes": 1
+        "evaluation_episodes": 1,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
     },
 
     "cuda": false,
@@ -97,8 +101,6 @@
     "print_freq": 1,
     "save_freq": null,
     "load_from": null,
-    "time_limit": 150,
-    "metrics_filename": null,
-    "baseline_metrics_filename": null,
+    "time_limit": 8,
     "save_name": null
 }

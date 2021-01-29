@@ -151,7 +151,7 @@ def get_single_env_creator(
             env = gym.make(env_name)
 
         # Set environment seed. Note that we have to set np.random.seed here despite
-        # having already set it in train.py, so that the seeds are different between
+        # having already set it in main.py, so that the seeds are different between
         # child processes.
         np.random.seed(seed)
         env.seed(seed)
@@ -527,6 +527,27 @@ class UniqueEnv(Env):
         info: Dict = {}
 
         return np.array(obs), reward, done, info
+
+
+def get_base_env(env: Env) -> Env:
+    """
+    Very hacky way to return a reference to the base environment underneath a series of
+    environment wrappers. In the case that an environment wrapper is vectorized (i.e.
+    wraps around multiple environments), we return an instance to the first environment
+    in the list.
+    """
+
+    while hasattr(env, "env") or hasattr(env, "envs") or hasattr(env, "active_env"):
+        if hasattr(env, "env"):
+            env = env.env
+        elif hasattr(env, "envs"):
+            env = env.envs[0]
+        elif hasattr(env, "active_env"):
+            env = env.active_env
+        else:
+            raise ValueError
+
+    return env
 
 
 # HARDCODE. This is a hard-coding of a reward threshold for some environments. An
