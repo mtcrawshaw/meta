@@ -27,7 +27,8 @@ Minor versions (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Meta splitting networks):
---> Add option to perform single-task training on Meta-World without resampling goals
+--> Update Meta-World
+    Add option to perform single-task training on Meta-World without resampling goals
     Benchmark performance for single-task learning
     Benchmark performance for multi-task learning with splitting networks and multi-task PPO
     Benchmark performance for meta-learning with splitting networks
@@ -37,6 +38,11 @@ Current sprint (Meta splitting networks):
     Baselines?
 
 Notes for current task:
+
+Performance improvements:
+- Use SAC instead of PPO
+- Combine splitting networks with PCGrad
+- Hyperparameter tuning
 
 
 ----------------------------------------------------------------------------------------

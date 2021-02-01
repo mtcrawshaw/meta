@@ -537,11 +537,15 @@ def get_base_env(env: Env) -> Env:
     in the list.
     """
 
-    while hasattr(env, "env") or hasattr(env, "envs") or hasattr(env, "active_env"):
+    wrapped_names = ["env", "envs", "venv", "active_env"]
+    is_wrapper = lambda e: any(hasattr(e, name) for name in wrapped_names)
+    while is_wrapper(env):
         if hasattr(env, "env"):
             env = env.env
         elif hasattr(env, "envs"):
             env = env.envs[0]
+        elif hasattr(env, "venv"):
+            env = env.venv
         elif hasattr(env, "active_env"):
             env = env.active_env
         else:
