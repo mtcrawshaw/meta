@@ -1,0 +1,56 @@
+{
+    "env_name": "pick-place-v1",
+
+    "num_updates": 50,
+    "rollout_length": 64,
+    "num_ppo_epochs": 1,
+    "num_minibatch": 1,
+    "num_processes": 2,
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "eps": 1e-5,
+    "value_loss_coeff": 0.5,
+    "entropy_loss_coeff": 0.01,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "max_grad_norm": 0.5,
+    "clip_param": 0.2,
+    "clip_value_loss": true,
+    "normalize_advantages": true,
+    "normalize_transition": true,
+    "normalize_first_n": 9,
+
+    "architecture_config": {
+        "type": "mlp",
+        "recurrent": false,
+        "recurrent_hidden_size": null,
+
+        "actor_config": {
+            "activation": "tanh",
+            "num_layers": 3,
+            "hidden_size": 64,
+            "downscale_last_layer": true
+        },
+        "critic_config": {
+            "activation": "tanh",
+            "num_layers": 3,
+            "hidden_size": 64,
+            "downscale_last_layer": false
+        }
+    },
+
+    "evaluation_freq": 5,
+    "evaluation_episodes": 5,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "time_limit": 200,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

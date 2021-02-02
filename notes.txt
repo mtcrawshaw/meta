@@ -38,6 +38,9 @@ Current sprint (Meta splitting networks):
     Baselines?
 
 Notes for current task:
+- Finished updating for single task training (no goal variation). Add support for MT10,
+  MT50, ML10_x, ML45_x.
+- Add tests running each of the Meta-World benchmarks (including MT1).
 
 Performance improvements:
 - Use SAC instead of PPO

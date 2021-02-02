@@ -3,6 +3,7 @@
 import os
 import pickle
 import json
+import random
 from typing import Any, List, Tuple, Dict
 
 import numpy as np
@@ -149,6 +150,7 @@ def train(
             pass
 
     # Set random seed, number of threads, and device.
+    random.seed(config["seed"])
     np.random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])

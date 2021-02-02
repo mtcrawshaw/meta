@@ -1,5 +1,6 @@
 """ Environment wrappers + functionality. """
 
+import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import numpy as np
@@ -107,6 +108,13 @@ def get_single_env_creator(
 
     def env_creator() -> Env:
 
+        # Set random seed. Note that we have to set seeds here despite having already
+        # set them in main.py, so that the seeds are different between child processes.
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
         metaworld_benchmark_names = get_metaworld_benchmark_names()
@@ -115,16 +123,20 @@ def get_single_env_creator(
 
             # We import here so that we avoid importing metaworld if possible, since it is
             # dependent on mujoco.
-            from metaworld.benchmarks import ML1
+            from metaworld import MT1
 
-            env = ML1.get_train_tasks(env_name)
-            tasks = env.sample_tasks(1)
-            env.set_task(tasks[0])
+            mt1 = MT1(env_name)
+            env = mt1.train_classes[env_name]()
+            task = random.choice(mt1.train_tasks)
+            env.set_task(task)
 
         elif env_name in metaworld_benchmark_names:
 
+            # TEMP. This code hasn't yet been converted to handle new MetaWorld version.
+            raise NotImplementedError
+
             # Again, import here so that we avoid importing metaworld if possible.
-            from metaworld.benchmarks import MT10, MT50, ML10, ML45
+            from metaworld import MT10, MT50, ML10, ML45
 
             if env_name == "MT10":
                 env = MT10.get_train_tasks()
@@ -150,10 +162,7 @@ def get_single_env_creator(
         else:
             env = gym.make(env_name)
 
-        # Set environment seed. Note that we have to set np.random.seed here despite
-        # having already set it in main.py, so that the seeds are different between
-        # child processes.
-        np.random.seed(seed)
+        # Set environment seed.
         env.seed(seed)
 
         # Add environment wrapper to reset at time limit.
@@ -577,22 +586,22 @@ HARD_MODE_CLS_DICT = {
         "reach-v1",
         "push-v1",
         "pick-place-v1",
-        "reach-wall-v1",
-        "pick-place-wall-v1",
-        "push-wall-v1",
         "door-open-v1",
-        "door-close-v1",
         "drawer-open-v1",
         "drawer-close-v1",
         "button-press-topdown-v1",
+        "peg-insert-side-v1",
+        "window-open-v1",
+        "window-close-v1",
+        "door-close-v1",
+        "reach-wall-v1",
+        "pick-place-wall-v1",
+        "push-wall-v1",
         "button-press-v1",
         "button-press-topdown-wall-v1",
         "button-press-wall-v1",
-        "peg-insert-side-v1",
         "peg-unplug-side-v1",
-        "window-open-v1",
-        "window-close-v1",
-        "dissassemble-v1",
+        "disassemble-v1",
         "hammer-v1",
         "plate-slide-v1",
         "plate-slide-side-v1",
@@ -604,7 +613,7 @@ HARD_MODE_CLS_DICT = {
         "handle-pull-side-v1",
         "stick-push-v1",
         "stick-pull-v1",
-        "basket-ball-v1",
+        "basketball-v1",
         "soccer-v1",
         "faucet-open-v1",
         "faucet-close-v1",
