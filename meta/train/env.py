@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import gym
 from gym import Env
-from gym.spaces import Box, Discrete
+from gym.spaces import Box, Discrete, Space
 from baselines import bench
 from baselines.common.running_mean_std import RunningMeanStd
 from baselines.common.vec_env import (
@@ -123,35 +123,14 @@ def get_single_env_creator(
 
             # We import here so that we avoid importing metaworld if possible, since it is
             # dependent on mujoco.
-            from metaworld import MT1
-
-            mt1 = MT1(env_name)
+            import metaworld
+            mt1 = metaworld.MT1(env_name)
             env = mt1.train_classes[env_name]()
             task = random.choice(mt1.train_tasks)
             env.set_task(task)
 
         elif env_name in metaworld_benchmark_names:
-
-            # TEMP. This code hasn't yet been converted to handle new MetaWorld version.
-            raise NotImplementedError
-
-            # Again, import here so that we avoid importing metaworld if possible.
-            from metaworld import MT10, MT50, ML10, ML45
-
-            if env_name == "MT10":
-                env = MT10.get_train_tasks()
-            elif env_name == "MT50":
-                env = MT50.get_train_tasks()
-            elif env_name == "ML10_train":
-                env = ML10.get_train_tasks()
-            elif env_name == "ML45_train":
-                env = ML45.get_train_tasks()
-            elif env_name == "ML10_test":
-                env = ML10.get_test_tasks()
-            elif env_name == "ML45_test":
-                env = ML45.get_test_tasks()
-            else:
-                raise NotImplementedError
+            env = MetaWorldBenchmarkEnv(env_name)
 
         elif env_name == "unique-env":
             env = UniqueEnv()
@@ -168,14 +147,6 @@ def get_single_env_creator(
         # Add environment wrapper to reset at time limit.
         if time_limit is not None:
             env = TimeLimitEnv(env, time_limit)
-
-        # Add environment wrapper to change task when done for multi-task environments.
-        if env_name in metaworld_benchmark_names:
-            env = MultiTaskEnv(env)
-
-        # Add environment wrapper to append one-hot task vector to observation.
-        if env_name in metaworld_ml_benchmark_names:
-            env = MetaEnv(env, env_name)
 
         # Add environment wrapper to monitor rewards.
         env = bench.Monitor(env, None, allow_early_resets=allow_early_resets)
@@ -349,76 +320,116 @@ class TimeLimitEnv(gym.Wrapper):
         return self.env.reset(**kwargs)
 
 
-class MultiTaskEnv(gym.Wrapper):
-    """
-    Environment wrapper to change task when done=True, and randomly choose a task when
-    first instantiated. Only to be used with MetaWorld MultiClassMultiTask objects.
-    """
+class MetaWorldBenchmarkEnv(Env):
+    """ Environment for benchmarks with multiple MetaWorld environments.  """
 
-    def reset(self, **kwargs: Dict[str, Any]) -> Any:
-        """ Reset function for environment wrapper. """
-
-        new_task = self.sample_tasks(1)[0]
-        self.set_task(new_task)
-        return self.env.reset(**kwargs)
-
-
-class MetaEnv(gym.Wrapper):
-    """
-    Environment wrapper to append the task index as a one-hot vector to each
-    observation. Only to be used with MetaWorld meta-learning benchmark objects.
-    """
-
-    def __init__(self, env: Env, env_name: str) -> None:
+    def __init__(self, benchmark_name: str) -> None:
         """ Init function for environment wrapper. """
 
-        super().__init__(env)
+        # We import here so that we avoid importing metaworld if possible, since it is
+        # dependent on mujoco.
+        import metaworld
 
-        # Here we overwrite the observation space defined in the underlying Meta-World
-        # environment. This could potentially be dangerous down the line, especially if
-        # we decide to vary the format of observations (e.g. whether or not to include
-        # goal coordinates in observation).
-        # HARDCODE
-        obs_dim = 9 + self.env.num_tasks
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(obs_dim,))
+        # Set config for each benchmark.
+        if benchmark_name == "MT10":
+            benchmark = metaworld.MT10()
+            env_dict = benchmark.train_classes
+            tasks = benchmark.train_tasks
+            self.augment_obs = True
 
-        # Construct dictionary to translate task index out of 50 to task index out of
-        # effective tasks.
-        # HARDCODE
-        if env_name == "ML10_train":
-            self.effective_task_index = {}
-            self.effective_task_index.update({0: 0, 1: 1, 2: 2, 3: 3})
-            self.effective_task_index.update({5: 4, 6: 5, 7: 6, 8: 7})
-            self.effective_task_index.update({30: 8, 37: 9})
-        elif env_name == "ML10_test":
-            self.effective_task_index = {4: 0, 10: 1, 38: 2, 41: 3, 43: 4}
-        elif env_name == "ML45_train":
-            self.effective_task_index = {i: i for i in range(45)}
-        elif env_name == "ML45_test":
-            self.effective_task_index = {i: i - 45 for i in range(45, 50)}
+        elif benchmark_name == "MT50":
+            benchmark = metaworld.MT50()
+            env_dict = benchmark.train_classes
+            tasks = benchmark.train_tasks
+            self.augment_obs = True
 
-    def reset(self) -> Any:
-        """ Reset function for environment wrapper. """
+        elif benchmark_name == "ML10_train":
+            benchmark = metaworld.ML10()
+            env_dict = benchmark.train_classes
+            tasks = benchmark.train_tasks
+            self.augment_obs = True
 
-        obs = self.env.reset()
-        return self.augment_with_task(obs)
+        elif benchmark_name == "ML45_train":
+            benchmark = metaworld.ML45()
+            env_dict = benchmark.train_classes
+            tasks = benchmark.train_tasks
+            self.augment_obs = True
 
-    def step(self, action: Any) -> Any:
-        """ Step function for environment wrapper. """
+        elif benchmark_name == "ML10_test":
+            benchmark = metaworld.ML10()
+            env_dict = benchmark.test_classes
+            tasks = benchmark.test_tasks
+            self.augment_obs = True
 
-        observation, reward, done, info = self.env.step(action)
-        return self.augment_with_task(observation), reward, done, info
+        elif benchmark_name == "ML45_test":
+            benchmark = metaworld.ML45()
+            env_dict = benchmark.test_classes
+            tasks = benchmark.test_tasks
+            self.augment_obs = True
 
-    def augment_with_task(self, obs: Any) -> Any:
+        else:
+            raise NotImplementedError
+
+        # Sample tasks for each environment.
+        self.envs = []
+        for name, env_cls in env_dict.items():
+            env = env_cls()
+            task = random.choice([task for task in tasks if task.env_name == name])
+            env.set_task(task)
+            self.envs.append(env)
+
+        # Choose an active task.
+        self.num_tasks = len(env_dict)
+        self.active_task = random.choice(range(self.num_tasks))
+
+    def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
+        """ Run one timestep of environment dynamics. """
+
+        # Step active environment and add task index to observation if necessary.
+        obs, reward, done, info = self.active_env.step(action)
+        if self.augment_obs:
+            obs = self.add_task_to_obs(obs)
+
+        return obs, reward, done, info
+
+    def reset(self, **kwargs: Dict[str, Any]) -> Any:
+        """ Resets environment to initial state and returns observation. """
+
+        # Choose a new task, reset it's environment, and return the observation.
+        self.active_task = random.choice(range(self.num_tasks))
+        obs = self.active_env.reset(**kwargs)
+        if self.augment_obs:
+            obs = self.add_task_to_obs(obs)
+
+        return obs
+
+    def add_task_to_obs(self, obs: Any) -> Any:
         """ Augment an observation with the one-hot task index. """
 
         assert len(obs.shape) == 1
-        effective_task_index = self.effective_task_index[self.env.active_task]
-        one_hot = np.zeros(self.env.num_tasks)
-        one_hot[effective_task_index] = 1.0
+        one_hot = np.zeros(self.num_tasks)
+        one_hot[self.active_task] = 1.0
         new_obs = np.concatenate([obs, one_hot])
 
         return new_obs
+
+    @property
+    def observation_space(self) -> Space:
+        if self.augment_obs:
+            env_space = self.active_env.observation_space
+            assert len(env_space.shape) == 1
+            obs_dim = env_space.shape[0] + self.num_tasks
+            return Box(low=-np.inf, high=np.inf, shape=(obs_dim,))
+        else:
+            return self.active_env.observation_space
+
+    @property
+    def action_space(self) -> Space:
+        return self.active_env.action_space
+
+    @property
+    def active_env(self) -> Env:
+        return self.envs[self.active_task]
 
 
 class SuccessEnv(gym.Wrapper):
