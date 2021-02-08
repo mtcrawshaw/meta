@@ -20,7 +20,7 @@
     "clip_value_loss": true,
     "normalize_advantages": true,
     "normalize_transition": true,
-    "normalize_first_n": 9,
+    "normalize_first_n": 12,
 
     "architecture_config": {
         "type": "mlp",
@@ -49,7 +49,7 @@
     "print_freq": 1,
     "save_freq": null,
     "load_from": null,
-    "time_limit": 15,
+    "time_limit": 200,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
     "save_name": null

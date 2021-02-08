@@ -1,6 +1,5 @@
 """ Environment wrappers + functionality. """
 
-import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import numpy as np
@@ -110,7 +109,6 @@ def get_single_env_creator(
 
         # Set random seed. Note that we have to set seeds here despite having already
         # set them in main.py, so that the seeds are different between child processes.
-        random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -126,7 +124,8 @@ def get_single_env_creator(
             import metaworld
             mt1 = metaworld.MT1(env_name)
             env = mt1.train_classes[env_name]()
-            task = random.choice(mt1.train_tasks)
+            task_index = np.random.randint(len(mt1.train_tasks))
+            task = mt1.train_tasks[task_index]
             env.set_task(task)
 
         elif env_name in metaworld_benchmark_names:
@@ -374,13 +373,14 @@ class MetaWorldBenchmarkEnv(Env):
         self.envs = []
         for name, env_cls in env_dict.items():
             env = env_cls()
-            task = random.choice([task for task in tasks if task.env_name == name])
+            env_tasks = [task for task in tasks if task.env_name == name]
+            task = env_tasks[np.random.randint(len(env_tasks))]
             env.set_task(task)
             self.envs.append(env)
 
         # Choose an active task.
         self.num_tasks = len(env_dict)
-        self.active_task = random.choice(range(self.num_tasks))
+        self.active_task = np.random.randint(self.num_tasks)
 
     def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
         """ Run one timestep of environment dynamics. """
@@ -396,7 +396,7 @@ class MetaWorldBenchmarkEnv(Env):
         """ Resets environment to initial state and returns observation. """
 
         # Choose a new task, reset it's environment, and return the observation.
-        self.active_task = random.choice(range(self.num_tasks))
+        self.active_task = np.random.randint(self.num_tasks)
         obs = self.active_env.reset(**kwargs)
         if self.augment_obs:
             obs = self.add_task_to_obs(obs)

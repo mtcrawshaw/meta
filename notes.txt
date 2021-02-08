@@ -38,14 +38,17 @@ Current sprint (Meta splitting networks):
     Baselines?
 
 Notes for current task:
-- Check that task indices (when setting effective task index in MetaWorldBenchmarkEnv)
-  haven't changed
-- Check that goals are being resampled/fixed correctly in metaworld benchmarks.
-- We should add tests running each of the Meta-World benchmarks (including MT1).
-- Reduce memory cost of MT50 and MT10 by only instantiating a single environment at a
-  time
-- Change time limits from 150 to 200
-- Confirm assumptions about format of info passed from env step()
+- Confirm assumptions about format of info passed from env step() (DONE)
+- Check that task indices (when setting effective task index) haven't changed (DONE)
+- Change time limits from 150 to 200 (DONE)
+- Check config files for other changes (DONE)
+  - normalize_first_n (DONE)
+  - time_limit (DONE)
+- New tests:
+  - Training/meta-training for each metaworld benchmark
+  - Goals are resampled/fixed correctly in metaworld benchmarks
+- Reduce memory cost of metaworld benchmarks by only instantiating a single environment
+  at a time
 
 Performance improvements:
 - Use SAC instead of PPO

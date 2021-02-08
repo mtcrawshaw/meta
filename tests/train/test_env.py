@@ -23,7 +23,7 @@ def test_collect_rollout_MT10_single() -> None:
     settings["env_name"] = "MT10"
     settings["num_processes"] = 1
     settings["rollout_length"] = 512
-    settings["time_limit"] = 150
+    settings["time_limit"] = 200
     assert settings["normalize_transition"] == False
 
     check_metaworld_obs(settings)
@@ -40,7 +40,7 @@ def test_collect_rollout_MT10_multi() -> None:
     settings["env_name"] = "MT10"
     settings["num_processes"] = 4
     settings["rollout_length"] = 512
-    settings["time_limit"] = 150
+    settings["time_limit"] = 200
     assert settings["normalize_transition"] == False
 
     check_metaworld_obs(settings)
@@ -57,9 +57,9 @@ def test_collect_rollout_MT10_single_normalize() -> None:
     settings["env_name"] = "MT10"
     settings["num_processes"] = 1
     settings["rollout_length"] = 512
-    settings["time_limit"] = 150
+    settings["time_limit"] = 200
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 9
+    settings["normalize_first_n"] = 12
 
     check_metaworld_obs(settings)
 
@@ -75,9 +75,9 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings["env_name"] = "MT10"
     settings["num_processes"] = 4
     settings["rollout_length"] = 512
-    settings["time_limit"] = 150
+    settings["time_limit"] = 200
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 9
+    settings["normalize_first_n"] = 12
 
     check_metaworld_obs(settings)
 
@@ -85,7 +85,7 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
 def check_metaworld_obs(settings: Dict[str, Any]) -> Any:
     """
     Verify that an observation is a valid observation from a MetaWorld multi-task
-    benchmark, i.e. a vector with length at least 9, and the dimensions after 9 form a
+    benchmark, i.e. a vector with length at least 12, and the dimensions after 12 form a
     one-hot vector denoting the task index. We make sure that this is indeed a one-hot
     vector and that the set bit only changes when we encounter a done=True.
     """
@@ -113,7 +113,7 @@ def check_metaworld_obs(settings: Dict[str, Any]) -> Any:
     # Get the tasks indexed by the one-hot vectors in the latter part of the observation
     # from each environment.
     def get_task_indices(obs: torch.Tensor) -> List[int]:
-        index_obs = obs[:, 9:]
+        index_obs = obs[:, 12:]
 
         # Make sure that each observation has exactly one non-zero entry, and that the
         # nonzero entry is equal to 1.

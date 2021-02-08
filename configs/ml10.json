@@ -22,7 +22,7 @@
         "clip_value_loss": true,
         "normalize_advantages": true,
         "normalize_transition": true,
-        "normalize_first_n": 9,
+        "normalize_first_n": 12,
 
         "architecture_config": {
             "type": "splitting_v1",
@@ -67,11 +67,11 @@
 
         "env_name": "ML10_test",
 
-        "num_updates": 9,
-        "rollout_length": 150,
+        "num_updates": 5,
+        "rollout_length": 200,
         "num_ppo_epochs": 4,
         "num_minibatch": 1,
-        "num_processes": 12,
+        "num_processes": 2,
 
         "lr_schedule_type": null,
         "initial_lr": 7e-4,
@@ -86,7 +86,7 @@
         "clip_value_loss": true,
         "normalize_advantages": true,
         "normalize_transition": true,
-        "normalize_first_n": 9,
+        "normalize_first_n": 12,
 
         "architecture_config": null,
 
@@ -99,8 +99,8 @@
     "print_freq": 1,
     "save_freq": null,
     "load_from": null,
-    "time_limit": 150,
+    "time_limit": 200,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": "012721_ML10"
+    "save_name": null
 }
