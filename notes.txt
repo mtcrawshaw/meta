@@ -45,8 +45,9 @@ Notes for current task:
   - normalize_first_n (DONE)
   - time_limit (DONE)
 - New tests:
-  - Training/meta-training for each metaworld benchmark
-  - Goals are resampled/fixed correctly in metaworld benchmarks
+  - Training/meta-training for each metaworld benchmark (DONE)
+  - Goals are resampled/fixed correctly, initial observations are resampled/fixed
+    correctly, and one-hot vectors are included in observations correctly
 - Reduce memory cost of metaworld benchmarks by only instantiating a single environment
   at a time
 
