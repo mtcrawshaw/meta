@@ -10,6 +10,6 @@ for _ in range(10):
     obs = env.reset()  # Reset environment
     print("initial obs: %s" % str(obs))
     a = env.action_space.sample()  # Sample an action
-    obs, reward, done, info = env.step(a)  # Step the environoment with the sampled random action
+    obs, reward, done, info = env.step(a)
     print("second obs: %s" % str(obs))
     print("")

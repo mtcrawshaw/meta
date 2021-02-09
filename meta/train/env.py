@@ -122,6 +122,7 @@ def get_single_env_creator(
             # We import here so that we avoid importing metaworld if possible, since it is
             # dependent on mujoco.
             import metaworld
+
             mt1 = metaworld.MT1(env_name)
             env = mt1.train_classes[env_name]()
             task_index = np.random.randint(len(mt1.train_tasks))
