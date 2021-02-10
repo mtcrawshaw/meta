@@ -113,10 +113,18 @@ def check_metaworld_rollout(settings: Dict[str, Any], check_goals=True) -> None:
       (multi task learning benchmarks).
     - Initial observations are resampled each episode. (?)
 
-    Note that we do not check the condition on the goals when the number of processes is
-    greater than one, since this would require modifying the MetaWorld source code to
-    accommodate for inter-process communication between the main process and the worker
-    processes.
+    Note that we normally do not check the condition on the goals when the number of
+    processes is greater than one, since this would require modifying the MetaWorld
+    source code to accommodate for inter-process communication between the main process
+    and the worker processes. However, our code (besides the check and error raise for
+    it in this function) does accommodate this if you modify MetaWorld. To do this,
+    change the step() function of whatever MetaWorld environment you're training on so
+    that the value of `self.goal` at the beginning of step() is stored in
+    `info["old_goal"]` and that the value of `self.goal` at the end of step() is stored
+    in `info["new_goal"]`, and disable the check for `settings["num_processes"] > 1` in
+    this function. This will allow you to call this function with `check_goals=True` and
+    `num_processes > 1`, if you want to inspect the sampled goals over multiple
+    processes bad enough.
     """
 
     # Check if we are running a multi-task benchmark.
@@ -178,9 +186,18 @@ def get_metaworld_rollout(
     # Get initial goal.
     if check_goals:
         base_env = get_base_env(env)
-        goal_shape = base_env.goal_space.low.shape
-        goals = np.zeros((rollout.rollout_length + 1, *goal_shape))
-        goals[0] = base_env.goal
+
+        if rollout.num_processes > 1:
+            goal_shape = (3,)  # HARDCODE
+            goals = np.zeros(
+                (rollout.rollout_length + 1, rollout.num_processes, *goal_shape)
+            )
+        else:
+            goal_shape = base_env.goal_space.low.shape
+            goals = np.zeros(
+                (rollout.rollout_length + 1, rollout.num_processes, *goal_shape)
+            )
+            goals[0] = base_env.goal
     else:
         goals = None
 
@@ -203,7 +220,12 @@ def get_metaworld_rollout(
 
         # Record goal in rollout.
         if check_goals:
-            goals[rollout_step + 1] = base_env.goal
+            if rollout.num_processes > 1:
+                if rollout_step == 0:
+                    goals[0] = [info["old_goal"] for info in infos]
+                goals[rollout_step + 1] = [info["new_goal"] for info in infos]
+            else:
+                goals[rollout_step + 1, 0] = base_env.goal
 
     env.close()
 
@@ -266,14 +288,18 @@ def goal_check(
 ) -> None:
     """
     Given a rollout, checks that goals are resampled correctly within and between
-    processes. Note that this function will also be called when the rollout was
-    collected with a single process.
+    processes.
     """
 
-    # Get initial goal.
-    task_indices = get_task_indices(rollout.obs[0]) if multitask else [0]
+    # Get initial goals.
+    task_indices = (
+        get_task_indices(rollout.obs[0]) if multitask else [0] * rollout.num_processes
+    )
     goal = goals[0]
-    episode_goals = {task_indices[0]: [goal]}
+    episode_goals = {
+        task_indices[process]: [goal[process]]
+        for process in range(rollout.num_processes)
+    }
 
     # Check if rollout satisfies conditions at each step.
     for step in range(rollout.rollout_step):
@@ -282,23 +308,26 @@ def goal_check(
         obs = rollout.obs[step]
         dones = rollout.dones[step]
         assert len(obs) == len(dones)
-        task_indices = get_task_indices(obs) if multitask else [0]
+        task_indices = (
+            get_task_indices(obs) if multitask else [0] * rollout.num_processes
+        )
         new_goal = goals[step]
 
         # Make sure that goal is the same if we haven't reached a done or if goal should
         # remain fixed across episodes, otherwise set new goal.
-        done = dones[0]
-        if done and resample_goals:
-            goal = new_goal
-        else:
-            assert (goal == new_goal).all()
+        for process in range(len(obs)):
+            done = dones[process]
+            if done and resample_goals:
+                goal[process] = new_goal[process]
+            else:
+                assert (goal[process] == new_goal[process]).all()
 
-        # Track goals from each task.
-        if done:
-            task = task_indices[0]
-            if task not in episode_goals:
-                episode_goals[task] = []
-            episode_goals[task].append(goal)
+            # Track goals from each task.
+            if done:
+                task = task_indices[process]
+                if task not in episode_goals:
+                    episode_goals[task] = []
+                episode_goals[task].append(goal[process])
 
     # Check that each task is resampling goals, if necessary.
     for task, goals in episode_goals.items():
