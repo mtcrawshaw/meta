@@ -51,6 +51,12 @@ Notes for current task:
 - Reduce memory cost of metaworld benchmarks by only instantiating a single environment
   at a time
 
+In tests for MetaWorld obs/tasks/goals, make sure to add one later that involves
+checking goal resampling when running multiple processes. This will be a test that we
+can leave in there but with an underscore in front of the name because it will require
+modifying the MetaWorld source code. We can just run it once with the modified version
+as a sanity check, then revert.
+
 Performance improvements:
 - Use SAC instead of PPO
 - Combine splitting networks with PCGrad
