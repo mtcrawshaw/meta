@@ -47,17 +47,26 @@ Notes for current task:
 - New tests:
   - Training/meta-training for each metaworld benchmark (DONE)
   - Goals are resampled/fixed correctly, initial observations are resampled/fixed
-    correctly, and one-hot vectors are included in observations correctly
+    correctly, and one-hot vectors are included in observations correctly (DONE)
 - Reduce memory cost of metaworld benchmarks by only instantiating a single environment
   at a time
 
-Tests for MetaWorld rollout:
-Should we check whether initial observations are resampled?
+Done with tests for uniqueness of initial observations, but I found something weird. The
+initial observations from each episode don't seem to be independently sampled. In fact
+each element of the observation seems to be monotonic over the sequence of episodes. I
+don't know why this is but definitely worth investigating before moving on as a sanity
+check.
 
 Performance improvements:
 - Use SAC instead of PPO
 - Combine splitting networks with PCGrad
 - Hyperparameter tuning
+
+For benchmarking performance, make sure that metrics are being saved as moving averages
+and not exponential moving averages. In the single-task experiments so far, the eval
+reward/success rate in the plots is always smaller than that of training. Could this be
+because the eval stats are being computed with a more slowly updating average than the
+train stats?
 
 
 ----------------------------------------------------------------------------------------
@@ -149,16 +158,20 @@ Training infrastructure:
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that
       tan^(-1)(X) is normally distributed instead of X, compute mean + stdev and mean -
       stdev, then take tan of everything to put it back into interval [0, 1].
-    - Time various parts of the training process, save along with metrics
-    - More robust way to save repository version along with results
-    - Catch KeyboardInterrupt during training to optionally stop training early
+    - Time various parts of the training process, save along with metrics.
+    - More robust way to save repository version along with results.
+    - Catch KeyboardInterrupt during training to optionally stop training early while
+      still saving out final metrics and plot.
+    - When training starts and results are not being saved, notify user and give the
+      option to turn saving on.
     - Make it so that when resuming training from a checkpoint, training happens exactly
       as it would had if training had never been stopped. Not sure if this is possible,
       the main obstacle being pickling/loading the environment state, and mimicking
       random decisions.
     - Monitor system resource utilization and recommend changes in config for maximum
       utilization, i.e. bigger batch sizes to increase GPU utilization, less processes
-      if thrashing is present
+      if thrashing is present.
+    - Output hyperparameter tables in performance plots.
 
 RL training:
 - Refactoring:

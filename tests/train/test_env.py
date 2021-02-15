@@ -32,7 +32,7 @@ def test_collect_rollout_MT1_single() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "reach-v1"
+    settings["env_name"] = "peg-unplug-side-v1"
     settings["num_processes"] = 1
     settings["rollout_length"] = 512
     settings["time_limit"] = 4
@@ -111,7 +111,7 @@ def check_metaworld_rollout(settings: Dict[str, Any], check_goals=True) -> None:
     - If `check_goals=True`, goals for a single task are fixed within episodes and
       either resampled each episode (meta learning benchmarks) or fixed across episodes
       (multi task learning benchmarks).
-    - Initial observations are resampled each episode. (?)
+    - Initial observations are not identical between episodes from the task.
 
     Note that we normally do not check the condition on the goals when the number of
     processes is greater than one, since this would require modifying the MetaWorld
@@ -152,6 +152,9 @@ def check_metaworld_rollout(settings: Dict[str, Any], check_goals=True) -> None:
     # Check goal resampling, if necessary.
     if check_goals:
         goal_check(rollout, goals, resample_goals, multitask)
+
+    # Check that initial observations are not all identical.
+    initial_obs_check(rollout, multitask)
 
 
 def get_metaworld_rollout(
@@ -343,6 +346,55 @@ def goal_check(
             assert num_unique_goals == 1
 
     print("\nGoals for each task: %s" % str(episode_goals))
+
+
+def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
+    """
+    Given a rollout, checks that initial observations are not identical between
+    episodes.
+    """
+
+    # Get initial observation of first episode for each process.
+    initial_obs = {}
+    for process in range(rollout.num_processes):
+        task = get_task_indices(rollout.obs[0])[process] if multitask else 0
+        if task in initial_obs:
+            initial_obs[task].append(rollout.obs[0, process])
+        else:
+            initial_obs[task] = [rollout.obs[0, process]]
+
+    # Step through rollout and collect initial observations from each episode.
+    for step in range(1, rollout.rollout_length):
+
+        # Get information from step.
+        obs = rollout.obs[step]
+        dones = rollout.dones[step]
+        assert len(obs) == len(dones)
+        task_indices = (
+            get_task_indices(obs) if multitask else [0] * rollout.num_processes
+        )
+
+        # If an observation is the beginning of a new episode, add it to the list of
+        # initial observations for its task.
+        for process in range(len(obs)):
+            if dones[process]:
+                task = task_indices[process]
+                if task not in initial_obs:
+                    initial_obs[task] = []
+                initial_obs[task].append(obs[process])
+
+    # Check that initial observations are unique across episodes.
+    for task, obs in initial_obs.items():
+        if len(obs) < TASK_EPISODES:
+            raise ValueError(
+                "%d episodes ran for task %d, but test requires %d."
+                " Try increasing rollout length." % (len(obs), task, TASK_EPISODES)
+            )
+        obs_arr = np.array([ob.numpy() for ob in obs])
+        num_unique_obs = len(np.unique(obs_arr, axis=0))
+        assert num_unique_obs > 1
+
+    print("\nInitial obs for each task: %s" % str(initial_obs))
 
 
 def get_task_indices(obs: torch.Tensor) -> List[int]:
