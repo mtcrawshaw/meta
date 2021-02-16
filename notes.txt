@@ -27,9 +27,8 @@ Minor versions (MT10/MT50 baselines):
     Refactoring
 
 Current sprint (Meta splitting networks):
---> Update Meta-World
-    Add option to perform single-task training on Meta-World without resampling goals
-    Benchmark performance for single-task learning
+    Update Meta-World
+--> Benchmark performance for single-task learning
     Benchmark performance for multi-task learning with splitting networks and multi-task PPO
     Benchmark performance for meta-learning with splitting networks
     Improve performance for single-task learning
@@ -37,24 +36,10 @@ Current sprint (Meta splitting networks):
     Improve performance for meta-learning with splitting networks
     Baselines?
 
-Notes for current task:
-- Confirm assumptions about format of info passed from env step() (DONE)
-- Check that task indices (when setting effective task index) haven't changed (DONE)
-- Change time limits from 150 to 200 (DONE)
-- Check config files for other changes (DONE)
-  - normalize_first_n (DONE)
-  - time_limit (DONE)
-- New tests:
-  - Training/meta-training for each metaworld benchmark (DONE)
-  - Goals are resampled/fixed correctly, initial observations are resampled/fixed
-    correctly, and one-hot vectors are included in observations correctly (DONE)
-- Reduce memory cost of metaworld benchmarks by only instantiating a single environment
-  at a time
-
 Performance improvements:
 - Use SAC instead of PPO
-- Combine splitting networks with PCGrad
 - Hyperparameter tuning
+- Combine splitting networks with PCGrad
 
 For benchmarking performance, make sure that metrics are being saved as moving averages
 and not exponential moving averages. In the single-task experiments so far, the eval

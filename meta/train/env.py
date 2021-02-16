@@ -400,20 +400,28 @@ class MetaWorldBenchmarkEnv(Env):
         else:
             raise NotImplementedError
 
-        # Sample tasks for each environment.
-        self.envs = []
-        self.env_names = []
-        for name, env_cls in env_dict.items():
-            env = env_cls()
-            env_tasks = [task for task in self.tasks if task.env_name == name]
-            task = env_tasks[np.random.randint(len(env_tasks))]
-            env.set_task(task)
-            self.envs.append(env)
-            self.env_names.append(name)
+        # Construct list of (env_name, env_cls) pairs.
+        self.envs_info = [
+            {"env_name": name, "env_cls": env_cls}
+            for (name, env_cls) in env_dict.items()
+        ]
+        self.num_tasks = len(self.envs_info)
 
-        # Choose an active task.
-        self.num_tasks = len(env_dict)
+        # Sample environment.
+        self._sample_environment()
+
+    def _sample_environment(self) -> None:
+        """ Sample a new environment and a task for that environment. """
+
         self.active_task = np.random.randint(self.num_tasks)
+        self.active_env = self.envs_info[self.active_task]["env_cls"]()
+        env_tasks = [
+            task
+            for task in self.tasks
+            if task.env_name == self.envs_info[self.active_task]["env_name"]
+        ]
+        task = env_tasks[np.random.randint(len(env_tasks))]
+        self.active_env.set_task(task)
 
     def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
         """ Run one timestep of environment dynamics. """
@@ -428,16 +436,10 @@ class MetaWorldBenchmarkEnv(Env):
     def reset(self, **kwargs: Dict[str, Any]) -> Any:
         """ Resets environment to initial state and returns observation. """
 
-        # Choose a new environment, sample a new task, reset, and return the
-        # observation.
-        self.active_task = np.random.randint(self.num_tasks)
-        env_tasks = [
-            task
-            for task in self.tasks
-            if task.env_name == self.env_names[self.active_task]
-        ]
-        task = env_tasks[np.random.randint(len(env_tasks))]
-        self.active_env.set_task(task)
+        # Choose a new environment and sample a new task for it.
+        self._sample_environment()
+
+        # Reset environment and return observation.
         obs = self.active_env.reset(**kwargs)
         if self.augment_obs:
             obs = self.add_task_to_obs(obs)
@@ -467,10 +469,6 @@ class MetaWorldBenchmarkEnv(Env):
     @property
     def action_space(self) -> Space:
         return self.active_env.action_space
-
-    @property
-    def active_env(self) -> Env:
-        return self.envs[self.active_task]
 
 
 class SuccessEnv(gym.Wrapper):

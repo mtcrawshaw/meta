@@ -19,8 +19,11 @@ from meta.train.env import (
 from tests.helpers import get_policy, DEFAULT_SETTINGS
 
 
+ROLLOUT_LENGTH = 128
+TIME_LIMIT = 4
 PROCESS_EPISODES = 5
 TASK_EPISODES = 3
+ENOUGH_THRESHOLD = 0.5
 
 
 def test_collect_rollout_MT1_single() -> None:
@@ -33,8 +36,8 @@ def test_collect_rollout_MT1_single() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "reach-v1"
     settings["num_processes"] = 1
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
@@ -52,8 +55,8 @@ def test_collect_rollout_MT1_single_normalize() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "reach-v1"
     settings["num_processes"] = 1
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
 
@@ -70,8 +73,8 @@ def test_collect_rollout_MT1_multi() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "reach-v1"
     settings["num_processes"] = 4
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
@@ -89,8 +92,8 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "reach-v1"
     settings["num_processes"] = 4
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
 
@@ -107,8 +110,8 @@ def test_collect_rollout_MT10_single() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "MT10"
     settings["num_processes"] = 1
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
@@ -126,8 +129,8 @@ def test_collect_rollout_MT10_single_normalize() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "MT10"
     settings["num_processes"] = 1
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
 
@@ -144,8 +147,8 @@ def test_collect_rollout_MT10_multi() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "MT10"
     settings["num_processes"] = 4
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
@@ -163,10 +166,30 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "MT10"
     settings["num_processes"] = 4
-    settings["rollout_length"] = 512
-    settings["time_limit"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
+
+    check_metaworld_rollout(settings, check_goals=False)
+
+
+def _test_collect_rollout_MT50_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT50 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, when running a multi-process environment.
+    This test is currently commented out because it takes a long time to run, and it's
+    behavior is essentially identical to the corresponding MT10 test.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT50"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 8 * ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
 
     check_metaworld_rollout(settings, check_goals=False)
 
@@ -339,15 +362,19 @@ def task_check(rollout: RolloutStorage) -> None:
                 assert task_indices[process] == new_task_indices[process]
 
     # Check that each process is resampling tasks.
+    enough_ratio = sum(
+        len(tasks) >= PROCESS_EPISODES for tasks in episode_tasks.values()
+    ) / len(episode_tasks)
+    if enough_ratio < ENOUGH_THRESHOLD:
+        raise ValueError(
+            "Less than %d episodes ran for more than half of processes, which is the"
+            " minimum amount needed for testing. Try increasing rollout length."
+            % (PROCESS_EPISODES)
+        )
     for process, tasks in episode_tasks.items():
-        if len(tasks) < PROCESS_EPISODES:
-            raise ValueError(
-                "%d episodes ran for process %d, but test requires %d."
-                " Try increasing rollout length."
-                % (len(tasks), process, PROCESS_EPISODES)
-            )
-        num_unique_tasks = len(set(tasks))
-        assert num_unique_tasks > 1
+        if len(tasks) >= PROCESS_EPISODES:
+            num_unique_tasks = len(set(tasks))
+            assert num_unique_tasks > 1
 
     # Check that each process has distinct sequences of tasks.
     for p1, p2 in product(range(rollout.num_processes), range(rollout.num_processes)):
@@ -405,17 +432,22 @@ def goal_check(
                 episode_goals[task].append(goal[process])
 
     # Check that each task is resampling goals, if necessary.
+    enough_ratio = sum(
+        len(goals) >= TASK_EPISODES for goals in episode_goals.values()
+    ) / len(episode_goals)
+    if enough_ratio < ENOUGH_THRESHOLD:
+        raise ValueError(
+            "Less than %d episodes ran for more than half of tasks, which is the"
+            "minimum amount needed for testing. Try increasing rollout length."
+            % (TASK_EPISODES)
+        )
     for task, goals in episode_goals.items():
-        if len(goals) < TASK_EPISODES:
-            raise ValueError(
-                "%d episodes ran for task %d, but test requires %d."
-                " Try increasing rollout length." % (len(goals), task, TASK_EPISODES)
-            )
-        num_unique_goals = len(np.unique(np.array(goals), axis=0))
-        if resample_goals:
-            assert num_unique_goals > 1
-        else:
-            assert num_unique_goals == 1
+        if len(goals) >= TASK_EPISODES:
+            num_unique_goals = len(np.unique(np.array(goals), axis=0))
+            if resample_goals:
+                assert num_unique_goals > 1
+            else:
+                assert num_unique_goals == 1
 
     print("\nGoals for each task: %s" % str(episode_goals))
 
@@ -456,16 +488,20 @@ def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
                 initial_obs[(task, process)].append(obs[process])
 
     # Check that initial observations are unique across episodes.
+    enough_ratio = sum(len(obs) >= TASK_EPISODES for obs in initial_obs.values()) / len(
+        initial_obs
+    )
+    if enough_ratio < ENOUGH_THRESHOLD:
+        raise ValueError(
+            "Less than %d episodes ran for more than half of task/process pairs, which"
+            " is the minimum amount needed for testing. Try increasing rollout length."
+            % (TASK_EPISODES)
+        )
     for (task, process), obs in initial_obs.items():
-        if len(obs) < TASK_EPISODES:
-            raise ValueError(
-                "%d episodes ran for task %d process %d, but test requires %d."
-                " Try increasing rollout length."
-                % (len(obs), task, process, TASK_EPISODES)
-            )
-        obs_arr = np.array([ob.numpy() for ob in obs])
-        num_unique_obs = len(np.unique(obs_arr, axis=0))
-        assert num_unique_obs > 1
+        if len(obs) >= TASK_EPISODES:
+            obs_arr = np.array([ob.numpy() for ob in obs])
+            num_unique_obs = len(np.unique(obs_arr, axis=0))
+            assert num_unique_obs > 1
 
     print("\nInitial obs for each task/process: %s" % str(initial_obs))
 
