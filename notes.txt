@@ -176,9 +176,6 @@ RL training:
     - Rename PPO parameters (i.e. gamma -> discount)
     - Figure out the difference between our setup and other setups (such as multi-task
       PPO in the Meta-World paper) which use a linear feature baseline.
-    - When running single task experiments, we need to clarify whether or not the goal
-      should randomized. Right now, when we train on a single task, we instantiate the
-      environment using the ML1 benchmark. Is that how it's supposed to be?
 - Additions:
     - Test PPO for environments with action space Box((n1, n2))
     - Independent options for normalizing observations and rewards

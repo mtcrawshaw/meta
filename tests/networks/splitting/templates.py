@@ -165,7 +165,7 @@ def gradients_template(
             expected_task_grads[task, region, : len(grad)] = grad
 
     # Test gradients.
-    assert torch.allclose(task_grads, expected_task_grads, atol=1e-6)
+    assert torch.allclose(task_grads, expected_task_grads, atol=2e-5)
 
 
 def backward_template(
