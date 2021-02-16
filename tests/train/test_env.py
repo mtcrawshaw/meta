@@ -25,14 +25,32 @@ TASK_EPISODES = 3
 
 def test_collect_rollout_MT1_single() -> None:
     """
-    Test the values of the returned RolloutStorage objects from train.collect_rollout()
-    on the MetaWorld MT1 benchmark, to ensure that the task indices are returned
-    correctly and goals are resampled correctly, with a single process and observation
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT1 benchmark, to ensure that the task indices are returned correctly
+    and goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "reach-v1"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 4
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_MT1_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT1 benchmark, to ensure that the task indices are returned correctly
+    and goals are resampled correctly, with a single process and observation
     normalization.
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "peg-unplug-side-v1"
+    settings["env_name"] = "reach-v1"
     settings["num_processes"] = 1
     settings["rollout_length"] = 512
     settings["time_limit"] = 4
@@ -44,10 +62,28 @@ def test_collect_rollout_MT1_single() -> None:
 
 def test_collect_rollout_MT1_multi() -> None:
     """
-    Test the values of the returned RolloutStorage objects from train.collect_rollout()
-    on the MetaWorld MT1 benchmark, to ensure that the task indices are returned
-    correctly and goals are resampled correctly, when running a multi-process
-    environment and observation normalization.
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT1 benchmark, to ensure that the task indices are returned correctly
+    and goals are resampled correctly, when running a multi-process environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "reach-v1"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 4
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+
+    check_metaworld_rollout(settings, check_goals=False)
+
+
+def test_collect_rollout_MT1_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT1 benchmark, to ensure that the task indices are returned correctly
+    and goals are resampled correctly, when running a multi-process environment and
+    observation normalization.
     """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -63,10 +99,28 @@ def test_collect_rollout_MT1_multi() -> None:
 
 def test_collect_rollout_MT10_single() -> None:
     """
-    Test the values of the returned RolloutStorage objects from train.collect_rollout()
-    on the MetaWorld MT10 benchmark, to ensure that the task indices are returned
-    correctly and tasks/goals are resampled correctly, with a single process and
-    observation normalization.
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 4
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_MT10_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, with a single process and observation
+    normalization.
     """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -82,10 +136,28 @@ def test_collect_rollout_MT10_single() -> None:
 
 def test_collect_rollout_MT10_multi() -> None:
     """
-    Test the values of the returned RolloutStorage objects from train.collect_rollout()
-    on the MetaWorld MT10 benchmark, to ensure that the task indices are returned
-    correctly and tasks/goals are resampled correctly, when running a multi-process
-    environment and observation normalization.
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, when running a multi-process environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 512
+    settings["time_limit"] = 4
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+
+    check_metaworld_rollout(settings, check_goals=False)
+
+
+def test_collect_rollout_MT10_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, when running a multi-process environment
+    and observation normalization.
     """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -351,17 +423,17 @@ def goal_check(
 def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
     """
     Given a rollout, checks that initial observations are not identical between
-    episodes.
+    episodes from the same process.
     """
 
     # Get initial observation of first episode for each process.
     initial_obs = {}
     for process in range(rollout.num_processes):
         task = get_task_indices(rollout.obs[0])[process] if multitask else 0
-        if task in initial_obs:
-            initial_obs[task].append(rollout.obs[0, process])
+        if (task, process) in initial_obs:
+            initial_obs[(task, process)].append(rollout.obs[0, process])
         else:
-            initial_obs[task] = [rollout.obs[0, process]]
+            initial_obs[(task, process)] = [rollout.obs[0, process]]
 
     # Step through rollout and collect initial observations from each episode.
     for step in range(1, rollout.rollout_length):
@@ -379,22 +451,23 @@ def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
         for process in range(len(obs)):
             if dones[process]:
                 task = task_indices[process]
-                if task not in initial_obs:
-                    initial_obs[task] = []
-                initial_obs[task].append(obs[process])
+                if (task, process) not in initial_obs:
+                    initial_obs[(task, process)] = []
+                initial_obs[(task, process)].append(obs[process])
 
     # Check that initial observations are unique across episodes.
-    for task, obs in initial_obs.items():
+    for (task, process), obs in initial_obs.items():
         if len(obs) < TASK_EPISODES:
             raise ValueError(
-                "%d episodes ran for task %d, but test requires %d."
-                " Try increasing rollout length." % (len(obs), task, TASK_EPISODES)
+                "%d episodes ran for task %d process %d, but test requires %d."
+                " Try increasing rollout length."
+                % (len(obs), task, process, TASK_EPISODES)
             )
         obs_arr = np.array([ob.numpy() for ob in obs])
         num_unique_obs = len(np.unique(obs_arr, axis=0))
         assert num_unique_obs > 1
 
-    print("\nInitial obs for each task: %s" % str(initial_obs))
+    print("\nInitial obs for each task/process: %s" % str(initial_obs))
 
 
 def get_task_indices(obs: torch.Tensor) -> List[int]:

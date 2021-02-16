@@ -118,26 +118,13 @@ def get_single_env_creator(
         metaworld_benchmark_names = get_metaworld_benchmark_names()
         metaworld_ml_benchmark_names = get_metaworld_ml_benchmark_names()
         if env_name in metaworld_env_names:
-
-            # We import here so that we avoid importing metaworld if possible, since it is
-            # dependent on mujoco.
-            import metaworld
-
-            mt1 = metaworld.MT1(env_name)
-            env = mt1.train_classes[env_name]()
-            task_index = np.random.randint(len(mt1.train_tasks))
-            task = mt1.train_tasks[task_index]
-            env.set_task(task)
-
+            env = MetaWorldEnv(env_name)
         elif env_name in metaworld_benchmark_names:
             env = MetaWorldBenchmarkEnv(env_name)
-
         elif env_name == "unique-env":
             env = UniqueEnv()
-
         elif env_name == "parity-env":
             env = ParityEnv()
-
         else:
             env = gym.make(env_name)
 
@@ -320,6 +307,49 @@ class TimeLimitEnv(gym.Wrapper):
         return self.env.reset(**kwargs)
 
 
+class MetaWorldEnv(Env):
+    """ Environment wrapper for MetaWorld environments. """
+
+    def __init__(self, env_name: str) -> None:
+        """ Init function for environment wrapper. """
+
+        # We import here so that we avoid importing metaworld if possible, since it is
+        # dependent on mujoco.
+        import metaworld
+
+        # Create environment and sample task.
+        mt1 = metaworld.MT1(env_name)
+        self.env = mt1.train_classes[env_name]()
+        self.train_tasks = mt1.train_tasks
+        self._sample_task()
+
+    def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
+        """ Run one timestep of environment dynamics. """
+        return self.env.step(action)
+
+    def reset(self, **kwargs: Dict[str, Any]) -> Any:
+        """ Resets environment to initial state and returns observation. """
+
+        self._sample_task()
+        obs = self.env.reset(**kwargs)
+        return obs
+
+    def _sample_task(self) -> None:
+        """ Resample environment task. """
+
+        task_index = np.random.randint(len(self.train_tasks))
+        task = self.train_tasks[task_index]
+        self.env.set_task(task)
+
+    @property
+    def observation_space(self) -> Space:
+        return self.env.observation_space
+
+    @property
+    def action_space(self) -> Space:
+        return self.env.action_space
+
+
 class MetaWorldBenchmarkEnv(Env):
     """ Environment for benchmarks with multiple MetaWorld environments.  """
 
@@ -334,37 +364,37 @@ class MetaWorldBenchmarkEnv(Env):
         if benchmark_name == "MT10":
             benchmark = metaworld.MT10()
             env_dict = benchmark.train_classes
-            tasks = benchmark.train_tasks
+            self.tasks = benchmark.train_tasks
             self.augment_obs = True
 
         elif benchmark_name == "MT50":
             benchmark = metaworld.MT50()
             env_dict = benchmark.train_classes
-            tasks = benchmark.train_tasks
+            self.tasks = benchmark.train_tasks
             self.augment_obs = True
 
         elif benchmark_name == "ML10_train":
             benchmark = metaworld.ML10()
             env_dict = benchmark.train_classes
-            tasks = benchmark.train_tasks
+            self.tasks = benchmark.train_tasks
             self.augment_obs = True
 
         elif benchmark_name == "ML45_train":
             benchmark = metaworld.ML45()
             env_dict = benchmark.train_classes
-            tasks = benchmark.train_tasks
+            self.tasks = benchmark.train_tasks
             self.augment_obs = True
 
         elif benchmark_name == "ML10_test":
             benchmark = metaworld.ML10()
             env_dict = benchmark.test_classes
-            tasks = benchmark.test_tasks
+            self.tasks = benchmark.test_tasks
             self.augment_obs = True
 
         elif benchmark_name == "ML45_test":
             benchmark = metaworld.ML45()
             env_dict = benchmark.test_classes
-            tasks = benchmark.test_tasks
+            self.tasks = benchmark.test_tasks
             self.augment_obs = True
 
         else:
@@ -372,12 +402,14 @@ class MetaWorldBenchmarkEnv(Env):
 
         # Sample tasks for each environment.
         self.envs = []
+        self.env_names = []
         for name, env_cls in env_dict.items():
             env = env_cls()
-            env_tasks = [task for task in tasks if task.env_name == name]
+            env_tasks = [task for task in self.tasks if task.env_name == name]
             task = env_tasks[np.random.randint(len(env_tasks))]
             env.set_task(task)
             self.envs.append(env)
+            self.env_names.append(name)
 
         # Choose an active task.
         self.num_tasks = len(env_dict)
@@ -396,8 +428,16 @@ class MetaWorldBenchmarkEnv(Env):
     def reset(self, **kwargs: Dict[str, Any]) -> Any:
         """ Resets environment to initial state and returns observation. """
 
-        # Choose a new task, reset it's environment, and return the observation.
+        # Choose a new environment, sample a new task, reset, and return the
+        # observation.
         self.active_task = np.random.randint(self.num_tasks)
+        env_tasks = [
+            task
+            for task in self.tasks
+            if task.env_name == self.env_names[self.active_task]
+        ]
+        task = env_tasks[np.random.randint(len(env_tasks))]
+        self.active_env.set_task(task)
         obs = self.active_env.reset(**kwargs)
         if self.augment_obs:
             obs = self.add_task_to_obs(obs)

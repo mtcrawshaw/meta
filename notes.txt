@@ -51,12 +51,6 @@ Notes for current task:
 - Reduce memory cost of metaworld benchmarks by only instantiating a single environment
   at a time
 
-Done with tests for uniqueness of initial observations, but I found something weird. The
-initial observations from each episode don't seem to be independently sampled. In fact
-each element of the observation seems to be monotonic over the sequence of episodes. I
-don't know why this is but definitely worth investigating before moving on as a sanity
-check.
-
 Performance improvements:
 - Use SAC instead of PPO
 - Combine splitting networks with PCGrad
