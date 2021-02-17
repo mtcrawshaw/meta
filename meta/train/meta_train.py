@@ -1,6 +1,5 @@
 """ Run meta-training and meta-testing. """
 
-import os
 from typing import Any, Dict
 
 from meta.train.train import train

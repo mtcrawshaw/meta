@@ -132,7 +132,6 @@ def get_single_env_creator(
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
         metaworld_benchmark_names = get_metaworld_benchmark_names()
-        metaworld_ml_benchmark_names = get_metaworld_ml_benchmark_names()
         if env_name in metaworld_env_names:
             env = MetaWorldEnv(env_name)
         elif env_name in metaworld_benchmark_names:
