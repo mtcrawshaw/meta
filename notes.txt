@@ -41,12 +41,6 @@ Performance improvements:
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
-For benchmarking performance, make sure that metrics are being saved as moving averages
-and not exponential moving averages. In the single-task experiments so far, the eval
-reward/success rate in the plots is always smaller than that of training. Could this be
-because the eval stats are being computed with a more slowly updating average than the
-train stats?
-
 
 ----------------------------------------------------------------------------------------
 

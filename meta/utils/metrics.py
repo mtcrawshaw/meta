@@ -12,13 +12,13 @@ class Metrics:
     Metrics object, which stores and updates training performance metrics.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, train_window: int = 500, test_window: int = 5) -> None:
         """ Init function for Metrics object. """
 
-        self.train_reward = Metric(window_len=500)
-        self.train_success = Metric(window_len=500)
-        self.eval_reward = Metric(window_len=50, point_avg=True)
-        self.eval_success = Metric(window_len=50, point_avg=True)
+        self.train_reward = Metric(window_len=train_window)
+        self.train_success = Metric(window_len=train_window)
+        self.eval_reward = Metric(window_len=test_window, point_avg=True)
+        self.eval_success = Metric(window_len=test_window, point_avg=True)
 
         self.state_vars = [
             "train_reward",

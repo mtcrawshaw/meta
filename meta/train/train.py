@@ -220,7 +220,9 @@ def train(
     rollout.set_initial_obs(env.reset())
 
     # Construct metrics object to hold performance metrics.
-    metrics = Metrics()
+    TRAIN_WINDOW = 500
+    test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
+    metrics = Metrics(train_window=TRAIN_WINDOW, test_window=test_window)
 
     # Load intermediate progress from checkpoint, if necessary.
     update_iteration = 0
