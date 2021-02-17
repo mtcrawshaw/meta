@@ -102,5 +102,6 @@
     "save_freq": null,
     "load_from": null,
     "time_limit": 8,
-    "save_name": null
+    "save_name": null,
+    "save_memory": false
 }

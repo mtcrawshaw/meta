@@ -495,6 +495,25 @@ def test_train_MT10_multi_gpu_recurrent() -> None:
     train(config)
 
 
+def test_train_MT10_save_memory() -> None:
+    """
+    Runs training and compares reward curve against saved baseline for an environment
+    with a continuous action space, running a single process, while using the memory
+    saving version of the MT10 benchmark.
+    """
+
+    # Load default training config.
+    with open(MT10_CONFIG_PATH, "r") as config_file:
+        config = json.load(config_file)
+
+    # Modify default training config.
+    config["baseline_metrics_filename"] = "MT10_save_memory"
+    config["save_memory"] = True
+
+    # Run training.
+    train(config)
+
+
 def test_train_cartpole_exponential_lr() -> None:
     """
     Runs training and compares reward curve against saved baseline for an environment

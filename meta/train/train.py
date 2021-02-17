@@ -167,6 +167,7 @@ def train(
 
     # Set environment and policy.
     num_tasks = get_num_tasks(config["env_name"])
+    save_memory = config["save_memory"] if "save_memory" in config else None
     env = get_env(
         config["env_name"],
         config["num_processes"],
@@ -175,6 +176,7 @@ def train(
         config["normalize_transition"],
         config["normalize_first_n"],
         allow_early_resets=True,
+        save_memory=save_memory,
     )
     if policy is None:
         policy = PPOPolicy(

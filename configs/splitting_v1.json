@@ -68,5 +68,6 @@
     "time_limit": 8,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": null
+    "save_name": null,
+    "save_memory": false
 }
