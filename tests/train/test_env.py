@@ -8,7 +8,6 @@ from typing import Dict, List, Any, Tuple
 import numpy as np
 import torch
 
-from meta.train.train import collect_rollout
 from meta.utils.storage import RolloutStorage
 from meta.train.env import (
     get_env,
@@ -78,7 +77,7 @@ def test_collect_rollout_MT1_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
-    check_metaworld_rollout(settings, check_goals=False)
+    check_metaworld_rollout(settings)
 
 
 def test_collect_rollout_MT1_multi_normalize() -> None:
@@ -97,7 +96,7 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
 
-    check_metaworld_rollout(settings, check_goals=False)
+    check_metaworld_rollout(settings)
 
 
 def test_collect_rollout_MT10_single() -> None:
@@ -152,7 +151,7 @@ def test_collect_rollout_MT10_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
-    check_metaworld_rollout(settings, check_goals=False)
+    check_metaworld_rollout(settings)
 
 
 def test_collect_rollout_MT10_multi_normalize() -> None:
@@ -171,7 +170,7 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
 
-    check_metaworld_rollout(settings, check_goals=False)
+    check_metaworld_rollout(settings)
 
 
 def _test_collect_rollout_MT50_multi() -> None:
@@ -191,10 +190,10 @@ def _test_collect_rollout_MT50_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
 
-    check_metaworld_rollout(settings, check_goals=False)
+    check_metaworld_rollout(settings)
 
 
-def check_metaworld_rollout(settings: Dict[str, Any], check_goals=True) -> None:
+def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
     """
     Verify that rollouts on MetaWorld benchmarks satisfy a few assumptions:
     - If running a multi-task benchmark, each observation is a vector with length at
@@ -203,57 +202,40 @@ def check_metaworld_rollout(settings: Dict[str, Any], check_goals=True) -> None:
       changes when we encounter a done=True, and only then. Also, each process should
       resample tasks each episode, and the sequence of tasks sampled by each process
       should be different.
-    - If `check_goals=True`, goals for a single task are fixed within episodes and
-      either resampled each episode (meta learning benchmarks) or fixed across episodes
-      (multi task learning benchmarks).
-    - Initial observations are not identical between episodes from the task.
-
-    Note that we normally do not check the condition on the goals when the number of
-    processes is greater than one, since this would require modifying the MetaWorld
-    source code to accommodate for inter-process communication between the main process
-    and the worker processes. However, our code (besides the check and error raise for
-    it in this function) does accommodate this if you modify MetaWorld. To do this,
-    change the step() function of whatever MetaWorld environment you're training on so
-    that the value of `self.goal` at the beginning of step() is stored in
-    `info["old_goal"]` and that the value of `self.goal` at the end of step() is stored
-    in `info["new_goal"]`, and disable the check for `settings["num_processes"] > 1` in
-    this function. This will allow you to call this function with `check_goals=True` and
-    `num_processes > 1`, if you want to inspect the sampled goals over multiple
-    processes bad enough.
+    - Goals for a single task are fixed within episodes and either resampled each
+      episode (meta learning benchmarks) or fixed across episodes (multi task learning
+      benchmarks).
+    - Initial observations are not identical between episodes from the same task.
     """
 
     # Check if we are running a multi-task benchmark.
     mt_benchmarks = get_metaworld_benchmark_names()
     multitask = settings["env_name"] in mt_benchmarks
 
-    # If checking goals, make sure that we are only training with a single process, and
-    # determine whether or not goals should be resampled.
-    if check_goals:
-        if settings["num_processes"] > 1:
-            raise ValueError(
-                "Can't check goals when number of processes is more than 1."
-            )
-        else:
-            ml_benchmarks = get_metaworld_ml_benchmark_names()
-            resample_goals = settings["env_name"] in ml_benchmarks
+    # Determine whether or not goals should be resampled.
+    ml_benchmarks = get_metaworld_ml_benchmark_names()
+    resample_goals = settings["env_name"] in ml_benchmarks
 
     # Perform rollout.
-    rollout, goals = get_metaworld_rollout(settings, check_goals=check_goals)
+    rollout = get_metaworld_rollout(settings)
 
     # Check task indices and task resampling, if necessary.
     if multitask:
         task_check(rollout)
 
-    # Check goal resampling, if necessary.
+    # Check goal resampling, if necessary. We don't check this in the case that
+    # observations are normalized, because in this case the same goal will look
+    # different on separate transitions.
+    check_goals = not settings["normalize_transition"]
     if check_goals:
-        goal_check(rollout, goals, resample_goals, multitask)
+        goal_check(rollout, resample_goals, multitask)
 
     # Check that initial observations are not all identical.
     initial_obs_check(rollout, multitask)
 
 
 def get_metaworld_rollout(
-    settings: Dict[str, Any], check_goals=True
+    settings: Dict[str, Any]
 ) -> Tuple[RolloutStorage, np.ndarray]:
     """
     Execute and return a single rollout over a MetaWorld environment using configuration
@@ -281,25 +263,7 @@ def get_metaworld_rollout(
     )
     rollout.set_initial_obs(env.reset())
 
-    # Get initial goal.
-    if check_goals:
-        base_env = get_base_env(env)
-
-        if rollout.num_processes > 1:
-            goal_shape = (3,)  # HARDCODE
-            goals = np.zeros(
-                (rollout.rollout_length + 1, rollout.num_processes, *goal_shape)
-            )
-        else:
-            goal_shape = base_env.goal_space.low.shape
-            goals = np.zeros(
-                (rollout.rollout_length + 1, rollout.num_processes, *goal_shape)
-            )
-            goals[0] = base_env.goal
-    else:
-        goals = None
-
-    # Collect rollout and goals.
+    # Collect rollout.
     for rollout_step in range(rollout.rollout_length):
 
         # Sample actions.
@@ -316,18 +280,8 @@ def get_metaworld_rollout(
             obs, actions, dones, action_log_probs, values, rewards, hidden_states
         )
 
-        # Record goal in rollout.
-        if check_goals:
-            if rollout.num_processes > 1:
-                if rollout_step == 0:
-                    goals[0] = [info["old_goal"] for info in infos]
-                goals[rollout_step + 1] = [info["new_goal"] for info in infos]
-            else:
-                goals[rollout_step + 1, 0] = base_env.goal
-
     env.close()
-
-    return rollout, goals
+    return rollout
 
 
 def task_check(rollout: RolloutStorage) -> None:
@@ -385,9 +339,7 @@ def task_check(rollout: RolloutStorage) -> None:
     print("\nTasks for each process: %s" % episode_tasks)
 
 
-def goal_check(
-    rollout: RolloutStorage, goals: np.ndarray, resample_goals: bool, multitask: bool
-) -> None:
+def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -> None:
     """
     Given a rollout, checks that goals are resampled correctly within and between
     processes.
@@ -397,9 +349,9 @@ def goal_check(
     task_indices = (
         get_task_indices(rollout.obs[0]) if multitask else [0] * rollout.num_processes
     )
-    goal = goals[0]
+    goals = get_goals(rollout.obs[0])
     episode_goals = {
-        task_indices[process]: [goal[process]]
+        task_indices[process]: [goals[process]]
         for process in range(rollout.num_processes)
     }
 
@@ -413,27 +365,27 @@ def goal_check(
         task_indices = (
             get_task_indices(obs) if multitask else [0] * rollout.num_processes
         )
-        new_goal = goals[step]
+        new_goals = get_goals(obs)
 
         # Make sure that goal is the same if we haven't reached a done or if goal should
         # remain fixed across episodes, otherwise set new goal.
         for process in range(len(obs)):
             done = dones[process]
             if done and resample_goals:
-                goal[process] = new_goal[process]
+                goals[process] = new_goals[process]
             else:
-                assert (goal[process] == new_goal[process]).all()
+                assert (goals[process] == new_goals[process]).all()
 
             # Track goals from each task.
             if done:
                 task = task_indices[process]
                 if task not in episode_goals:
                     episode_goals[task] = []
-                episode_goals[task].append(goal[process])
+                episode_goals[task].append(goals[process])
 
     # Check that each task is resampling goals, if necessary.
     enough_ratio = sum(
-        len(goals) >= TASK_EPISODES for goals in episode_goals.values()
+        len(task_goals) >= TASK_EPISODES for task_goals in episode_goals.values()
     ) / len(episode_goals)
     if enough_ratio < ENOUGH_THRESHOLD:
         raise ValueError(
@@ -441,9 +393,10 @@ def goal_check(
             "minimum amount needed for testing. Try increasing rollout length."
             % (TASK_EPISODES)
         )
-    for task, goals in episode_goals.items():
-        if len(goals) >= TASK_EPISODES:
-            num_unique_goals = len(np.unique(np.array(goals), axis=0))
+    for task, task_goals in episode_goals.items():
+        if len(task_goals) >= TASK_EPISODES:
+            goals_arr = np.array([g.numpy() for g in task_goals])
+            num_unique_goals = len(np.unique(goals_arr, axis=0))
             if resample_goals:
                 assert num_unique_goals > 1
             else:
@@ -524,3 +477,11 @@ def get_task_indices(obs: torch.Tensor) -> List[int]:
 
     task_indices = index_obs.nonzero()[:, 1].tolist()
     return task_indices
+
+
+def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
+    """
+    Get the goals written in each observation from a batch of observations. Note that
+    this will have to change if the format of the Meta-World observations ever changes.
+    """
+    return [x[9:12] for x in obs]

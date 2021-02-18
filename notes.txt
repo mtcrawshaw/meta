@@ -41,6 +41,27 @@ Performance improvements:
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
+We need to check and confirm the nature of resampling goals in MetaWorld. Did we just
+implement everything in a way that resamples goals all the time? Really there are three
+factors of variation that tasks have: initial arm positions, object positions, and goal
+positions. I believe that initial arm positions are supposed to vary no matter what, but
+both object and goal postiions only vary in ML benchmarks. So what does env.set_task()
+actually do? Which of these factors of variations does it change? And since we are
+calling it at the beginning of each episode, why do our tests determine that the goals
+are fixed between MT episodes? When we are done with this, should we just combine
+MetaWorldEnv and MetaWorldBenchmarkEnv?
+
+Update: self.goal does basically nothing in the MetaWorld environments! Or this is my
+hypothesis. In button_press_topdown, as long as random_init is true (which it always
+is), the value of self.goal does literally nothing. I think this is the case for other
+environments as well. Some environments don't even have a self.goal! The goal tests in
+test_env.py had a bug so we didn't catch this. This calls for a re-working of our
+current MetaWorld wrappers.
+
+To do:
+- Fix tests so that we are correctly checking sampled goals positions (DONE)
+- Add tests to check that initial object positions are correctly sampled
+- Fix MetaWorld env wrappers so as to correctly sample goals/object positions
 
 ----------------------------------------------------------------------------------------
 
@@ -64,12 +85,9 @@ DevOps:
   tests, requirements contains all requirements, etc)
 - Move test files (configs, results, metrics, etc.) into a separate subdirectory
 - Containerize this shit
-- Update MetaWorld version and make corresponding changes
 
 Training infrastructure:
 - Refactoring:
-    - Move optimizer and learning schedule outside of ppo.py in order to generalize
-      training to CV and NLP.
     - Optimize data transfer to GPU
     - Use Metrics objects outside of train() instead of state dictionary.
     - Get rid of redundant functionality for saving metrics
@@ -118,7 +136,6 @@ Training infrastructure:
       metrics against. The same goes for saving/loading hyperparameter random search
       runs (the other types of hp search are reproducible when saving/loading, so
       there's no need for it there).
-    - Tests of statistical significance of results when comparing different methods
     - Allow for training on a sequence of configs by specifying a list of values in the
       config file instead of a single value. Just getting training to work like this
       will be easy, the more annoying part will be saving and loading over these
@@ -145,6 +162,7 @@ Training infrastructure:
       utilization, i.e. bigger batch sizes to increase GPU utilization, less processes
       if thrashing is present.
     - Output hyperparameter tables in performance plots.
+    - Tests of statistical significance of results when comparing different methods.
 
 RL training:
 - Refactoring:
@@ -300,6 +318,8 @@ Tests:
       observation batch contains data from all tasks, but the obs batch isn't explicitly
       constructed this way. It happens to pass by luck but we should enforce this so it
       doesn't randomly break if seed or something else changes.
+    - Make tests faster by decreasing training lengths and replacing complex
+      environments (particularly MetaWorld) with simpler ones.
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
 - Nice to have:
