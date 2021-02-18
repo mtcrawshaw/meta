@@ -204,6 +204,8 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
       should be different.
     - Goals for a single task are fixed within episodes and either resampled each
       episode (meta learning benchmarks) or fixed across episodes (multi task learning
+      benchmarks). Also, the initial placement of objects is fixed across episodes
+      (multi task learning benchmarks) or resampled each episode (meta learning
       benchmarks).
     - Initial observations are not identical between episodes from the same task.
     """
@@ -341,8 +343,8 @@ def task_check(rollout: RolloutStorage) -> None:
 
 def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -> None:
     """
-    Given a rollout, checks that goals are resampled correctly within and between
-    processes.
+    Given a rollout, checks that goals and initial object positions are resampled
+    correctly within and between processes.
     """
 
     # Get initial goals.
@@ -352,6 +354,13 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
     goals = get_goals(rollout.obs[0])
     episode_goals = {
         task_indices[process]: [goals[process]]
+        for process in range(rollout.num_processes)
+    }
+
+    # Get initial object placements.
+    object_pos = get_object_pos(rollout.obs[0])
+    episode_object_pos = {
+        task_indices[process]: [object_pos[process]]
         for process in range(rollout.num_processes)
     }
 
@@ -366,6 +375,7 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
             get_task_indices(obs) if multitask else [0] * rollout.num_processes
         )
         new_goals = get_goals(obs)
+        new_object_pos = get_object_pos(obs)
 
         # Make sure that goal is the same if we haven't reached a done or if goal should
         # remain fixed across episodes, otherwise set new goal.
@@ -376,14 +386,19 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
             else:
                 assert (goals[process] == new_goals[process]).all()
 
-            # Track goals from each task.
+            # Track goals and initial object positions from each task.
             if done:
                 task = task_indices[process]
                 if task not in episode_goals:
                     episode_goals[task] = []
                 episode_goals[task].append(goals[process])
 
-    # Check that each task is resampling goals, if necessary.
+                if task not in episode_object_pos:
+                    episode_object_pos[task] = []
+                episode_object_pos[task].append(new_object_pos[process])
+
+    # Check that each task is resampling goals and initial object positions, if
+    # necessary.
     enough_ratio = sum(
         len(task_goals) >= TASK_EPISODES for task_goals in episode_goals.values()
     ) / len(episode_goals)
@@ -402,7 +417,17 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
             else:
                 assert num_unique_goals == 1
 
+    for task, task_object_pos in episode_object_pos.items():
+        if len(task_object_pos) >= TASK_EPISODES:
+            object_pos_arr = np.array([p.numpy() for p in task_object_pos])
+            num_unique_pos = len(np.unique(object_pos_arr, axis=0))
+            if resample_goals:
+                assert num_unique_pos > 1
+            else:
+                assert num_unique_pos == 1
+
     print("\nGoals for each task: %s" % str(episode_goals))
+    print("\nInitial object positions for each task: %s" % str(episode_object_pos))
 
 
 def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
@@ -485,3 +510,12 @@ def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
     this will have to change if the format of the Meta-World observations ever changes.
     """
     return [x[9:12] for x in obs]
+
+
+def get_object_pos(obs: torch.Tensor) -> List[np.ndarray]:
+    """
+    Get the object positions written in each observation from a batch of observations.
+    Note that this will have to change if the format of the Meta-World observations ever
+    changes.
+    """
+    return [x[3:6] for x in obs]

@@ -60,8 +60,18 @@ current MetaWorld wrappers.
 
 To do:
 - Fix tests so that we are correctly checking sampled goals positions (DONE)
-- Add tests to check that initial object positions are correctly sampled
+- Add tests to check that initial object positions are correctly sampled (DONE)
 - Fix MetaWorld env wrappers so as to correctly sample goals/object positions
+
+One thing to figure out after this: Why are initial hand positions the same across
+processes, but different across episodes? If you print the first 6 entries of
+rollout.obs in any of the non-normalized tests in test/train/test_env.py, you will see:
+- in the multi process cases, each process has the same initial hand position (first
+  three elements of observation) at each episode, but this initial hand position varies
+  across episodes.
+- in the single process cases, the initial hand position is the same at the beginning of
+  each episode.
+Shouldn't this value be different for every task and episode?
 
 ----------------------------------------------------------------------------------------
 
