@@ -33,7 +33,7 @@ def test_collect_rollout_MT1_single() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "reach-v1"
+    settings["env_name"] = "MT1_reach-v1"
     settings["num_processes"] = 1
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
@@ -52,7 +52,7 @@ def test_collect_rollout_MT1_single_normalize() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "reach-v1"
+    settings["env_name"] = "MT1_reach-v1"
     settings["num_processes"] = 1
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
@@ -70,7 +70,7 @@ def test_collect_rollout_MT1_multi() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "reach-v1"
+    settings["env_name"] = "MT1_reach-v1"
     settings["num_processes"] = 4
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
@@ -89,7 +89,7 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "reach-v1"
+    settings["env_name"] = "MT1_reach-v1"
     settings["num_processes"] = 4
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
@@ -518,4 +518,4 @@ def get_object_pos(obs: torch.Tensor) -> List[np.ndarray]:
     Note that this will have to change if the format of the Meta-World observations ever
     changes.
     """
-    return [x[3:6] for x in obs]
+    return [x[3:9] for x in obs]

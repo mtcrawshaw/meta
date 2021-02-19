@@ -73,6 +73,14 @@ rollout.obs in any of the non-normalized tests in test/train/test_env.py, you wi
   each episode.
 Shouldn't this value be different for every task and episode?
 
+More news about MetaWorld: goals are generated randomly at runtime. This means that
+different processes running the same environment with different seeds will end up with
+different goals. This is a problem for running benchmarks that are supposed to have
+fixed goals (MT1, MT10, MT50). We can work around this right now by giving each
+environment the same numpy seed, but we need to make sure that we understand the
+ramifications of this before we do it.
+
+
 ----------------------------------------------------------------------------------------
 
 

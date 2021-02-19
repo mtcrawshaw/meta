@@ -132,10 +132,8 @@ def get_single_env_creator(
         # Make environment object from either MetaWorld or Gym.
         metaworld_env_names = get_metaworld_env_names()
         metaworld_benchmark_names = get_metaworld_benchmark_names()
-        if env_name in metaworld_env_names:
-            env = MetaWorldEnv(env_name)
-        elif env_name in metaworld_benchmark_names:
-            env = MetaWorldBenchmarkEnv(env_name, save_memory=save_memory)
+        if is_metaworld_env_name(env_name):
+            env = MetaWorldEnv(env_name, save_memory=save_memory)
         elif env_name == "unique-env":
             env = UniqueEnv()
         elif env_name == "parity-env":
@@ -323,50 +321,7 @@ class TimeLimitEnv(gym.Wrapper):
 
 
 class MetaWorldEnv(Env):
-    """ Environment wrapper for MetaWorld environments. """
-
-    def __init__(self, env_name: str) -> None:
-        """ Init function for environment wrapper. """
-
-        # We import here so that we avoid importing metaworld if possible, since it is
-        # dependent on mujoco.
-        import metaworld
-
-        # Create environment and sample task.
-        mt1 = metaworld.MT1(env_name)
-        self.env = mt1.train_classes[env_name]()
-        self.train_tasks = mt1.train_tasks
-        self._sample_task()
-
-    def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
-        """ Run one timestep of environment dynamics. """
-        return self.env.step(action)
-
-    def reset(self, **kwargs: Dict[str, Any]) -> Any:
-        """ Resets environment to initial state and returns observation. """
-
-        self._sample_task()
-        obs = self.env.reset(**kwargs)
-        return obs
-
-    def _sample_task(self) -> None:
-        """ Resample environment task. """
-
-        task_index = np.random.randint(len(self.train_tasks))
-        task = self.train_tasks[task_index]
-        self.env.set_task(task)
-
-    @property
-    def observation_space(self) -> Space:
-        return self.env.observation_space
-
-    @property
-    def action_space(self) -> Space:
-        return self.env.action_space
-
-
-class MetaWorldBenchmarkEnv(Env):
-    """ Environment for benchmarks with multiple MetaWorld environments.  """
+    """ Environment to wrap MetaWorld environments. """
 
     def __init__(self, benchmark_name: str, save_memory: bool = False) -> None:
         """ Init function for environment wrapper. """
@@ -376,59 +331,79 @@ class MetaWorldBenchmarkEnv(Env):
         import metaworld
 
         # Set config for each benchmark.
-        if benchmark_name == "MT10":
+        if benchmark_name.startswith("MT1_"):
+            env_name = benchmark_name[4:]
+            benchmark = metaworld.MT1(env_name)
+            env_dict = {env_name: benchmark.train_classes[env_name]}
+            tasks = benchmark.train_tasks
+            resample_tasks = False
+            self.augment_obs = False
+
+        elif benchmark_name == "MT10":
             benchmark = metaworld.MT10()
             env_dict = benchmark.train_classes
-            self.tasks = benchmark.train_tasks
+            tasks = benchmark.train_tasks
+            resample_tasks = False
             self.augment_obs = True
 
         elif benchmark_name == "MT50":
             benchmark = metaworld.MT50()
             env_dict = benchmark.train_classes
-            self.tasks = benchmark.train_tasks
+            tasks = benchmark.train_tasks
+            resample_tasks = False
             self.augment_obs = True
 
         elif benchmark_name == "ML10_train":
             benchmark = metaworld.ML10()
             env_dict = benchmark.train_classes
-            self.tasks = benchmark.train_tasks
+            tasks = benchmark.train_tasks
+            resample_tasks = True
             self.augment_obs = True
 
         elif benchmark_name == "ML45_train":
             benchmark = metaworld.ML45()
             env_dict = benchmark.train_classes
-            self.tasks = benchmark.train_tasks
+            tasks = benchmark.train_tasks
+            resample_tasks = True
             self.augment_obs = True
 
         elif benchmark_name == "ML10_test":
             benchmark = metaworld.ML10()
             env_dict = benchmark.test_classes
-            self.tasks = benchmark.test_tasks
+            tasks = benchmark.test_tasks
+            resample_tasks = True
             self.augment_obs = True
 
         elif benchmark_name == "ML45_test":
             benchmark = metaworld.ML45()
             env_dict = benchmark.test_classes
-            self.tasks = benchmark.test_tasks
+            tasks = benchmark.test_tasks
+            resample_tasks = True
             self.augment_obs = True
 
         else:
             raise NotImplementedError
 
+        # Construct list of tasks for each environment.
+        env_tasks = {}
+        for task in tasks:
+            if task.env_name in env_tasks:
+                if resample_tasks:
+                    env_tasks[task.env_name].append(task)
+            else:
+                env_tasks[task.env_name] = [task]
+
+        # Construct list of environment classes or class instances.
         self.save_memory = save_memory
         if self.save_memory:
-
-            # Construct list of environment classes.
             self.envs_info = [
-                {"env_name": name, "env_cls": env_cls}
-                for (name, env_cls) in env_dict.items()
+                {"env_name": env_name, "env_cls": env_cls, "tasks": env_tasks[env_name]}
+                for (env_name, env_cls) in env_dict.items()
             ]
         else:
-
-            # Construct list of environments instances.
             self.envs_info = [
-                {"env_name": name, "env": env_cls()}
-                for (name, env_cls) in env_dict.items()
+                {"env_name": env_name, "env": env_cls(), "tasks": env_tasks[env_name]}
+                for (env_name, env_cls) in env_dict.items()
             ]
 
         self.num_tasks = len(self.envs_info)
@@ -437,7 +412,7 @@ class MetaWorldBenchmarkEnv(Env):
         self._sample_environment()
 
     def _sample_environment(self) -> None:
-        """ Sample a new environment and a task for that environment. """
+        """ Sample a new environment and possibly a task for that environment. """
 
         # Sample environment.
         self.active_task = np.random.randint(self.num_tasks)
@@ -447,11 +422,7 @@ class MetaWorldBenchmarkEnv(Env):
             self.active_env = self.envs_info[self.active_task]["env"]
 
         # Sample task for environment.
-        env_tasks = [
-            task
-            for task in self.tasks
-            if task.env_name == self.envs_info[self.active_task]["env_name"]
-        ]
+        env_tasks = self.envs_info[self.active_task]["tasks"]
         task = env_tasks[np.random.randint(len(env_tasks))]
         self.active_env.set_task(task)
 
@@ -530,26 +501,52 @@ class SuccessEnv(gym.Wrapper):
 
 def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
-
-    return ["MT10", "MT50", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
+    return ["MT1", "MT10", "MT50", "ML1_train", "ML1_test", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
 
 
 def get_metaworld_mt_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld multi-task benchmark names. """
-
-    return ["MT10", "MT50"]
-
+    return ["MT1", "MT10", "MT50"]
 
 def get_metaworld_ml_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld meta-learning benchmark names. """
+    return ["ML1_train", "ML1_test", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
 
-    return ["ML10_train", "ML45_train", "ML10_test", "ML45_test"]
 
+def get_metaworld_single_benchmark_names() -> List[str]:
+    """ Returns a list of Metaworld single-task benchmark names. """
+    return ["MT1", "ML1_train", "ML1_test"]
 
 def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
-
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+
+def is_metaworld_env_name(env_name: str) -> bool:
+    """
+    Whether or not `env_name` specifies a MetaWorld benchmark. This is the case when
+    `env_name` is equal to a benchmark with multiple tasks (such as "MT10" or
+    "ML10_train") or when `env_name` is a single task benchmark name (such as "MT1" or
+    "ML1_train") concatenated with "_" followed by a MetaWorld environment name.
+    """
+
+    is_mw = False
+    env_names = get_metaworld_env_names()
+    benchmark_names = get_metaworld_benchmark_names()
+    single_benchmark_names = get_metaworld_single_benchmark_names()
+
+    # Check if `env_name` specifies an benchmark with multiple tasks.
+    if env_name in benchmark_names and env_name not in single_benchmark_names:
+        is_mw = True
+
+    # Check if `env_name` specifies an benchmark a single task.
+    for single_benchmark_name in single_benchmark_names:
+        prefix = single_benchmark_name + "_"
+        if env_name.startswith(prefix):
+            remainder = env_name[len(prefix):]
+            if remainder in env_names:
+                is_mw = True
+
+    return is_mw
 
 
 class ParityEnv(Env):
