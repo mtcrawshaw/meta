@@ -37,48 +37,31 @@ Current sprint (Meta splitting networks):
     Baselines?
 
 Performance improvements:
+- Linear feature baseline for PPO (?)
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
-We need to check and confirm the nature of resampling goals in MetaWorld. Did we just
-implement everything in a way that resamples goals all the time? Really there are three
-factors of variation that tasks have: initial arm positions, object positions, and goal
-positions. I believe that initial arm positions are supposed to vary no matter what, but
-both object and goal postiions only vary in ML benchmarks. So what does env.set_task()
-actually do? Which of these factors of variations does it change? And since we are
-calling it at the beginning of each episode, why do our tests determine that the goals
-are fixed between MT episodes? When we are done with this, should we just combine
-MetaWorldEnv and MetaWorldBenchmarkEnv?
-
-Update: self.goal does basically nothing in the MetaWorld environments! Or this is my
-hypothesis. In button_press_topdown, as long as random_init is true (which it always
-is), the value of self.goal does literally nothing. I think this is the case for other
-environments as well. Some environments don't even have a self.goal! The goal tests in
-test_env.py had a bug so we didn't catch this. This calls for a re-working of our
-current MetaWorld wrappers.
-
 To do:
 - Fix tests so that we are correctly checking sampled goals positions (DONE)
 - Add tests to check that initial object positions are correctly sampled (DONE)
-- Fix MetaWorld env wrappers so as to correctly sample goals/object positions
+- Fix MetaWorld env wrappers so as to correctly sample goals/object positions (DONE)
+- Fix tests to correctly test assumptions about task variation
+- Add tests so that we cover ALL benchmarks
 
-One thing to figure out after this: Why are initial hand positions the same across
-processes, but different across episodes? If you print the first 6 entries of
-rollout.obs in any of the non-normalized tests in test/train/test_env.py, you will see:
-- in the multi process cases, each process has the same initial hand position (first
-  three elements of observation) at each episode, but this initial hand position varies
-  across episodes.
-- in the single process cases, the initial hand position is the same at the beginning of
-  each episode.
-Shouldn't this value be different for every task and episode?
+New task variation assumptions:
+- initial hand positions are the same across every episode for the same task (DONE)
+- initial object positions are the same across every episode of the same task for
+  multi-task benchmarks and not identical across episodes of the same task for
+  meta-learning benchmarks (DONE)
+- goals are the same for every step of an episode. goals are the same across every
+  episode of the same task for multi-task benchmarks and not identical across episodes
+  of the same task for meta-learning benchmarks (DONE)
 
-More news about MetaWorld: goals are generated randomly at runtime. This means that
-different processes running the same environment with different seeds will end up with
-different goals. This is a problem for running benchmarks that are supposed to have
-fixed goals (MT1, MT10, MT50). We can work around this right now by giving each
-environment the same numpy seed, but we need to make sure that we understand the
-ramifications of this before we do it.
+One weird thing: in the first episode from each process on an environment, the initial
+object position is different from the initial object position in all other episodes.
+This is weird and maybe a a MetaWorld thing? I'm not even sure how these are generated
+so we should look into this. Other than that, the MetaWorld tests are passing.
 
 
 ----------------------------------------------------------------------------------------

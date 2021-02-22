@@ -1,5 +1,6 @@
 """ Environment wrappers + functionality. """
 
+import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import numpy as np
@@ -26,6 +27,7 @@ def get_env(
     normalize_first_n: int = None,
     allow_early_resets: bool = False,
     save_memory: bool = False,
+    same_np_seed: bool = False,
 ) -> Env:
     """
     Return environment object from environment name, with wrappers for added
@@ -55,6 +57,10 @@ def get_env(
         environment at a time. If this is done, then the memory cost is constant even as
         the number of environments grow, but it requires taking more time to
         re-instantiate environments at the beginning of each episode.
+    same_np_seed : bool
+        Whether or not to use the same numpy random seed across each process. This
+        should really only be used when training on MetaWorld, as it allows for multiple
+        processes to generate/act over the same set of goals.
 
     Returns
     -------
@@ -63,9 +69,14 @@ def get_env(
     """
 
     # Create vectorized environment.
+    seeds = [seed + i for i in range(num_processes)]
+    if same_np_seed:
+        np_seeds = [seed] * num_processes
+    else:
+        np_seeds = list(seeds)
     env_creators = [
         get_single_env_creator(
-            env_name, seed + i, time_limit, allow_early_resets, save_memory
+            env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, save_memory
         )
         for i in range(num_processes)
     ]
@@ -89,6 +100,7 @@ def get_env(
 def get_single_env_creator(
     env_name: str,
     seed: int = 1,
+    np_seed: int = 1,
     time_limit: int = None,
     allow_early_resets: bool = False,
     save_memory: bool = False,
@@ -104,6 +116,9 @@ def get_single_env_creator(
         Name of environment to create.
     seed : int
         Random seed for environment.
+    np_seed : int
+        Random seed for numpy. We provide separate seeds in order to sidestep an issue
+        with goal generation in MetaWorld.
     time_limit : int
         Limit on number of steps for environment.
     allow_early_resets : bool
@@ -125,7 +140,8 @@ def get_single_env_creator(
 
         # Set random seed. Note that we have to set seeds here despite having already
         # set them in main.py, so that the seeds are different between child processes.
-        np.random.seed(seed)
+        random.seed(seed)
+        np.random.seed(np_seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
@@ -415,7 +431,7 @@ class MetaWorldEnv(Env):
         """ Sample a new environment and possibly a task for that environment. """
 
         # Sample environment.
-        self.active_task = np.random.randint(self.num_tasks)
+        self.active_task = random.randrange(self.num_tasks)
         if self.save_memory:
             self.active_env = self.envs_info[self.active_task]["env_cls"]()
         else:
@@ -423,7 +439,7 @@ class MetaWorldEnv(Env):
 
         # Sample task for environment.
         env_tasks = self.envs_info[self.active_task]["tasks"]
-        task = env_tasks[np.random.randint(len(env_tasks))]
+        task = env_tasks[random.randrange(len(env_tasks))]
         self.active_env.set_task(task)
 
     def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
@@ -501,25 +517,45 @@ class SuccessEnv(gym.Wrapper):
 
 def get_metaworld_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld benchmark names. """
-    return ["MT1", "MT10", "MT50", "ML1_train", "ML1_test", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
+    return [
+        "MT1",
+        "MT10",
+        "MT50",
+        "ML1_train",
+        "ML1_test",
+        "ML10_train",
+        "ML45_train",
+        "ML10_test",
+        "ML45_test",
+    ]
 
 
 def get_metaworld_mt_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld multi-task benchmark names. """
     return ["MT1", "MT10", "MT50"]
 
+
 def get_metaworld_ml_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld meta-learning benchmark names. """
-    return ["ML1_train", "ML1_test", "ML10_train", "ML45_train", "ML10_test", "ML45_test"]
+    return [
+        "ML1_train",
+        "ML1_test",
+        "ML10_train",
+        "ML45_train",
+        "ML10_test",
+        "ML45_test",
+    ]
 
 
 def get_metaworld_single_benchmark_names() -> List[str]:
     """ Returns a list of Metaworld single-task benchmark names. """
     return ["MT1", "ML1_train", "ML1_test"]
 
+
 def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
     return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+
 
 def is_metaworld_env_name(env_name: str) -> bool:
     """
@@ -542,7 +578,7 @@ def is_metaworld_env_name(env_name: str) -> bool:
     for single_benchmark_name in single_benchmark_names:
         prefix = single_benchmark_name + "_"
         if env_name.startswith(prefix):
-            remainder = env_name[len(prefix):]
+            remainder = env_name[len(prefix) :]
             if remainder in env_names:
                 is_mw = True
 

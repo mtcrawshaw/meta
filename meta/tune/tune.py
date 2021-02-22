@@ -166,8 +166,8 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     else:
         raise ValueError("Unsupported metric type: '%s'." % fitness_metric_type)
 
-    # Set random seed. Note that this may cause reproducibility issues if the train()
-    # function ever comes to use the random module.
+    # Set random seed. Note that this may cause reproducibility issues since the train()
+    # function now uses the random module.
     random.seed(seed)
 
     # Run the chosen search strategy.

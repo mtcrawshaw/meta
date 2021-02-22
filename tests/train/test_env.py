@@ -207,7 +207,7 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
       benchmarks). Also, the initial placement of objects is fixed across episodes
       (multi task learning benchmarks) or resampled each episode (meta learning
       benchmarks).
-    - Initial observations are not identical between episodes from the same task.
+    - Initial hand positions are identical between episodes from the same task.
     """
 
     # Check if we are running a multi-task benchmark.
@@ -225,15 +225,14 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
     if multitask:
         task_check(rollout)
 
-    # Check goal resampling, if necessary. We don't check this in the case that
-    # observations are normalized, because in this case the same goal will look
-    # different on separate transitions.
+    # Check goal resampling and initial observations, if necessary. We don't check this
+    # in the case that observations are normalized, because in this case the same
+    # goal/observation will look different on separate transitions due to varying
+    # normalization statistics.
     check_goals = not settings["normalize_transition"]
     if check_goals:
         goal_check(rollout, resample_goals, multitask)
-
-    # Check that initial observations are not all identical.
-    initial_obs_check(rollout, multitask)
+        initial_hand_check(rollout, multitask)
 
 
 def get_metaworld_rollout(
@@ -253,6 +252,7 @@ def get_metaworld_rollout(
         normalize_transition=settings["normalize_transition"],
         normalize_first_n=settings["normalize_first_n"],
         allow_early_resets=True,
+        same_np_seed=True,
     )
     policy = get_policy(env, settings)
     rollout = RolloutStorage(
@@ -381,7 +381,7 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
         # remain fixed across episodes, otherwise set new goal.
         for process in range(len(obs)):
             done = dones[process]
-            if done and resample_goals:
+            if done and (resample_goals or multitask):
                 goals[process] = new_goals[process]
             else:
                 assert (goals[process] == new_goals[process]).all()
@@ -430,22 +430,23 @@ def goal_check(rollout: RolloutStorage, resample_goals: bool, multitask: bool) -
     print("\nInitial object positions for each task: %s" % str(episode_object_pos))
 
 
-def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
+def initial_hand_check(rollout: RolloutStorage, multitask: bool) -> None:
     """
-    Given a rollout, checks that initial observations are not identical between
-    episodes from the same process.
+    Given a rollout, checks that initial hand positions are identical between episodes
+    from the same task.
     """
 
-    # Get initial observation of first episode for each process.
-    initial_obs = {}
+    # Get initial hand position of first episode for each process.
+    initial_hand_pos = {}
     for process in range(rollout.num_processes):
         task = get_task_indices(rollout.obs[0])[process] if multitask else 0
-        if (task, process) in initial_obs:
-            initial_obs[(task, process)].append(rollout.obs[0, process])
+        hand_pos = get_hand_pos(rollout.obs[0])[process]
+        if task in initial_hand_pos:
+            initial_hand_pos[task].append(hand_pos)
         else:
-            initial_obs[(task, process)] = [rollout.obs[0, process]]
+            initial_hand_pos[task] = [hand_pos]
 
-    # Step through rollout and collect initial observations from each episode.
+    # Step through rollout and collect initial hand positions from each episode.
     for step in range(1, rollout.rollout_length):
 
         # Get information from step.
@@ -457,31 +458,32 @@ def initial_obs_check(rollout: RolloutStorage, multitask: bool) -> None:
         )
 
         # If an observation is the beginning of a new episode, add it to the list of
-        # initial observations for its task.
+        # initial hand positions for its task.
+        hand_pos = get_hand_pos(obs)
         for process in range(len(obs)):
             if dones[process]:
                 task = task_indices[process]
-                if (task, process) not in initial_obs:
-                    initial_obs[(task, process)] = []
-                initial_obs[(task, process)].append(obs[process])
+                if task not in initial_hand_pos:
+                    initial_hand_pos[task] = []
+                initial_hand_pos[task].append(hand_pos[process])
 
     # Check that initial observations are unique across episodes.
-    enough_ratio = sum(len(obs) >= TASK_EPISODES for obs in initial_obs.values()) / len(
-        initial_obs
-    )
+    enough_ratio = sum(
+        len(obs) >= TASK_EPISODES for obs in initial_hand_pos.values()
+    ) / len(initial_hand_pos)
     if enough_ratio < ENOUGH_THRESHOLD:
         raise ValueError(
             "Less than %d episodes ran for more than half of task/process pairs, which"
             " is the minimum amount needed for testing. Try increasing rollout length."
             % (TASK_EPISODES)
         )
-    for (task, process), obs in initial_obs.items():
+    for task, obs in initial_hand_pos.items():
         if len(obs) >= TASK_EPISODES:
             obs_arr = np.array([ob.numpy() for ob in obs])
-            num_unique_obs = len(np.unique(obs_arr, axis=0))
-            assert num_unique_obs > 1
+            num_unique_obs = len(np.unique(obs_arr.round(decimals=3), axis=0))
+            assert num_unique_obs == 1
 
-    print("\nInitial obs for each task/process: %s" % str(initial_obs))
+    print("\nInitial obs for each task/process: %s" % str(initial_hand_pos))
 
 
 def get_task_indices(obs: torch.Tensor) -> List[int]:
@@ -504,12 +506,13 @@ def get_task_indices(obs: torch.Tensor) -> List[int]:
     return task_indices
 
 
-def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
+def get_hand_pos(obs: torch.Tensor) -> List[np.ndarray]:
     """
-    Get the goals written in each observation from a batch of observations. Note that
-    this will have to change if the format of the Meta-World observations ever changes.
+    Get the hand positions written in each observation from a batch of observations.
+    Note that this will have to change if the format of the Meta-World observations ever
+    changes.
     """
-    return [x[9:12] for x in obs]
+    return [x[:3] for x in obs]
 
 
 def get_object_pos(obs: torch.Tensor) -> List[np.ndarray]:
@@ -519,3 +522,11 @@ def get_object_pos(obs: torch.Tensor) -> List[np.ndarray]:
     changes.
     """
     return [x[3:9] for x in obs]
+
+
+def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
+    """
+    Get the goals written in each observation from a batch of observations. Note that
+    this will have to change if the format of the Meta-World observations ever changes.
+    """
+    return [x[9:12] for x in obs]
