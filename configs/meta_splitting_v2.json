@@ -103,6 +103,6 @@
     "load_from": null,
     "time_limit": 8,
     "save_name": null,
-    "same_np_seed": false,
+    "same_np_seed": true,
     "save_memory": false
 }

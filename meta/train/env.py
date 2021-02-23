@@ -1,5 +1,6 @@
 """ Environment wrappers + functionality. """
 
+import pickle
 import random
 from typing import Dict, Tuple, List, Any, Callable
 
@@ -27,11 +28,12 @@ def get_env(
     normalize_first_n: int = None,
     allow_early_resets: bool = False,
     same_np_seed: bool = False,
-    save_memory: bool = False,
+    **kwargs: Dict[str, Any],
 ) -> Env:
     """
     Return environment object from environment name, with wrappers for added
-    functionality, such as multiprocessing and observation/reward normalization.
+    functionality, such as multiprocessing and observation/reward normalization. Extra
+    arguments are passed to environment constructor.
 
     Parameters
     ----------
@@ -55,12 +57,6 @@ def get_env(
         Whether or not to use the same numpy random seed across each process. This
         should really only be used when training on MetaWorld, as it allows for multiple
         processes to generate/act over the same set of goals.
-    save_memory : bool
-        Only applicable to MetaWorld benchmark environments. Whether or not to use
-        version of MetaWorld benchmarks that saves memory by instantiating only one
-        environment at a time. If this is done, then the memory cost is constant even as
-        the number of environments grow, but it requires taking more time to
-        re-instantiate environments at the beginning of each episode.
 
     Returns
     -------
@@ -76,7 +72,7 @@ def get_env(
         np_seeds = list(seeds)
     env_creators = [
         get_single_env_creator(
-            env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, save_memory
+            env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, **kwargs
         )
         for i in range(num_processes)
     ]
@@ -103,12 +99,13 @@ def get_single_env_creator(
     np_seed: int = 1,
     time_limit: int = None,
     allow_early_resets: bool = False,
-    save_memory: bool = False,
+    **kwargs: Dict[str, Any],
 ) -> Callable[..., Env]:
     """
     Return a function that returns environment object with given env name. Used to
     create a vectorized environment i.e. an environment object holding multiple
-    asynchronous copies of the same envrionment.
+    asynchronous copies of the same envrionment. Extra arguments are passed to
+    environment constructor.
 
     Parameters
     ----------
@@ -123,12 +120,6 @@ def get_single_env_creator(
         Limit on number of steps for environment.
     allow_early_resets : bool
         Whether or not to allow environments before done=True is returned.
-    save_memory : bool
-        Only applicable to MetaWorld benchmark environments. Whether or not to use
-        version of MetaWorld benchmarks that saves memory by instantiating only one
-        environment at a time. If this is done, then the memory cost is constant even as
-        the number of environments grow, but it requires taking more time to
-        re-instantiate environments at the beginning of each episode.
 
     Returns
     -------
@@ -149,13 +140,13 @@ def get_single_env_creator(
         metaworld_env_names = get_metaworld_env_names()
         metaworld_benchmark_names = get_metaworld_benchmark_names()
         if is_metaworld_env_name(env_name):
-            env = MetaWorldEnv(env_name, save_memory=save_memory)
+            env = MetaWorldEnv(env_name, **kwargs)
         elif env_name == "unique-env":
-            env = UniqueEnv()
+            env = UniqueEnv(**kwargs)
         elif env_name == "parity-env":
-            env = ParityEnv()
+            env = ParityEnv(**kwargs)
         else:
-            env = gym.make(env_name)
+            env = gym.make(env_name, **kwargs)
 
         # Set environment seed.
         env.seed(seed)
@@ -339,12 +330,18 @@ class TimeLimitEnv(gym.Wrapper):
 class MetaWorldEnv(Env):
     """ Environment to wrap MetaWorld environments. """
 
-    def __init__(self, benchmark_name: str, save_memory: bool = False) -> None:
+    def __init__(
+        self,
+        benchmark_name: str,
+        save_memory: bool = False,
+        add_observability: bool = False,
+    ) -> None:
         """ Init function for environment wrapper. """
 
         # We import here so that we avoid importing metaworld if possible, since it is
         # dependent on mujoco.
         import metaworld
+        from metaworld import Task
 
         # Set config for each benchmark.
         if benchmark_name.startswith("MT1_"):
@@ -369,6 +366,14 @@ class MetaWorldEnv(Env):
             resample_tasks = False
             self.augment_obs = True
 
+        elif benchmark_name.startswith("ML1_train_"):
+            env_name = benchmark_name[10:]
+            benchmark = metaworld.ML1(env_name)
+            env_dict = {env_name: benchmark.train_classes[env_name]}
+            tasks = benchmark.train_tasks
+            resample_tasks = True
+            self.augment_obs = False
+
         elif benchmark_name == "ML10_train":
             benchmark = metaworld.ML10()
             env_dict = benchmark.train_classes
@@ -382,6 +387,14 @@ class MetaWorldEnv(Env):
             tasks = benchmark.train_tasks
             resample_tasks = True
             self.augment_obs = True
+
+        elif benchmark_name.startswith("ML1_test_"):
+            env_name = benchmark_name[9:]
+            benchmark = metaworld.ML1(env_name)
+            env_dict = {env_name: benchmark.test_classes[env_name]}
+            tasks = benchmark.test_tasks
+            resample_tasks = True
+            self.augment_obs = False
 
         elif benchmark_name == "ML10_test":
             benchmark = metaworld.ML10()
@@ -400,9 +413,15 @@ class MetaWorldEnv(Env):
         else:
             raise NotImplementedError
 
-        # Construct list of tasks for each environment.
+        # Construct list of tasks for each environment, adding observability to tasks if
+        # necessary.
         env_tasks = {}
         for task in tasks:
+            if add_observability:
+                task_data = dict(pickle.loads(task.data))
+                task_data["partially_observable"] = False
+                task = Task(env_name=task.env_name, data=pickle.dumps(task_data))
+
             if task.env_name in env_tasks:
                 if resample_tasks:
                     env_tasks[task.env_name].append(task)

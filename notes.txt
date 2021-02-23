@@ -48,7 +48,7 @@ To do:
 - Fix MetaWorld env wrappers so as to correctly sample goals/object positions (DONE)
 - Fix tests to correctly test assumptions about task variation (DONE)
 - Add same_np_seed option to config files! Make it required (DONE)
-- Add tests so that we cover ALL benchmarks
+- Add tests so that we cover ALL benchmarks (in progress)
 - Create new baselines
 
 Before benchmarking performance on Meta-Learning tasks, we need to understand how the
@@ -65,6 +65,10 @@ different set of goals for each task, so that the number of possible goals will 
 increase over the originally intended 50, and each process will only train on a subset
 of those goals. Not bad but it is annoying that we have that extra variation.
 Figure out the behavior in each case and choose then.
+
+Added tests for MLX benchmarks but some of them are still failing. A couple fail due to
+a MetaWorld issue and the other ones I have yet to investigate. Do this before moving
+on.
 
 
 ----------------------------------------------------------------------------------------

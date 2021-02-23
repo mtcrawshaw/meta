@@ -23,6 +23,7 @@ TIME_LIMIT = 4
 PROCESS_EPISODES = 5
 TASK_EPISODES = 3
 ENOUGH_THRESHOLD = 0.5
+SINGLE_ENV_NAME = "reach-v1"
 
 
 def test_collect_rollout_MT1_single() -> None:
@@ -33,12 +34,13 @@ def test_collect_rollout_MT1_single() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "MT1_reach-v1"
+    settings["env_name"] = "MT1_%s" % SINGLE_ENV_NAME
     settings["num_processes"] = 1
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -52,12 +54,13 @@ def test_collect_rollout_MT1_single_normalize() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "MT1_reach-v1"
+    settings["env_name"] = "MT1_%s" % SINGLE_ENV_NAME
     settings["num_processes"] = 1
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -70,12 +73,13 @@ def test_collect_rollout_MT1_multi() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "MT1_reach-v1"
+    settings["env_name"] = "MT1_%s" % SINGLE_ENV_NAME
     settings["num_processes"] = 4
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -89,12 +93,13 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     """
 
     settings = dict(DEFAULT_SETTINGS)
-    settings["env_name"] = "MT1_reach-v1"
+    settings["env_name"] = "MT1_%s" % SINGLE_ENV_NAME
     settings["num_processes"] = 4
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -113,6 +118,7 @@ def test_collect_rollout_MT10_single() -> None:
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -132,6 +138,7 @@ def test_collect_rollout_MT10_single_normalize() -> None:
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -150,6 +157,7 @@ def test_collect_rollout_MT10_multi() -> None:
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -169,6 +177,7 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = True
 
     check_metaworld_rollout(settings)
 
@@ -189,6 +198,323 @@ def _test_collect_rollout_MT50_multi() -> None:
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_train_single() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_train_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_train_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process and observation
+    normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_train_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_train_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_train_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_train_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and observation normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_train_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_test_single() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_test_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_test_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process and observation
+    normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_test_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_test_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_test_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML1_test_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML1_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and observation normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML1_test_%s" % SINGLE_ENV_NAME
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_train_single() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_train"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_train_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process and observation
+    normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_train"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_train_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_train"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_train_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and observation normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_train"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_test_single() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_test"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_test_single_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, with a single process and observation
+    normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_test"
+    settings["num_processes"] = 1
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_test_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_test"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML10_test_multi_normalize() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML10_test benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and observation normalization.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML10_test"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = True
+    settings["normalize_first_n"] = 12
+    settings["same_np_seed"] = False
 
     check_metaworld_rollout(settings)
 
@@ -216,7 +542,10 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
 
     # Determine whether or not goals should be resampled.
     ml_benchmarks = get_metaworld_ml_benchmark_names()
-    resample_goals = settings["env_name"] in ml_benchmarks
+    resample_goals = settings["env_name"] in ml_benchmarks or settings[
+        "env_name"
+    ].startswith("ML1_")
+    settings["add_observability"] = resample_goals
 
     # Perform rollout.
     rollout = get_metaworld_rollout(settings)
@@ -252,7 +581,8 @@ def get_metaworld_rollout(
         normalize_transition=settings["normalize_transition"],
         normalize_first_n=settings["normalize_first_n"],
         allow_early_resets=True,
-        same_np_seed=True,
+        same_np_seed=settings["same_np_seed"],
+        add_observability=settings["add_observability"],
     )
     policy = get_policy(env, settings)
     rollout = RolloutStorage(
@@ -479,11 +809,11 @@ def initial_hand_check(rollout: RolloutStorage, multitask: bool) -> None:
         )
     for task, obs in initial_hand_pos.items():
         if len(obs) >= TASK_EPISODES:
-            obs_arr = np.array([ob.numpy() for ob in obs])
-            num_unique_obs = len(np.unique(obs_arr.round(decimals=3), axis=0))
+            obs_arr = np.array([ob.numpy() for ob in obs]).round(decimals=3)
+            num_unique_obs = len(np.unique(obs_arr, axis=0))
             assert num_unique_obs == 1
 
-    print("\nInitial obs for each task/process: %s" % str(initial_hand_pos))
+    print("\nInitial obs for each task: %s" % str(initial_hand_pos))
 
 
 def get_task_indices(obs: torch.Tensor) -> List[int]:
