@@ -46,22 +46,9 @@ To do:
 - Fix tests so that we are correctly checking sampled goals positions (DONE)
 - Add tests to check that initial object positions are correctly sampled (DONE)
 - Fix MetaWorld env wrappers so as to correctly sample goals/object positions (DONE)
-- Fix tests to correctly test assumptions about task variation
+- Fix tests to correctly test assumptions about task variation (DONE)
 - Add tests so that we cover ALL benchmarks
-
-New task variation assumptions:
-- initial hand positions are the same across every episode for the same task (DONE)
-- initial object positions are the same across every episode of the same task for
-  multi-task benchmarks and not identical across episodes of the same task for
-  meta-learning benchmarks (DONE)
-- goals are the same for every step of an episode. goals are the same across every
-  episode of the same task for multi-task benchmarks and not identical across episodes
-  of the same task for meta-learning benchmarks (DONE)
-
-One weird thing: in the first episode from each process on an environment, the initial
-object position is different from the initial object position in all other episodes.
-This is weird and maybe a a MetaWorld thing? I'm not even sure how these are generated
-so we should look into this. Other than that, the MetaWorld tests are passing.
+- Add same_np_seed option to config files! Maybe don't make it optional
 
 
 ----------------------------------------------------------------------------------------
