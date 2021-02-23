@@ -106,6 +106,14 @@ def train(
         Name of metrics baseline file to compare against.
     save_name : str
         Name to save experiments under.
+    same_np_seed : bool
+        Whether or not to use the same numpy random seed across each process. This
+        should really only be used when training on MetaWorld, as it allows for multiple
+        processes to generate/act over the same set of goals.
+    save_memory : bool
+        (Optional) Whether or not to save memory when training on a multi-task MetaWorld
+        benchmark by creating a new environment instance at each episode. Only
+        applicable to MetaWorld training. Defaults to False if not included.
     """
 
     # Construct save directory.
@@ -170,7 +178,6 @@ def train(
     # Set environment and policy.
     num_tasks = get_num_tasks(config["env_name"])
     save_memory = config["save_memory"] if "save_memory" in config else False
-    same_np_seed = config["same_np_seed"] if "same_np_seed" in config else False
     env = get_env(
         config["env_name"],
         config["num_processes"],
@@ -180,7 +187,7 @@ def train(
         config["normalize_first_n"],
         allow_early_resets=True,
         save_memory=save_memory,
-        same_np_seed=same_np_seed,
+        same_np_seed=config["same_np_seed"],
     )
     if policy is None:
         policy = PPOPolicy(

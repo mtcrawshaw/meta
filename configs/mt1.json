@@ -52,5 +52,6 @@
     "time_limit": 200,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": null
+    "save_name": null,
+    "same_np_seed": true
 }

@@ -27,7 +27,7 @@ for env_name, env_cls in env_dict.items():
 
     # Step through environment for a fixed number of episodes.
     for episode in range(NUM_EPISODES):
-        
+
         # Reset environment and extract initial object position.
         obs = env.reset()
         initial_obj_pos = get_obj_pos(obs)

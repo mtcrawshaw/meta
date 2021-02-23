@@ -53,4 +53,5 @@
     "metrics_filename": null,
     "baseline_metrics_filename": null,
     "save_name": "save_test"
+    "same_np_seed": false,
 }

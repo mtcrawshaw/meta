@@ -26,8 +26,8 @@ def get_env(
     normalize_transition: bool = True,
     normalize_first_n: int = None,
     allow_early_resets: bool = False,
-    save_memory: bool = False,
     same_np_seed: bool = False,
+    save_memory: bool = False,
 ) -> Env:
     """
     Return environment object from environment name, with wrappers for added
@@ -51,16 +51,16 @@ def get_env(
         ignored.
     allow_early_resets: bool
         Whether or not to allow environments before done=True is returned.
+    same_np_seed : bool
+        Whether or not to use the same numpy random seed across each process. This
+        should really only be used when training on MetaWorld, as it allows for multiple
+        processes to generate/act over the same set of goals.
     save_memory : bool
         Only applicable to MetaWorld benchmark environments. Whether or not to use
         version of MetaWorld benchmarks that saves memory by instantiating only one
         environment at a time. If this is done, then the memory cost is constant even as
         the number of environments grow, but it requires taking more time to
         re-instantiate environments at the beginning of each episode.
-    same_np_seed : bool
-        Whether or not to use the same numpy random seed across each process. This
-        should really only be used when training on MetaWorld, as it allows for multiple
-        processes to generate/act over the same set of goals.
 
     Returns
     -------

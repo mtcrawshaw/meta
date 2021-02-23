@@ -103,5 +103,6 @@
     "metrics_filename": null,
     "baseline_metrics_filename": null,
     "save_name": null,
+    "same_np_seed": false,
     "save_memory": false
 }
