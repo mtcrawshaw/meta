@@ -41,6 +41,7 @@ def test_collect_rollout_MT1_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -61,6 +62,7 @@ def test_collect_rollout_MT1_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -80,6 +82,7 @@ def test_collect_rollout_MT1_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -100,6 +103,7 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -119,6 +123,7 @@ def test_collect_rollout_MT10_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -139,6 +144,7 @@ def test_collect_rollout_MT10_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -158,6 +164,7 @@ def test_collect_rollout_MT10_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -178,6 +185,27 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_MT10_multi_save_memory() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, when running a multi-process environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
+    settings["save_memory"] = True
 
     check_metaworld_rollout(settings)
 
@@ -199,6 +227,7 @@ def _test_collect_rollout_MT50_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -218,6 +247,7 @@ def test_collect_rollout_ML1_train_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -238,6 +268,7 @@ def test_collect_rollout_ML1_train_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -258,6 +289,7 @@ def test_collect_rollout_ML1_train_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -278,6 +310,7 @@ def test_collect_rollout_ML1_train_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -297,6 +330,7 @@ def test_collect_rollout_ML1_test_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -317,6 +351,7 @@ def test_collect_rollout_ML1_test_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -337,6 +372,7 @@ def test_collect_rollout_ML1_test_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -357,6 +393,7 @@ def test_collect_rollout_ML1_test_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -376,6 +413,7 @@ def test_collect_rollout_ML10_train_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -396,6 +434,7 @@ def test_collect_rollout_ML10_train_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -416,6 +455,7 @@ def test_collect_rollout_ML10_train_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -436,6 +476,7 @@ def test_collect_rollout_ML10_train_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -455,6 +496,7 @@ def test_collect_rollout_ML10_test_single() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -475,6 +517,7 @@ def test_collect_rollout_ML10_test_single_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -495,6 +538,7 @@ def test_collect_rollout_ML10_test_multi() -> None:
     settings["normalize_transition"] = False
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -515,6 +559,7 @@ def test_collect_rollout_ML10_test_multi_normalize() -> None:
     settings["normalize_transition"] = True
     settings["normalize_first_n"] = 12
     settings["same_np_seed"] = False
+    settings["save_memory"] = False
 
     check_metaworld_rollout(settings)
 
@@ -583,6 +628,7 @@ def get_metaworld_rollout(
         allow_early_resets=True,
         same_np_seed=settings["same_np_seed"],
         add_observability=settings["add_observability"],
+        save_memory=settings["save_memory"],
     )
     policy = get_policy(env, settings)
     rollout = RolloutStorage(
