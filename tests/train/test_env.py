@@ -18,12 +18,14 @@ from meta.train.env import (
 from tests.helpers import get_policy, DEFAULT_SETTINGS
 
 
+METAWORLD_OBS_GOAL_POS = 39
+
 ROLLOUT_LENGTH = 128
 TIME_LIMIT = 4
 PROCESS_EPISODES = 5
 TASK_EPISODES = 3
 ENOUGH_THRESHOLD = 0.5
-SINGLE_ENV_NAME = "reach-v1"
+SINGLE_ENV_NAME = "reach-v2"
 
 
 def test_collect_rollout_MT1_single() -> None:
@@ -60,7 +62,7 @@ def test_collect_rollout_MT1_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = True
     settings["save_memory"] = False
 
@@ -101,7 +103,7 @@ def test_collect_rollout_MT1_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = True
     settings["save_memory"] = False
 
@@ -142,7 +144,7 @@ def test_collect_rollout_MT10_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = True
     settings["save_memory"] = False
 
@@ -183,7 +185,7 @@ def test_collect_rollout_MT10_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = True
     settings["save_memory"] = False
 
@@ -266,7 +268,7 @@ def test_collect_rollout_ML1_train_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -308,7 +310,7 @@ def test_collect_rollout_ML1_train_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -349,7 +351,7 @@ def test_collect_rollout_ML1_test_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -391,7 +393,7 @@ def test_collect_rollout_ML1_test_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -432,7 +434,7 @@ def test_collect_rollout_ML10_train_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -474,7 +476,7 @@ def test_collect_rollout_ML10_train_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -515,7 +517,7 @@ def test_collect_rollout_ML10_test_single_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -557,7 +559,7 @@ def test_collect_rollout_ML10_test_multi_normalize() -> None:
     settings["rollout_length"] = ROLLOUT_LENGTH
     settings["time_limit"] = TIME_LIMIT
     settings["normalize_transition"] = True
-    settings["normalize_first_n"] = 12
+    settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
 
@@ -568,7 +570,7 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
     """
     Verify that rollouts on MetaWorld benchmarks satisfy a few assumptions:
     - If running a multi-task benchmark, each observation is a vector with length at
-      least 12, and the elements after 12 form a one-hot vector with length equal to the
+      least 39, and the elements after 39 form a one-hot vector with length equal to the
       number of tasks denoting the task index. The task denoted by the one-hot vector
       changes when we encounter a done=True, and only then. Also, each process should
       resample tasks each episode, and the sequence of tasks sampled by each process
@@ -868,7 +870,7 @@ def get_task_indices(obs: torch.Tensor) -> List[int]:
     observation from each environment.
     """
 
-    index_obs = obs[:, 12:]
+    index_obs = obs[:, METAWORLD_OBS_GOAL_POS:]
 
     # Make sure that each observation has exactly one non-zero entry, and that the
     # nonzero entry is equal to 1.
@@ -897,7 +899,7 @@ def get_object_pos(obs: torch.Tensor) -> List[np.ndarray]:
     Note that this will have to change if the format of the Meta-World observations ever
     changes.
     """
-    return [x[3:9] for x in obs]
+    return [x[3:17] for x in obs]
 
 
 def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
@@ -905,4 +907,4 @@ def get_goals(obs: torch.Tensor) -> List[np.ndarray]:
     Get the goals written in each observation from a batch of observations. Note that
     this will have to change if the format of the Meta-World observations ever changes.
     """
-    return [x[9:12] for x in obs]
+    return [x[36:39] for x in obs]

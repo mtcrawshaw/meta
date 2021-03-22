@@ -28,8 +28,8 @@ Minor versions (MT10/MT50 baselines):
 
 Current sprint (Meta splitting networks):
     Update Meta-World
---> Benchmark performance for single-task learning
-    Benchmark performance for multi-task learning with splitting networks and multi-task PPO
+    Benchmark performance for single-task learning
+--> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
     Benchmark performance for meta-learning with splitting networks
     Improve performance for single-task learning
     Improve performance for multi-task learning with splitting networks
@@ -68,8 +68,43 @@ Figure out the behavior in each case and choose then.
 
 Added tests for MLX benchmarks but some of them are still failing. One fails due to not
 setting the same np seed across tasks, though we need to figure out our plan for that
-one before we choose how to set the seeds. I'm not sure why the other two fail.  Do this
+one before we choose how to set the seeds. I'm not sure why the other two fail. Fix this
 before moving on.
+
+Coming back 3/16:
+Running evaluations right now is not the move since I only have one machine and I can't
+run evaluations and develop simultaneously. It would be much smarter to create another
+multi-task environment to test our code on and only run MetaWorld when its time to
+actually evaluate performance. So there are a few things that we should do from here:
+- Finish MetaWorld environment tests + create new baselines
+- Create smaller multi-task environment (multi-task Cartpole?)
+- Analyze multi-task gradients throughout training
+- Compute single-task performance during multi-task training
+The first two things will give us environments for fast testing and correct evaluation,
+and the second two will give us a better idea of the behavior and training dynamics of
+the learning algorithm. After we finish these, we should tune hyperparameters on multi
+cartpole, then run evaluations on MT10 (assuming we have a second machine by then).
+Also, we should tag v0.5 after we finish the first two items.
+
+Update on MLX initial hand pos test failure: We also get failures for ML10_train_single
+if we change the seed to 2 (DEFAULT_SETTINGS). So this has nothing to do with multiple
+processes, the hand initialization is inconsistent within each process. I've narrowed it
+down to _reset_hand() in SawyerXYZEnv in MetaWorld. They do some sort of iteration over
+simulated actions to initialize the hand, and for some reason the end result of this
+process is inconsistent. Debug code to print this process is still in this function.
+Next step is to write up an MWE and post a GitHub issue. Then work on the other failing
+tests while we wait for that to get resolved.
+
+Update 3/22: Pulled MetaWorld update to v2 environments, lots of changes in observation
+structure. I modified the tests to accommodate these changes, but we still have a few
+failures, which I detailed below:
+- test_collect_rollout_ML10_train_multi: initial object positions for task 9 are not
+  being resampled
+- test_collect_rollout_ML10_test_single: goals for task 3 are not being resampled
+- test_collect_rollout_ML10_test_multi: goals for task 3 are not being resampled
+Keep in mind that we still haven't finalized whether or not to unify the np seed across
+processes for MLX benchmarks. Also, we need to make sure to add tests for MT50, ML50,
+and save memory option.
 
 
 ----------------------------------------------------------------------------------------
@@ -149,7 +184,8 @@ Training infrastructure:
       config file instead of a single value. Just getting training to work like this
       will be easy, the more annoying part will be saving and loading over these
       compound runs.
-    - Measure training metrics on each individual task during multi-task training.
+    - Measure training metrics on each individual task during multi-task training,
+      create a single plot with a subplot for each individual task.
     - Saving/loading for meta-learning runs.
     - Add option to meta-test by loading a meta-trained model.
 - Nice to have:
@@ -172,6 +208,9 @@ Training infrastructure:
       if thrashing is present.
     - Output hyperparameter tables in performance plots.
     - Tests of statistical significance of results when comparing different methods.
+    - History of saved experiments: Right now experiment history is only preserved
+      through files written to "results/". It would be nice to access a list of
+      experiments sorted by date and including name and some metrics.
 
 RL training:
 - Refactoring:
@@ -304,6 +343,8 @@ Hyperparameter search:
       having individual values within this config, we just have a list of values, or
       another dict which describes the search space.
 - Additions:
+    - An actual good random search: Check Bengio et al. (2014ish) for a competitive
+      random hyperparameter search technique
     - Another hp search strategy: IC grid search, but which parameter to vary is chosen
       automatically. Each parameter is varied once to get an initial tuning for each
       one, then the next parameter to tune is sampled from a distribution in which the
@@ -318,6 +359,9 @@ Hyperparameter search:
 - Nice to have:
     - Plots to show progression of various hyperparameters during hyperparameter search
     - Include name of search parameter in name of results file for IC grid search
+    - Make it so that tune runs are consistent with train runs. This means if we run the
+      same config through "train" as with one step of "tune", they will create the same
+      results. This will likely involve separating the random seeds used in each.
 
 Tests:
 - Refactoring:

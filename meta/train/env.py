@@ -573,7 +573,7 @@ def get_metaworld_single_benchmark_names() -> List[str]:
 
 def get_metaworld_env_names() -> List[str]:
     """ Returns a list of Metaworld environment names. """
-    return HARD_MODE_CLS_DICT["train"] + HARD_MODE_CLS_DICT["test"]
+    return MT50_V2
 
 
 def is_metaworld_env_name(env_name: str) -> bool:
@@ -593,7 +593,7 @@ def is_metaworld_env_name(env_name: str) -> bool:
     if env_name in benchmark_names and env_name not in single_benchmark_names:
         is_mw = True
 
-    # Check if `env_name` specifies an benchmark a single task.
+    # Check if `env_name` specifies a single task benchmark.
     for single_benchmark_name in single_benchmark_names:
         prefix = single_benchmark_name + "_"
         if env_name.startswith(prefix):
@@ -713,61 +713,57 @@ REWARD_THRESHOLDS = {
 
 
 # HARDCODE. This is copied from the metaworld repo to avoid the need to import metaworld
-# unnencessarily. Since it relies on mujoco, we don't want to import it if we don't have
-# to.
-HARD_MODE_CLS_DICT = {
-    "train": [
-        "reach-v1",
-        "push-v1",
-        "pick-place-v1",
-        "door-open-v1",
-        "drawer-open-v1",
-        "drawer-close-v1",
-        "button-press-topdown-v1",
-        "peg-insert-side-v1",
-        "window-open-v1",
-        "window-close-v1",
-        "door-close-v1",
-        "reach-wall-v1",
-        "pick-place-wall-v1",
-        "push-wall-v1",
-        "button-press-v1",
-        "button-press-topdown-wall-v1",
-        "button-press-wall-v1",
-        "peg-unplug-side-v1",
-        "disassemble-v1",
-        "hammer-v1",
-        "plate-slide-v1",
-        "plate-slide-side-v1",
-        "plate-slide-back-v1",
-        "plate-slide-back-side-v1",
-        "handle-press-v1",
-        "handle-pull-v1",
-        "handle-press-side-v1",
-        "handle-pull-side-v1",
-        "stick-push-v1",
-        "stick-pull-v1",
-        "basketball-v1",
-        "soccer-v1",
-        "faucet-open-v1",
-        "faucet-close-v1",
-        "coffee-push-v1",
-        "coffee-pull-v1",
-        "coffee-button-v1",
-        "sweep-v1",
-        "sweep-into-v1",
-        "pick-out-of-hole-v1",
-        "assembly-v1",
-        "shelf-place-v1",
-        "push-back-v1",
-        "lever-pull-v1",
-        "dial-turn-v1",
-    ],
-    "test": [
-        "bin-picking-v1",
-        "box-close-v1",
-        "hand-insert-v1",
-        "door-lock-v1",
-        "door-unlock-v1",
-    ],
-}
+# unnencessarily. Since metaworld relies on mujoco, we don't want to import it if we
+# don't have to.
+MT50_V2 = [
+    "assembly-v2",
+    "basketball-v2",
+    "bin-picking-v2",
+    "box-close-v2",
+    "button-press-topdown-v2",
+    "button-press-topdown-wall-v2",
+    "button-press-v2",
+    "button-press-wall-v2",
+    "coffee-button-v2",
+    "coffee-pull-v2",
+    "coffee-push-v2",
+    "dial-turn-v2",
+    "disassemble-v2",
+    "door-close-v2",
+    "door-lock-v2",
+    "door-open-v2",
+    "door-unlock-v2",
+    "hand-insert-v2",
+    "drawer-close-v2",
+    "drawer-open-v2",
+    "faucet-open-v2",
+    "faucet-close-v2",
+    "hammer-v2",
+    "handle-press-side-v2",
+    "handle-press-v2",
+    "handle-pull-side-v2",
+    "handle-pull-v2",
+    "lever-pull-v2",
+    "pick-place-wall-v2",
+    "pick-out-of-hole-v2",
+    "push-back-v2",
+    "pick-place-v2",
+    "plate-slide-v2",
+    "plate-slide-side-v2",
+    "plate-slide-back-v2",
+    "plate-slide-back-side-v2",
+    "peg-insert-side-v2",
+    "peg-unplug-side-v2",
+    "soccer-v2",
+    "stick-push-v2",
+    "stick-pull-v2",
+    "push-wall-v2",
+    "push-v2",
+    "reach-wall-v2",
+    "reach-v2",
+    "shelf-place-v2",
+    "sweep-into-v2",
+    "sweep-v2",
+    "window-open-v2",
+    "window-close-v2",
+]
