@@ -19,6 +19,7 @@ class GradMonitor:
     def __init__(
         self,
         network: MLPNetwork,
+        num_tasks: int,
         ema_alpha: float = 0.999,
         cap_sample_size: bool = True,
         device: torch.device = None,
@@ -27,7 +28,7 @@ class GradMonitor:
 
         # Set state.
         self.network = network
-        self.num_tasks = self.network.num_tasks
+        self.num_tasks = num_tasks
         self.num_layers = self.network.num_layers
         self.ema_alpha = ema_alpha
         self.cap_sample_size = cap_sample_size
@@ -60,10 +61,10 @@ class GradMonitor:
         task_grads = self.get_task_grads(task_losses)
 
         # Compute distances between pairs of gradients.
-        task_grad_distances = self.get_task_grad_distances(task_grads)
+        task_grad_diffs = self.get_task_grad_diffs(task_grads)
 
         # Update running stats with new task_grad_distances and add to history.
-        self.grad_stats.update(task_grad_distances)
+        self.grad_stats.update(task_grad_diffs)
         self.grad_history.append(self.grad_stats.mean)
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
@@ -87,30 +88,28 @@ class GradMonitor:
 
         return task_grads
 
-    def get_task_grad_distances(self, task_grads: torch.Tensor) -> torch.Tensor:
-        """ Compute and return pairwise distances between task-specific gradients. """
+    def get_task_grad_diffs(self, task_grads: torch.Tensor) -> torch.Tensor:
+        """ Compute and return pairwise differences between task-specific gradients. """
 
-        task_grad_distances = torch.zeros(
+        task_grad_diffs = torch.zeros(
             (self.num_tasks, self.num_tasks, self.num_layers),
         )
 
         # Compute pairwise distances between gradients.
-        for layer in self.num_layers:
+        for layer in range(self.num_layers):
             layer_grads = task_grads[:, layer, : self.layer_sizes[layer]]
-            layer_grad_distances = torch.pow(F.pdist(layer_grads), 2)
+            layer_grad_diffs = torch.pow(F.pdist(layer_grads), 2)
 
             # Unflatten return value of `F.pdist` into the shape we need.
             pos = 0
             for i, n in enumerate(reversed(range(self.num_tasks))):
-                task_grad_distances[i, i + 1 :, layer] = layer_grad_distances[
-                    pos : pos + n
-                ]
+                task_grad_diffs[i, i + 1 :, layer] = layer_grad_diffs[pos : pos + n]
                 pos += n
 
         # Convert upper triangular tensor to symmetric tensor.
-        task_grad_distances += torch.transpose(task_grad_diffs, 0, 1)
+        task_grad_diffs += torch.transpose(task_grad_diffs, 0, 1)
 
-        return task_grad_distances
+        return task_grad_diffs
 
     def plot_stats(self, plot_path: str) -> None:
         """ Plot the history gradient statistics throughout training. """
