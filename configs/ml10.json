@@ -22,7 +22,7 @@
         "clip_value_loss": true,
         "normalize_advantages": true,
         "normalize_transition": true,
-        "normalize_first_n": 12,
+        "normalize_first_n": 39,
 
         "architecture_config": {
             "type": "splitting_v1",
@@ -86,7 +86,7 @@
         "clip_value_loss": true,
         "normalize_advantages": true,
         "normalize_transition": true,
-        "normalize_first_n": 12,
+        "normalize_first_n": 39,
 
         "architecture_config": null,
 

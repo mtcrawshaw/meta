@@ -35,12 +35,12 @@ def test_actorcritic_exclude_task():
         "actor_config": {
             "num_shared_layers": 1,
             "num_task_layers": 1,
-            "hidden_size": 12,
+            "hidden_size": 39,
         },
         "critic_config": {
             "num_shared_layers": 1,
             "num_task_layers": 1,
-            "hidden_size": 12,
+            "hidden_size": 39,
         },
     }
     settings["num_processes"] = 8
@@ -68,12 +68,12 @@ def test_actorcritic_exclude_task_recurrent():
         "actor_config": {
             "num_shared_layers": 1,
             "num_task_layers": 1,
-            "hidden_size": 12,
+            "hidden_size": 39,
         },
         "critic_config": {
             "num_shared_layers": 1,
             "num_task_layers": 1,
-            "hidden_size": 12,
+            "hidden_size": 39,
         },
     }
     settings["num_processes"] = 8

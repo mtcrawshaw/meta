@@ -3,7 +3,6 @@
 import os
 import pickle
 import json
-import random
 from typing import Any, List, Tuple, Dict
 
 import numpy as np
@@ -158,7 +157,6 @@ def train(
             pass
 
     # Set random seed, number of threads, and device.
-    random.seed(config["seed"])
     np.random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])
@@ -177,7 +175,9 @@ def train(
 
     # Set environment and policy.
     num_tasks = get_num_tasks(config["env_name"])
-    save_memory = config["save_memory"] if "save_memory" in config else False
+    kwargs = {}
+    if "save_memory" in config:
+        kwargs["save_memory"] = config["save_memory"]
     env = get_env(
         config["env_name"],
         config["num_processes"],
@@ -186,8 +186,8 @@ def train(
         config["normalize_transition"],
         config["normalize_first_n"],
         allow_early_resets=True,
-        save_memory=save_memory,
         same_np_seed=config["same_np_seed"],
+        **kwargs,
     )
     if policy is None:
         policy = PPOPolicy(

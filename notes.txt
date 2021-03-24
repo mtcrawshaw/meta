@@ -48,8 +48,8 @@ To do:
 - Fix MetaWorld env wrappers so as to correctly sample goals/object positions (DONE)
 - Fix tests to correctly test assumptions about task variation (DONE)
 - Add same_np_seed option to config files! Make it required (DONE)
-- Add tests so that we cover benchmarks (in progress)
-- Create new baselines
+- Add tests so that we cover benchmarks (DONE)
+- Create new baselines (DONE)
 
 Before benchmarking performance on Meta-Learning tasks, we need to understand how the
 goal generation/seeding issue in MetaWorld will affect these benchmarks. It seems to me
@@ -121,6 +121,27 @@ current tasks, so we have to add that in. Also, we should try adding some tolera
 np.unique() to make sure that we aren't being too strict about what uniqueness is.
 Lastly, add in the last 5 tasks from ML45 test. After this, go ahead and open an issue,
 then move on.
+
+
+----------------------------------------------------------------------------------------
+
+
+Issues
+
+
+- Save/load tests for tuning are failing. For some reason the results are inconsistent
+  between running a single tune run all the way through and saving/loading that same run
+  in the middle. This is likely due to an ability to mimic random decisions after
+  loading, but this wasn't the case before the switch to MetaWorld v2 environments.
+- MetaWorld observation tests for MLX are failing. Assumptions about variation of goals,
+  initial hand positions, and initial object positions aren't met by observations
+  returned from rollouts. This is due to issues in the MetaWorld repo, but we should
+  ensure that our tests pass once their issues are resolved.
+- MetaWorld MLX environments yield different goals for different processes. This is due
+  to the fact that the goals are randomly generated at run-time, and each process is
+  given a different random seed. One way to fix this is to give each process the same np
+  seed (which can do by setting `same_np_seed` to True in the config file), but this may
+  cause other unwanted consequences. Resolve this before running experiments on MLX.
 
 
 ----------------------------------------------------------------------------------------

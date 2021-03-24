@@ -322,7 +322,7 @@ def test_multitask_losses() -> None:
     multi-task training.
     """
 
-    # Initialize environment and policy. Note that we set `normalize_first_n` to 12,
+    # Initialize environment and policy. Note that we set `normalize_first_n` to 39,
     # since it is the size of the total observation minus the number of tasks. We also
     # set `normalize_advantages` to False, as this makes it possible to compute the task
     # specific losses while only considering each task's own transitions. Changing this
@@ -338,7 +338,7 @@ def test_multitask_losses() -> None:
         settings["env_name"],
         settings["num_processes"],
         allow_early_resets=True,
-        normalize_first_n=12,
+        normalize_first_n=39,
     )
     policy = get_policy(env, settings)
 

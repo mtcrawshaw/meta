@@ -1,7 +1,6 @@
 """ Environment wrappers + functionality. """
 
 import pickle
-import random
 from typing import Dict, Tuple, List, Any, Callable
 
 import numpy as np
@@ -131,7 +130,6 @@ def get_single_env_creator(
 
         # Set random seed. Note that we have to set seeds here despite having already
         # set them in main.py, so that the seeds are different between child processes.
-        random.seed(seed)
         np.random.seed(np_seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -449,8 +447,12 @@ class MetaWorldEnv(Env):
     def _sample_environment(self) -> None:
         """ Sample a new environment and possibly a task for that environment. """
 
-        # Sample environment.
-        self.active_task = random.randrange(self.num_tasks)
+        # Sample environment. We use torch here to get random choices in order to handle
+        # seeding separately from other parts of the code. We can't use numpy here
+        # because with multi-task benchmarks, each process is given the same numpy seed.
+        # We can't use random here because tune() uses it, and using it in both creates
+        # reproducibility issues with saving/loading during tuning.
+        self.active_task = torch.randint(high=self.num_tasks, size=(1,)).item()
         if self.save_memory:
             self.active_env = self.envs_info[self.active_task]["env_cls"]()
         else:
@@ -458,7 +460,8 @@ class MetaWorldEnv(Env):
 
         # Sample task for environment.
         env_tasks = self.envs_info[self.active_task]["tasks"]
-        task = env_tasks[random.randrange(len(env_tasks))]
+        task_choice = torch.randint(high=len(env_tasks), size=(1,)).item()
+        task = env_tasks[task_choice]
         self.active_env.set_task(task)
 
     def step(self, action: Any) -> Tuple[Any, Any, Any, Any]:
