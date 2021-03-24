@@ -196,7 +196,8 @@ def test_collect_rollout_MT10_multi_save_memory() -> None:
     """
     Test the values of the returned RolloutStorage objects collected from a rollout on
     the MetaWorld MT10 benchmark, to ensure that the task indices are returned correctly
-    and tasks/goals are resampled correctly, when running a multi-process environment.
+    and tasks/goals are resampled correctly, when running a multi-process environment
+    with the `save_memory` option enabled.
     """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -212,13 +213,11 @@ def test_collect_rollout_MT10_multi_save_memory() -> None:
     check_metaworld_rollout(settings)
 
 
-def _test_collect_rollout_MT50_multi() -> None:
+def test_collect_rollout_MT50_multi() -> None:
     """
     Test the values of the returned RolloutStorage objects collected from a rollout on
     the MetaWorld MT50 benchmark, to ensure that the task indices are returned correctly
     and tasks/goals are resampled correctly, when running a multi-process environment.
-    This test is currently commented out because it takes a long time to run, and it's
-    behavior is essentially identical to the corresponding MT10 test.
     """
 
     settings = dict(DEFAULT_SETTINGS)
@@ -230,6 +229,27 @@ def _test_collect_rollout_MT50_multi() -> None:
     settings["normalize_first_n"] = None
     settings["same_np_seed"] = True
     settings["save_memory"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_MT50_multi_save_memory() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld MT50 benchmark, to ensure that the task indices are returned correctly
+    and tasks/goals are resampled correctly, when running a multi-process environment
+    with the `save_memory` option enabled.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT50"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 8 * ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
+    settings["save_memory"] = True
 
     check_metaworld_rollout(settings)
 
@@ -562,6 +582,90 @@ def test_collect_rollout_ML10_test_multi_normalize() -> None:
     settings["normalize_first_n"] = METAWORLD_OBS_GOAL_POS
     settings["same_np_seed"] = False
     settings["save_memory"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML45_train_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML45_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML45_train"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 8 * ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+    settings["save_memory"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML45_train_multi_save_memory() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML45_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and with the `save_memory` option enabled.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML45_train"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = 8 * ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+    settings["save_memory"] = True
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML45_test_multi() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML45_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML45_test"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+    settings["save_memory"] = False
+
+    check_metaworld_rollout(settings)
+
+
+def test_collect_rollout_ML45_test_multi_save_memory() -> None:
+    """
+    Test the values of the returned RolloutStorage objects collected from a rollout on
+    the MetaWorld ML45_train benchmark, to ensure that the task indices are returned
+    correctly and goals are resampled correctly, when running a multi-process
+    environment and with the `save_memory` option enabled.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "ML45_test"
+    settings["num_processes"] = 4
+    settings["rollout_length"] = ROLLOUT_LENGTH
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = False
+    settings["save_memory"] = True
 
     check_metaworld_rollout(settings)
 

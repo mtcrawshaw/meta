@@ -99,12 +99,28 @@ Update 3/22: Pulled MetaWorld update to v2 environments, lots of changes in obse
 structure. I modified the tests to accommodate these changes, but we still have a few
 failures, which I detailed below:
 - test_collect_rollout_ML10_train_multi: initial object positions for task 9 are not
-  being resampled
+    being resampled, initial hand positions for task 9 are being resampled
 - test_collect_rollout_ML10_test_single: goals for task 3 are not being resampled
 - test_collect_rollout_ML10_test_multi: goals for task 3 are not being resampled
+- test_collect_rollout_ML45_train_multi: goals for tasks 17, 41 are not being resampled,
+    initial object positions for tasks 0, 1, 25, 30, 31, 32, 33 are not being resampled,
+    initial hand positions for tasks 1, 19, 21 are not identical
+- test_collect_rollout_ML45_train_multi_save_memory: goals for tasks 17, 41 are not
+    being resampled, initial object positions for tasks 0, 1, 25, 30, 31, 33 are not
+    being resampled, initial hand positions for tasks 1, 19, 21 are not identical
+- test_collect_rollout_ML45_test_multi: goals for task 0 are not being resampled,
+  initial hand positions for tasks 3, 4 are not identical
+- test_collect_rollout_ML45_test_multi_save_memory: goals for task 0 are not being
+    resampled, initial hand positions for tasks 3, 4 are not identical
 Keep in mind that we still haven't finalized whether or not to unify the np seed across
-processes for MLX benchmarks. Also, we need to make sure to add tests for MT50, ML50,
-and save memory option.
+processes for MLX benchmarks.
+
+3/23: Created MWE to reflect the above changes, we do get matching failures for
+hand/object positions. We need to rework goals because there is no observability in the
+current tasks, so we have to add that in. Also, we should try adding some tolerance to
+np.unique() to make sure that we aren't being too strict about what uniqueness is.
+Lastly, add in the last 5 tasks from ML45 test. After this, go ahead and open an issue,
+then move on.
 
 
 ----------------------------------------------------------------------------------------
