@@ -42,6 +42,14 @@ Performance improvements:
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
+Current we are making a tool to plot the distances between task-specific gradients
+throughout training, in an effort to test the hypothesis that the similarity between
+gradients is a consistent signal that we can learn from.
+
+To do:
+- Write GradMonitor object to compute distances between pairs of task gradients (DONE)
+- Test GradMonitor
+- Integrate GradMonitor into train() and plot task gradient distance over time
 
 ----------------------------------------------------------------------------------------
 
