@@ -14,7 +14,7 @@ Minor versions (MT10/MT50 baselines):
     Shared trunk architecture
     FC splitting networks (regions = layers)
     Meta splitting networks
---> Baselines (
+--> Evaluation + baselines (
         PCGrad,
         Branched MT networks,
         soft layer ordering,
@@ -26,7 +26,7 @@ Minor versions (MT10/MT50 baselines):
     )
     Refactoring
 
-Current sprint (Meta splitting networks):
+Current sprint (Evaluation + baselines):
     Update Meta-World
     Benchmark performance for single-task learning
 --> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
@@ -41,86 +41,6 @@ Performance improvements:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
-
-To do:
-- Fix tests so that we are correctly checking sampled goals positions (DONE)
-- Add tests to check that initial object positions are correctly sampled (DONE)
-- Fix MetaWorld env wrappers so as to correctly sample goals/object positions (DONE)
-- Fix tests to correctly test assumptions about task variation (DONE)
-- Add same_np_seed option to config files! Make it required (DONE)
-- Add tests so that we cover benchmarks (DONE)
-- Create new baselines (DONE)
-
-Before benchmarking performance on Meta-Learning tasks, we need to understand how the
-goal generation/seeding issue in MetaWorld will affect these benchmarks. It seems to me
-that in our current implementation, we have two options:
-1. Give all processes the same seed for MLX. In this case, all processes will generate
-the same set of possible goals and possibly the same sequence of goals for each task?
-I'm not sure about this though because there will be a different sequence of tasks
-between processes, so maybe that will cause the sequence of goals for a given task to
-also be different. This won't apply for ML1 though and my guess is there will definitely
-be identical sequences of goals there.
-2. Give all processes different seeds for MLX. Here processes will likely generate a
-different set of goals for each task, so that the number of possible goals will greatly
-increase over the originally intended 50, and each process will only train on a subset
-of those goals. Not bad but it is annoying that we have that extra variation.
-Figure out the behavior in each case and choose then.
-
-Added tests for MLX benchmarks but some of them are still failing. One fails due to not
-setting the same np seed across tasks, though we need to figure out our plan for that
-one before we choose how to set the seeds. I'm not sure why the other two fail. Fix this
-before moving on.
-
-Coming back 3/16:
-Running evaluations right now is not the move since I only have one machine and I can't
-run evaluations and develop simultaneously. It would be much smarter to create another
-multi-task environment to test our code on and only run MetaWorld when its time to
-actually evaluate performance. So there are a few things that we should do from here:
-- Finish MetaWorld environment tests + create new baselines
-- Create smaller multi-task environment (multi-task Cartpole?)
-- Analyze multi-task gradients throughout training
-- Compute single-task performance during multi-task training
-The first two things will give us environments for fast testing and correct evaluation,
-and the second two will give us a better idea of the behavior and training dynamics of
-the learning algorithm. After we finish these, we should tune hyperparameters on multi
-cartpole, then run evaluations on MT10 (assuming we have a second machine by then).
-Also, we should tag v0.5 after we finish the first two items.
-
-Update on MLX initial hand pos test failure: We also get failures for ML10_train_single
-if we change the seed to 2 (DEFAULT_SETTINGS). So this has nothing to do with multiple
-processes, the hand initialization is inconsistent within each process. I've narrowed it
-down to _reset_hand() in SawyerXYZEnv in MetaWorld. They do some sort of iteration over
-simulated actions to initialize the hand, and for some reason the end result of this
-process is inconsistent. Debug code to print this process is still in this function.
-Next step is to write up an MWE and post a GitHub issue. Then work on the other failing
-tests while we wait for that to get resolved.
-
-Update 3/22: Pulled MetaWorld update to v2 environments, lots of changes in observation
-structure. I modified the tests to accommodate these changes, but we still have a few
-failures, which I detailed below:
-- test_collect_rollout_ML10_train_multi: initial object positions for task 9 are not
-    being resampled, initial hand positions for task 9 are being resampled
-- test_collect_rollout_ML10_test_single: goals for task 3 are not being resampled
-- test_collect_rollout_ML10_test_multi: goals for task 3 are not being resampled
-- test_collect_rollout_ML45_train_multi: goals for tasks 17, 41 are not being resampled,
-    initial object positions for tasks 0, 1, 25, 30, 31, 32, 33 are not being resampled,
-    initial hand positions for tasks 1, 19, 21 are not identical
-- test_collect_rollout_ML45_train_multi_save_memory: goals for tasks 17, 41 are not
-    being resampled, initial object positions for tasks 0, 1, 25, 30, 31, 33 are not
-    being resampled, initial hand positions for tasks 1, 19, 21 are not identical
-- test_collect_rollout_ML45_test_multi: goals for task 0 are not being resampled,
-  initial hand positions for tasks 3, 4 are not identical
-- test_collect_rollout_ML45_test_multi_save_memory: goals for task 0 are not being
-    resampled, initial hand positions for tasks 3, 4 are not identical
-Keep in mind that we still haven't finalized whether or not to unify the np seed across
-processes for MLX benchmarks.
-
-3/23: Created MWE to reflect the above changes, we do get matching failures for
-hand/object positions. We need to rework goals because there is no observability in the
-current tasks, so we have to add that in. Also, we should try adding some tolerance to
-np.unique() to make sure that we aren't being too strict about what uniqueness is.
-Lastly, add in the last 5 tasks from ML45 test. After this, go ahead and open an issue,
-then move on.
 
 
 ----------------------------------------------------------------------------------------

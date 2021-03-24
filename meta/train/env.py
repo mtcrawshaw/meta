@@ -135,8 +135,6 @@ def get_single_env_creator(
         torch.cuda.manual_seed_all(seed)
 
         # Make environment object from either MetaWorld or Gym.
-        metaworld_env_names = get_metaworld_env_names()
-        metaworld_benchmark_names = get_metaworld_benchmark_names()
         if is_metaworld_env_name(env_name):
             env = MetaWorldEnv(env_name, **kwargs)
         elif env_name == "unique-env":
