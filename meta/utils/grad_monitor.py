@@ -3,6 +3,10 @@ Definition of GradMonitor, which is used to analyze the relationship between gra
 of task-specific losses.
 """
 
+from itertools import product
+
+import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 
@@ -52,7 +56,7 @@ class GradMonitor:
         )
 
         # Initialize history of gradient statistics.
-        self.grad_history = []
+        self.grad_mean_history = []
 
     def update_grad_stats(
         self, task_losses: torch.Tensor = None, task_grads: torch.Tensor = None
@@ -81,7 +85,7 @@ class GradMonitor:
 
         # Update running stats with new task_grad_distances and add to history.
         self.grad_stats.update(task_grad_diffs, task_pair_flags)
-        self.grad_history.append(self.grad_stats.mean)
+        self.grad_mean_history.append(self.grad_stats.mean.numpy())
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
         """ Compute and return task-specific gradients from losses. """
@@ -97,7 +101,7 @@ class GradMonitor:
 
             for layer in range(self.num_layers):
                 param_grad_list = []
-                for param in self.network[layer].parameters():
+                for param in self.network.layers[layer].parameters():
                     param_grad_list.append(param.grad.view(-1))
                 layer_grad = torch.cat(param_grad_list)
                 task_grads[task, layer, : len(layer_grad)] = layer_grad
@@ -130,4 +134,22 @@ class GradMonitor:
     def plot_stats(self, plot_path: str) -> None:
         """ Plot the history gradient statistics throughout training. """
 
-        raise NotImplementedError
+        # Convert stats histories into numpy arrays.
+        num_steps = len(self.grad_mean_history)
+        mean_history = np.array(self.grad_mean_history)
+
+        # Format paths of output plots.
+        dot = plot_path.rfind(".")
+        path_template = plot_path[:dot] + "_%s" + plot_path[dot:]
+
+        # Create a separate plot for each layer.
+        for layer in range(self.num_layers):
+
+            # Create plot for given layer.
+            fig, ax = plt.subplots()
+            for task1, task2 in product(range(self.num_tasks), range(self.num_tasks)):
+                xs = np.arange(num_steps)
+                ys = mean_history[:, task1, task2, layer]
+                ax.plot(xs, ys)
+
+            plt.savefig(path_template % str(layer))
