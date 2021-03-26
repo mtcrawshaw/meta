@@ -403,8 +403,16 @@ def train(
         critic_diff_path = os.path.join(
             save_dir, "%s_critic_diffs.png" % config["save_name"]
         )
+        actor_table_path = os.path.join(
+            save_dir, "%s_actor_table.csv" % config["save_name"]
+        )
+        critic_table_path = os.path.join(
+            save_dir, "%s_critic_table.csv" % config["save_name"]
+        )
         actor_monitor.plot_stats(actor_diff_path)
+        actor_monitor.write_table(actor_table_path)
         critic_monitor.plot_stats(critic_diff_path)
+        critic_monitor.write_table(critic_table_path)
 
     # Construct checkpoint.
     checkpoint = {}

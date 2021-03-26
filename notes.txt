@@ -52,8 +52,14 @@ To do:
 - Add in flags so we only compute stats for non-zero gradients (DONE)
 - Test new functionality (DONE)
 - Integrate GradMonitor into train() and plot task gradient distance over time (DONE)
-- Collect both Euclidean distance and cosine distance
-- Just use a splitting network instead (it's basically all the same code)
+- Output table sorted by final mean diffs for each pair of tasks (DONE)
+- Cosine distance implementation
+- Use a splitting network instead of GradMonitor
+
+What we want from visualizations:
+- Consistency of signal within individual training runs
+- Consistency of signal across training runs
+- Comparison of Euclidean distance vs. cosine distance
 
 ----------------------------------------------------------------------------------------
 

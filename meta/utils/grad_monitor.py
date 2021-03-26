@@ -4,6 +4,7 @@ of task-specific losses.
 """
 
 from itertools import product
+import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -147,9 +148,38 @@ class GradMonitor:
 
             # Create plot for given layer.
             fig, ax = plt.subplots()
-            for task1, task2 in product(range(self.num_tasks), range(self.num_tasks)):
-                xs = np.arange(num_steps)
-                ys = mean_history[:, task1, task2, layer]
-                ax.plot(xs, ys)
+            for task1 in range(self.num_tasks - 1):
+                for task2 in range(task1, self.num_tasks):
+                    xs = np.arange(num_steps)
+                    ys = mean_history[:, task1, task2, layer]
+                    ax.plot(xs, ys)
 
             plt.savefig(path_template % str(layer))
+
+    def write_table(self, table_path: str) -> None:
+        """ Write out a sorted table of final grad diff means as a CSV. """
+
+        # Get final mean grad diff of each pair of tasks, summed across layers.
+        num_pairs = int((self.num_tasks - 1) * self.num_tasks / 2)
+        pair_grad_diffs = np.zeros(num_pairs)
+        task_pairs = np.zeros((num_pairs, 2))
+        pos = 0
+        for task1 in range(self.num_tasks - 1):
+            for task2 in range(task1 + 1, self.num_tasks):
+                pair_grad_diffs[pos] = np.sum(self.grad_mean_history[-1][task1, task2])
+                task_pairs[pos] = [task1, task2]
+                pos += 1
+
+        # Sort grad diffs of each task pair.
+        sort_order = np.argsort(pair_grad_diffs)
+        sort_order = np.flip(sort_order)
+        sorted_pair_grad_diffs = pair_grad_diffs[sort_order]
+        sorted_task_pairs = task_pairs[sort_order].astype(int)
+
+        # Write out table.
+        with open(table_path, "w") as table_file:
+            csv_writer = csv.writer(table_file)
+            for (task1, task2), grad_diff in zip(
+                sorted_task_pairs, sorted_pair_grad_diffs
+            ):
+                csv_writer.writerow([task1, task2, grad_diff])
