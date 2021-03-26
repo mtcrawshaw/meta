@@ -13,6 +13,7 @@ from gym import Env
 
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env, get_num_tasks
+from meta.utils.grad_monitor import GradMonitor
 from meta.utils.storage import RolloutStorage
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
@@ -215,6 +216,12 @@ def train(
             device=device,
         )
 
+    # TEMP
+    assert config["env_name"] == "MT10"
+    num_tasks = 10
+    actor_monitor = GradMonitor(policy.policy_network.actor, num_tasks)
+    critic_monitor = GradMonitor(policy.policy_network.critic, num_tasks)
+
     # Construct object to store rollout information.
     rollout = RolloutStorage(
         rollout_length=config["rollout_length"],
@@ -273,13 +280,10 @@ def train(
                 policy.policy_network.actor.check_for_split(step_loss)
                 policy.policy_network.critic.check_for_split(step_loss)
 
-            # If we're training a trunk network, check for frequency of conflicting
-            # gradients.
-            if policy.policy_network.architecture_type == "trunk":
-                if policy.policy_network.actor.monitor_grads:
-                    policy.policy_network.actor.check_conflicting_grads(step_loss)
-                if policy.policy_network.critic.monitor_grads:
-                    policy.policy_network.critic.check_conflicting_grads(step_loss)
+            # If we're training an MLP network, monitor gradient statistics.
+            if policy.policy_network.architecture_type == "mlp":
+                actor_monitor.update_grad_stats(step_loss)
+                critic_monitor.update_grad_stats(step_loss)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if num_tasks > 1:
@@ -391,6 +395,16 @@ def train(
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
         plot(metrics.state(), plot_path)
+
+        # TEMP
+        actor_diff_path = os.path.join(
+            save_dir, "%s_actor_diffs.png" % config["save_name"]
+        )
+        critic_diff_path = os.path.join(
+            save_dir, "%s_critic_diffs.png" % config["save_name"]
+        )
+        actor_monitor.plot_stats(actor_diff_path)
+        critic_monitor.plot_stats(critic_diff_path)
 
     # Construct checkpoint.
     checkpoint = {}
