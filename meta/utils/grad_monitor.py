@@ -54,17 +54,33 @@ class GradMonitor:
         # Initialize history of gradient statistics.
         self.grad_history = []
 
-    def update_grad_stats(self, task_losses: torch.Tensor) -> None:
-        """ Update statistics over pairs of gradients of task losses at each layer. """
+    def update_grad_stats(
+        self, task_losses: torch.Tensor = None, task_grads: torch.Tensor = None
+    ) -> None:
+        """
+        Update statistics over pairs of gradients of task losses at each layer. One of
+        `task_losses` and `task_grads` should not be none. If `task_grads` is not None,
+        then `task_losses` is ignored.
+        """
 
-        # Get task-specific gradients.
-        task_grads = self.get_task_grads(task_losses)
+        # Get task-specific gradients if they aren't given.
+        if task_grads is None:
+            assert task_losses is not None
+            task_grads = self.get_task_grads(task_losses)
 
         # Compute distances between pairs of gradients.
         task_grad_diffs = self.get_task_grad_diffs(task_grads)
 
+        # Get indices of tasks with non-zero gradients. A task will have zero gradients
+        # when the current batch doesn't contain any data from that task, and in that
+        # case we do not want to update the gradient stats for this task.
+        task_flags = (task_grads.view(self.num_tasks, -1) != 0.0).any(dim=1)
+        task_pair_flags = task_flags.unsqueeze(0) * task_flags.unsqueeze(1)
+        task_pair_flags = task_pair_flags.unsqueeze(-1)
+        task_pair_flags = task_pair_flags.expand(-1, -1, self.num_layers)
+
         # Update running stats with new task_grad_distances and add to history.
-        self.grad_stats.update(task_grad_diffs)
+        self.grad_stats.update(task_grad_diffs, task_pair_flags)
         self.grad_history.append(self.grad_stats.mean)
 
     def get_task_grads(self, task_losses: torch.Tensor) -> torch.Tensor:
