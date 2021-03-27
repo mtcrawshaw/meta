@@ -25,6 +25,7 @@ class GradMonitor:
         self,
         network: MLPNetwork,
         num_tasks: int,
+        metric: str = "sqeuclidean",
         ema_alpha: float = 0.999,
         cap_sample_size: bool = True,
         device: torch.device = None,
@@ -34,9 +35,13 @@ class GradMonitor:
         # Set state.
         self.network = network
         self.num_tasks = num_tasks
-        self.num_layers = self.network.num_layers
+        self.metric = metric
         self.ema_alpha = ema_alpha
         self.cap_sample_size = cap_sample_size
+        self.num_layers = self.network.num_layers
+
+        # Check for valid metric type.
+        assert self.metric in ["sqeuclidean", "cosine"]
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -129,6 +134,41 @@ class GradMonitor:
 
         # Convert upper triangular tensor to symmetric tensor.
         task_grad_diffs += torch.transpose(task_grad_diffs, 0, 1)
+
+        # Convert Euclidean distance to cosine distance, if necessary.
+        if self.metric == "cosine":
+
+            # Compute sum/product of norms of gradients for each pair (task1/task2, layer).
+            pair_norm_sums = []
+            pair_norm_products = []
+            for layer in range(self.num_layers):
+                layer_norms = torch.sum(task_grads[:, layer] ** 2, axis=-1)
+                pair_layer_norms = torch.cartesian_prod(layer_norms, layer_norms)
+                pair_layer_norm_sum = torch.sum(pair_layer_norms, axis=1)
+                pair_layer_norm_sum = pair_layer_norm_sum.reshape(
+                    self.num_tasks, self.num_tasks
+                )
+                pair_layer_norm_product = torch.prod(pair_layer_norms, axis=1)
+                pair_layer_norm_product = pair_layer_norm_product.reshape(
+                    self.num_tasks, self.num_tasks
+                )
+                pair_norm_sums.append(pair_layer_norm_sum)
+                pair_norm_products.append(pair_layer_norm_product)
+            pair_norm_sums = torch.stack(pair_norm_sums, axis=-1)
+            pair_norm_products = torch.stack(pair_norm_products, axis=-1)
+
+            # Subtract sum of grad norms from norm of grad difference, divide by sqrt of
+            # product of grad norms, then divide by -2 to yield cosine distance.
+            task_grad_diffs -= pair_norm_sums
+            task_grad_diffs /= torch.sqrt(pair_norm_products)
+            task_grad_diffs /= -2.0
+
+            # Get rid of any infs or nans that may have appeared from zero division.
+            bad_idxs = torch.isnan(task_grad_diffs) + torch.isinf(task_grad_diffs)
+            task_grad_diffs[bad_idxs] = 0.0
+
+        elif self.metric != "sqeuclidean":
+            raise NotImplementedError
 
         return task_grad_diffs
 

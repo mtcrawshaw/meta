@@ -2,8 +2,9 @@
 Unit tests for meta/utils/grad_monitor.py.
 """
 
-from typing import Dict, Any
+from math import sqrt
 from itertools import product
+from typing import Dict, Any
 
 import numpy as np
 import torch
@@ -15,12 +16,13 @@ from tests.helpers import DEFAULT_SETTINGS
 
 
 SETTINGS = {
-    "obs_dim": 8,
-    "num_processes": 8,
-    "num_tasks": 10,
+    "obs_dim": 4,
+    "num_processes": 4,
+    "num_tasks": 5,
+    "metric": "sqeuclidean",
     "num_layers": 3,
-    "num_steps": 200,
-    "ema_alpha": 0.99,
+    "num_steps": 20,
+    "ema_alpha": 0.9,
     "device": torch.device("cpu"),
 }
 
@@ -65,6 +67,53 @@ def test_task_grad_diffs_rand() -> None:
     grad_diffs_template(SETTINGS, "rand")
 
 
+def test_task_grad_diffs_zero_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine difference
+    between task-specific gradients at each layer when these gradients are hard-coded to
+    zero.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "zero")
+
+
+def test_task_grad_diffs_rand_zero_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine difference
+    between task-specific gradients at each layer when these gradients are random, while
+    some tasks randomly have gradients set to zero.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "rand_zero")
+
+
+def test_task_grad_diffs_rand_identical_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine difference
+    between task-specific gradients at each layer when these gradients are random, but
+    identical across tasks.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "rand_identical")
+
+
+def test_task_grad_diffs_rand_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine difference
+    between task-specific gradients at each layer when these gradients are random.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "rand")
+
+
 def test_task_grad_stats_zero() -> None:
     """
     Test that `update_grad_stats()` correctly computes gradient statistics over multiple
@@ -102,6 +151,52 @@ def test_task_grad_stats_rand() -> None:
     grad_stats_template(SETTINGS, "rand")
 
 
+def test_task_grad_stats_zero_cosine() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are always zero, with a cosine metric.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_stats_template(settings, "zero")
+
+
+def test_task_grad_stats_rand_zero_cosine() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are random, while some tasks randomly have gradients set to
+    zero, with a cosine metric.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_stats_template(settings, "rand_zero")
+
+
+def test_task_grad_stats_rand_identical_cosine() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, but identical across tasks, with a cosine
+    metric.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_stats_template(settings, "rand_identical")
+
+
+def test_task_grad_stats_rand_cosine() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, with a cosine metric.
+    """
+
+    settings = dict(SETTINGS)
+    settings["metric"] = "cosine"
+    grad_stats_template(settings, "rand")
+
+
 def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     """ Template to test pairwise differences between task gradients. """
 
@@ -118,7 +213,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
         hidden_size=dim,
         device=settings["device"],
     )
-    monitor = GradMonitor(network, settings["num_tasks"])
+    monitor = GradMonitor(network, settings["num_tasks"], metric=settings["metric"])
 
     # Construct dummy task gradients.
     task_grads = get_task_gradients(
@@ -131,13 +226,31 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     # Check computed differences.
     for task1, task2 in product(range(monitor.num_tasks), range(monitor.num_tasks)):
         for layer in range(monitor.num_layers):
-            expected_diff = torch.sum(
-                torch.pow(task_grads[task1, layer] - task_grads[task2, layer], 2)
-            )
-            assert torch.allclose(task_grad_diffs[task1, task2, layer], expected_diff)
+            if settings["metric"] == "sqeuclidean":
+                expected = torch.sum(
+                    torch.pow(task_grads[task1, layer] - task_grads[task2, layer], 2)
+                )
+            else:
+                grad1 = task_grads[task1, layer] / sqrt(
+                    torch.sum(task_grads[task1, layer] ** 2)
+                )
+                grad2 = task_grads[task2, layer] / sqrt(
+                    torch.sum(task_grads[task2, layer] ** 2)
+                )
+                if (
+                    torch.isinf(grad1)
+                    + torch.isnan(grad1)
+                    + torch.isinf(grad2)
+                    + torch.isnan(grad2)
+                ).any():
+                    expected = torch.Tensor([0.0])
+                else:
+                    expected = torch.sum(grad1 * grad2)
+
+            assert torch.allclose(task_grad_diffs[task1, task2, layer], expected)
 
 
-def grad_stats_template(settings: Dict[str, Any], grad_type: str,) -> None:
+def grad_stats_template(settings: Dict[str, Any], grad_type: str) -> None:
     """
     Test that `update_grad_stats()` correctly computes pairwise differences of gradients
     over multiple steps.
@@ -154,7 +267,10 @@ def grad_stats_template(settings: Dict[str, Any], grad_type: str,) -> None:
         device=settings["device"],
     )
     monitor = GradMonitor(
-        network, settings["num_tasks"], ema_alpha=settings["ema_alpha"]
+        network,
+        settings["num_tasks"],
+        ema_alpha=settings["ema_alpha"],
+        metric=settings["metric"],
     )
     ema_threshold = monitor.grad_stats.ema_threshold
 
@@ -189,6 +305,20 @@ def grad_stats_template(settings: Dict[str, Any], grad_type: str,) -> None:
         sample_sizes = torch.sum(task_flags[: step + 1], dim=0)
         pair_sample_sizes = torch.sum(task_pair_flags[: step + 1], dim=0)
 
+        def grad_diff(grad1: torch.Tensor, grad2: torch.Tensor) -> float:
+            """ Compute diff between two gradients based on `metric`. """
+
+            if settings["metric"] == "sqeuclidean":
+                diff = torch.sum((grad1 - grad2) ** 2)
+            elif settings["metric"] == "cosine":
+                grad1 /= sqrt(torch.sum(grad1 ** 2))
+                grad2 /= sqrt(torch.sum(grad2 ** 2))
+                diff = torch.sum(grad1 * grad2)
+            else:
+                raise NotImplementedError
+
+            return diff
+
         # Compare monitor's gradients stats to the expected value for each `(task1,
         # task2, layer)`.
         for task1, task2, layer in product(
@@ -205,26 +335,36 @@ def grad_stats_template(settings: Dict[str, Any], grad_type: str,) -> None:
                 continue
             task1_grads = task_grads[steps, task1, layer, :layer_size]
             task2_grads = task_grads[steps, task2, layer, :layer_size]
+            num_steps = len(steps.nonzero())
             if pair_sample_sizes[task1, task2] <= ema_threshold:
-                diffs = torch.sum((task1_grads - task2_grads) ** 2, dim=1)
+                diffs = torch.Tensor(
+                    [
+                        grad_diff(task1_grads[i], task2_grads[i])
+                        for i in range(num_steps)
+                    ]
+                )
                 exp_mean = torch.mean(diffs)
             else:
                 initial_task1_grads = task1_grads[:ema_threshold]
                 initial_task2_grads = task2_grads[:ema_threshold]
-                diffs = torch.sum(
-                    (initial_task1_grads - initial_task2_grads) ** 2, dim=1
+                diffs = torch.Tensor(
+                    [
+                        grad_diff(initial_task1_grads[i], initial_task2_grads[i])
+                        for i in range(ema_threshold)
+                    ]
                 )
                 exp_mean = torch.mean(diffs)
                 for i in range(ema_threshold, int(pair_sample_sizes[task1, task2])):
                     task1_grad = task1_grads[i]
                     task2_grad = task2_grads[i]
-                    diff = torch.sum((task1_grad - task2_grad) ** 2)
+                    diff = grad_diff(task1_grad, task2_grad)
                     exp_mean = exp_mean * settings["ema_alpha"] + diff * (
                         1.0 - settings["ema_alpha"]
                     )
 
             # Compare expected mean to monitor's mean.
-            assert abs(monitor.grad_stats.mean[task1, task2, layer] - exp_mean) < TOL
+            actual_mean = monitor.grad_stats.mean[task1, task2, layer]
+            assert abs(actual_mean - exp_mean) < TOL
 
 
 def get_task_gradients(

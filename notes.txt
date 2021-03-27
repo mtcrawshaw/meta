@@ -53,13 +53,17 @@ To do:
 - Test new functionality (DONE)
 - Integrate GradMonitor into train() and plot task gradient distance over time (DONE)
 - Output table sorted by final mean diffs for each pair of tasks (DONE)
-- Cosine distance implementation
+- Cosine distance implementation (DONE)
+- Visualization improvement: Make graph colors consistent across runs, add labels +
+  title
 - Use a splitting network instead of GradMonitor
 
 What we want from visualizations:
-- Consistency of signal within individual training runs
+- Consistency of signal within a single layer/individual training run
+- Consistence of signal across layers
 - Consistency of signal across training runs
 - Comparison of Euclidean distance vs. cosine distance
+
 
 ----------------------------------------------------------------------------------------
 
