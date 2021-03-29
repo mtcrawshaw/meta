@@ -189,7 +189,7 @@ class GradMonitor:
             # Create plot for given layer.
             fig, ax = plt.subplots()
             for task1 in range(self.num_tasks - 1):
-                for task2 in range(task1, self.num_tasks):
+                for task2 in range(task1 + 1, self.num_tasks):
                     xs = np.arange(num_steps)
                     ys = mean_history[:, task1, task2, layer]
                     ax.plot(xs, ys)
