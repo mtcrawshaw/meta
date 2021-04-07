@@ -29,6 +29,9 @@ from meta.utils.utils import (
 # Suppress gym warnings.
 gym.logger.set_level(40)
 
+# TEMP
+COSINE = True
+
 
 def train(
     config: Dict[str, Any], policy: PPOPolicy = None
@@ -219,8 +222,9 @@ def train(
     # TEMP
     assert config["env_name"] == "MT10"
     num_tasks = 10
-    actor_monitor = GradMonitor(policy.policy_network.actor, num_tasks)
-    critic_monitor = GradMonitor(policy.policy_network.critic, num_tasks)
+    metric = "cosine" if COSINE else "sqeuclidean"
+    actor_monitor = GradMonitor(policy.policy_network.actor, num_tasks, metric=metric)
+    critic_monitor = GradMonitor(policy.policy_network.critic, num_tasks, metric=metric)
 
     # Construct object to store rollout information.
     rollout = RolloutStorage(
