@@ -48,6 +48,7 @@ DEFAULT_SETTINGS = {
     "seed": 1,
     "print_freq": 10,
     "time_limit": None,
+    "same_np_seed": False,
     "save_name": None,
     "num_episodes": 4,
     "episode_len": 8,

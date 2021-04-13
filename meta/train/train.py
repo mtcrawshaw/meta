@@ -3,24 +3,18 @@
 import os
 import pickle
 import json
-from typing import Any, List, Tuple, Dict
+from typing import Any, Dict
 
-import numpy as np
-import torch
-import torch.nn as nn
 import gym
-from gym import Env
 
+from meta.train.trainers import RLTrainer
 from meta.train.ppo import PPOPolicy
-from meta.train.env import get_env, get_num_tasks
-from meta.utils.storage import RolloutStorage
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.utils.plot import plot
 from meta.utils.utils import (
     compare_metrics,
     save_dir_from_name,
-    aligned_train_configs,
     METRICS_DIR,
 )
 
@@ -156,79 +150,8 @@ def train(
         except:
             pass
 
-    # Set random seed, number of threads, and device.
-    np.random.seed(config["seed"])
-    torch.manual_seed(config["seed"])
-    torch.cuda.manual_seed_all(config["seed"])
-    torch.set_num_threads(1)
-    if config["cuda"]:
-        if torch.cuda.is_available():
-            device = torch.device("cuda:0")
-        else:
-            device = torch.device("cpu")
-            print(
-                'Warning: config["cuda"] = True but torch.cuda.is_available() = '
-                "False. Using CPU for training."
-            )
-    else:
-        device = torch.device("cpu")
-
-    # Set environment and policy.
-    num_tasks = get_num_tasks(config["env_name"])
-    kwargs = {}
-    if "save_memory" in config:
-        kwargs["save_memory"] = config["save_memory"]
-    env = get_env(
-        config["env_name"],
-        config["num_processes"],
-        config["seed"],
-        config["time_limit"],
-        config["normalize_transition"],
-        config["normalize_first_n"],
-        allow_early_resets=True,
-        same_np_seed=config["same_np_seed"],
-        **kwargs,
-    )
-    if policy is None:
-        policy = PPOPolicy(
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-            num_minibatch=config["num_minibatch"],
-            num_processes=config["num_processes"],
-            rollout_length=config["rollout_length"],
-            num_updates=config["num_updates"],
-            architecture_config=config["architecture_config"],
-            num_tasks=num_tasks,
-            num_ppo_epochs=config["num_ppo_epochs"],
-            lr_schedule_type=config["lr_schedule_type"],
-            initial_lr=config["initial_lr"],
-            final_lr=config["final_lr"],
-            eps=config["eps"],
-            value_loss_coeff=config["value_loss_coeff"],
-            entropy_loss_coeff=config["entropy_loss_coeff"],
-            gamma=config["gamma"],
-            gae_lambda=config["gae_lambda"],
-            clip_param=config["clip_param"],
-            max_grad_norm=config["max_grad_norm"],
-            clip_value_loss=config["clip_value_loss"],
-            normalize_advantages=config["normalize_advantages"],
-            device=device,
-        )
-
-    # Construct object to store rollout information.
-    rollout = RolloutStorage(
-        rollout_length=config["rollout_length"],
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        num_processes=config["num_processes"],
-        hidden_state_size=policy.policy_network.recurrent_hidden_size
-        if policy.recurrent
-        else 1,
-        device=device,
-    )
-
-    # Initialize environment and set first observation.
-    rollout.set_initial_obs(env.reset())
+    # Construct trainer.
+    trainer = RLTrainer(config, policy)
 
     # Construct metrics object to hold performance metrics.
     TRAIN_WINDOW = 500
@@ -244,85 +167,23 @@ def train(
         with open(checkpoint_filename, "rb") as checkpoint_file:
             checkpoint = pickle.load(checkpoint_file)
 
-        # Make sure current config and previous config line up.
-        assert aligned_train_configs(config, checkpoint["config"])
-
-        # Load policy, metrics, and update iteration.
-        policy = checkpoint["policy"]
+        # Load checkpoint.
         metrics = checkpoint["metrics"]
         update_iteration = checkpoint["update_iteration"]
-
-    # Training loop.
-    policy.train = True
+        trainer.load_checkpoint(checkpoint)
 
     while update_iteration < config["num_updates"]:
 
-        # Sample rollout.
-        rollout, episode_rewards, episode_successes = collect_rollout(
-            rollout, env, policy
-        )
+        # Perform training step.
+        step_metrics = trainer.step()
 
-        # Compute update.
-        for step_loss in policy.get_loss(rollout):
-
-            # If we're training a splitting network, pass it the task-specific losses.
-            if policy.policy_network.architecture_type in [
-                "splitting_v1",
-                "splitting_v2",
-            ]:
-                policy.policy_network.actor.check_for_split(step_loss)
-                policy.policy_network.critic.check_for_split(step_loss)
-
-            # If we're training a trunk network, check for frequency of conflicting
-            # gradients.
-            if policy.policy_network.architecture_type == "trunk":
-                if policy.policy_network.actor.monitor_grads:
-                    policy.policy_network.actor.check_conflicting_grads(step_loss)
-                if policy.policy_network.critic.monitor_grads:
-                    policy.policy_network.critic.check_conflicting_grads(step_loss)
-
-            # If we are multi-task training, consolidate task-losses with weighted sum.
-            if num_tasks > 1:
-                step_loss = torch.sum(step_loss)
-
-            # Perform backward pass, clip gradient, and take optimizer step.
-            policy.policy_network.zero_grad()
-            step_loss.backward()
-            if config["max_grad_norm"] is not None:
-                nn.utils.clip_grad_norm_(
-                    policy.policy_network.parameters(), config["max_grad_norm"]
-                )
-            policy.optimizer.step()
-        policy.after_step()
-
-        # Reset rollout storage.
-        rollout.reset()
-
-        # Aggregate metrics and run evaluation, if necessary.
-        step_metrics = {}
-        step_metrics["train_reward"] = episode_rewards
-        step_metrics["train_success"] = episode_successes
+        # Run evaluation, if necessary.
         if (
             update_iteration % config["evaluation_freq"] == 0
             or update_iteration == config["num_updates"] - 1
         ):
-            # Reset environment and rollout, so we don't cross-contaminate episodes from
-            # training and evaluation.
-            rollout.init_rollout_info()
-            rollout.set_initial_obs(env.reset())
-
-            # Run evaluation and record metrics.
-            policy.train = False
-            evaluation_rewards, evaluation_successes = evaluate(
-                env, policy, rollout, config["evaluation_episodes"],
-            )
-            policy.train = True
-            step_metrics["eval_reward"] = evaluation_rewards
-            step_metrics["eval_success"] = evaluation_successes
-
-            # Reset environment and rollout, as above.
-            rollout.init_rollout_info()
-            rollout.set_initial_obs(env.reset())
+            eval_step_metrics = trainer.evaluate()
+            step_metrics.update(eval_step_metrics)
 
         # Update and print metrics.
         metrics.update(step_metrics)
@@ -350,11 +211,9 @@ def train(
                 and update_iteration % config["save_freq"] == 0
             )
         ):
-            checkpoint = {}
-            checkpoint["policy"] = policy
+            checkpoint = trainer.get_checkpoint()
             checkpoint["metrics"] = metrics
             checkpoint["update_iteration"] = update_iteration + 1
-            checkpoint["config"] = config
 
             checkpoint_filename = os.path.join(save_dir, "checkpoint.pkl")
             with open(checkpoint_filename, "wb") as checkpoint_file:
@@ -362,8 +221,8 @@ def train(
 
         update_iteration += 1
 
-    # Close environment.
-    env.close()
+    # Close trainer.
+    trainer.close()
 
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:
@@ -393,102 +252,8 @@ def train(
         plot(metrics.state(), plot_path)
 
     # Construct checkpoint.
-    checkpoint = {}
-    checkpoint["policy"] = policy
+    checkpoint = trainer.get_checkpoint()
     checkpoint["metrics"] = metrics
     checkpoint["update_iteration"] = update_iteration + 1
-    checkpoint["config"] = config
 
     return checkpoint
-
-
-def collect_rollout(
-    rollout: RolloutStorage, env: Env, policy: PPOPolicy,
-) -> Tuple[RolloutStorage, List[float], List[float]]:
-    """
-    Run environment and collect rollout information (observations, rewards, actions,
-    etc.) into a RolloutStorage object, possibly for multiple episodes.
-
-    Parameters
-    ----------
-    rollout : RolloutStorage
-        Object to hold rollout information like observations, actions, etc.
-    env : Env
-        Environment to run.
-    policy : PPOPolicy
-        Policy to sample actions with.
-
-    Returns
-    -------
-    rollout : RolloutStorage
-        Rollout storage object containing rollout information from one or more episodes.
-    rollout_episode_rewards : List[float]
-        Each element of is the total reward over an episode which ended during the
-        collected rollout.
-    rollout_successes : List[float]
-        One element for each completed episode: 1.0 for success, 0.0 for failure. If the
-        environment doesn't define success and failure, each element will be None
-        instead of a float.
-    """
-
-    rollout_episode_rewards = []
-    rollout_successes = []
-
-    # Rollout loop.
-    for rollout_step in range(rollout.rollout_length):
-
-        # Sample actions.
-        with torch.no_grad():
-            values, actions, action_log_probs, hidden_states = policy.act(
-                rollout.obs[rollout_step],
-                rollout.hidden_states[rollout_step],
-                rollout.dones[rollout_step],
-            )
-
-        # Perform step and record in ``rollout``.
-        obs, rewards, dones, infos = env.step(actions)
-        rollout.add_step(
-            obs, actions, dones, action_log_probs, values, rewards, hidden_states
-        )
-
-        # Determine success or failure.
-        for done, info in zip(dones, infos):
-            if done:
-                if "success" in info:
-                    rollout_successes.append(info["success"])
-                else:
-                    rollout_successes.append(None)
-
-        # Get total episode reward if it is given.
-        for info in infos:
-            if "episode" in info.keys():
-                rollout_episode_rewards.append(info["episode"]["r"])
-
-    return rollout, rollout_episode_rewards, rollout_successes
-
-
-def evaluate(
-    env: Env, policy: PPOPolicy, rollout: RolloutStorage, evaluation_episodes: int
-) -> Tuple[List[float], List[float]]:
-    """
-    Run evaluation of ``policy`` on environment ``env`` for ``evaluation_episodes``
-    episodes. Returns a list of the total reward and success/failure for each episode.
-    """
-
-    evaluation_rewards = []
-    evaluation_successes = []
-    num_episodes = 0
-    while num_episodes < evaluation_episodes:
-
-        # Sample rollout and reset rollout storage.
-        rollout, episode_rewards, episode_successes = collect_rollout(
-            rollout, env, policy
-        )
-        rollout.reset()
-
-        # Update list of evaluation metrics.
-        evaluation_rewards += episode_rewards
-        evaluation_successes += episode_successes
-        num_episodes += len(episode_rewards)
-
-    return evaluation_rewards, evaluation_successes

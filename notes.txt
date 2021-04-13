@@ -42,6 +42,19 @@ Performance improvements:
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
+supervised_learning branch:
+The goal of this branch is to convert the trainer into a more modular system that can
+perform training for both RL settings and supervised learning settings, in order to
+implement the random multi-task loss weighting idea. Here's the roadmap:
+    Create Trainer and RLTrainer class with RL specific functionality
+--> Create SLTrainer class with supervised learning functionality (toy dataset, single task)
+    Add tests for single task supervised learning
+    Add multi-task functionality + dataset
+    Implement loss weighting baselines
+    Implement random loss weighting
+
+Try to merge this branch with develop as often as possible (while maintaining stability)
+so that we don't have an impossible merge to perform later on.
 
 ----------------------------------------------------------------------------------------
 

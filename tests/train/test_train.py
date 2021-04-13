@@ -8,7 +8,8 @@ import json
 import torch
 
 from meta.train.env import get_env
-from meta.train.train import collect_rollout, train
+from meta.train.train import train
+from meta.train.trainers import RLTrainer
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import save_dir_from_name
 from tests.helpers import get_policy, check_results_name, DEFAULT_SETTINGS
@@ -856,28 +857,18 @@ def test_train_save_load() -> None:
 
 def test_collect_rollout_values() -> None:
     """
-    Test the values of the returned RolloutStorage objects from train.collect_rollout().
+    Test the values of the returned RolloutStorage objects from trainer.collect_rollout().
     """
 
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
     settings["env_name"] = "unique-env"
+    trainer = RLTrainer(settings)
 
-    env = get_env(
-        settings["env_name"],
-        normalize_transition=settings["normalize_transition"],
-        allow_early_resets=True,
-    )
-    policy = get_policy(env, settings)
-    rollout = RolloutStorage(
-        rollout_length=settings["rollout_length"],
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        num_processes=settings["num_processes"],
-        hidden_state_size=1,
-        device=settings["device"],
-    )
-    rollout.set_initial_obs(env.reset())
-    rollout, _, _ = collect_rollout(rollout, env, policy)
+    # Run rollout.
+    _, _ = trainer.collect_rollout()
+    rollout = trainer.rollout
+    env = trainer.env
 
     # Check if rollout info came from UniqueEnv.
     for step in range(rollout.rollout_step):
@@ -900,7 +891,7 @@ def test_collect_rollout_values() -> None:
         assert float(action) - int(action) == 0 and int(action) in env.action_space
         assert float(obs) == float(reward)
 
-    env.close()
+    trainer.close()
 
 
 def test_save_load() -> None:
