@@ -1,11 +1,13 @@
 """ Run PPO training on OpenAI Gym/MetaWorld environment. """
 
 import os
+import math
 import pickle
 import json
 from typing import Any, Dict
 
 import gym
+import torch
 
 from meta.train.trainers import RLTrainer
 from meta.train.ppo import PPOPolicy
@@ -153,6 +155,45 @@ def train(
     # Construct trainer.
     trainer = RLTrainer(config, policy)
 
+    # Initialize optimizer.
+    optimizer = torch.optim.Adam(
+        trainer.parameters(), lr=config["initial_lr"], eps=config["eps"]
+    )
+
+    # Set up learning rate schedule.
+    if config["lr_schedule_type"] == "exponential":
+        total_lr_decay = config["final_lr"] / config["initial_lr"]
+        decay_per_epoch = math.pow(total_lr_decay, 1.0 / config["num_updates"])
+        lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
+            optimizer=optimizer, gamma=decay_per_epoch,
+        )
+
+    elif config["lr_schedule_type"] == "cosine":
+        lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=optimizer, T_max=config["num_updates"], eta_min=config["final_lr"],
+        )
+
+    elif config["lr_schedule_type"] == "linear":
+
+        def factor(step: int) -> float:
+            lr_shift = config["final_lr"] - config["initial_lr"]
+            desired_lr = config["initial_lr"] + lr_shift * float(step) / (
+                config["num_updates"] - 1
+            )
+            return desired_lr / config["initial_lr"]
+
+        lr_schedule = torch.optim.lr_scheduler.LambdaLR(
+            optimizer=optimizer, lr_lambda=factor,
+        )
+
+    elif config["lr_schedule_type"] is None:
+        lr_schedule = None
+
+    else:
+        raise ValueError(
+            "Unrecognized lr scheduler type: %s" % config["lr_schedule_type"]
+        )
+
     # Construct metrics object to hold performance metrics.
     TRAIN_WINDOW = 500
     test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
@@ -175,7 +216,11 @@ def train(
     while update_iteration < config["num_updates"]:
 
         # Perform training step.
-        step_metrics = trainer.step()
+        step_metrics = trainer.step(optimizer)
+
+        # Step learning rate schedule, if necessary.
+        if lr_schedule is not None:
+            lr_schedule.step()
 
         # Run evaluation, if necessary.
         if (

@@ -31,7 +31,7 @@ class Trainer:
         else:
             self.device = torch.device("cpu")
 
-    def step(self) -> None:
+    def step(self, optimizer: torch.optim.Optimizer) -> None:
         """ Perform one training step. """
         raise NotImplementedError
 
@@ -50,3 +50,14 @@ class Trainer:
     def close(self) -> None:
         """ Clean up the training process. """
         raise NotImplementedError
+
+    def parameters(self) -> None:
+        """ Return parameters of model. """
+        raise NotImplementedError
+
+    def clip_grads(self) -> None:
+        """ Clip gradients of model parameters, if necessary. """
+        if self.config["max_grad_norm"] is not None:
+            torch.nn.utils.clip_grad_norm_(
+                self.parameters(), self.config["max_grad_norm"],
+            )

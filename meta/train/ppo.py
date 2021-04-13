@@ -1,10 +1,8 @@
 """ Definition of PPOPolicy, an object to perform acting and training with PPO. """
 
-import math
 from typing import Tuple, Dict, Any, Generator
 
 import torch
-import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from gym.spaces import Space, Box, Discrete
 
@@ -23,13 +21,9 @@ class PPOPolicy:
         num_minibatch: int,
         num_processes: int,
         rollout_length: int,
-        num_updates: int,
         architecture_config: Dict[str, Any],
         num_tasks: int = 1,
         num_ppo_epochs: int = 4,
-        lr_schedule_type: str = None,
-        initial_lr: float = 7e-4,
-        final_lr: float = 7e-4,
         eps: float = 1e-5,
         value_loss_coeff: float = 0.5,
         entropy_loss_coeff: float = 0.01,
@@ -56,8 +50,6 @@ class PPOPolicy:
             Number of processes to simultaneously gather training data.
         rollout_length : int
             Length of the rollout between each update.
-        num_updates : int
-            Number of total updates to be performed on policy.
         architecture_config: Dict[str, Any]
             Config dictionary for the architecture. Should contain an entry for "type",
             (either "mlp", "trunk", "splitting_v1", or "splitting_v2"), an entry for
@@ -75,13 +67,6 @@ class PPOPolicy:
             space is a flat vector.
         num_ppo_epochs : int
             Number of training steps of surrogate loss for each rollout.
-        lr_schedule_type : str
-            Either None, "exponential", "cosine", or "linear". If None is given, the
-            learning rate will stay at initial_lr for the duration of training.
-        initial_lr : float
-            Initial policy learning rate.
-        final_lr: float
-            Final policy learning rate.
         eps : float
             Epsilon value used for numerical stability. Usually 1e-8.
         value_loss_coeff : float
@@ -112,12 +97,8 @@ class PPOPolicy:
         self.action_space = action_space
         self.num_minibatch = num_minibatch
         self.num_processes = num_processes
-        self.num_updates = num_updates
         self.recurrent = architecture_config["recurrent"]
         self.num_ppo_epochs = num_ppo_epochs
-        self.lr_schedule_type = lr_schedule_type
-        self.initial_lr = initial_lr
-        self.final_lr = final_lr
         self.eps = eps
         self.value_loss_coeff = value_loss_coeff
         self.entropy_loss_coeff = entropy_loss_coeff
@@ -140,45 +121,6 @@ class PPOPolicy:
             architecture_config=dict(architecture_config),
             device=device,
         )
-
-        # Initialize optimizer.
-        self.optimizer = optim.Adam(
-            self.policy_network.parameters(), lr=initial_lr, eps=eps
-        )
-
-        # Set up learning rate schedule.
-        if self.lr_schedule_type == "exponential":
-            total_lr_decay = self.final_lr / self.initial_lr
-            decay_per_epoch = math.pow(total_lr_decay, 1.0 / self.num_updates)
-            self.lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer=self.optimizer, gamma=decay_per_epoch,
-            )
-
-        elif self.lr_schedule_type == "cosine":
-            self.lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer=self.optimizer, T_max=self.num_updates, eta_min=self.final_lr,
-            )
-
-        elif self.lr_schedule_type == "linear":
-
-            def factor(step: int) -> float:
-                lr_shift = self.final_lr - self.initial_lr
-                desired_lr = self.initial_lr + lr_shift * float(step) / (
-                    self.num_updates - 1
-                )
-                return desired_lr / self.initial_lr
-
-            self.lr_schedule = torch.optim.lr_scheduler.LambdaLR(
-                optimizer=self.optimizer, lr_lambda=factor,
-            )
-
-        elif self.lr_schedule_type is None:
-            self.lr_schedule = None
-
-        else:
-            raise ValueError(
-                "Unrecognized lr scheduler type: %s" % self.lr_schedule_type
-            )
 
     def act(
         self, obs: torch.Tensor, hidden_state: torch.Tensor, done: torch.Tensor,
@@ -525,13 +467,6 @@ class PPOPolicy:
                         loss[task] = minibatch_loss[task_specific_indices].sum()
 
                 yield loss
-
-    def after_step(self) -> None:
-        """ Perform any post training step actions. """
-
-        # Step learning rate schedule, if necessary.
-        if self.lr_schedule is not None:
-            self.lr_schedule.step()
 
     def meta_conversion(self, num_test_tasks: int) -> None:
         """

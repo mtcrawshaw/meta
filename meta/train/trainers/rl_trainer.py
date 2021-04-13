@@ -1,6 +1,6 @@
 """ Definition of RLTrainer class. """
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Iterator
 
 import torch
 import torch.nn as nn
@@ -43,13 +43,9 @@ class RLTrainer(Trainer):
                 num_minibatch=self.config["num_minibatch"],
                 num_processes=self.config["num_processes"],
                 rollout_length=self.config["rollout_length"],
-                num_updates=self.config["num_updates"],
                 architecture_config=self.config["architecture_config"],
                 num_tasks=self.num_tasks,
                 num_ppo_epochs=self.config["num_ppo_epochs"],
-                lr_schedule_type=self.config["lr_schedule_type"],
-                initial_lr=self.config["initial_lr"],
-                final_lr=self.config["final_lr"],
                 eps=self.config["eps"],
                 value_loss_coeff=self.config["value_loss_coeff"],
                 entropy_loss_coeff=self.config["entropy_loss_coeff"],
@@ -80,7 +76,7 @@ class RLTrainer(Trainer):
         # Initialize environment and set first observation.
         self.rollout.set_initial_obs(self.env.reset())
 
-    def step(self) -> None:
+    def step(self, optimizer: torch.optim.Optimizer) -> None:
         """ Perform one training step. """
 
         # Sample rollout.
@@ -112,13 +108,8 @@ class RLTrainer(Trainer):
             # Perform backward pass, clip gradient, and take optimizer step.
             self.policy.policy_network.zero_grad()
             step_loss.backward()
-            if self.config["max_grad_norm"] is not None:
-                nn.utils.clip_grad_norm_(
-                    self.policy.policy_network.parameters(),
-                    self.config["max_grad_norm"],
-                )
-            self.policy.optimizer.step()
-        self.policy.after_step()
+            self.clip_grads()
+            optimizer.step()
 
         # Reset rollout storage.
         self.rollout.reset()
@@ -186,6 +177,10 @@ class RLTrainer(Trainer):
     def close(self) -> None:
         """ Clean up the training process. """
         self.env.close()
+
+    def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
+        """ Return parameters of model. """
+        return self.policy.policy_network.parameters()
 
     def collect_rollout(self) -> Tuple[List[float], List[float]]:
         """
