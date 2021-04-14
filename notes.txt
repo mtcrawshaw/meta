@@ -136,6 +136,8 @@ Training infrastructure:
       that this is only happening during meta-training makes me feel like this is an
       issue with setting the seed twice, but I don't see how that could be true. It may
       also be specific to the Meta-World environments somehow.
+    - Remove in-line imports for Meta-World and replace with try-catch imports at the
+      top of each file.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters

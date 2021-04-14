@@ -15,10 +15,11 @@ from meta.utils.utils import aligned_train_configs
 class RLTrainer(Trainer):
     """ Trainer class for reinforcement learning. """
 
-    def __init__(self, config: Dict[str, Any], policy: PPOPolicy = None) -> None:
-        """ Init function for Trainer. """
-
-        super().__init__(config)
+    def init_model(self, config: Dict[str, Any], policy: PPOPolicy = None) -> None:
+        """
+        Initialize model and corresponding objects. If `policy` is None (the default
+        case), then one will be instantiated using settings from `config`.
+        """
 
         # Set environment and policy.
         self.num_tasks = get_num_tasks(self.config["env_name"])
@@ -76,8 +77,12 @@ class RLTrainer(Trainer):
         # Initialize environment and set first observation.
         self.rollout.set_initial_obs(self.env.reset())
 
-    def step(self, optimizer: torch.optim.Optimizer) -> None:
-        """ Perform one training step. """
+    def _step(self) -> Dict[str, Any]:
+        """
+        Perform a training step. Note that this may actually involve multiple gradient
+        steps, since PPO inherently allows for multiple gradient steps from one batch of
+        data.
+        """
 
         # Sample rollout.
         episode_rewards, episode_successes = self.collect_rollout()
@@ -109,7 +114,7 @@ class RLTrainer(Trainer):
             self.policy.policy_network.zero_grad()
             step_loss.backward()
             self.clip_grads()
-            optimizer.step()
+            self.optimizer.step()
 
         # Reset rollout storage.
         self.rollout.reset()

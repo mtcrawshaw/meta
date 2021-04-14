@@ -1,5 +1,6 @@
 """ Definition of Trainer base class. """
 
+import math
 from typing import Dict, Any
 
 import numpy as np
@@ -9,7 +10,7 @@ import torch
 class Trainer:
     """ Abstract base class for trainers. """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: Dict[str, Any], **kwargs: Dict[str, Any]) -> None:
         """ Init function for Trainer. """
 
         self.config = config
@@ -31,8 +32,68 @@ class Trainer:
         else:
             self.device = torch.device("cpu")
 
-    def step(self, optimizer: torch.optim.Optimizer) -> None:
-        """ Perform one training step. """
+        # Initialize model.
+        self.init_model(config, **kwargs)
+
+        # Initialize optimizer.
+        self.optimizer = torch.optim.Adam(
+            self.parameters(), lr=config["initial_lr"], eps=config["eps"]
+        )
+
+        # Initialize learning rate schedule.
+        if config["lr_schedule_type"] == "exponential":
+            total_lr_decay = config["final_lr"] / config["initial_lr"]
+            decay_per_epoch = math.pow(total_lr_decay, 1.0 / config["num_updates"])
+            self.lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
+                optimizer=self.optimizer, gamma=decay_per_epoch,
+            )
+
+        elif config["lr_schedule_type"] == "cosine":
+            self.lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer=self.optimizer,
+                T_max=config["num_updates"],
+                eta_min=config["final_lr"],
+            )
+
+        elif config["lr_schedule_type"] == "linear":
+
+            def factor(step: int) -> float:
+                lr_shift = config["final_lr"] - config["initial_lr"]
+                desired_lr = config["initial_lr"] + lr_shift * float(step) / (
+                    config["num_updates"] - 1
+                )
+                return desired_lr / config["initial_lr"]
+
+            self.lr_schedule = torch.optim.lr_scheduler.LambdaLR(
+                optimizer=self.optimizer, lr_lambda=factor,
+            )
+
+        elif config["lr_schedule_type"] is None:
+            self.lr_schedule = None
+
+        else:
+            raise ValueError(
+                "Unrecognized lr scheduler type: %s" % config["lr_schedule_type"]
+            )
+
+    def init_model(self) -> None:
+        """ Initialize model and corresponding objects. """
+        raise NotImplementedError
+
+    def step(self) -> Dict[str, Any]:
+        """ Perform a training step. """
+
+        # Perform training step.
+        step_metrics = self._step()
+
+        # Step learning rate schedule, if necessary.
+        if self.lr_schedule is not None:
+            self.lr_schedule.step()
+
+        return step_metrics
+
+    def _step(self) -> Dict[str, Any]:
+        """ Perform a training step specific to the trainer type. """
         raise NotImplementedError
 
     def evaluate(self) -> None:

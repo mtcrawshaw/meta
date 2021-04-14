@@ -1,7 +1,6 @@
 """ Run PPO training on OpenAI Gym/MetaWorld environment. """
 
 import os
-import math
 import pickle
 import json
 from typing import Any, Dict
@@ -25,14 +24,11 @@ from meta.utils.utils import (
 gym.logger.set_level(40)
 
 
-def train(
-    config: Dict[str, Any], policy: PPOPolicy = None
-) -> Dict[str, Dict[str, Any]]:
+def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main function for train.py, runs PPO training using settings from `config`.  The
-    expected entries of `config` are documented below. If `policy` is None (the default
-    case), then one will be instantiated using settings from `config`. Returns a
-    dictionary holding values of performance metrics from training and evaluation.
+    expected entries of `config` are documented below. Returns a dictionary holding
+    values of performance metrics from training and evaluation.
 
     Parameters
     ----------
@@ -153,46 +149,7 @@ def train(
             pass
 
     # Construct trainer.
-    trainer = RLTrainer(config, policy)
-
-    # Initialize optimizer.
-    optimizer = torch.optim.Adam(
-        trainer.parameters(), lr=config["initial_lr"], eps=config["eps"]
-    )
-
-    # Set up learning rate schedule.
-    if config["lr_schedule_type"] == "exponential":
-        total_lr_decay = config["final_lr"] / config["initial_lr"]
-        decay_per_epoch = math.pow(total_lr_decay, 1.0 / config["num_updates"])
-        lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
-            optimizer=optimizer, gamma=decay_per_epoch,
-        )
-
-    elif config["lr_schedule_type"] == "cosine":
-        lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer=optimizer, T_max=config["num_updates"], eta_min=config["final_lr"],
-        )
-
-    elif config["lr_schedule_type"] == "linear":
-
-        def factor(step: int) -> float:
-            lr_shift = config["final_lr"] - config["initial_lr"]
-            desired_lr = config["initial_lr"] + lr_shift * float(step) / (
-                config["num_updates"] - 1
-            )
-            return desired_lr / config["initial_lr"]
-
-        lr_schedule = torch.optim.lr_scheduler.LambdaLR(
-            optimizer=optimizer, lr_lambda=factor,
-        )
-
-    elif config["lr_schedule_type"] is None:
-        lr_schedule = None
-
-    else:
-        raise ValueError(
-            "Unrecognized lr scheduler type: %s" % config["lr_schedule_type"]
-        )
+    trainer = RLTrainer(config, **kwargs)
 
     # Construct metrics object to hold performance metrics.
     TRAIN_WINDOW = 500
@@ -213,14 +170,11 @@ def train(
         update_iteration = checkpoint["update_iteration"]
         trainer.load_checkpoint(checkpoint)
 
+    # Training loop.
     while update_iteration < config["num_updates"]:
 
         # Perform training step.
-        step_metrics = trainer.step(optimizer)
-
-        # Step learning rate schedule, if necessary.
-        if lr_schedule is not None:
-            lr_schedule.step()
+        step_metrics = trainer.step()
 
         # Run evaluation, if necessary.
         if (

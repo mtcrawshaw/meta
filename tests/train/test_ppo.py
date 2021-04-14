@@ -9,6 +9,7 @@ import torch
 from torch.optim import Optimizer
 import numpy as np
 
+from meta.train.trainers import RLTrainer
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env, get_num_tasks
 from meta.utils.storage import RolloutStorage
@@ -106,17 +107,14 @@ def test_update_values() -> None:
     a linear actor/critic network and a dummy environment.
     """
 
-    # Initialize environment and policy.
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True
-    )
-    policy = get_policy(env, settings)
+    trainer = RLTrainer(settings)
 
-    # Initialize rollout storage.
-    rollout = get_rollout(
-        env,
-        policy,
+    # Collect rollout.
+    trainer.rollout = get_rollout(
+        trainer.env,
+        trainer.policy,
         settings["num_episodes"],
         settings["episode_len"],
         settings["num_processes"],
@@ -124,15 +122,15 @@ def test_update_values() -> None:
     )
 
     # Compute expected losses.
-    expected_loss_items = get_losses(rollout, policy, settings)
+    expected_loss_items = get_losses(trainer.rollout, trainer.policy, settings)
 
     # Compute actual losses.
     actual_loss = 0
-    for step_loss in policy.get_loss(rollout):
+    for step_loss in trainer.policy.get_loss(trainer.rollout):
         actual_loss += step_loss.item()
+        trainer.policy.policy_network.zero_grad()
         step_loss.backward()
-        policy.optimizer.step()
-    policy.after_step()
+        trainer.optimizer.step()
 
     # Compare expected vs. actual.
     diff = abs(float(actual_loss - expected_loss_items["total"]))
@@ -146,38 +144,25 @@ def test_lr_schedule_null() -> None:
     rate should be constant).
     """
 
-    # Initialize environment and policy.
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
-    env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True
-    )
-    policy = get_policy(env, settings)
-
-    # Define helper function to check learning rate.
-    def check_lr(optimizer: Optimizer, lr: float) -> None:
-        for param_group in optimizer.param_groups:
-            assert param_group["lr"] == lr
+    trainer = RLTrainer(settings)
 
     # Run training and test values of learning rate along the way.
-    check_lr(policy.optimizer, settings["initial_lr"])
+    check_lr(trainer.optimizer, settings["initial_lr"])
     for _ in range(settings["num_updates"]):
 
         # Perform update.
-        rollout = get_rollout(
-            env,
-            policy,
-            settings["num_episodes"],
-            settings["episode_len"],
-            settings["num_processes"],
-            settings["device"],
-        )
-        for step_loss in policy.get_loss(rollout):
+        _, _ = trainer.collect_rollout()
+        for step_loss in trainer.policy.get_loss(trainer.rollout):
             step_loss.backward()
-            policy.optimizer.step()
-        policy.after_step()
+            trainer.optimizer.step()
+        trainer.rollout.reset()
+        if trainer.lr_schedule is not None:
+            trainer.lr_schedule.step()
 
         # Check learning rate.
-        check_lr(policy.optimizer, settings["initial_lr"])
+        check_lr(trainer.optimizer, settings["initial_lr"])
 
 
 def test_lr_schedule_exponential() -> None:
@@ -185,36 +170,23 @@ def test_lr_schedule_exponential() -> None:
     Tests learning rate schedule in the case where the schedule type is exponential.
     """
 
-    # Initialize environment and policy.
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
     settings["lr_schedule_type"] = "exponential"
-    env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True
-    )
-    policy = get_policy(env, settings)
-
-    # Define helper function to check learning rate.
-    def check_lr(optimizer: Optimizer, lr: float) -> None:
-        for param_group in optimizer.param_groups:
-            assert abs(param_group["lr"] - lr) < TOL
+    trainer = RLTrainer(settings)
 
     # Run training and test values of learning rate along the way.
-    check_lr(policy.optimizer, settings["initial_lr"])
+    check_lr(trainer.optimizer, settings["initial_lr"])
     for i in range(settings["num_updates"]):
 
         # Perform update.
-        rollout = get_rollout(
-            env,
-            policy,
-            settings["num_episodes"],
-            settings["episode_len"],
-            settings["num_processes"],
-            settings["device"],
-        )
-        for step_loss in policy.get_loss(rollout):
+        _, _ = trainer.collect_rollout()
+        for step_loss in trainer.policy.get_loss(trainer.rollout):
             step_loss.backward()
-            policy.optimizer.step()
-        policy.after_step()
+            trainer.optimizer.step()
+        trainer.rollout.reset()
+        if trainer.lr_schedule is not None:
+            trainer.lr_schedule.step()
 
         # Check learning rate.
         interval_pos = float(i + 1) / settings["num_updates"]
@@ -222,7 +194,7 @@ def test_lr_schedule_exponential() -> None:
             settings["initial_lr"]
             * (settings["final_lr"] / settings["initial_lr"]) ** interval_pos
         )
-        check_lr(policy.optimizer, expected_lr)
+        check_lr(trainer.optimizer, expected_lr)
 
 
 def test_lr_schedule_cosine() -> None:
@@ -230,36 +202,23 @@ def test_lr_schedule_cosine() -> None:
     Tests learning rate schedule in the case where the schedule type is cosine.
     """
 
-    # Initialize environment and policy.
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
     settings["lr_schedule_type"] = "cosine"
-    env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True
-    )
-    policy = get_policy(env, settings)
-
-    # Define helper function to check learning rate.
-    def check_lr(optimizer: Optimizer, lr: float) -> None:
-        for param_group in optimizer.param_groups:
-            assert abs(param_group["lr"] - lr) < TOL
+    trainer = RLTrainer(settings)
 
     # Run training and test values of learning rate along the way.
-    check_lr(policy.optimizer, settings["initial_lr"])
+    check_lr(trainer.optimizer, settings["initial_lr"])
     for i in range(settings["num_updates"]):
 
         # Perform update.
-        rollout = get_rollout(
-            env,
-            policy,
-            settings["num_episodes"],
-            settings["episode_len"],
-            settings["num_processes"],
-            settings["device"],
-        )
-        for step_loss in policy.get_loss(rollout):
+        _, _ = trainer.collect_rollout()
+        for step_loss in trainer.policy.get_loss(trainer.rollout):
             step_loss.backward()
-            policy.optimizer.step()
-        policy.after_step()
+            trainer.optimizer.step()
+        trainer.rollout.reset()
+        if trainer.lr_schedule is not None:
+            trainer.lr_schedule.step()
 
         # Check learning rate.
         interval_pos = math.pi * float(i + 1) / settings["num_updates"]
@@ -269,7 +228,7 @@ def test_lr_schedule_cosine() -> None:
             * (1.0 + math.cos(interval_pos))
         )
         expected_lr = settings["final_lr"] + offset
-        check_lr(policy.optimizer, expected_lr)
+        check_lr(trainer.optimizer, expected_lr)
 
 
 def test_lr_schedule_linear() -> None:
@@ -277,43 +236,30 @@ def test_lr_schedule_linear() -> None:
     Tests learning rate schedule in the case where the schedule type is linear.
     """
 
-    # Initialize environment and policy.
+    # Initialize trainer.
     settings = dict(DEFAULT_SETTINGS)
     settings["lr_schedule_type"] = "linear"
-    env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True
-    )
-    policy = get_policy(env, settings)
-
-    # Define helper function to check learning rate.
-    def check_lr(optimizer: Optimizer, lr: float) -> None:
-        for param_group in optimizer.param_groups:
-            assert abs(param_group["lr"] - lr) < TOL
+    trainer = RLTrainer(settings)
 
     # Run training and test values of learning rate along the way.
-    check_lr(policy.optimizer, settings["initial_lr"])
+    check_lr(trainer.optimizer, settings["initial_lr"])
     for i in range(settings["num_updates"]):
 
         # Perform update.
-        rollout = get_rollout(
-            env,
-            policy,
-            settings["num_episodes"],
-            settings["episode_len"],
-            settings["num_processes"],
-            settings["device"],
-        )
-        for step_loss in policy.get_loss(rollout):
+        _, _ = trainer.collect_rollout()
+        for step_loss in trainer.policy.get_loss(trainer.rollout):
             step_loss.backward()
-            policy.optimizer.step()
-        policy.after_step()
+            trainer.optimizer.step()
+        trainer.rollout.reset()
+        if trainer.lr_schedule is not None:
+            trainer.lr_schedule.step()
 
         # Check learning rate.
         lr_shift = settings["final_lr"] - settings["initial_lr"]
         expected_lr = settings["initial_lr"] + lr_shift * float(i + 1) / (
             settings["num_updates"] - 1
         )
-        check_lr(policy.optimizer, expected_lr)
+        check_lr(trainer.optimizer, expected_lr)
 
 
 def test_multitask_losses() -> None:
@@ -322,9 +268,9 @@ def test_multitask_losses() -> None:
     multi-task training.
     """
 
-    # Initialize environment and policy. Note that we set `normalize_first_n` to 39,
-    # since it is the size of the total observation minus the number of tasks. We also
-    # set `normalize_advantages` to False, as this makes it possible to compute the task
+    # Initialize trainer. Note that we set `normalize_first_n` to 39, since it is the
+    # size of the total observation minus the number of tasks. We also set
+    # `normalize_advantages` to False, as this makes it possible to compute the task
     # specific losses while only considering each task's own transitions. Changing this
     # setting to True will cause this test to fail.
     settings = dict(DEFAULT_SETTINGS)
@@ -334,24 +280,19 @@ def test_multitask_losses() -> None:
     settings["num_episodes"] = 1
     settings["episode_len"] = 100
     settings["normalize_advantages"] = False
-    env = get_env(
-        settings["env_name"],
-        settings["num_processes"],
-        allow_early_resets=True,
-        normalize_first_n=39,
-    )
-    policy = get_policy(env, settings)
+    trainer = RLTrainer(settings)
 
     # Initialize rollout and task specific rollouts.
     rollout, task_rollouts = get_task_rollouts(
-        env,
-        policy,
+        trainer.env,
+        trainer.policy,
         settings["num_tasks"],
         settings["num_episodes"],
         settings["episode_len"],
         settings["num_processes"],
         settings["device"],
     )
+    trainer.rollout = rollout
 
     # Compute expected task losses.
     expected_task_losses = []
@@ -361,12 +302,14 @@ def test_multitask_losses() -> None:
         else:
             task_settings = dict(settings)
             task_settings["num_processes"] = task_rollout.num_processes
-            expected_loss_items = get_losses(task_rollout, policy, task_settings)
+            expected_loss_items = get_losses(
+                task_rollout, trainer.policy, task_settings
+            )
             expected_task_losses.append(expected_loss_items["total"])
 
     # Compute actual losses.
     actual_task_losses = [0] * settings["num_tasks"]
-    for step_loss in policy.get_loss(rollout):
+    for step_loss in trainer.policy.get_loss(trainer.rollout):
         actual_task_losses = [
             actual_task_losses[i] + step_loss[i].item()
             for i in range(settings["num_tasks"])
@@ -374,10 +317,9 @@ def test_multitask_losses() -> None:
 
         # Aggregate task losses to execute backward pass.
         step_loss = sum(step_loss)
+        trainer.policy.policy_network.zero_grad()
         step_loss.backward()
-        policy.optimizer.step()
-
-    policy.after_step()
+        trainer.optimizer.step()
 
     # Compare expected vs. actual.
     for task in range(settings["num_tasks"]):
@@ -522,3 +464,9 @@ def get_losses(
     )
 
     return loss_items
+
+
+def check_lr(optimizer: Optimizer, lr: float) -> None:
+    """ Helper function to check learning rate. """
+    for param_group in optimizer.param_groups:
+        assert abs(param_group["lr"] - lr) < TOL
