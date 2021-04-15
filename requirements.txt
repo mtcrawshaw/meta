@@ -6,3 +6,4 @@ baselines
 gym[box2d]
 mujoco-py<2.1,>=2.0
 metaworld
+matplotlib

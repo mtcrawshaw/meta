@@ -19,7 +19,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
     """
     Base class used to represent a splitting MLP. This class shouldn't be used for
     training, as it will raise NotImplementedError when `check_for_split()` is called.
-    Only extensions of this class should be iused for training.
+    Only extensions of this class should be used for training.
     """
 
     def __init__(
@@ -32,6 +32,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         hidden_size: int = 64,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
+        metric: str = "sqeuclidean",
         cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
         downscale_last_layer: bool = False,
@@ -58,6 +59,9 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         sharing_threshold : float
             Sharing score that the network can reach before splitting is disabled. The
             sharing score is computed by `self.get_sharing_score()`.
+        metric : str
+            Whether to use Euclidean distance or cosine distance to compare task
+            gradients. Should be either "sqeuclidean" or "cosine".
         cap_sample_size : bool
             Whether or not to stop increasing the sample size when we switch to EMA.
         ema_alpha : float
@@ -85,6 +89,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.hidden_size = hidden_size
         self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
+        self.metric = metric
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
         self.downscale_last_layer = downscale_last_layer
@@ -335,6 +340,10 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             self.num_tasks, self.num_tasks, self.num_regions, device=self.device
         )
 
+        # Check for a valid metric type.
+        if self.metric not in ["sqeuclidean", "cosine"]:
+            raise NotImplementedError
+
         # Compute pairwise difference for gradients at each region.
         for region in range(self.num_regions):
 
@@ -354,6 +363,39 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         # Convert upper triangular tensor to symmetric tensor.
         task_grad_diffs += torch.transpose(task_grad_diffs, 0, 1)
+
+        # Convert Euclidean distance to cosine distance, if necessary.
+        if self.metric == "cosine":
+
+            # Compute sum/product of norms of gradients for each pair (task1/task2,
+            # region).
+            pair_norm_sums = []
+            pair_norm_products = []
+            for region in range(self.num_regions):
+                region_norms = torch.sum(task_grads[:, region] ** 2, axis=-1)
+                pair_region_norms = torch.cartesian_prod(region_norms, region_norms)
+                pair_region_norm_sum = torch.sum(pair_region_norms, axis=1)
+                pair_region_norm_sum = pair_region_norm_sum.reshape(
+                    self.num_tasks, self.num_tasks
+                )
+                pair_region_norm_product = torch.prod(pair_region_norms, axis=1)
+                pair_region_norm_product = pair_region_norm_product.reshape(
+                    self.num_tasks, self.num_tasks
+                )
+                pair_norm_sums.append(pair_region_norm_sum)
+                pair_norm_products.append(pair_region_norm_product)
+            pair_norm_sums = torch.stack(pair_norm_sums, axis=-1)
+            pair_norm_products = torch.stack(pair_norm_products, axis=-1)
+
+            # Subtract sum of grad norms from norm of grad difference, divide by sqrt of
+            # product of grad norms, then divide by -2 to yield cosine distance.
+            task_grad_diffs -= pair_norm_sums
+            task_grad_diffs /= torch.sqrt(pair_norm_products)
+            task_grad_diffs /= -2.0
+
+            # Get rid of any infs or nans that may have appeared from zero division.
+            bad_idxs = torch.isnan(task_grad_diffs) + torch.isinf(task_grad_diffs)
+            task_grad_diffs[bad_idxs] = 0.0
 
         return task_grad_diffs
 

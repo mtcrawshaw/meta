@@ -36,13 +36,28 @@ Current sprint (Evaluation + baselines):
     Improve performance for meta-learning with splitting networks
     Baselines?
 
-Performance improvements:
-- Figure out linear baseline for PPO
+Splitting network improvements:
+- Use cosine distance to split instead of Euclidean distance
+- Try retraining an already split architecture from scratch (keep initialization?)
+
+Overall performance improvements:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
+Notes for current task:
+- Implement splitting by cosine distance instead of Euclidean distance
+- Test cosine distance splitting networks
+- Make cosine distance computation more efficient
+- Run evaluations with cosine distance
+
+
+----------------------------------------------------------------------------------------
+
+
 supervised_learning branch:
+
+
 The goal of this branch is to convert the trainer into a more modular system that can
 perform training for both RL settings and supervised learning settings, in order to
 implement the random multi-task loss weighting idea. Here's the roadmap:
@@ -55,6 +70,7 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
+
 
 ----------------------------------------------------------------------------------------
 

@@ -52,6 +52,10 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
 
         super(MultiTaskSplittingNetworkV1, self).__init__(**kwargs)
 
+        # Check that metric type is Euclidean.
+        if self.metric != "sqeuclidean":
+            raise NotImplementedError
+
         # Set state.
         self.split_alpha = split_alpha
         self.grad_var = grad_var
