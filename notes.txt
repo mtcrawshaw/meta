@@ -48,7 +48,7 @@ Overall performance improvements:
 Notes for current task:
 - Implement splitting by cosine distance instead of Euclidean distance (DONE)
 - Test cosine distance splitting networks (DONE)
-- Make cosine distance computation more efficient
+- Make cosine distance computation more efficient (DONE)
 - Run evaluations with cosine distance
 
 
