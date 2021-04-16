@@ -367,30 +367,33 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         # Convert Euclidean distance to cosine distance, if necessary.
         if self.metric == "cosine":
 
-            # Compute sum/product of norms of gradients for each pair (task1/task2,
-            # region).
-            pair_norm_sums = []
-            pair_norm_products = []
+            # Collect pairs of gradient norms (per task pair) at each layer. This is
+            # kind of janky because you can only use torch.cartesian_prod() with 1D
+            # tensors.
+            pair_norms = []
+            region_norms = torch.sum(task_grads ** 2, axis=-1)
             for region in range(self.num_regions):
-                region_norms = torch.sum(task_grads[:, region] ** 2, axis=-1)
-                pair_region_norms = torch.cartesian_prod(region_norms, region_norms)
-                pair_region_norm_sum = torch.sum(pair_region_norms, axis=1)
-                pair_region_norm_sum = pair_region_norm_sum.reshape(
-                    self.num_tasks, self.num_tasks
+                pair_norms.append(
+                    torch.cartesian_prod(
+                        region_norms[:, region], region_norms[:, region]
+                    )
                 )
-                pair_region_norm_product = torch.prod(pair_region_norms, axis=1)
-                pair_region_norm_product = pair_region_norm_product.reshape(
-                    self.num_tasks, self.num_tasks
-                )
-                pair_norm_sums.append(pair_region_norm_sum)
-                pair_norm_products.append(pair_region_norm_product)
-            pair_norm_sums = torch.stack(pair_norm_sums, axis=-1)
-            pair_norm_products = torch.stack(pair_norm_products, axis=-1)
+            pair_norms = torch.stack(pair_norms, axis=1)
+
+            # Compute sum/product of gradient norms of each layer/task pair.
+            pair_norm_sum = torch.sum(pair_norms, axis=-1)
+            pair_norm_sum = pair_norm_sum.reshape(
+                self.num_tasks, self.num_tasks, self.num_regions
+            )
+            pair_norm_prod = torch.prod(pair_norms, axis=-1)
+            pair_norm_prod = pair_norm_prod.reshape(
+                self.num_tasks, self.num_tasks, self.num_regions
+            )
 
             # Subtract sum of grad norms from norm of grad difference, divide by sqrt of
             # product of grad norms, then divide by -2 to yield cosine distance.
-            task_grad_diffs -= pair_norm_sums
-            task_grad_diffs /= torch.sqrt(pair_norm_products)
+            task_grad_diffs -= pair_norm_sum
+            task_grad_diffs /= torch.sqrt(pair_norm_prod)
             task_grad_diffs /= -2.0
 
             # Get rid of any infs or nans that may have appeared from zero division.
