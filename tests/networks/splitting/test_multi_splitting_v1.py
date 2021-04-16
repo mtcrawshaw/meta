@@ -20,12 +20,8 @@ from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.splitting import V1_SETTINGS
 from tests.networks.splitting.templates import (
     TOL,
-    gradients_template,
-    backward_template,
-    grad_diffs_template,
     split_stats_template,
     split_v1_template,
-    score_template,
 )
 
 

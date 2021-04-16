@@ -2,7 +2,7 @@
 Templates for tests in tests/networks/splitting/.
 """
 
-import math
+from math import sqrt
 from itertools import product
 from typing import List, Dict, Any, Callable
 from gym.spaces import Box
@@ -265,6 +265,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
         hidden_size=hidden_size,
+        metric=settings["metric"],
         device=settings["device"],
     )
 
@@ -291,10 +292,166 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     # Check computed differences.
     for task1, task2 in product(range(network.num_tasks), range(network.num_tasks)):
         for region in range(network.num_regions):
-            expected_diff = torch.sum(
-                torch.pow(task_grads[task1, region] - task_grads[task2, region], 2)
-            )
-            assert torch.allclose(task_grad_diffs[task1, task2, region], expected_diff)
+            actual = task_grad_diffs[task1, task2, region]
+            grad1 = task_grads[task1, region]
+            grad2 = task_grads[task2, region]
+
+            # Compute expected difference.
+            if settings["metric"] == "sqeuclidean":
+                expected = torch.sum(torch.pow(grad1 - grad2, 2))
+            elif settings["metric"] == "cosine":
+                grad1 /= sqrt(torch.sum(grad1 ** 2))
+                grad2 /= sqrt(torch.sum(grad2 ** 2))
+                bad1 = torch.isinf(grad1) + torch.isnan(grad1)
+                bad2 = torch.isinf(grad2) + torch.isnan(grad2)
+                bad = (bad1 + bad2).any()
+                if bad:
+                    expected = torch.Tensor([0.0])
+                else:
+                    expected = torch.sum(grad1 * grad2)
+            else:
+                raise NotImplementedError
+
+            assert torch.allclose(actual, expected)
+
+
+def grad_stats_template(
+    settings: Dict[str, Any],
+    task_grads: torch.Tensor,
+    splits_args: List[Dict[str, Any]],
+) -> None:
+    """
+    Test that `update_grad_stats()` correctly computes pairwise differences of gradients
+    over multiple steps.
+
+    Arguments
+    ---------
+    settings : Dict[str, Any]
+        Dictionary holding misc settings for how to run trial.
+    task_grads : torch.Tensor
+        Tensor of size `(total_steps, network.num_tasks, network.num_regions,
+        network.max_region_size)` which holds the task gradients for multiple steps that
+        we will compute statistics over.
+    splits_args : List[Dict[str, Any]]
+        List of splits to execute on network.
+    """
+
+    dim = settings["obs_dim"] + settings["num_tasks"]
+
+    # Construct network.
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        num_tasks=settings["num_tasks"],
+        num_layers=settings["num_layers"],
+        hidden_size=settings["hidden_size"],
+        metric=settings["metric"],
+        ema_alpha=settings["ema_alpha"],
+        device=settings["device"],
+    )
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Split the network according to `splits_args`.
+    for split_args in splits_args:
+        network.split(**split_args)
+
+    # Check that the region sizes are what we think they are.
+    expected_region_sizes = torch.zeros(settings["num_layers"], dtype=torch.long)
+    expected_region_sizes[1:-1] = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    expected_region_sizes[0] = settings["hidden_size"] * (dim + 1)
+    expected_region_sizes[-1] = dim * (settings["hidden_size"] + 1)
+    assert torch.all(expected_region_sizes == network.region_sizes)
+    region_sizes = expected_region_sizes.tolist()
+
+    # Update the networks's gradient statistics with our constructed task gradients,
+    # compute the gradient statistics at each step along the way, and compare the
+    # computed statistics against the expected values.
+    task_flags = torch.zeros(settings["num_steps"], network.num_tasks)
+    task_pair_flags = torch.zeros(
+        settings["num_steps"], network.num_tasks, network.num_tasks
+    )
+    for step in range(settings["num_steps"]):
+        network.num_steps += 1
+        network.update_grad_stats(task_grads[step])
+        assert network.grad_diff_stats.shape == (
+            network.num_tasks,
+            network.num_tasks,
+            network.num_regions,
+        )
+
+        # Set task flags, i.e. indicators for whether or not each task is included in
+        # the current batch, and compute sample sizes for each task and task pair.
+        task_flags[step] = torch.any(
+            task_grads[step].view(network.num_tasks, -1) != 0, dim=1
+        )
+        task_flags[step] = task_flags[step] * 1
+        task_pair_flags[step] = task_flags[step].unsqueeze(0) * task_flags[
+            step
+        ].unsqueeze(1)
+        sample_sizes = torch.sum(task_flags[: step + 1], dim=0)
+        pair_sample_sizes = torch.sum(task_pair_flags[: step + 1], dim=0)
+
+        def grad_diff(grad1: torch.Tensor, grad2: torch.Tensor) -> float:
+            """ Compute diff between two gradients based on `metric`. """
+
+            if settings["metric"] == "sqeuclidean":
+                diff = torch.sum((grad1 - grad2) ** 2)
+            elif settings["metric"] == "cosine":
+                grad1 /= sqrt(torch.sum(grad1 ** 2))
+                grad2 /= sqrt(torch.sum(grad2 ** 2))
+                diff = torch.sum(grad1 * grad2)
+            else:
+                raise NotImplementedError
+
+            return diff
+
+        # Compare networks's gradients stats to the expected value for each `(task1,
+        # task2, region)`.
+        for task1, task2, region in product(
+            range(network.num_tasks),
+            range(network.num_tasks),
+            range(network.num_regions),
+        ):
+            region_size = int(network.region_sizes[region])
+
+            # Computed the expected value of the mean of gradient differences between
+            # `task1, task2` at region `region`.
+            steps = task_pair_flags[:, task1, task2].bool()
+            if not torch.any(steps):
+                continue
+            task1_grads = task_grads[steps, task1, region, :region_size]
+            task2_grads = task_grads[steps, task2, region, :region_size]
+            num_steps = len(steps.nonzero())
+            if pair_sample_sizes[task1, task2] <= ema_threshold:
+                diffs = torch.Tensor(
+                    [
+                        grad_diff(task1_grads[i], task2_grads[i])
+                        for i in range(num_steps)
+                    ]
+                )
+                exp_mean = torch.mean(diffs)
+            else:
+                initial_task1_grads = task1_grads[:ema_threshold]
+                initial_task2_grads = task2_grads[:ema_threshold]
+                diffs = torch.Tensor(
+                    [
+                        grad_diff(initial_task1_grads[i], initial_task2_grads[i])
+                        for i in range(ema_threshold)
+                    ]
+                )
+                exp_mean = torch.mean(diffs)
+                for i in range(ema_threshold, int(pair_sample_sizes[task1, task2])):
+                    task1_grad = task1_grads[i]
+                    task2_grad = task2_grads[i]
+                    diff = grad_diff(task1_grad, task2_grad)
+                    exp_mean = exp_mean * settings["ema_alpha"] + diff * (
+                        1.0 - settings["ema_alpha"]
+                    )
+
+            # Compare expected mean to network's mean.
+            actual_mean = network.grad_diff_stats.mean[task1, task2, region]
+            diff = abs(actual_mean - exp_mean)
+            assert abs(actual_mean - exp_mean) < TOL
 
 
 def split_stats_template(
@@ -315,7 +472,7 @@ def split_stats_template(
         Tensor of size `(total_steps, network.num_tasks, network.num_regions,
         network.max_region_size)` which holds the task gradients for multiple steps that
         we will compute statistics over.
-    splits_args : List[Dict[str, Any]
+    splits_args : List[Dict[str, Any]]
         List of splits to execute on network.
     """
 
@@ -450,8 +607,8 @@ def split_stats_template(
             if settings["cap_sample_size"]:
                 sample_size = min(sample_size, ema_threshold)
             exp_mu = 2 * region_size * grad_var
-            exp_sigma = 2 * math.sqrt(2 * region_size) * grad_var
-            expected_z = math.sqrt(sample_size) * (exp_mean - exp_mu) / exp_sigma
+            exp_sigma = 2 * sqrt(2 * region_size) * grad_var
+            expected_z = sqrt(sample_size) * (exp_mean - exp_mu) / exp_sigma
             assert abs(z[task1, task2, region] - expected_z) < TOL
 
 

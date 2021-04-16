@@ -8,8 +8,9 @@ BASE_SETTINGS = {
     "num_layers": 3,
     "split_step_threshold": 30,
     "sharing_threshold": 0.5,
+    "metric": "sqeuclidean",
     "cap_sample_size": True,
-    "ema_alpha": 0.999,
+    "ema_alpha": 0.99,
     "device": torch.device("cpu"),
 }
 V1_SETTINGS = {**BASE_SETTINGS, "split_alpha": 0.05, "grad_var": None}

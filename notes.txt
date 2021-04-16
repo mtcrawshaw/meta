@@ -46,8 +46,8 @@ Overall performance improvements:
 - Combine splitting networks with PCGrad
 
 Notes for current task:
-- Implement splitting by cosine distance instead of Euclidean distance
-- Test cosine distance splitting networks
+- Implement splitting by cosine distance instead of Euclidean distance (DONE)
+- Test cosine distance splitting networks (DONE)
 - Make cosine distance computation more efficient
 - Run evaluations with cosine distance
 

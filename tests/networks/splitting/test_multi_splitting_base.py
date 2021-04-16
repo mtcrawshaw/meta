@@ -23,8 +23,7 @@ from tests.networks.splitting.templates import (
     gradients_template,
     backward_template,
     grad_diffs_template,
-    split_stats_template,
-    split_v1_template,
+    grad_stats_template,
     score_template,
 )
 
@@ -396,32 +395,483 @@ def test_task_grads_multiple() -> None:
     gradients_template(BASE_SETTINGS, splits_args)
 
 
-def test_task_grad_diffs_zero() -> None:
+def test_task_grad_diffs_zero_euclidean() -> None:
     """
-    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
-    task-specific gradients at each region when these gradients are hard-coded to zero.
+    Test that `get_task_grad_diffs()` correctly computes the pairwise Euclidean distance
+    between task-specific gradients at each region when these gradients are hard-coded
+    to zero.
     """
 
-    grad_diffs_template(BASE_SETTINGS, "zero")
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    grad_diffs_template(settings, "zero")
 
 
-def test_task_grad_diffs_rand_identical() -> None:
+def test_task_grad_diffs_rand_identical_euclidean() -> None:
     """
-    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
-    task-specific gradients at each region when these gradients are random, but
+    Test that `get_task_grad_diffs()` correctly computes the pairwise Euclidean distance
+    between task-specific gradients at each region when these gradients are random, but
     identical across tasks.
     """
 
-    grad_diffs_template(BASE_SETTINGS, "rand_identical")
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    grad_diffs_template(settings, "rand_identical")
 
 
-def test_task_grad_diffs_rand() -> None:
+def test_task_grad_diffs_rand_euclidean() -> None:
     """
-    Test that `get_task_grad_diffs()` correctly computes the pairwise difference between
-    task-specific gradients at each region when these gradients are random.
+    Test that `get_task_grad_diffs()` correctly computes the pairwise Euclidean distance
+    between task-specific gradients at each region when these gradients are random.
     """
 
-    grad_diffs_template(BASE_SETTINGS, "rand")
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    grad_diffs_template(settings, "rand")
+
+
+def test_task_grad_diffs_zero_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine distance
+    between task-specific gradients at each region when these gradients are hard-coded
+    to zero.
+    """
+
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "zero")
+
+
+def test_task_grad_diffs_rand_identical_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine distance
+    between task-specific gradients at each region when these gradients are random, but
+    identical across tasks.
+    """
+
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "rand_identical")
+
+
+def test_task_grad_diffs_rand_cosine() -> None:
+    """
+    Test that `get_task_grad_diffs()` correctly computes the pairwise cosine distance
+    between task-specific gradients at each region when these gradients are random.
+    """
+
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    grad_diffs_template(settings, "rand")
+
+
+def test_task_grad_stats_zero_euclidean_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are always zero, with a fully shared network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_zero_euclidean_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are random, while some tasks randomly have gradients set to
+    zero, with a fully shared network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand_zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_euclidean_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, with a fully shared network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_zero_euclidean_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are always zero, with a split network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_zero_euclidean_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are random, while some tasks randomly have gradients set to
+    zero, with a split network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand_zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_euclidean_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, with a split network.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "sqeuclidean"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_zero_cosine_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are always zero, with a fully shared network using cosine
+    distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_zero_cosine_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are random, while some tasks randomly have gradients set to
+    zero, with a fully shared network using cosine distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand_zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_cosine_shared() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, with a fully shared network using cosine
+    distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = []
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_zero_cosine_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are always zero, with a split network using cosine
+    distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_zero_cosine_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when the gradients are random, while some tasks randomly have gradients set to
+    zero, with a split network using cosine distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand_zero",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
+
+
+def test_task_grad_stats_rand_cosine_split() -> None:
+    """
+    Test that `update_grad_stats()` correctly computes gradient statistics over multiple
+    steps when these gradients are random, with a split network using cosine distance.
+    """
+
+    # Set up case.
+    settings = dict(BASE_SETTINGS)
+    settings["metric"] = "cosine"
+    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    ema_threshold = alpha_to_threshold(settings["ema_alpha"])
+
+    # Construct series of splits.
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 1, "group1": [1], "group2": [3]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+
+    # Construct a sequence of task gradients.
+    settings["num_steps"] = max(settings["split_step_threshold"], ema_threshold) + 20
+    dim = settings["obs_dim"] + settings["num_tasks"]
+    region_sizes = get_region_sizes(settings)
+    task_grads = make_task_gradients(
+        "rand",
+        settings["num_steps"],
+        settings["num_tasks"],
+        settings["num_layers"],
+        region_sizes,
+    )
+
+    # Run test.
+    grad_stats_template(settings, task_grads, splits_args)
 
 
 def test_sharing_score_shared() -> None:
@@ -639,3 +1089,54 @@ def test_shared_regions_multiple() -> None:
 
     # Compare expected to actual.
     assert torch.all(expected_is_shared == network.splitting_map.shared_regions())
+
+
+def make_task_gradients(
+    grad_type: str,
+    num_steps: int,
+    num_tasks: int,
+    num_layers: int,
+    region_sizes: List[int],
+) -> torch.Tensor:
+    """ Construct dummy task gradients. """
+
+    # Generate gradients.
+    max_layer_size = max(region_sizes)
+    if grad_type == "zero":
+        task_grads = torch.zeros(num_steps, num_tasks, num_layers, max_layer_size)
+    elif grad_type == "rand_zero":
+        task_grads = torch.rand(num_steps, num_tasks, num_layers, max_layer_size)
+        task_grads *= (
+            (torch.rand(num_steps, num_tasks) < 0.5).unsqueeze(-1).unsqueeze(-1)
+        )
+    elif grad_type == "rand_identical":
+        task_grads = torch.rand(num_steps, 1, num_layers, max_layer_size)
+        task_grads = task_grads.expand(-1, num_tasks, -1, -1)
+    elif grad_type == "rand":
+        task_grads = torch.rand(num_steps, num_tasks, num_layers, max_layer_size)
+    else:
+        raise NotImplementedError
+
+    # Zero out values that don't correspond to a parameter (this happens since layers
+    # have different sizes).
+    for layer in range(num_layers):
+        task_grads[:, :, layer, region_sizes[layer] :] = 0.0
+
+    return task_grads
+
+
+def get_region_sizes(settings: Dict[str, Any]) -> List[int]:
+    """ Compute size of each layer in network specified by `settings`. """
+
+    dim = settings["num_tasks"] + settings["obs_dim"]
+    region_sizes = []
+    for region in range(settings["num_layers"]):
+        if region == 0:
+            region_size = settings["hidden_size"] * (dim + 1)
+        elif region == settings["num_layers"] - 1:
+            region_size = dim * (settings["hidden_size"] + 1)
+        else:
+            region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+        region_sizes.append(region_size)
+
+    return region_sizes
