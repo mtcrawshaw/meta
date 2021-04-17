@@ -50,7 +50,9 @@ Notes for current task:
 - Test cosine distance splitting networks (DONE)
 - Make cosine distance computation more efficient (DONE)
 - Run evaluations with cosine distance
+- Implement training on pre-split architecture
 
+Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
 
 ----------------------------------------------------------------------------------------
 

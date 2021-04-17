@@ -3,8 +3,9 @@ Definition of BaseMultiTaskSplittingNetwork, the base class used to represent a
 multi-task splitting network.
 """
 
+import pickle
 from copy import deepcopy
-from typing import List
+from typing import List, Dict, Any
 
 import torch
 import torch.nn as nn
@@ -36,6 +37,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
         downscale_last_layer: bool = False,
+        network_load: Dict[str, Any] = None,
         device: torch.device = None,
     ) -> None:
         """
@@ -66,6 +68,22 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             Whether or not to stop increasing the sample size when we switch to EMA.
         ema_alpha : float
             Coefficient used to compute exponential moving averages.
+        network_load : Dict[str, Any]
+            Dictionary holding instructions about loading a pre-split architecture in.
+            If no loading should be done (as is the case for the traditional algorithm
+            which trains from a fully shared network), this value should be None.
+            Otherwise, a pre-split architecture will be loaded and no splitting will be
+            performed during training. The key/value pairs that should be in this
+            dictionary to perform this are described below:
+                checkpoint_path : str
+                    Path to a checkpoint file from a previous training run of a
+                    splitting network. The architecture will be loaded from this
+                    splitting file.
+                network_type : str
+                    Either "actor" or "critic". This determines which network
+                    architecture within the checkpoint (namely, actor or critic) to load
+                    from.
+            This is incredibly janky but it's what we got for now.
         device : torch.device
             Device to perform computation on, either `torch.device("cpu")` or
             `torch.device("cuda:0")`.
@@ -92,6 +110,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.metric = metric
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
+        self.network_load = network_load
         self.downscale_last_layer = downscale_last_layer
 
         # Set device.
@@ -116,6 +135,35 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
     def initialize_network(self) -> None:
         """ Initialize layers of network. """
 
+        # Initialize splitting map. Defines the parameter sharing structure between
+        # tasks.
+        self.num_regions = self.num_layers
+        self.splitting_map = SplittingMap(
+            self.num_tasks, self.num_regions, device=self.device
+        )
+        self.splitting_enabled = True
+
+        # Load splitting map, if necessary. If so, we disable splitting.
+        if self.network_load is not None:
+
+            # Load previous network from checkpoint.
+            checkpoint_path = self.network_load["checkpoint_path"]
+            network_type = self.network_load["network_type"]
+            with open(checkpoint_path, "rb") as checkpoint_file:
+                checkpoint = pickle.load(checkpoint_file)
+            if network_type == "actor":
+                prev_network = checkpoint["policy"].policy_network.actor
+            elif network_type == "critic":
+                prev_network = checkpoint["policy"].policy_network.actor
+            else:
+                raise NotImplementedError
+
+            assert isinstance(prev_network, BaseMultiTaskSplittingNetwork)
+            assert self.num_tasks == prev_network.num_tasks
+            assert self.num_regions == prev_network.num_regions
+            self.splitting_map = prev_network.splitting_map
+            self.splitting_enabled = False
+
         # Initialize layers.
         region_list = []
         for i in range(self.num_layers):
@@ -132,31 +180,20 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             else:
                 layer_init = init_base
 
-            # Initialize layer.
-            layer = get_layer(
-                in_size=layer_input_size,
-                out_size=layer_output_size,
-                activation=self.activation if i != self.num_layers - 1 else None,
-                layer_init=layer_init,
-            )
-
-            # Combine linear transformation and activation into a single layer and add
-            # to list of layers. Note that each element of `layers` is a list of layers,
-            # initialized with only a single element. This is because each element of
-            # `layers` represents all copies of a layer used by different subsets of all
-            # tasks, but initially all layers are shared by all tasks, so we only have
-            # one copy per region.
-            region = nn.ModuleList([layer])
+            # Initialize copies of layer.
+            layer_list = [
+                get_layer(
+                    in_size=layer_input_size,
+                    out_size=layer_output_size,
+                    activation=self.activation if i != self.num_layers - 1 else None,
+                    layer_init=layer_init,
+                )
+                for _ in range(int(self.splitting_map.num_copies[i]))
+            ]
+            region = nn.ModuleList(layer_list)
             region_list.append(region)
 
         self.regions = nn.ModuleList(region_list)
-        self.num_regions = len(self.regions)
-
-        # Initialize splitting maps. These are the variables that define the parameter
-        # sharing structure between tasks.
-        self.splitting_map = SplittingMap(
-            self.num_tasks, self.num_regions, device=self.device
-        )
 
         # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
@@ -241,7 +278,8 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.num_steps += 1
 
         # Stop splitting when the sharing score is sufficiently low.
-        if self.get_sharing_score() <= self.sharing_threshold:
+        past_threshold = self.get_sharing_score() <= self.sharing_threshold
+        if past_threshold or not self.splitting_enabled:
             return False
 
         # Compute task-specific gradients.
