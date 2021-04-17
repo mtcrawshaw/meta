@@ -154,7 +154,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             if network_type == "actor":
                 prev_network = checkpoint["policy"].policy_network.actor
             elif network_type == "critic":
-                prev_network = checkpoint["policy"].policy_network.actor
+                prev_network = checkpoint["policy"].policy_network.critic
             else:
                 raise NotImplementedError
 
