@@ -18,7 +18,50 @@ class RLTrainer(Trainer):
     def init_model(self, config: Dict[str, Any], policy: PPOPolicy = None) -> None:
         """
         Initialize model and corresponding objects. If `policy` is None (the default
-        case), then one will be instantiated using settings from `config`.
+        case), then one will be instantiated using settings from `config`. `config`
+        should contain all entries listed in the docstring of Trainer, as well as the
+        settings specific to RLTrainer, which are listed below.
+
+        Parameters
+        ----------
+        env_name : str
+            Environment to train on.
+        num_updates : int
+            Number of update steps.
+        rollout_length : int
+            Number of environment steps per rollout.
+        num_ppo_epochs : int
+            Number of ppo epochs per update.
+        num_minibatch : int
+            Number of mini batches per update step for PPO.
+        num_processes : int
+            Number of asynchronous environments to run at once.
+        value_loss_coeff : float
+            PPO value loss coefficient.
+        entropy_loss_coeff : float
+            PPO entropy loss coefficient
+        gamma : float
+            Discount factor for rewards.
+        gae_lambda : float
+            Lambda parameter for GAE (used in equation (11) of PPO paper).
+        clip_param : float
+            Clipping parameter for PPO surrogate loss.
+        eps : float
+            Epsilon value for numerical stability.
+        clip_value_loss : False
+            Whether or not to clip the value loss.
+        normalize_advantages : bool
+            Whether or not to normalize advantages after computation.
+        normalize_transition : bool
+            Whether or not to normalize observations and rewards.
+        same_np_seed : bool
+            Whether or not to use the same numpy random seed across each process. This
+            should really only be used when training on MetaWorld, as it allows for
+            multiple processes to generate/act over the same set of goals.
+        save_memory : bool
+            (Optional) Whether or not to save memory when training on a multi-task
+            MetaWorld benchmark by creating a new environment instance at each episode.
+            Only applicable to MetaWorld training. Defaults to False if not included.
         """
 
         # Set environment and policy.

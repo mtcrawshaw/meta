@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.networks.utils import get_layer, init_base, init_downscale
+from meta.networks.utils import get_fc_layer, init_base, init_downscale
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
@@ -182,7 +182,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
             # Initialize copies of layer.
             layer_list = [
-                get_layer(
+                get_fc_layer(
                     in_size=layer_input_size,
                     out_size=layer_output_size,
                     activation=self.activation if i != self.num_layers - 1 else None,

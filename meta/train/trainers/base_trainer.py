@@ -11,7 +11,35 @@ class Trainer:
     """ Abstract base class for trainers. """
 
     def __init__(self, config: Dict[str, Any], **kwargs: Dict[str, Any]) -> None:
-        """ Init function for Trainer. """
+        """
+        Init function for Trainer. The expected entries of `config` are listed below,
+        though the concrete extensions of this class require more entries which are
+        listed in their docstrings.
+
+        Parameters
+        ----------
+        lr_schedule_type : str
+            Either None, "exponential", "cosine", or "linear". If None is given, the
+            learning rate will stay at initial_lr for the duration of training.
+        initial_lr : float
+            Initial policy learning rate.
+        final_lr : float
+            Final policy learning rate.
+        max_grad_norm : float
+            Max norm of gradients
+        architecture_config: Dict[str, Any]
+            Config dictionary for the architecture. Should contain an entry for "type",
+            which is either "vanilla", "trunk", "splitting_v1" or "splitting_v2", and
+            all other entries should correspond to the keyword arguments for the
+            corresponding network class, which is either VanillaNetwork,
+            MultiTaskTrunkNetwork, MultiTaskSplittingNetworkV1, or
+            MultiTaskSplittingNetworkV2. This can also be None in the case that `policy`
+            is not None.
+        cuda : bool
+            Whether or not to train on GPU.
+        seed : int
+            Random seed.
+        """
 
         self.config = config
 

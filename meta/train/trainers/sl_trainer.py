@@ -12,14 +12,23 @@ class SLTrainer(Trainer):
     """ Trainer class for supervised learning. """
 
     def init_model(self, config: Dict[str, Any]) -> None:
-        """ Initialize model and corresponding objects. """
+        """
+        Initialize model and corresponding objects. The expected entries of `config` are
+        listed below. `config` should contain all entries listed in the docstring of
+        Trainer, as well as the settings specific to SLTrainer, which are listed below.
+
+        Parameters
+        ----------
+        dataset : str
+            Dataset to train on.
+        num_epochs : int
+            Number of training epochs.
+        minibatch_size : int
+            Size of each minibatch on which to compute gradient updates.
+        """
 
         # Construct network and data loader.
         self.network = None
-
-        # 1. Construct network and data loader.
-        # 2. Forward and backward passes.
-        # 3. Allow aligned_train_configs to work for SL configs.
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -28,9 +37,8 @@ class SLTrainer(Trainer):
 
         # Perform forward pass.
 
-        # Compute loss and accuracy.
+        # Compute loss.
         loss = None
-        accuracy = None
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self.network.zero_grad()
@@ -39,9 +47,7 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {
-            "train_loss": loss.item(),
-        }
+        step_metrics = {"train_loss": loss.item()}
         return step_metrics
 
     def evaluate(self) -> None:
@@ -51,9 +57,8 @@ class SLTrainer(Trainer):
 
         # Perform forward pass.
 
-        # Compute loss and accuracy.
+        # Compute loss.
         loss = None
-        accuracy = None
 
         # Return metrics from training step.
         eval_step_metrics = {

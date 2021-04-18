@@ -73,6 +73,15 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
+Notes for current task:
+- Add skeleton (DONE)
+- Construct network
+- Construct data loader
+- Forward and backward passes
+- Allow aligned_train_configs to work for SL configs
+- Write tests for ConvNetwork?
+
+Should we have an activation function after the last layer?
 
 ----------------------------------------------------------------------------------------
 
@@ -258,7 +267,9 @@ Network architectures:
     - Architecture hyperparameters:
         - Varying network size in hidden layers
         - Network initialization options
-        - ReLU + other activation functions
+    - Convolutional network features:
+        - Max pooling
+        - Batch normalization
     - An option to turn on checks during inference (safe mode). We would check that each
       observation in a multi-task setting ends with a one-hot tensor of size
       `self.num_tasks`, and that task gradients from get_task_grads() from
@@ -366,3 +377,9 @@ Tests:
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
 - Nice to have:
+
+Style:
+- Refactoring:
+- Additions:
+- Nice to have:
+  - Remove as many default arguments as possible.
