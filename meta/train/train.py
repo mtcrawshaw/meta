@@ -1,4 +1,4 @@
-""" Run PPO training on OpenAI Gym/MetaWorld environment. """
+""" Train a neural network with reinfocement learning or supervised learning. """
 
 import os
 import pickle
@@ -26,7 +26,7 @@ gym.logger.set_level(40)
 
 def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Main function for train.py, runs PPO training using settings from `config`.  The
+    Main function for train.py, runs training using settings from `config`.  The
     expected entries of `config` are documented below. Returns a dictionary holding
     values of performance metrics from training and evaluation.
 

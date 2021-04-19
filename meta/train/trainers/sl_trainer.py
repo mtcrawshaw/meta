@@ -1,11 +1,14 @@
-""" Definition of SLTrainer class. """
+""" Definition of SLTrainer class for supervised learning. """
 
 from typing import Dict, Any
 
 import torch
+import torchvision
+import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
-from meta.utils.utils import aligned_train_configs
+from meta.networks import ConvNetwork
+from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
 class SLTrainer(Trainer):
@@ -23,19 +26,67 @@ class SLTrainer(Trainer):
             Dataset to train on.
         num_epochs : int
             Number of training epochs.
-        minibatch_size : int
+        batch_size : int
             Size of each minibatch on which to compute gradient updates.
+        num_workers : int
+            Number of worker processes to load data.
         """
 
-        # Construct network and data loader.
-        self.network = None
+        # Get input/output size of dataset.
+        if config["dataset"] not in DATASET_SIZES:
+            raise NotImplementedError
+        input_size = DATASET_SIZES["dataset"]["input_size"]
+        output_size = DATASET_SIZES["dataset"]["output_size"]
+
+        # Construct data loaders.
+        transform = transforms.Compose(
+            [
+                transforms.toTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        dataset = eval("torchvision.datasets.%s" % config["dataset"])
+        train_set = dataset(
+            root=os.path.join(DATA_DIR, config["dataset"]),
+            train=True,
+            download=True,
+            transform=True,
+        )
+        test_set = dataset(
+            root=os.path.join(DATA_DIR, config["dataset"]),
+            train=False,
+            download=True,
+            transform=True,
+        )
+        self.train_loader = torch.utils.data.DataLoader(
+            train_set,
+            batch_size=config["batch_size"],
+            shuffle=True,
+            num_workers=config["num_workers"],
+        )
+        self.test_loader = torch.utils.data.DataLoader(
+            test_set,
+            batch_size=config["batch_size"],
+            shuffle=False,
+            num_workers=config["num_workers"],
+        )
+
+        # Construct network.
+        network_kwargs = dict(config["architecture_config"])
+        del network_kwargs["type"]
+        network_kwargs["input_size"] = input_size
+        network_kwargs["output_size"] = output_size
+        network_kwargs["device"] = self.device
+        self.network = ConvNetwork(**network_kwargs)
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
         # Sample a batch.
+        pass
 
         # Perform forward pass.
+        pass
 
         # Compute loss.
         loss = None
@@ -54,8 +105,10 @@ class SLTrainer(Trainer):
         """ Evaluate current model. """
 
         # Sample a batch.
+        pass
 
         # Perform forward pass.
+        pass
 
         # Compute loss.
         loss = None
@@ -88,3 +141,9 @@ class SLTrainer(Trainer):
     def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
         """ Return parameters of model. """
         return self.network.parameters()
+
+
+DATASET_SIZES = {
+    "MNIST": {"input_size": (28, 28, 1), "output_size": 10},
+    "CIFAR": {"input_size": (32, 32, 3), "output_size": 10},
+}

@@ -29,12 +29,12 @@ class Trainer:
             Max norm of gradients
         architecture_config: Dict[str, Any]
             Config dictionary for the architecture. Should contain an entry for "type",
-            which is either "vanilla", "trunk", "splitting_v1" or "splitting_v2", and
-            all other entries should correspond to the keyword arguments for the
-            corresponding network class, which is either VanillaNetwork,
-            MultiTaskTrunkNetwork, MultiTaskSplittingNetworkV1, or
-            MultiTaskSplittingNetworkV2. This can also be None in the case that `policy`
-            is not None.
+            which is either "vanilla", "conv", "trunk", "splitting_v1" or
+            "splitting_v2", and all other entries should correspond to the keyword
+            arguments for the corresponding network class, which is either
+            VanillaNetwork, ConvNetwork, MultiTaskTrunkNetwork,
+            MultiTaskSplittingNetworkV1, or MultiTaskSplittingNetworkV2. This can also
+            be None in the case that `policy` is not None.
         cuda : bool
             Whether or not to train on GPU.
         seed : int

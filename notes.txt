@@ -75,8 +75,8 @@ so that we don't have an impossible merge to perform later on.
 
 Notes for current task:
 - Add skeleton (DONE)
-- Construct network
-- Construct data loader
+- Construct network (DONE)
+- Construct data loader (DONE)
 - Forward and backward passes
 - Allow aligned_train_configs to work for SL configs
 - Write tests for ConvNetwork?
@@ -260,6 +260,15 @@ RL training:
       environment state is a pain and for now I'm just gonna increase the rollout
       length.
 
+SL training:
+- Refactoring:
+  - Find nicer way to handle dataset input sizes than the hard-coded dictionary we have
+    now. Is it possible to get the size of inputs/outputs without having to store them
+    explicitly?
+- Additions:
+  - MLP support for supervised learning.
+- Nice to have:
+
 Network architectures:
 - Refactoring:
     - Remove redundant calls to "self.to(device)" in nested modules?
@@ -380,6 +389,10 @@ Tests:
 
 Style:
 - Refactoring:
+  - Change keywords for string options to name of corresponding classes. Example,
+    architecture types can just be MLPNetwork, ConvNetwork, etc.
+  - Remove as many default arguments as possible.
+  - Clean up imports so that we import from a subpackage's __init__.py instead of from
+    each file in that subpackage.
 - Additions:
 - Nice to have:
-  - Remove as many default arguments as possible.
