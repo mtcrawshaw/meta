@@ -1,7 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
-from typing import Dict, Iterator, Any
+from typing import Dict, Iterator, Iterable, Any
 
 import torch
 import torchvision
@@ -58,20 +58,20 @@ class SLTrainer(Trainer):
             download=True,
             transform=transform,
         )
-        self.train_loader = torch.utils.data.DataLoader(
+        train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
             shuffle=True,
             num_workers=config["num_workers"],
         )
-        self.train_iter = iter(self.train_loader)
-        self.test_loader = torch.utils.data.DataLoader(
+        self.train_iter = iter(cycle(train_loader))
+        test_loader = torch.utils.data.DataLoader(
             test_set,
             batch_size=config["batch_size"],
             shuffle=False,
             num_workers=config["num_workers"],
         )
-        self.test_iter = iter(self.test_loader)
+        self.test_iter = iter(cycle(test_loader))
 
         # Construct network.
         network_kwargs = dict(config["architecture_config"])
@@ -87,8 +87,10 @@ class SLTrainer(Trainer):
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
-        # Sample a batch.
-        inputs, labels = self.train_iter.next()
+        # Sample a batch and move it to device.
+        inputs, labels = next(self.train_iter)
+        inputs = inputs.to(self.device)
+        labels = labels.to(self.device)
 
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
@@ -105,14 +107,16 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [accuracy]}
+        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [accuracy.item()]}
         return step_metrics
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
 
-        # Sample a batch.
-        inputs, labels = self.test_iter.next()
+        # Sample a batch and move it to device.
+        inputs, labels = next(self.test_iter)
+        inputs = inputs.to(self.device)
+        labels = labels.to(self.device)
 
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
@@ -123,7 +127,7 @@ class SLTrainer(Trainer):
         )
 
         # Return metrics from training step.
-        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [accuracy]}
+        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [accuracy.item()]}
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
@@ -148,6 +152,19 @@ class SLTrainer(Trainer):
     def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
         """ Return parameters of model. """
         return self.network.parameters()
+
+
+def cycle(iterable: Iterable[Any]) -> Any:
+    """
+    Generator to repeatedly cycle through an iterable. This is a hacky way to get our
+    batch sampling to work with the way our Trainer class is set up. In particular, the
+    data loaders are stored as members of the SLTrainer class and each call to `_step()`
+    requires one sample from these data loaders. This means we can't just loop over the
+    data loaders, we have to sample the next batch one at a time.
+    """
+    while True:
+        for x in iterable:
+            yield x
 
 
 DATASET_SIZES = {

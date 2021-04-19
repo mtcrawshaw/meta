@@ -260,6 +260,7 @@ RL training:
 
 SL training:
 - Refactoring:
+  - Revise evaluation so that we are evaluating on more than just a single batch.
   - Find nicer way to handle dataset input sizes than the hard-coded dictionary we have
     now. Is it possible to get the size of inputs/outputs without having to store them
     explicitly?
