@@ -93,6 +93,10 @@ class SLTrainer(Trainer):
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
         loss = self.criterion(outputs, labels)
+        accuracy = (
+            torch.sum(torch.argmax(outputs, dim=-1) == labels)
+            / self.config["batch_size"]
+        )
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self.network.zero_grad()
@@ -101,7 +105,7 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [0]}
+        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [accuracy]}
         return step_metrics
 
     def evaluate(self) -> None:
@@ -113,9 +117,13 @@ class SLTrainer(Trainer):
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
         loss = self.criterion(outputs, labels)
+        accuracy = (
+            torch.sum(torch.argmax(outputs, dim=-1) == labels)
+            / self.config["batch_size"]
+        )
 
         # Return metrics from training step.
-        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [0]}
+        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [accuracy]}
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:

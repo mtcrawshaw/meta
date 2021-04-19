@@ -116,9 +116,9 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         window = 100
         metric_set = [
             ("train_loss", window, False, False),
-            ("train_accuracy", window, False, False),
+            ("train_accuracy", window, False, True),
             ("test_loss", window, False, False),
-            ("test_accuracy", window, False, False),
+            ("test_accuracy", window, False, True),
         ]
         metrics = Metrics(metric_set)
     else:

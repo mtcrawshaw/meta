@@ -79,7 +79,7 @@ Notes for current task:
 - Construct data loader (DONE)
 - Forward and backward passes (DONE)
 - Allow aligned_train_configs to work for SL configs
-- Write tests for ConvNetwork?
+- Write tests for ConvNetwork/SLTrainer
 
 ----------------------------------------------------------------------------------------
 
@@ -265,7 +265,6 @@ SL training:
     explicitly?
 - Additions:
   - MLP support for supervised learning.
-  - Accuracy computation for classification.
 - Nice to have:
 
 Network architectures:
@@ -393,5 +392,7 @@ Style:
   - Remove as many default arguments as possible.
   - Clean up imports so that we import from a subpackage's __init__.py instead of from
     each file in that subpackage.
+  - Convert config into an object or just store config values as members in the relevant
+    class, so that we can get rid of magic strings everywhere.
 - Additions:
 - Nice to have:
