@@ -77,11 +77,9 @@ Notes for current task:
 - Add skeleton (DONE)
 - Construct network (DONE)
 - Construct data loader (DONE)
-- Forward and backward passes
+- Forward and backward passes (DONE)
 - Allow aligned_train_configs to work for SL configs
 - Write tests for ConvNetwork?
-
-Should we have an activation function after the last layer?
 
 ----------------------------------------------------------------------------------------
 
@@ -267,6 +265,7 @@ SL training:
     explicitly?
 - Additions:
   - MLP support for supervised learning.
+  - Accuracy computation for classification.
 - Nice to have:
 
 Network architectures:

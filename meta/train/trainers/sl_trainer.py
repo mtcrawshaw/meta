@@ -79,17 +79,18 @@ class SLTrainer(Trainer):
         network_kwargs["device"] = self.device
         self.network = ConvNetwork(**network_kwargs)
 
+        # Construct loss function.
+        self.criterion = nn.CrossEntropyLoss()
+
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
         # Sample a batch.
-        pass
+        inputs, labels = next(self.train_loader)
 
-        # Perform forward pass.
-        pass
-
-        # Compute loss.
-        loss = None
+        # Perform forward pass and compute loss.
+        outputs = self.network(inputs)
+        loss = self.criterion(outputs, labels)
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self.network.zero_grad()
@@ -98,25 +99,21 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": loss.item()}
+        step_metrics = {"train_loss": loss.item(), "train_accuracy": 0}
         return step_metrics
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
 
         # Sample a batch.
-        pass
+        inputs, labels = next(self.test_loader)
 
-        # Perform forward pass.
-        pass
-
-        # Compute loss.
-        loss = None
+        # Perform forward pass and copmute loss.
+        outputs = self.network(inputs)
+        loss = self.criterion(outputs, labels)
 
         # Return metrics from training step.
-        eval_step_metrics = {
-            "eval_loss": loss.item(),
-        }
+        eval_step_metrics = {"eval_loss": loss.item(), "eval_accuracy": 0}
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
