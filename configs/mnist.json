@@ -1,6 +1,7 @@
 {
+    "trainer": "SLTrainer",
     "dataset": "MNIST",
-    "num_epochs": 10,
+    "num_updates": 100,
     "batch_size": 64,
     "num_workers": 2,
 
@@ -8,6 +9,7 @@
     "initial_lr": 7e-4,
     "final_lr": 7e-4,
     "max_grad_norm": 0.5,
+    "eps": 1e-5,
 
     "architecture_config": {
         "type": "conv",

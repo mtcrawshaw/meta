@@ -8,7 +8,7 @@ from typing import Any, Dict
 import gym
 import torch
 
-from meta.train.trainers import RLTrainer
+from meta.train.trainers import RLTrainer, SLTrainer
 from meta.train.ppo import PPOPolicy
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
@@ -32,6 +32,9 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
     Parameters
     ----------
+    trainer : str
+        Which type of trainer to use. Either "RLTrainer" or "SLTrainer", for
+        reinforcement learning and supervised learning, respectively.
     trainer_config : Dict[str, Any]
         Config dictionary holding settings for trainer. The values in this dict are
         specific to the trainer type (i.e. RLTrainer or SLTrainer) and are documented in
@@ -95,12 +98,31 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
             pass
 
     # Construct trainer.
-    trainer = RLTrainer(config, **kwargs)
+    trainer_cls = eval(config["trainer"])
+    trainer = trainer_cls(config, **kwargs)
 
     # Construct metrics object to hold performance metrics.
-    TRAIN_WINDOW = 500
-    test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
-    metrics = Metrics(train_window=TRAIN_WINDOW, test_window=test_window)
+    if config["trainer"] == "RLTrainer":
+        train_window = 500
+        test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
+        metric_set = [
+            ("train_reward", train_window, False, True),
+            ("train_success", train_window, False, True),
+            ("eval_reward", test_window, True, True),
+            ("eval_success", test_window, True, True),
+        ]
+        metrics = Metrics(metric_set)
+    elif config["trainer"] == "SLTrainer":
+        window = 100
+        metric_set = [
+            ("train_loss", window, False, False),
+            ("train_accuracy", window, False, False),
+            ("test_loss", window, False, False),
+            ("test_accuracy", window, False, False),
+        ]
+        metrics = Metrics(metric_set)
+    else:
+        raise NotImplementedError
 
     # Load intermediate progress from checkpoint, if necessary.
     update_iteration = 0

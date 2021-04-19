@@ -1,8 +1,9 @@
 {
     "meta_train_config": {
 
-        "env_name": "ML10_train",
+        "trainer": "RLTrainer",
 
+        "env_name": "ML10_train",
         "num_updates": 1000,
         "rollout_length": 128,
         "num_ppo_epochs": 4,
@@ -65,8 +66,9 @@
 
     "meta_test_config": {
 
-        "env_name": "ML10_test",
+        "trainer": "RLTrainer",
 
+        "env_name": "ML10_test",
         "num_updates": 5,
         "rollout_length": 200,
         "num_ppo_epochs": 4,

@@ -1,6 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
-from typing import Dict, Any
+import os
+from typing import Dict, Iterator, Any
 
 import torch
 import torchvision
@@ -24,7 +25,7 @@ class SLTrainer(Trainer):
         ----------
         dataset : str
             Dataset to train on.
-        num_epochs : int
+        num_updates : int
             Number of training epochs.
         batch_size : int
             Size of each minibatch on which to compute gradient updates.
@@ -35,28 +36,27 @@ class SLTrainer(Trainer):
         # Get input/output size of dataset.
         if config["dataset"] not in DATASET_SIZES:
             raise NotImplementedError
-        input_size = DATASET_SIZES["dataset"]["input_size"]
-        output_size = DATASET_SIZES["dataset"]["output_size"]
+        input_size = DATASET_SIZES[config["dataset"]]["input_size"]
+        output_size = DATASET_SIZES[config["dataset"]]["output_size"]
 
         # Construct data loaders.
+        mean = [0.5] * input_size[2]
+        std = [0.5] * input_size[2]
         transform = transforms.Compose(
-            [
-                transforms.toTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
+            [transforms.ToTensor(), transforms.Normalize(mean, std),]
         )
         dataset = eval("torchvision.datasets.%s" % config["dataset"])
         train_set = dataset(
             root=os.path.join(DATA_DIR, config["dataset"]),
             train=True,
             download=True,
-            transform=True,
+            transform=transform,
         )
         test_set = dataset(
             root=os.path.join(DATA_DIR, config["dataset"]),
             train=False,
             download=True,
-            transform=True,
+            transform=transform,
         )
         self.train_loader = torch.utils.data.DataLoader(
             train_set,
@@ -64,12 +64,14 @@ class SLTrainer(Trainer):
             shuffle=True,
             num_workers=config["num_workers"],
         )
+        self.train_iter = iter(self.train_loader)
         self.test_loader = torch.utils.data.DataLoader(
             test_set,
             batch_size=config["batch_size"],
             shuffle=False,
             num_workers=config["num_workers"],
         )
+        self.test_iter = iter(self.test_loader)
 
         # Construct network.
         network_kwargs = dict(config["architecture_config"])
@@ -80,13 +82,13 @@ class SLTrainer(Trainer):
         self.network = ConvNetwork(**network_kwargs)
 
         # Construct loss function.
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = torch.nn.CrossEntropyLoss()
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
         # Sample a batch.
-        inputs, labels = next(self.train_loader)
+        inputs, labels = self.train_iter.next()
 
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
@@ -99,21 +101,21 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": loss.item(), "train_accuracy": 0}
+        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [0]}
         return step_metrics
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
 
         # Sample a batch.
-        inputs, labels = next(self.test_loader)
+        inputs, labels = self.test_iter.next()
 
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
         loss = self.criterion(outputs, labels)
 
         # Return metrics from training step.
-        eval_step_metrics = {"eval_loss": loss.item(), "eval_accuracy": 0}
+        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [0]}
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
@@ -142,5 +144,6 @@ class SLTrainer(Trainer):
 
 DATASET_SIZES = {
     "MNIST": {"input_size": (28, 28, 1), "output_size": 10},
-    "CIFAR": {"input_size": (32, 32, 3), "output_size": 10},
+    "CIFAR10": {"input_size": (32, 32, 3), "output_size": 10},
+    "CIFAR100": {"input_size": (32, 32, 3), "output_size": 100},
 }

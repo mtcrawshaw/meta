@@ -2,10 +2,12 @@
 Definition of ConvNetwork, a module of convolutional layers.
 """
 
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_layer, init_base
+from meta.networks.utils import get_conv_layer, get_fc_layer, init_base
 
 
 class ConvNetwork(nn.Module):
@@ -40,7 +42,6 @@ class ConvNetwork(nn.Module):
         self.fc_hidden_size = fc_hidden_size
         self.output_size = output_size
         self.activation = activation
-        self.downscale_last_layer = downscale_last_layer
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -78,11 +79,13 @@ class ConvNetwork(nn.Module):
 
         # Initialize fully connected layers.
         fc_layers = []
-        feature_size = self.input_size[0] * self.input_size[1] * self.initial_channels
+        self.feature_size = (
+            self.input_size[0] * self.input_size[1] * self.initial_channels
+        )
         for i in range(self.num_fc_layers):
 
             # Determine input/output size of layer.
-            in_size = feature_size if i == 0 else self.fc_hidden_size
+            in_size = self.feature_size if i == 0 else self.fc_hidden_size
             out_size = (
                 self.output_size if i == self.num_fc_layers - 1 else self.fc_hidden_size
             )
@@ -114,6 +117,6 @@ class ConvNetwork(nn.Module):
             Output of network when given `inputs` as input.
         """
 
-        features = self.conv(inputs)
-        out = self.fc(inputs)
+        features = self.conv(inputs).reshape(-1, self.feature_size)
+        out = self.fc(features)
         return out

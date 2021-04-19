@@ -46,8 +46,6 @@ class RLTrainer(Trainer):
             Lambda parameter for GAE (used in equation (11) of PPO paper).
         clip_param : float
             Clipping parameter for PPO surrogate loss.
-        eps : float
-            Epsilon value for numerical stability.
         clip_value_loss : False
             Whether or not to clip the value loss.
         normalize_advantages : bool

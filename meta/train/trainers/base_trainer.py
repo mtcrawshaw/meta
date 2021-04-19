@@ -27,6 +27,8 @@ class Trainer:
             Final policy learning rate.
         max_grad_norm : float
             Max norm of gradients
+        eps : float
+            Epsilon value for numerical stability.
         architecture_config: Dict[str, Any]
             Config dictionary for the architecture. Should contain an entry for "type",
             which is either "vanilla", "conv", "trunk", "splitting_v1" or
