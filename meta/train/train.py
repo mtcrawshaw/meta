@@ -104,7 +104,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     # Construct metrics object to hold performance metrics.
     if config["trainer"] == "RLTrainer":
         train_window = 500
-        test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
+        test_window = round(train_window / config["evaluation_episodes"])
         metric_set = [
             ("train_reward", train_window, False, True),
             ("train_success", train_window, False, True),

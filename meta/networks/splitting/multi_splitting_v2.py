@@ -63,10 +63,20 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
         if self.num_steps % self.split_freq != 0:
             return should_split
 
-        # Get normalized distance scores. For each (task1, task2, region), we divide the
-        # corresponding squared gradient distance by the region size, to normalize the
-        # effect that squared gradient distance is linearly scaled by the region size.
-        distance_scores = self.grad_diff_stats.mean / self.region_sizes
+        # Get normalized distance scores if we are using Euclidean distance. For each
+        # (task1, task2, region), we divide the corresponding squared gradient distance
+        # by the region size to normalize the effect that squared gradient distance is
+        # linearly scaled by the region size.
+        distance_scores = self.grad_diff_stats.mean
+        if self.metric == "sqeuclidean":
+            distance_scores = self.grad_diff_stats.mean / self.region_sizes
+
+        # If we are using the cosine distance as the metric, rescale linearly so that 1
+        # is mapped to 0 and -1 is mapped to 1. This way the distances are the same
+        # order as Euclidean distance (lower means closer) and a distance of zero means
+        # the values are identical.
+        if self.metric == "cosine":
+            distance_scores = (-distance_scores + 1) / 2.0
 
         # Set distance scores to zero for task/region pairs that aren't shared, have too
         # small sample size, or have task1 < task 2 (this way we avoid duplicate values
