@@ -1,3 +1,5 @@
+
+
 Road Map
 
 
@@ -54,6 +56,7 @@ Notes for current task:
 
 Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
 
+
 ----------------------------------------------------------------------------------------
 
 
@@ -72,6 +75,7 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
+
 
 ----------------------------------------------------------------------------------------
 

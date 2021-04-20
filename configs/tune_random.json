@@ -165,7 +165,7 @@
     },
 
     "fitness_metric_name": "eval_reward",
-    "fitness_metric_type": "maximum",
+    "fitness_metric_type": "best",
 
     "seed": 1,
     "load_from": null
