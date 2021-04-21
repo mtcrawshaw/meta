@@ -83,8 +83,8 @@ Current sprint (multi-task functionality):
 
 Current task (single-task depth prediction):
     ResNet architecture for image classification
---> NYUv2 data loader
-    Depth prediction architecture + MSE loss
+    NYUv2 data loader + MSE loss
+--> Depth prediction architecture
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
 and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise

@@ -1,8 +1,8 @@
 {
     "trainer": "SLTrainer",
-    "dataset": "CIFAR100",
+    "dataset": "NYUv2_depth",
     "num_updates": 100,
-    "batch_size": 64,
+    "batch_size": 16,
     "num_workers": 2,
 
     "lr_schedule_type": null,

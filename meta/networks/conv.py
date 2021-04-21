@@ -57,7 +57,7 @@ class ConvNetwork(nn.Module):
 
         # Initialize convolutional layers.
         conv_layers = []
-        in_channels = self.input_size[-1]
+        in_channels = self.input_size[0]
         out_channels = self.initial_channels
         for i in range(self.num_conv_layers):
 
@@ -80,7 +80,7 @@ class ConvNetwork(nn.Module):
         # Initialize fully connected layers.
         fc_layers = []
         self.feature_size = (
-            self.input_size[0] * self.input_size[1] * self.initial_channels
+            self.input_size[1] * self.input_size[2] * self.initial_channels
         )
         for i in range(self.num_fc_layers):
 

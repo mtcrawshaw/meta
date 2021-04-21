@@ -8,17 +8,46 @@ import torchvision
 import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
+from meta.train.datasets import NYUv2
 from meta.networks import ConvNetwork
 from meta.networks.utils import get_fc_layer, init_base
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
-DATASET_SIZES = {
-    "MNIST": {"input_size": (28, 28, 1), "output_size": 10},
-    "CIFAR10": {"input_size": (32, 32, 3), "output_size": 10},
-    "CIFAR100": {"input_size": (32, 32, 3), "output_size": 100},
+DATASETS = {
+    "MNIST": {
+        "input_size": (1, 28, 28),
+        "output_size": 10,
+        "builtin": True,
+        "loss": torch.nn.CrossEntropyLoss,
+        "compute_accuracy": True,
+        "base_name": "MNIST",
+    },
+    "CIFAR10": {
+        "input_size": (3, 32, 32),
+        "output_size": 10,
+        "builtin": True,
+        "loss": torch.nn.CrossEntropyLoss,
+        "compute_accuracy": True,
+        "base_name": "CIFAR10",
+    },
+    "CIFAR100": {
+        "input_size": (3, 32, 32),
+        "output_size": 100,
+        "builtin": True,
+        "loss": torch.nn.CrossEntropyLoss,
+        "compute_accuracy": True,
+        "base_name": "CIFAR100",
+    },
+    "NYUv2_depth": {
+        "input_size": (3, 480, 64),
+        "output_size": 307200,
+        "builtin": False,
+        "loss": torch.nn.MSELoss,
+        "compute_accuracy": False,
+        "base_name": "NYUv2",
+    },
 }
-SUPPORTED_DATASETS = list(DATASET_SIZES.keys())
 PRETRAINED_MODELS = ["resnet18", "resnet34", "resnet50", "resnet101"]
 
 
@@ -43,44 +72,53 @@ class SLTrainer(Trainer):
             Number of worker processes to load data.
         """
 
-        # Get input/output size of dataset.
-        if config["dataset"] not in SUPPORTED_DATASETS:
+        # Get dataset info.
+        if config["dataset"] not in DATASETS:
             raise NotImplementedError
-        input_size = DATASET_SIZES[config["dataset"]]["input_size"]
-        output_size = DATASET_SIZES[config["dataset"]]["output_size"]
+        self.dataset = config["dataset"]
+        self.dataset_info = DATASETS[self.dataset]
+        input_size = self.dataset_info["input_size"]
+        output_size = self.dataset_info["output_size"]
+        self.compute_accuracy = self.dataset_info["compute_accuracy"]
+
+        # Data transformation.
+        mean = [0.5] * input_size[0]
+        std = [0.5] * input_size[0]
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean, std)]
+        )
+        if self.dataset == "NYUv2_depth":
+            depth_mean = 2.5
+            depth_std = 1
+            depth_transform = transforms.Compose(
+                [transforms.ToTensor(), transforms.Normalize(depth_mean, depth_std)]
+                # [transforms.ToTensor()]
+            )
+            kwargs = {"rgb_transform": transform, "depth_transform": depth_transform}
+        else:
+            kwargs = {"transform": transform}
 
         # Construct data loaders.
-        mean = [0.5] * input_size[2]
-        std = [0.5] * input_size[2]
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize(mean, std),]
-        )
-        dataset = eval("torchvision.datasets.%s" % config["dataset"])
-        train_set = dataset(
-            root=os.path.join(DATA_DIR, config["dataset"]),
-            train=True,
-            download=True,
-            transform=transform,
-        )
-        test_set = dataset(
-            root=os.path.join(DATA_DIR, config["dataset"]),
-            train=False,
-            download=True,
-            transform=transform,
-        )
+        if self.dataset_info["builtin"]:
+            dataset = eval("torchvision.datasets.%s" % self.dataset)
+        else:
+            dataset = eval(self.dataset_info["base_name"])
+        root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
+        train_set = dataset(root=root, train=True, download=True, **kwargs,)
+        test_set = dataset(root=root, train=False, download=True, **kwargs,)
         train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
             shuffle=True,
             num_workers=config["num_workers"],
         )
-        self.train_iter = iter(cycle(train_loader))
         test_loader = torch.utils.data.DataLoader(
             test_set,
             batch_size=config["batch_size"],
             shuffle=False,
             num_workers=config["num_workers"],
         )
+        self.train_iter = iter(cycle(train_loader))
         self.test_iter = iter(cycle(test_loader))
 
         # Construct network, either from a pre-trained model or from scratch.
@@ -112,7 +150,7 @@ class SLTrainer(Trainer):
             self.network = ConvNetwork(**network_kwargs)
 
         # Construct loss function.
-        self.criterion = torch.nn.CrossEntropyLoss()
+        self.criterion = self.dataset_info["loss"]()
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -124,11 +162,9 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
+        if self.dataset == "NYUv2_depth":
+            outputs = outputs.reshape(-1, 1, 480, 640)
         loss = self.criterion(outputs, labels)
-        accuracy = (
-            torch.sum(torch.argmax(outputs, dim=-1) == labels)
-            / self.config["batch_size"]
-        )
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self.network.zero_grad()
@@ -136,11 +172,17 @@ class SLTrainer(Trainer):
         self.clip_grads()
         self.optimizer.step()
 
-        # Return metrics from training step.
+        # Compute metrics from training step.
         step_metrics = {
             "train_loss": [loss.item()],
-            "train_accuracy": [accuracy.item()],
         }
+        if self.compute_accuracy:
+            accuracy = (
+                torch.sum(torch.argmax(outputs, dim=-1) == labels)
+                / self.config["batch_size"]
+            )
+            step_metrics["train_accuracy"] = [accuracy.item()]
+
         return step_metrics
 
     def evaluate(self) -> None:
@@ -153,17 +195,21 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
+        if self.dataset == "NYUv2_depth":
+            outputs = outputs.reshape(-1, 1, 480, 640)
         loss = self.criterion(outputs, labels)
-        accuracy = (
-            torch.sum(torch.argmax(outputs, dim=-1) == labels)
-            / self.config["batch_size"]
-        )
 
-        # Return metrics from training step.
+        # Compute metrics from evaluation step.
         eval_step_metrics = {
             "test_loss": [loss.item()],
-            "test_accuracy": [accuracy.item()],
         }
+        if self.compute_accuracy:
+            accuracy = (
+                torch.sum(torch.argmax(outputs, dim=-1) == labels)
+                / self.config["batch_size"]
+            )
+            eval_step_metrics["test_accuracy"] = [accuracy.item()]
+
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
