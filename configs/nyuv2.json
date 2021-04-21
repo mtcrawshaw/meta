@@ -2,7 +2,7 @@
     "trainer": "SLTrainer",
     "dataset": "NYUv2_depth",
     "num_updates": 100,
-    "batch_size": 16,
+    "batch_size": 1,
     "num_workers": 2,
 
     "lr_schedule_type": null,
@@ -12,8 +12,9 @@
     "eps": 1e-5,
 
     "architecture_config": {
-        "type": "resnet18",
-        "pretrained": true
+        "type": "resnet50",
+        "pretrained": true,
+        "head_channels": 256
     },
 
     "evaluation_freq": 10,

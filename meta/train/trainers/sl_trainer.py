@@ -9,8 +9,8 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
-from meta.networks import ConvNetwork
-from meta.networks.utils import get_fc_layer, init_base
+from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
+from meta.networks.utils import get_fc_layer, init_base, IntermediateLayerGetter
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -41,14 +41,13 @@ DATASETS = {
     },
     "NYUv2_depth": {
         "input_size": (3, 480, 64),
-        "output_size": 307200,
+        "output_size": (1, 480, 64),
         "builtin": False,
         "loss": torch.nn.MSELoss,
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
 }
-PRETRAINED_MODELS = ["resnet18", "resnet34", "resnet50", "resnet101"]
 
 
 class SLTrainer(Trainer):
@@ -122,32 +121,17 @@ class SLTrainer(Trainer):
         self.test_iter = iter(cycle(test_loader))
 
         # Construct network, either from a pre-trained model or from scratch.
+        network_kwargs = dict(config["architecture_config"])
         if config["architecture_config"]["type"] in PRETRAINED_MODELS:
-
-            # Get pre-trained model and re-initialize the final fully-connected layer.
-            pretrained = config["architecture_config"]["pretrained"]
-            model = eval(
-                "torchvision.models.%s" % config["architecture_config"]["type"]
-            )
-            self.network = model(pretrained=pretrained)
-            num_features = self.network.fc.in_features
-            self.network.fc = get_fc_layer(
-                in_size=num_features,
-                out_size=output_size,
-                activation=None,
-                layer_init=init_base,
-            )
-            self.network.to(self.device)
-
+            network_cls = BackboneNetwork
+            network_kwargs["arch_type"] = network_kwargs["type"]
         else:
-
-            # Construct network from scratch.
-            network_kwargs = dict(config["architecture_config"])
-            del network_kwargs["type"]
-            network_kwargs["input_size"] = input_size
-            network_kwargs["output_size"] = output_size
-            network_kwargs["device"] = self.device
-            self.network = ConvNetwork(**network_kwargs)
+            network_cls = ConvNetwork
+        del network_kwargs["type"]
+        network_kwargs["input_size"] = input_size
+        network_kwargs["output_size"] = output_size
+        network_kwargs["device"] = self.device
+        self.network = network_cls(**network_kwargs)
 
         # Construct loss function.
         self.criterion = self.dataset_info["loss"]()

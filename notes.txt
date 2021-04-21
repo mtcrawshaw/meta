@@ -80,6 +80,7 @@ Current sprint (multi-task functionality):
     Single-task semantic segmentation
     Single-task normal estimation
     Multi-task model with shared backbone
+    Refactoring
 
 Current task (single-task depth prediction):
     ResNet architecture for image classification
@@ -95,6 +96,10 @@ vectors normalized to length 1) between prediction and ground truth. Each task's
 should have two layers: a 3x3 convolution-BN-relu (256 output channels?) followed by a
 1x1 convolution that outputs the prediction, which is then upsampled using bilinear
 upsampling to scale the prediction to the original input resolution.
+
+Refactoring:
+- Measure true mean/std of depth labels.
+- Figure out if we need to do anything to convert BN layers to test mode.
 
 
 ----------------------------------------------------------------------------------------
