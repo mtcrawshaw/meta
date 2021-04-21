@@ -1,0 +1,29 @@
+{
+    "trainer": "SLTrainer",
+    "dataset": "CIFAR100",
+    "num_updates": 100,
+    "batch_size": 64,
+    "num_workers": 2,
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "max_grad_norm": 0.5,
+    "eps": 1e-5,
+
+    "architecture_config": {
+        "type": "resnet18",
+        "pretrained": true
+    },
+
+    "evaluation_freq": 10,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

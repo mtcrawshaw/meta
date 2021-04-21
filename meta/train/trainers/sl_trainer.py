@@ -9,7 +9,17 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.networks import ConvNetwork
+from meta.networks.utils import get_fc_layer, init_base
 from meta.utils.utils import aligned_train_configs, DATA_DIR
+
+
+DATASET_SIZES = {
+    "MNIST": {"input_size": (28, 28, 1), "output_size": 10},
+    "CIFAR10": {"input_size": (32, 32, 3), "output_size": 10},
+    "CIFAR100": {"input_size": (32, 32, 3), "output_size": 100},
+}
+SUPPORTED_DATASETS = list(DATASET_SIZES.keys())
+PRETRAINED_MODELS = ["resnet18", "resnet34", "resnet50", "resnet101"]
 
 
 class SLTrainer(Trainer):
@@ -34,7 +44,7 @@ class SLTrainer(Trainer):
         """
 
         # Get input/output size of dataset.
-        if config["dataset"] not in DATASET_SIZES:
+        if config["dataset"] not in SUPPORTED_DATASETS:
             raise NotImplementedError
         input_size = DATASET_SIZES[config["dataset"]]["input_size"]
         output_size = DATASET_SIZES[config["dataset"]]["output_size"]
@@ -73,13 +83,33 @@ class SLTrainer(Trainer):
         )
         self.test_iter = iter(cycle(test_loader))
 
-        # Construct network.
-        network_kwargs = dict(config["architecture_config"])
-        del network_kwargs["type"]
-        network_kwargs["input_size"] = input_size
-        network_kwargs["output_size"] = output_size
-        network_kwargs["device"] = self.device
-        self.network = ConvNetwork(**network_kwargs)
+        # Construct network, either from a pre-trained model or from scratch.
+        if config["architecture_config"]["type"] in PRETRAINED_MODELS:
+
+            # Get pre-trained model and re-initialize the final fully-connected layer.
+            pretrained = config["architecture_config"]["pretrained"]
+            model = eval(
+                "torchvision.models.%s" % config["architecture_config"]["type"]
+            )
+            self.network = model(pretrained=pretrained)
+            num_features = self.network.fc.in_features
+            self.network.fc = get_fc_layer(
+                in_size=num_features,
+                out_size=output_size,
+                activation=None,
+                layer_init=init_base,
+            )
+            self.network.to(self.device)
+
+        else:
+
+            # Construct network from scratch.
+            network_kwargs = dict(config["architecture_config"])
+            del network_kwargs["type"]
+            network_kwargs["input_size"] = input_size
+            network_kwargs["output_size"] = output_size
+            network_kwargs["device"] = self.device
+            self.network = ConvNetwork(**network_kwargs)
 
         # Construct loss function.
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -107,7 +137,10 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [accuracy.item()]}
+        step_metrics = {
+            "train_loss": [loss.item()],
+            "train_accuracy": [accuracy.item()],
+        }
         return step_metrics
 
     def evaluate(self) -> None:
@@ -127,7 +160,10 @@ class SLTrainer(Trainer):
         )
 
         # Return metrics from training step.
-        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [accuracy.item()]}
+        eval_step_metrics = {
+            "test_loss": [loss.item()],
+            "test_accuracy": [accuracy.item()],
+        }
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
@@ -165,10 +201,3 @@ def cycle(iterable: Iterable[Any]) -> Any:
     while True:
         for x in iterable:
             yield x
-
-
-DATASET_SIZES = {
-    "MNIST": {"input_size": (28, 28, 1), "output_size": 10},
-    "CIFAR10": {"input_size": (32, 32, 3), "output_size": 10},
-    "CIFAR100": {"input_size": (32, 32, 3), "output_size": 100},
-}

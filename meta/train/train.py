@@ -8,7 +8,7 @@ from typing import Any, Dict
 import gym
 import torch
 
-from meta.train.trainers import RLTrainer, SLTrainer
+from meta.train.trainers import RLTrainer, SLTrainer, SUPPORTED_TRAINERS
 from meta.train.ppo import PPOPolicy
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
@@ -98,6 +98,8 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
             pass
 
     # Construct trainer.
+    if config["trainer"] not in SUPPORTED_TRAINERS:
+        raise ValueError("Unsupported trainer type: %s." % config["trainer"])
     trainer_cls = eval(config["trainer"])
     trainer = trainer_cls(config, **kwargs)
 
