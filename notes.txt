@@ -76,16 +76,16 @@ so that we don't have an impossible merge to perform later on.
 Gotta go back and write tests for supervised learning.
 
 Current sprint (multi-task functionality):
---> Single-task depth prediction
-    Single-task semantic segmentation
+    Single-task depth prediction
+--> Single-task semantic segmentation
     Single-task normal estimation
     Multi-task model with shared backbone
     Refactoring
 
-Current task (single-task depth prediction):
-    ResNet architecture for image classification
-    NYUv2 data loader + MSE loss
---> Depth prediction architecture
+Current task (single-task semantic segmentation):
+--> Data loading (transformations)
+    Dataset sizes, loss function (dataset_info)
+    Adapt accuracy computation for SS
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
 and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise

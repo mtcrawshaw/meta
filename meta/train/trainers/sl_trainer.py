@@ -146,8 +146,6 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
-        if self.dataset == "NYUv2_depth":
-            outputs = outputs.reshape(-1, 1, 480, 640)
         loss = self.criterion(outputs, labels)
 
         # Perform backward pass, clip gradient, and take optimizer step.
@@ -179,8 +177,6 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
-        if self.dataset == "NYUv2_depth":
-            outputs = outputs.reshape(-1, 1, 480, 640)
         loss = self.criterion(outputs, labels)
 
         # Compute metrics from evaluation step.
