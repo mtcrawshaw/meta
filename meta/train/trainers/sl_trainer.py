@@ -19,7 +19,7 @@ DATASETS = {
         "input_size": (1, 28, 28),
         "output_size": 10,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss,
+        "loss": torch.nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "MNIST",
     },
@@ -27,7 +27,7 @@ DATASETS = {
         "input_size": (3, 32, 32),
         "output_size": 10,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss,
+        "loss": torch.nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR10",
     },
@@ -35,7 +35,7 @@ DATASETS = {
         "input_size": (3, 32, 32),
         "output_size": 100,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss,
+        "loss": torch.nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR100",
     },
@@ -43,7 +43,7 @@ DATASETS = {
         "input_size": (3, 480, 64),
         "output_size": (1, 480, 64),
         "builtin": False,
-        "loss": torch.nn.MSELoss,
+        "loss": torch.nn.MSELoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
@@ -51,7 +51,7 @@ DATASETS = {
         "input_size": (3, 480, 64),
         "output_size": (13, 480, 64),
         "builtin": False,
-        "loss": torch.nn.CrossEntropyLoss,
+        "loss": torch.nn.CrossEntropyLoss(ignore_index=-1),
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
@@ -145,7 +145,7 @@ class SLTrainer(Trainer):
         self.network = network_cls(**network_kwargs)
 
         # Construct loss function.
-        self.criterion = self.dataset_info["loss"]()
+        self.criterion = self.dataset_info["loss"]
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """

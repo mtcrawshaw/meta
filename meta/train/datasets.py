@@ -102,6 +102,13 @@ class NYUv2(Dataset):
             if isinstance(img, torch.Tensor):
                 # ToTensor scales to [0, 1] by default
                 img = (img * 255).long()
+
+            # Class 0 counts as an unlabeled pixel. We use -1 as the unlabeled value instead.
+            img -= 1
+
+            # Unsqueeze class dimension of label.
+            img = img.squeeze(0)
+
             imgs.append(img)
 
         if self.sn_transform is not None:
