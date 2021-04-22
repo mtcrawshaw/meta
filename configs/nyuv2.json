@@ -1,8 +1,8 @@
 {
     "trainer": "SLTrainer",
-    "dataset": "NYUv2_depth",
+    "dataset": "NYUv2_seg",
     "num_updates": 100,
-    "batch_size": 1,
+    "batch_size": 4,
     "num_workers": 2,
 
     "lr_schedule_type": null,

@@ -47,6 +47,14 @@ DATASETS = {
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
+    "NYUv2_seg": {
+        "input_size": (3, 480, 64),
+        "output_size": (13, 480, 64),
+        "builtin": False,
+        "loss": torch.nn.CrossEntropyLoss,
+        "compute_accuracy": False,
+        "base_name": "NYUv2",
+    },
 }
 
 
@@ -94,6 +102,9 @@ class SLTrainer(Trainer):
                 # [transforms.ToTensor()]
             )
             kwargs = {"rgb_transform": transform, "depth_transform": depth_transform}
+        elif self.dataset == "NYUv2_seg":
+            seg_transform = transforms.ToTensor()
+            kwargs = {"rgb_transform": transform, "seg_transform": seg_transform}
         else:
             kwargs = {"transform": transform}
 

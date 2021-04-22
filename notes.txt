@@ -83,8 +83,8 @@ Current sprint (multi-task functionality):
     Refactoring
 
 Current task (single-task semantic segmentation):
---> Data loading (transformations)
-    Dataset sizes, loss function (dataset_info)
+    Data loading (transformations)
+--> Dataset sizes, loss function (dataset_info)
     Adapt accuracy computation for SS
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
@@ -98,8 +98,10 @@ should have two layers: a 3x3 convolution-BN-relu (256 output channels?) followe
 upsampling to scale the prediction to the original input resolution.
 
 Refactoring:
+- Downscale image resolution to enable larger batch sizes.
 - Measure true mean/std of depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
+- Adapt plotting to work with whatever metrics we give it.
 
 
 ----------------------------------------------------------------------------------------
