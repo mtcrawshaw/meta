@@ -108,6 +108,16 @@ Refactoring:
 - Add normalization for normal labels?
 - Make sure that we are consistently taking either sum or mean of loss over batches for
   each task.
+- Separate SLTrainer and multi-task functionality (make MultiSLTrainer)
+- Add multitask capability to ConvNetwork
+- Add softmax/some type of normalization layer to depth prediction output (the values
+  are between 0 and 1. Do they sum to 1? Do they have an L2 length of 1?
+
+Tests:
+- ConvNetwork
+- BackboneNetwork
+- Parallel
+- MultiTaskLoss
 
 
 ----------------------------------------------------------------------------------------

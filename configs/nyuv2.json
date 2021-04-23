@@ -1,8 +1,8 @@
 {
     "trainer": "SLTrainer",
-    "dataset": "NYUv2_seg",
-    "num_updates": 100,
-    "batch_size": 4,
+    "dataset": "NYUv2",
+    "num_updates": 50,
+    "batch_size": 2,
     "num_workers": 2,
 
     "lr_schedule_type": null,
@@ -17,7 +17,7 @@
         "head_channels": 256
     },
 
-    "evaluation_freq": 10,
+    "evaluation_freq": 5,
 
     "cuda": false,
     "seed": 1,

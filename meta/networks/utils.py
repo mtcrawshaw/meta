@@ -1,7 +1,7 @@
 """ Misc functionality for meta/networks. """
 
 from collections import OrderedDict
-from typing import Any, Dict, Union, Callable
+from typing import Any, Dict, Union, Callable, List
 
 import torch
 import numpy as np
@@ -180,7 +180,8 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
 class CosineSimilarityLoss(nn.Module):
     """
-    Returns negative mean of cosine similarity between two tensors computed along `dim`.
+    Returns negative mean of cosine similarity (scaled into [0, 1]) between two tensors
+    computed along `dim`.
     """
 
     def __init__(self, dim: int = 1, eps: float = 1e-8) -> None:
@@ -189,3 +190,62 @@ class CosineSimilarityLoss(nn.Module):
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         return (1 - torch.mean(self.single_loss(x1, x2))) / 2.0
+
+
+class MultiTaskLoss(nn.Module):
+    """ Computes the sum of multiple loss functions. """
+
+    def __init__(self, task_losses: List[nn.Module]) -> None:
+        """ Init function for MultiTaskLoss. """
+
+        super(MultiTaskLoss, self).__init__()
+        self.task_losses = task_losses
+
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """ Compute values of each task losses, then return the sum. """
+
+        task_loss_vals = []
+        for i, task_loss in enumerate(self.task_losses):
+            task_output = task_loss["output_slice"](outputs)
+            task_label = task_loss["label_slice"](labels)
+            task_loss_val = task_loss["loss"](task_output, task_label)
+            task_loss_vals.append(task_loss_val)
+
+        task_loss_vals = torch.stack(task_loss_vals)
+        total_loss = torch.sum(task_loss_vals)
+
+        return total_loss
+
+
+class Parallel(nn.Module):
+    """
+    Module container that executes a set of modules in parallel. This is analagous to
+    nn.Sequential. Holds a list of modules, and the input to Parallel will be fed to
+    each module in the list. The outputs of each module are combined along an existing
+    or new dimension and returned as a single Tensor. Note that the output of each
+    module is not actually computed in parallel, i.e. this happens in a for loop.
+    """
+
+    def __init__(self, modules: List[nn.Module], combine_dim=0, new_dim=False) -> None:
+        """ Init function for Parallel. """
+        super(Parallel, self).__init__()
+        self.p_modules = nn.ModuleList(modules=modules)
+        self.combine_dim = combine_dim
+        self.new_dim = new_dim
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Computes the output of each module in `self.p_modules` when given input `inputs`.
+        The results are stacked or concatenated and returned as a single Tensor.
+        """
+
+        # Compute output of each module.
+        outs = [module(inputs) for module in self.p_modules]
+
+        # Combine outputs of each module.
+        if self.new_dim:
+            out = torch.stack(outs, dim=self.combine_dim)
+        else:
+            out = torch.cat(outs, dim=self.combine_dim)
+
+        return out

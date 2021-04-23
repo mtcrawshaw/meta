@@ -2,7 +2,7 @@
 Definition of ConvNetwork, a module of convolutional layers.
 """
 
-from typing import Tuple
+from typing import Tuple, Union, List
 
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ class ConvNetwork(nn.Module):
         initial_channels: int,
         num_fc_layers: int,
         fc_hidden_size: int,
-        output_size: int,
+        output_size: Union[int, List[int]],
         activation: str,
         device: torch.device = None,
     ) -> None:
@@ -33,6 +33,10 @@ class ConvNetwork(nn.Module):
                 "Number of conv/fc layers in network should each be at least 1."
                 " Given values are: %d conv, %d fc." % (num_conv_layers, num_fc_layers)
             )
+
+        # Check for multitask status.
+        if isinstance(output_size, list):
+            raise NotImplementedError
 
         # Set state.
         self.input_size = input_size

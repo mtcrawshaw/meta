@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
-from meta.networks.utils import CosineSimilarityLoss
+from meta.networks.utils import CosineSimilarityLoss, MultiTaskLoss
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -40,14 +40,6 @@ DATASETS = {
         "compute_accuracy": True,
         "base_name": "CIFAR100",
     },
-    "NYUv2_depth": {
-        "input_size": (3, 480, 64),
-        "output_size": (1, 480, 64),
-        "builtin": False,
-        "loss": nn.MSELoss(),
-        "compute_accuracy": False,
-        "base_name": "NYUv2",
-    },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
         "output_size": (13, 480, 64),
@@ -61,6 +53,40 @@ DATASETS = {
         "output_size": (3, 480, 64),
         "builtin": False,
         "loss": CosineSimilarityLoss(),
+        "compute_accuracy": False,
+        "base_name": "NYUv2",
+    },
+    "NYUv2_depth": {
+        "input_size": (3, 480, 64),
+        "output_size": (1, 480, 64),
+        "builtin": False,
+        "loss": nn.MSELoss(),
+        "compute_accuracy": False,
+        "base_name": "NYUv2",
+    },
+    "NYUv2": {
+        "input_size": (3, 480, 64),
+        "output_size": [(13, 480, 64), (3, 480, 64), (1, 480, 64),],
+        "builtin": False,
+        "loss": MultiTaskLoss(
+            [
+                {
+                    "loss": nn.CrossEntropyLoss(ignore_index=-1),
+                    "output_slice": lambda x: x[:, :13],
+                    "label_slice": lambda x: x[:, 0].long(),
+                },
+                {
+                    "loss": CosineSimilarityLoss(),
+                    "output_slice": lambda x: x[:, 13:16],
+                    "label_slice": lambda x: x[:, 1:4],
+                },
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": lambda x: x[:, 16:17],
+                    "label_slice": lambda x: x[:, 4:5],
+                },
+            ]
+        ),
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
@@ -108,7 +134,6 @@ class SLTrainer(Trainer):
             depth_std = 1
             depth_transform = transforms.Compose(
                 [transforms.ToTensor(), transforms.Normalize(depth_mean, depth_std)]
-                # [transforms.ToTensor()]
             )
             kwargs = {"rgb_transform": transform, "depth_transform": depth_transform}
         elif self.dataset == "NYUv2_seg":
@@ -117,6 +142,20 @@ class SLTrainer(Trainer):
         elif self.dataset == "NYUv2_sn":
             sn_transform = transforms.ToTensor()
             kwargs = {"rgb_transform": transform, "sn_transform": sn_transform}
+        elif self.dataset == "NYUv2":
+            depth_mean = 2.5
+            depth_std = 1
+            depth_transform = transforms.Compose(
+                [transforms.ToTensor(), transforms.Normalize(depth_mean, depth_std)]
+            )
+            seg_transform = transforms.ToTensor()
+            sn_transform = transforms.ToTensor()
+            kwargs = {
+                "rgb_transform": transform,
+                "depth_transform": depth_transform,
+                "seg_transform": seg_transform,
+                "sn_transform": sn_transform,
+            }
         else:
             kwargs = {"transform": transform}
 

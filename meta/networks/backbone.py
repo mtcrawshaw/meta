@@ -4,14 +4,19 @@ initialized output head. This network is meant to be used for dense computer vis
 tasks, i.e. the output shape has the same spatial resolution as the input.
 """
 
-from typing import Tuple
+from typing import Tuple, Union, List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
-from meta.networks.utils import get_conv_layer, init_base, IntermediateLayerGetter
+from meta.networks.utils import (
+    get_conv_layer,
+    init_base,
+    IntermediateLayerGetter,
+    Parallel,
+)
 
 
 PRETRAINED_MODELS = ["resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]
@@ -33,7 +38,7 @@ class BackboneNetwork(nn.Module):
         arch_type: str,
         head_channels: int,
         input_size: Tuple[int, int, int],
-        output_size: Tuple[int, int, int],
+        output_size: Union[Tuple[int, int, int], List[Tuple[int, int, int]]],
         device: torch.device = None,
     ) -> None:
 
@@ -51,6 +56,14 @@ class BackboneNetwork(nn.Module):
         self.head_channels = head_channels
         self.input_size = input_size
         self.output_size = output_size
+        if isinstance(self.output_size, tuple):
+            assert len(self.output_size) == 3
+            self.num_tasks = 1
+        elif isinstance(self.output_size, list):
+            self.num_tasks = len(self.output_size)
+            for size in self.output_size:
+                assert isinstance(size, tuple)
+                assert len(size) == 3
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -81,24 +94,46 @@ class BackboneNetwork(nn.Module):
         )
         backbone_out_channels = OUT_CHANNELS[self.arch_type]
 
-        # Initialize output head.
-        head_layers = [
-            get_conv_layer(
-                in_channels=backbone_out_channels,
-                out_channels=self.head_channels,
-                activation="relu",
-                layer_init=init_base,
-                batch_norm=True,
-            ),
-            get_conv_layer(
-                in_channels=self.head_channels,
-                out_channels=self.output_size[0],
-                activation=None,
-                layer_init=init_base,
-                kernel_size=1,
-            ),
-        ]
-        self.head = nn.Sequential(*head_layers)
+        # Initialize output head(s).
+        if self.num_tasks == 1:
+            head_layers = [
+                get_conv_layer(
+                    in_channels=backbone_out_channels,
+                    out_channels=self.head_channels,
+                    activation="relu",
+                    layer_init=init_base,
+                    batch_norm=True,
+                ),
+                get_conv_layer(
+                    in_channels=self.head_channels,
+                    out_channels=self.output_size[0],
+                    activation=None,
+                    layer_init=init_base,
+                    kernel_size=1,
+                ),
+            ]
+            self.head = nn.Sequential(*head_layers)
+        else:
+            heads = []
+            for task in range(self.num_tasks):
+                head_layers = [
+                    get_conv_layer(
+                        in_channels=backbone_out_channels,
+                        out_channels=self.head_channels,
+                        activation="relu",
+                        layer_init=init_base,
+                        batch_norm=True,
+                    ),
+                    get_conv_layer(
+                        in_channels=self.head_channels,
+                        out_channels=self.output_size[task][0],
+                        activation=None,
+                        layer_init=init_base,
+                        kernel_size=1,
+                    ),
+                ]
+                heads.append(nn.Sequential(*head_layers))
+            self.head = Parallel(heads, combine_dim=1)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """

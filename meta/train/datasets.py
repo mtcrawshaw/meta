@@ -87,15 +87,21 @@ class NYUv2(Dataset):
     def __getitem__(self, index: int):
         folder = lambda name: os.path.join(self.root, f"{self._split}_{name}")
         seed = random.randrange(sys.maxsize)
-        imgs = []
+        input_img = None
+        labels = []
 
-        if self.rgb_transform is not None:
+        rgb = self.rgb_transform is not None
+        seg = self.seg_transform is not None
+        sn = self.sn_transform is not None
+        depth = self.depth_transform is not None
+
+        if rgb:
             random.seed(seed)
             img = Image.open(os.path.join(folder("rgb"), self._files[index]))
             img = self.rgb_transform(img)
-            imgs.append(img)
+            input_img = img
 
-        if self.seg_transform is not None:
+        if seg:
             random.seed(seed)
             img = Image.open(os.path.join(folder("seg13"), self._files[index]))
             img = self.seg_transform(img)
@@ -106,25 +112,34 @@ class NYUv2(Dataset):
             # Class 0 counts as an unlabeled pixel. We use -1 as the unlabeled value instead.
             img -= 1
 
-            # Unsqueeze class dimension of label.
-            img = img.squeeze(0)
+            labels.append(img)
 
-            imgs.append(img)
-
-        if self.sn_transform is not None:
+        if sn:
             random.seed(seed)
             img = Image.open(os.path.join(folder("sn"), self._files[index]))
             img = self.sn_transform(img)
-            imgs.append(img)
+            labels.append(img)
 
-        if self.depth_transform is not None:
+        if depth:
             random.seed(seed)
             img = Image.open(os.path.join(folder("depth"), self._files[index]))
             img = np.array(img, dtype=np.float32) / 1e4
             img = self.depth_transform(img)
-            imgs.append(img)
+            labels.append(img)
 
-        return imgs
+        # Reduce labels list if there is only a single label, otherwise combine into a
+        # single tensor.
+        if len(labels) == 1:
+            labels = labels[0]
+        else:
+            labels = torch.cat(labels, dim=0)
+
+        # Unsqueeze class dimension of semantic segmentation label if it is the only one
+        # being loaded.
+        if seg and not sn and not depth:
+            labels = labels.squeeze(0)
+
+        return input_img, labels
 
     def __len__(self):
         return len(self._files)
