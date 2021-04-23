@@ -3,6 +3,7 @@
 from collections import OrderedDict
 from typing import Any, Dict, Union, Callable
 
+import torch
 import numpy as np
 import torch.nn as nn
 
@@ -175,3 +176,16 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out_name = self.return_layers[name]
                 out[out_name] = x
         return out
+
+
+class CosineSimilarityLoss(nn.Module):
+    """
+    Returns negative mean of cosine similarity between two tensors computed along `dim`.
+    """
+
+    def __init__(self, dim: int = 1, eps: float = 1e-8) -> None:
+        super(CosineSimilarityLoss, self).__init__()
+        self.single_loss = nn.CosineSimilarity(dim=dim, eps=eps)
+
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        return (1 - torch.mean(self.single_loss(x1, x2))) / 2.0

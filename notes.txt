@@ -77,16 +77,16 @@ Gotta go back and write tests for supervised learning.
 
 Current sprint (multi-task functionality):
     Single-task depth prediction
---> Single-task semantic segmentation
+    Single-task semantic segmentation
     Single-task normal estimation
-    Multi-task model with shared backbone
+--> Multi-task model with shared backbone
     Tests
     Refactoring
 
-Current task (single-task semantic segmentation):
-    Data loading (transformations)
-    Dataset sizes, loss function (dataset_info)
---> Adapt accuracy computation for SS
+Current task (single-task normal estimation):
+--> Dataset info (input/output sizes)
+    Multi-task architecture
+    Multi-task loss function
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
 and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise
@@ -103,6 +103,11 @@ Refactoring:
 - Measure true mean/std of depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
 - Adapt plotting to work with whatever metrics we give it.
+- Add accuracy computation for semantic segmentation.
+- Consolidate transformations by adding dataset_kwargs to dataset_info.
+- Add normalization for normal labels?
+- Make sure that we are consistently taking either sum or mean of loss over batches for
+  each task.
 
 
 ----------------------------------------------------------------------------------------

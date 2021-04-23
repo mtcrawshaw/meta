@@ -4,13 +4,14 @@ import os
 from typing import Dict, Iterator, Iterable, Any
 
 import torch
+import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
-from meta.networks.utils import get_fc_layer, init_base, IntermediateLayerGetter
+from meta.networks.utils import CosineSimilarityLoss
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -19,7 +20,7 @@ DATASETS = {
         "input_size": (1, 28, 28),
         "output_size": 10,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss(),
+        "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "MNIST",
     },
@@ -27,7 +28,7 @@ DATASETS = {
         "input_size": (3, 32, 32),
         "output_size": 10,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss(),
+        "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR10",
     },
@@ -35,7 +36,7 @@ DATASETS = {
         "input_size": (3, 32, 32),
         "output_size": 100,
         "builtin": True,
-        "loss": torch.nn.CrossEntropyLoss(),
+        "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR100",
     },
@@ -43,7 +44,7 @@ DATASETS = {
         "input_size": (3, 480, 64),
         "output_size": (1, 480, 64),
         "builtin": False,
-        "loss": torch.nn.MSELoss(),
+        "loss": nn.MSELoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
@@ -51,7 +52,15 @@ DATASETS = {
         "input_size": (3, 480, 64),
         "output_size": (13, 480, 64),
         "builtin": False,
-        "loss": torch.nn.CrossEntropyLoss(ignore_index=-1),
+        "loss": nn.CrossEntropyLoss(ignore_index=-1),
+        "compute_accuracy": False,
+        "base_name": "NYUv2",
+    },
+    "NYUv2_sn": {
+        "input_size": (3, 480, 64),
+        "output_size": (3, 480, 64),
+        "builtin": False,
+        "loss": CosineSimilarityLoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
     },
@@ -105,6 +114,9 @@ class SLTrainer(Trainer):
         elif self.dataset == "NYUv2_seg":
             seg_transform = transforms.ToTensor()
             kwargs = {"rgb_transform": transform, "seg_transform": seg_transform}
+        elif self.dataset == "NYUv2_sn":
+            sn_transform = transforms.ToTensor()
+            kwargs = {"rgb_transform": transform, "sn_transform": sn_transform}
         else:
             kwargs = {"transform": transform}
 
@@ -114,8 +126,8 @@ class SLTrainer(Trainer):
         else:
             dataset = eval(self.dataset_info["base_name"])
         root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
-        train_set = dataset(root=root, train=True, download=True, **kwargs,)
-        test_set = dataset(root=root, train=False, download=True, **kwargs,)
+        train_set = dataset(root=root, train=True, download=True, **kwargs)
+        test_set = dataset(root=root, train=False, download=True, **kwargs)
         train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
@@ -222,7 +234,7 @@ class SLTrainer(Trainer):
         """ Clean up the training process. """
         pass
 
-    def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
+    def parameters(self) -> Iterator[nn.parameter.Parameter]:
         """ Return parameters of model. """
         return self.network.parameters()
 
