@@ -12,6 +12,7 @@ from gym.spaces import Space, Box, Discrete
 
 METRICS_DIR = os.path.join("data", "metrics")
 RESULTS_DIR = os.path.join("results")
+DATA_DIR = os.path.join("data", "datasets")
 
 
 class AddBias(nn.Module):

@@ -15,7 +15,13 @@ from typing import Dict, Any, Tuple, Callable
 
 from meta.train.train import train
 from meta.tune.mutate import mutate_train_config
-from meta.tune.utils import check_name_uniqueness, strip_config, get_start_pos
+from meta.tune.utils import (
+    check_name_uniqueness,
+    strip_config,
+    get_start_pos,
+    SUPPORTED_METRICS,
+    METRIC_OBJECTIVES,
+)
 from meta.tune.params import (
     valid_config,
     update_config,
@@ -68,9 +74,9 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
         fitness function for hyperparameter search. Current supported values are
         "train_reward", "eval_reward", "train_success", "eval_success".
     fitness_metric_type : str
-        Either "mean" or "maximum", used to determine which value of metric given in
+        Either "mean" or "best", used to determine which value of metric given in
         tune_config["fitnesss_metric_name"] to use as fitness, either the mean value at
-        the end of training or the maximum value throughout training.
+        the end of training or the best value throughout training.
     seed : int
         Random seed for hyperparameter search.
     load_from : str
@@ -151,20 +157,26 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
     else:
         save_dir = None
 
-    # Construct fitness function.
-    if fitness_metric_name not in [
-        "train_reward",
-        "eval_reward",
-        "train_success",
-        "eval_success",
-    ]:
+    # Check metric name and objective.
+    if fitness_metric_name not in SUPPORTED_METRICS:
         raise ValueError("Unsupported metric name: '%s'." % fitness_metric_name)
+
+    # Construct fitness function.
     if fitness_metric_type == "mean":
         fitness_fn = lambda metrics: metrics[fitness_metric_name]["mean"][-1]
-    elif fitness_metric_type == "maximum":
-        fitness_fn = lambda metrics: metrics[fitness_metric_name]["maximum"]
+    elif fitness_metric_type == "best":
+        fitness_fn = lambda metrics: metrics[fitness_metric_name]["best"]
     else:
         raise ValueError("Unsupported metric type: '%s'." % fitness_metric_type)
+
+    # Construct fitness comparator.
+    objective = METRIC_OBJECTIVES[fitness_metric_name]
+    if objective == "maximize":
+        compare_fitness = lambda best, new: new > best
+    elif objective == "minimize":
+        compare_fitness = lambda best, new: new < best
+    else:
+        raise ValueError("Unsupported objective: '%s'." % objective)
 
     # Set random seed. Note that this may cause reproducibility issues since the train()
     # function now uses the random module.
@@ -184,6 +196,7 @@ def tune(tune_config: Dict[str, Any]) -> Dict[str, Any]:
         early_stop,
         trials_per_config,
         fitness_fn,
+        compare_fitness,
         search_params,
         save_dir,
         checkpoint,
@@ -207,6 +220,7 @@ def random_search(
     early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
+    compare_fitness: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
     checkpoint: Dict[str, Any],
@@ -296,17 +310,17 @@ def random_search(
                 early_stop_trials,
             )
 
-        # Compare current step to best so far, add maximum to config results, add config
+        # Compare current step to best so far, add best to config results, add config
         # results to overall results, and mutate config for next step. We only do this
         # as long as we are not about to make an early exit.
         if early_stop_trials is None:
-            new_max = False
-            if best_fitness is None or fitness > best_fitness:
-                new_max = True
+            new_best = False
+            if best_fitness is None or compare_fitness(best_fitness, fitness):
+                new_best = True
                 best_fitness = fitness
                 best_config = dict(config)
 
-            config_results["maximum"] = new_max
+            config_results["best"] = new_best
             results["iterations"].append(dict(config_results))
 
             config = mutate_train_config(search_params, best_config)
@@ -364,6 +378,7 @@ def grid_search(
     early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
+    compare_fitness: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
     checkpoint: Dict[str, Any],
@@ -444,13 +459,13 @@ def grid_search(
             early_stop_trials,
         )
 
-        # Compare current step to best so far. Add maximum to config results, and add
+        # Compare current step to best so far. Add best to config results, and add
         # config results to overall results. We only do this as long as we are not about
         # to make an early exit.
         if early_stop_trials is None:
             results["iterations"].append(dict(config_results))
 
-            if best_fitness is None or fitness > best_fitness:
+            if best_fitness is None or compare_fitness(best_fitness, fitness):
                 best_fitness = fitness
                 best_config = dict(config)
 
@@ -502,6 +517,7 @@ def IC_grid_search(
     early_stop: Dict[str, int],
     trials_per_config: int,
     fitness_fn: Callable,
+    compare_fitness: Callable,
     search_params: Dict[str, Any],
     save_dir: str,
     checkpoint: Dict[str, Any],
@@ -652,15 +668,17 @@ def IC_grid_search(
                 )
 
             # Compare current step to best so far and best among current IC grid
-            # iteration. Add maximum to config results, and add config results to
+            # iteration. Add best to config results, and add config results to
             # overall results. We only do this as long as we are not about to make an
             # early exit.
             if early_stop_trials is None:
-                if best_fitness is None or fitness > best_fitness:
+                if best_fitness is None or compare_fitness(best_fitness, fitness):
                     best_fitness = fitness
                     best_config = dict(config)
 
-                if best_param_fitness is None or fitness > best_param_fitness:
+                if best_param_fitness is None or compare_fitness(
+                    best_param_fitness, fitness
+                ):
                     best_param_fitness = fitness
                     best_param_vals[param_name] = param_val
 

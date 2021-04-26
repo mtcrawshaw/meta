@@ -1,4 +1,4 @@
-""" Run PPO training on OpenAI Gym/MetaWorld environment. """
+""" Train a neural network with reinfocement learning or supervised learning. """
 
 import os
 import pickle
@@ -8,7 +8,7 @@ from typing import Any, Dict
 import gym
 import torch
 
-from meta.train.trainers import RLTrainer
+from meta.train.trainers import RLTrainer, SLTrainer
 from meta.train.ppo import PPOPolicy
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
@@ -26,62 +26,19 @@ gym.logger.set_level(40)
 
 def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Main function for train.py, runs PPO training using settings from `config`.  The
+    Main function for train.py, runs training using settings from `config`.  The
     expected entries of `config` are documented below. Returns a dictionary holding
     values of performance metrics from training and evaluation.
 
     Parameters
     ----------
-    env_name : str
-        Environment to train on.
-    num_updates : int
-        Number of update steps.
-    rollout_length : int
-        Number of environment steps per rollout.
-    num_ppo_epochs : int
-        Number of ppo epochs per update.
-    num_minibatch : int
-        Number of mini batches per update step for PPO.
-    num_processes : int
-        Number of asynchronous environments to run at once.
-    lr_schedule_type : str
-        Either None, "exponential", "cosine", or "linear". If None is given, the
-        learning rate will stay at initial_lr for the duration of training.
-    initial_lr : float
-        Initial policy learning rate.
-    final_lr : float
-        Final policy learning rate.
-    eps : float
-        Epsilon value for numerical stability.
-    value_loss_coeff : float
-        PPO value loss coefficient.
-    entropy_loss_coeff : float
-        PPO entropy loss coefficient
-    gamma : float
-        Discount factor for rewards.
-    gae_lambda : float
-        Lambda parameter for GAE (used in equation (11) of PPO paper).
-    max_grad_norm : float
-        Max norm of gradients
-    clip_param : float
-        Clipping parameter for PPO surrogate loss.
-    clip_value_loss : False
-        Whether or not to clip the value loss.
-    normalize_advantages : bool
-        Whether or not to normalize advantages after computation.
-    normalize_transition : bool
-        Whether or not to normalize observations and rewards.
-    architecture_config: Dict[str, Any]
-        Config dictionary for the architecture. Should contain an entry for "type",
-        which is either "vanilla", "trunk", "splitting_v1" or "splitting_v2", and all
-        other entries should correspond to the keyword arguments for the corresponding
-        network class, which is either VanillaNetwork, MultiTaskTrunkNetwork, or
-        MultiTaskSplittingNetworkV1. This can also be None in the case that `policy` is
-        not None.
-    cuda : bool
-        Whether or not to train on GPU.
-    seed : int
-        Random seed.
+    trainer : str
+        Which type of trainer to use. Either "RLTrainer" or "SLTrainer", for
+        reinforcement learning and supervised learning, respectively.
+    trainer_config : Dict[str, Any]
+        Config dictionary holding settings for trainer. The values in this dict are
+        specific to the trainer type (i.e. RLTrainer or SLTrainer) and are documented in
+        the docstrings of those classes.
     print_freq : int
         Number of training iterations between metric printing.
     save_freq : int
@@ -97,14 +54,6 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         Name of metrics baseline file to compare against.
     save_name : str
         Name to save experiments under.
-    same_np_seed : bool
-        Whether or not to use the same numpy random seed across each process. This
-        should really only be used when training on MetaWorld, as it allows for multiple
-        processes to generate/act over the same set of goals.
-    save_memory : bool
-        (Optional) Whether or not to save memory when training on a multi-task MetaWorld
-        benchmark by creating a new environment instance at each episode. Only
-        applicable to MetaWorld training. Defaults to False if not included.
     """
 
     # Construct save directory.
@@ -149,12 +98,31 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
             pass
 
     # Construct trainer.
-    trainer = RLTrainer(config, **kwargs)
+    trainer_cls = eval(config["trainer"])
+    trainer = trainer_cls(config, **kwargs)
 
     # Construct metrics object to hold performance metrics.
-    TRAIN_WINDOW = 500
-    test_window = round(TRAIN_WINDOW / config["evaluation_episodes"])
-    metrics = Metrics(train_window=TRAIN_WINDOW, test_window=test_window)
+    if config["trainer"] == "RLTrainer":
+        train_window = 500
+        test_window = round(train_window / config["evaluation_episodes"])
+        metric_set = [
+            ("train_reward", train_window, False, True),
+            ("train_success", train_window, False, True),
+            ("eval_reward", test_window, True, True),
+            ("eval_success", test_window, True, True),
+        ]
+        metrics = Metrics(metric_set)
+    elif config["trainer"] == "SLTrainer":
+        window = 100
+        metric_set = [
+            ("train_loss", window, False, False),
+            ("train_accuracy", window, False, True),
+            ("test_loss", window, False, False),
+            ("test_accuracy", window, False, True),
+        ]
+        metrics = Metrics(metric_set)
+    else:
+        raise NotImplementedError
 
     # Load intermediate progress from checkpoint, if necessary.
     update_iteration = 0

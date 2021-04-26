@@ -1,6 +1,7 @@
 {
-    "env_name": "pick-place-v1",
+    "trainer": "RLTrainer",
 
+    "env_name": "pick-place-v1",
     "num_updates": 50,
     "rollout_length": 64,
     "num_ppo_epochs": 1,

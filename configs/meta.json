@@ -1,6 +1,7 @@
 {
-    "env_name": "MT10",
+    "trainer": "RLTrainer",
 
+    "env_name": "MT10",
     "num_updates": 10,
     "rollout_length": 128,
     "num_ppo_epochs": 4,

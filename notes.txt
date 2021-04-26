@@ -1,3 +1,5 @@
+
+
 Road Map
 
 
@@ -54,6 +56,7 @@ Notes for current task:
 
 Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
 
+
 ----------------------------------------------------------------------------------------
 
 
@@ -64,8 +67,8 @@ The goal of this branch is to convert the trainer into a more modular system tha
 perform training for both RL settings and supervised learning settings, in order to
 implement the random multi-task loss weighting idea. Here's the roadmap:
     Create Trainer and RLTrainer class with RL specific functionality
---> Create SLTrainer class with supervised learning functionality (toy dataset, single task)
-    Add tests for single task supervised learning
+    Create SLTrainer class with supervised learning functionality (toy dataset, single task)
+--> Add tests for single task supervised learning
     Add multi-task functionality + dataset
     Implement loss weighting baselines
     Implement random loss weighting
@@ -251,6 +254,16 @@ RL training:
       environment state is a pain and for now I'm just gonna increase the rollout
       length.
 
+SL training:
+- Refactoring:
+  - Revise evaluation so that we are evaluating on more than just a single batch.
+  - Find nicer way to handle dataset input sizes than the hard-coded dictionary we have
+    now. Is it possible to get the size of inputs/outputs without having to store them
+    explicitly?
+- Additions:
+  - MLP support for supervised learning.
+- Nice to have:
+
 Network architectures:
 - Refactoring:
     - Remove redundant calls to "self.to(device)" in nested modules?
@@ -258,7 +271,9 @@ Network architectures:
     - Architecture hyperparameters:
         - Varying network size in hidden layers
         - Network initialization options
-        - ReLU + other activation functions
+    - Convolutional network features:
+        - Max pooling
+        - Batch normalization
     - An option to turn on checks during inference (safe mode). We would check that each
       observation in a multi-task setting ends with a one-hot tensor of size
       `self.num_tasks`, and that task gradients from get_task_grads() from
@@ -365,4 +380,16 @@ Tests:
       environments (particularly MetaWorld) with simpler ones.
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
+- Nice to have:
+
+Style:
+- Refactoring:
+  - Change keywords for string options to name of corresponding classes. Example,
+    architecture types can just be MLPNetwork, ConvNetwork, etc.
+  - Remove as many default arguments as possible.
+  - Clean up imports so that we import from a subpackage's __init__.py instead of from
+    each file in that subpackage.
+  - Convert config into an object or just store config values as members in the relevant
+    class, so that we can get rid of magic strings everywhere.
+- Additions:
 - Nice to have:

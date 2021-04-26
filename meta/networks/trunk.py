@@ -9,7 +9,7 @@ from itertools import product
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_layer, init_downscale, init_base
+from meta.networks.utils import get_fc_layer, init_downscale, init_base
 from meta.utils.estimate import RunningStats
 
 
@@ -94,7 +94,7 @@ class MultiTaskTrunkNetwork(nn.Module):
 
             # Initialize layer.
             trunk_layers.append(
-                get_layer(
+                get_fc_layer(
                     in_size=layer_input_size,
                     out_size=self.hidden_size,
                     activation=self.activation,
@@ -126,7 +126,7 @@ class MultiTaskTrunkNetwork(nn.Module):
 
                 # Initialize layer.
                 task_layers.append(
-                    get_layer(
+                    get_fc_layer(
                         in_size=self.hidden_size,
                         out_size=output_size,
                         activation=self.activation

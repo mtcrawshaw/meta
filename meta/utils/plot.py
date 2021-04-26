@@ -100,7 +100,7 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     for metric_name in plotted_metrics:
         metric_state = metrics_state[metric_name]
         row_text = []
-        row_text.append(possibly_none(metric_state["maximum"]))
+        row_text.append(possibly_none(metric_state["best"]))
         if len(metric_state["mean"]) == 0:
             row_text.append("None")
         else:

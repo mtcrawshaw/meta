@@ -6,6 +6,20 @@ from typing import List, Dict, Any
 from meta.utils.utils import save_dir_from_name
 
 
+METRIC_OBJECTIVES = {
+    "train_reward": "maximize",
+    "eval_reward": "maximize",
+    "train_success": "maximize",
+    "eval_success": "maximize",
+    "train_loss": "minimize",
+    "eval_loss": "minimize",
+    "train_accuracy": "maximize",
+    "eval_accuracy": "maximize",
+}
+SUPPORTED_METRICS = list(METRIC_OBJECTIVES.keys())
+SUPPORTED_OBJECTIVES = list(METRIC_OBJECTIVES.values())
+
+
 def get_experiment_names(
     base_name: str,
     search_type: str,

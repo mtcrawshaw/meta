@@ -5,7 +5,7 @@ Definition of MLPNetwork, a multi-layer perceptron module.
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_layer, init_base, init_downscale
+from meta.networks.utils import get_fc_layer, init_base, init_downscale
 
 
 class MLPNetwork(nn.Module):
@@ -69,7 +69,7 @@ class MLPNetwork(nn.Module):
 
             # Initialize layer.
             layers.append(
-                get_layer(
+                get_fc_layer(
                     in_size=layer_input_size,
                     out_size=layer_output_size,
                     activation=self.activation if i != self.num_layers - 1 else None,

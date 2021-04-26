@@ -5,8 +5,9 @@
     "trials_per_config": 2,
 
     "base_train_config": {
-        "env_name": "CartPole-v1",
+        "trainer": "RLTrainer",
 
+        "env_name": "CartPole-v1",
         "num_updates": 10,
         "rollout_length": 32,
         "num_ppo_epochs": 4,

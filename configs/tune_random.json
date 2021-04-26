@@ -5,8 +5,9 @@
     "trials_per_config": 2,
 
     "base_train_config": {
-        "env_name": "CartPole-v1",
+        "trainer": "RLTrainer",
 
+        "env_name": "CartPole-v1",
         "num_updates": 25,
         "rollout_length": 5,
         "num_ppo_epochs": 4,
@@ -164,7 +165,7 @@
     },
 
     "fitness_metric_name": "eval_reward",
-    "fitness_metric_type": "maximum",
+    "fitness_metric_type": "best",
 
     "seed": 1,
     "load_from": null

@@ -1,6 +1,7 @@
 {
-    "env_name": "LunarLanderContinuous-v2",
+    "trainer": "RLTrainer",
 
+    "env_name": "LunarLanderContinuous-v2",
     "num_updates": 20,
     "rollout_length": 32,
     "num_ppo_epochs": 4,
