@@ -79,14 +79,13 @@ Current sprint (multi-task functionality):
     Single-task depth prediction
     Single-task semantic segmentation
     Single-task normal estimation
---> Multi-task model with shared backbone
+    Multi-task model with shared backbone
     Tests
-    Refactoring
+--> Refactoring
 
 Current task (single-task normal estimation):
---> Dataset info (input/output sizes)
-    Multi-task architecture
-    Multi-task loss function
+--> Downscale image resolution to enable larger batch sizes
+    Adapt plotting to work with whatever metrics we give it
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
 and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise
@@ -99,10 +98,8 @@ should have two layers: a 3x3 convolution-BN-relu (256 output channels?) followe
 upsampling to scale the prediction to the original input resolution.
 
 Refactoring:
-- Downscale image resolution to enable larger batch sizes.
 - Measure true mean/std of depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
-- Adapt plotting to work with whatever metrics we give it.
 - Add accuracy computation for semantic segmentation.
 - Consolidate transformations by adding dataset_kwargs to dataset_info.
 - Add normalization for normal labels?
