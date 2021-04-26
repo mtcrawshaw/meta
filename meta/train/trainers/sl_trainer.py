@@ -238,14 +238,14 @@ class SLTrainer(Trainer):
 
         # Compute metrics from evaluation step.
         eval_step_metrics = {
-            "test_loss": [loss.item()],
+            "eval_loss": [loss.item()],
         }
         if self.compute_accuracy:
             accuracy = (
                 torch.sum(torch.argmax(outputs, dim=-1) == labels)
                 / self.config["batch_size"]
             )
-            eval_step_metrics["test_accuracy"] = [accuracy.item()]
+            eval_step_metrics["eval_accuracy"] = [accuracy.item()]
 
         return eval_step_metrics
 
