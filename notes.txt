@@ -85,8 +85,8 @@ Current sprint (multi-task functionality):
 
 Current task (single-task normal estimation):
     Consolidate transformations by adding dataset_kwargs to dataset_info
---> Downscale image resolution to enable larger batch sizes
-    Adapt plotting to work with whatever metrics we give it
+    Downscale image resolution to enable larger batch sizes
+--> Adapt plotting to work with whatever metrics we give it
 
 Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
 and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise
@@ -109,6 +109,7 @@ Refactoring:
 - Add multitask capability to ConvNetwork
 - Add softmax/some type of normalization layer to depth prediction output (the values
   are between 0 and 1. Do they sum to 1? Do they have an L2 length of 1?
+- Get rid of NYUv2 wrapper and write one from scratch
 
 Tests:
 - ConvNetwork

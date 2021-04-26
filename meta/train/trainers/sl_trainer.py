@@ -37,7 +37,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "MNIST",
-        "kwargs": {"transform": GRAY_TRANSFORM}
+        "kwargs": {"transform": GRAY_TRANSFORM},
     },
     "CIFAR10": {
         "input_size": (3, 32, 32),
@@ -46,7 +46,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR10",
-        "kwargs": {"transform": RGB_TRANSFORM}
+        "kwargs": {"transform": RGB_TRANSFORM},
     },
     "CIFAR100": {
         "input_size": (3, 32, 32),
@@ -55,7 +55,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR100",
-        "kwargs": {"transform": RGB_TRANSFORM}
+        "kwargs": {"transform": RGB_TRANSFORM},
     },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
@@ -64,7 +64,8 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(ignore_index=-1),
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "seg_transform": SEG_TRANSFORM}
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "seg_transform": SEG_TRANSFORM},
+        "scale": 0.25,
     },
     "NYUv2_sn": {
         "input_size": (3, 480, 64),
@@ -73,7 +74,8 @@ DATASETS = {
         "loss": CosineSimilarityLoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "sn_transform": SN_TRANSFORM}
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "sn_transform": SN_TRANSFORM},
+        "scale": 0.25,
     },
     "NYUv2_depth": {
         "input_size": (3, 480, 64),
@@ -82,7 +84,8 @@ DATASETS = {
         "loss": nn.MSELoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "depth_transform": DEPTH_TRANSFORM}
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "depth_transform": DEPTH_TRANSFORM},
+        "scale": 0.25,
     },
     "NYUv2": {
         "input_size": (3, 480, 64),
@@ -114,7 +117,8 @@ DATASETS = {
             "seg_transform": SEG_TRANSFORM,
             "sn_transform": SN_TRANSFORM,
             "depth_transform": DEPTH_TRANSFORM,
-        }
+            "scale": 0.25,
+        },
     },
 }
 

@@ -1,5 +1,6 @@
 """ Misc functionality for meta/networks. """
 
+from PIL import Image
 from collections import OrderedDict
 from typing import Any, Dict, Union, Callable, List
 
@@ -215,6 +216,60 @@ class MultiTaskLoss(nn.Module):
         total_loss = torch.sum(task_loss_vals)
 
         return total_loss
+
+    def save_batch(self, outputs: torch.Tensor, labels: torch.Tensor) -> None:
+        """
+        Debug function to save out batch of labels as images and exit. Note that this
+        should only be used when doing multi-task training on the NYUv2 dataset.
+        """
+
+        loss_names = ["seg", "sn", "depth"]
+        batch_size = outputs.shape[0]
+        colors = [
+            (0, 0, 0),
+            (0, 0, 127),
+            (0, 0, 255),
+            (0, 127, 0),
+            (0, 127, 127),
+            (0, 127, 255),
+            (0, 255, 0),
+            (0, 255, 127),
+            (0, 255, 255),
+            (127, 0, 0),
+            (127, 0, 127),
+            (127, 0, 255),
+            (127, 127, 0),
+            (127, 127, 127),
+        ]
+
+        for i, task_loss in enumerate(self.task_losses):
+            task_label = task_loss["label_slice"](labels)
+
+            name = loss_names[i]
+            for j in range(batch_size):
+                label = task_label[j]
+                if name == "seg":
+                    label_arr = np.zeros((label.shape[0], label.shape[1], 3))
+                    for x in range(label_arr.shape[0]):
+                        for y in range(label_arr.shape[1]):
+                            label_arr[x, y] = colors[label[x, y]]
+                    label_arr = np.uint8(label_arr)
+                elif name == "sn":
+                    label_arr = np.transpose(label.numpy(), (1, 2, 0))
+                    label_arr = np.uint8(label_arr * 255.0)
+                elif name == "depth":
+                    label_arr = np.transpose(label.numpy(), (1, 2, 0))
+                    min_depth, max_depth = np.min(label_arr), np.max(label_arr)
+                    label_arr = (label_arr - min_depth) / (max_depth - min_depth)
+                    label_arr = np.concatenate([label_arr] * 3, axis=2)
+                    label_arr = np.uint8(label_arr * 255.0)
+                else:
+                    raise NotImplementedError
+
+                img = Image.fromarray(label_arr)
+                img.save("test_%d_%s.png" % (j, name))
+
+        exit()
 
 
 class Parallel(nn.Module):

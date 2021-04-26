@@ -1,6 +1,5 @@
 """ Dataset objects. """
 
-
 import os
 import sys
 import h5py
@@ -13,7 +12,13 @@ import numpy as np
 
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 from torchvision.datasets.utils import download_url
+
+
+# This is HxW, as is expected by transforms.Resize.
+IMG_SIZE = (480, 640)
 
 
 class NYUv2(Dataset):
@@ -23,7 +28,7 @@ class NYUv2(Dataset):
     transformation is provided, the image type will not be returned.
 
     ### Output
-    All images are of size: 640 x 480
+    All images are of size: 640 x 480 by default, though the dimensions can be scaled.
 
     1. RGB: 3 channel input image
 
@@ -46,6 +51,7 @@ class NYUv2(Dataset):
         seg_transform=None,
         sn_transform=None,
         depth_transform=None,
+        scale=1,
     ):
         """
         Will return tuples based on what data source has been enabled (rgb, seg etc).
@@ -61,14 +67,41 @@ class NYUv2(Dataset):
         :param depth_transform: the transformation pipeline for depth images. If the
         transformation ends in a tensor, the result will be automatically converted
         to meters
+        :param scale: how to scale images/labels. If 1 image sizes will not be changed,
+        if 0.5 each dimension will be reduced by a factor of 2, etc.
         """
         super().__init__()
         self.root = root
 
+        self.scale = scale
+        self.size = (round(IMG_SIZE[0] * self.scale), round(IMG_SIZE[1] * self.scale))
         self.rgb_transform = rgb_transform
         self.seg_transform = seg_transform
         self.sn_transform = sn_transform
         self.depth_transform = depth_transform
+
+        # Add scaling to transforms if necessary.
+        if self.rgb_transform is not None and self.scale != 1:
+            self.rgb_transform = transforms.Compose(
+                [rgb_transform, transforms.Resize(self.size)]
+            )
+        if self.seg_transform is not None and self.scale != 1:
+            self.seg_transform = transforms.Compose(
+                [
+                    seg_transform,
+                    transforms.Resize(
+                        self.size, interpolation=InterpolationMode.NEAREST
+                    ),
+                ]
+            )
+        if self.sn_transform is not None and self.scale != 1:
+            self.sn_transform = transforms.Compose(
+                [sn_transform, transforms.Resize(self.size)]
+            )
+        if self.depth_transform is not None and self.scale != 1:
+            self.depth_transform = transforms.Compose(
+                [depth_transform, transforms.Resize(self.size)]
+            )
 
         self.train = train
         self._split = "train" if train else "test"
