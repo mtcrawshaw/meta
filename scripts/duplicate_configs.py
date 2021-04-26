@@ -1,6 +1,5 @@
 """
-Script to duplicate training config files to create copies with different random seeds,
-and deleting the originals.
+Script to duplicate training config files to create copies with different random seeds.
 """
 
 import os
@@ -41,11 +40,10 @@ def main(args) -> None:
         for i in range(args.num_copies):
             config_copy = dict(config)
             config_copy["seed"] = i
+            if config_copy["save_name"] is not None:
+                config_copy["save_name"] += "_%d" % i
             with open(get_copy_path(config_path, i), "w") as copy_file:
                 json.dump(config_copy, copy_file, indent=4)
-
-        # Delete original file.
-        os.remove(config_path)
 
 
 if __name__ == "__main__":
