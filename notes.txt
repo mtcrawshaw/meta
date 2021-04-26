@@ -66,37 +66,18 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Create Trainer and RLTrainer class with RL specific functionality
     Create SLTrainer class with supervised learning functionality (toy dataset, single task)
     Add tests for single task supervised learning
---> Add multi-task functionality + dataset
-    Implement loss weighting baselines
-    Implement random loss weighting
+    Add multi-task functionality + dataset
+--> Implement loss weighting methods
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
-Gotta go back and write tests for supervised learning.
+Current sprint (Loss weighting baselines):
+--> Add option for constant task loss weights
+    Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
+    Implement Multi-Loss Dynamic Weighting (https://arxiv.org/abs/1810.12193)
+    Implement Random Loss Weighting
 
-Current sprint (multi-task functionality):
-    Single-task depth prediction
-    Single-task semantic segmentation
-    Single-task normal estimation
-    Multi-task model with shared backbone
-    Tests
---> Refactoring
-
-Current task (single-task normal estimation):
-    Consolidate transformations by adding dataset_kwargs to dataset_info
-    Downscale image resolution to enable larger batch sizes
---> Adapt plotting to work with whatever metrics we give it
-
-Each one of the single-task models should use a ResNet-50 shared backbone (pre-trained)
-and be trained on the NYUv2 dataset. The depth prediction loss is the mean of pixel-wise
-squared error between prediction and ground truth, the semantic segmentation loss is the
-mean of pixel-wise cross entropy between prediction and ground truth, and the normal
-estimation loss is the negative mean of pixel-wise cosine distance (dot product of
-vectors normalized to length 1) between prediction and ground truth. Each task's decoder
-should have two layers: a 3x3 convolution-BN-relu (256 output channels?) followed by a
-1x1 convolution that outputs the prediction, which is then upsampled using bilinear
-upsampling to scale the prediction to the original input resolution.
 
 Refactoring:
 - Measure true mean/std of depth labels.
@@ -111,7 +92,7 @@ Refactoring:
   are between 0 and 1. Do they sum to 1? Do they have an L2 length of 1?
 - Get rid of NYUv2 wrapper and write one from scratch
 
-Tests:
+Tests to add:
 - ConvNetwork
 - BackboneNetwork
 - Parallel
