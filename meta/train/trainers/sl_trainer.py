@@ -15,6 +15,20 @@ from meta.networks.utils import CosineSimilarityLoss, MultiTaskLoss
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
+DEPTH_MEAN = 2.5
+DEPTH_STD = 1
+GRAY_TRANSFORM = transforms.Compose(
+    [transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
+)
+RGB_TRANSFORM = transforms.Compose(
+    [transforms.ToTensor(), transforms.Normalize([0.5] * 3, [0.5] * 3)]
+)
+DEPTH_TRANSFORM = transforms.Compose(
+    [transforms.ToTensor(), transforms.Normalize(DEPTH_MEAN, DEPTH_STD)]
+)
+SEG_TRANSFORM = transforms.ToTensor()
+SN_TRANSFORM = transforms.ToTensor()
+
 DATASETS = {
     "MNIST": {
         "input_size": (1, 28, 28),
@@ -23,6 +37,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "MNIST",
+        "kwargs": {"transform": GRAY_TRANSFORM}
     },
     "CIFAR10": {
         "input_size": (3, 32, 32),
@@ -31,6 +46,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR10",
+        "kwargs": {"transform": RGB_TRANSFORM}
     },
     "CIFAR100": {
         "input_size": (3, 32, 32),
@@ -39,6 +55,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(),
         "compute_accuracy": True,
         "base_name": "CIFAR100",
+        "kwargs": {"transform": RGB_TRANSFORM}
     },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
@@ -47,6 +64,7 @@ DATASETS = {
         "loss": nn.CrossEntropyLoss(ignore_index=-1),
         "compute_accuracy": False,
         "base_name": "NYUv2",
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "seg_transform": SEG_TRANSFORM}
     },
     "NYUv2_sn": {
         "input_size": (3, 480, 64),
@@ -55,6 +73,7 @@ DATASETS = {
         "loss": CosineSimilarityLoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "sn_transform": SN_TRANSFORM}
     },
     "NYUv2_depth": {
         "input_size": (3, 480, 64),
@@ -63,10 +82,11 @@ DATASETS = {
         "loss": nn.MSELoss(),
         "compute_accuracy": False,
         "base_name": "NYUv2",
+        "kwargs": {"rgb_transform": RGB_TRANSFORM, "depth_transform": DEPTH_TRANSFORM}
     },
     "NYUv2": {
         "input_size": (3, 480, 64),
-        "output_size": [(13, 480, 64), (3, 480, 64), (1, 480, 64),],
+        "output_size": [(13, 480, 64), (3, 480, 64), (1, 480, 64)],
         "builtin": False,
         "loss": MultiTaskLoss(
             [
@@ -89,6 +109,12 @@ DATASETS = {
         ),
         "compute_accuracy": False,
         "base_name": "NYUv2",
+        "kwargs": {
+            "rgb_transform": RGB_TRANSFORM,
+            "seg_transform": SEG_TRANSFORM,
+            "sn_transform": SN_TRANSFORM,
+            "depth_transform": DEPTH_TRANSFORM,
+        }
     },
 }
 
@@ -123,48 +149,13 @@ class SLTrainer(Trainer):
         output_size = self.dataset_info["output_size"]
         self.compute_accuracy = self.dataset_info["compute_accuracy"]
 
-        # Data transformation.
-        mean = [0.5] * input_size[0]
-        std = [0.5] * input_size[0]
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize(mean, std)]
-        )
-        if self.dataset == "NYUv2_depth":
-            depth_mean = 2.5
-            depth_std = 1
-            depth_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(depth_mean, depth_std)]
-            )
-            kwargs = {"rgb_transform": transform, "depth_transform": depth_transform}
-        elif self.dataset == "NYUv2_seg":
-            seg_transform = transforms.ToTensor()
-            kwargs = {"rgb_transform": transform, "seg_transform": seg_transform}
-        elif self.dataset == "NYUv2_sn":
-            sn_transform = transforms.ToTensor()
-            kwargs = {"rgb_transform": transform, "sn_transform": sn_transform}
-        elif self.dataset == "NYUv2":
-            depth_mean = 2.5
-            depth_std = 1
-            depth_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(depth_mean, depth_std)]
-            )
-            seg_transform = transforms.ToTensor()
-            sn_transform = transforms.ToTensor()
-            kwargs = {
-                "rgb_transform": transform,
-                "depth_transform": depth_transform,
-                "seg_transform": seg_transform,
-                "sn_transform": sn_transform,
-            }
-        else:
-            kwargs = {"transform": transform}
-
         # Construct data loaders.
         if self.dataset_info["builtin"]:
             dataset = eval("torchvision.datasets.%s" % self.dataset)
         else:
             dataset = eval(self.dataset_info["base_name"])
         root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
+        kwargs = self.dataset_info["kwargs"]
         train_set = dataset(root=root, train=True, download=True, **kwargs)
         test_set = dataset(root=root, train=False, download=True, **kwargs)
         train_loader = torch.utils.data.DataLoader(

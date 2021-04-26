@@ -84,6 +84,7 @@ Current sprint (multi-task functionality):
 --> Refactoring
 
 Current task (single-task normal estimation):
+    Consolidate transformations by adding dataset_kwargs to dataset_info
 --> Downscale image resolution to enable larger batch sizes
     Adapt plotting to work with whatever metrics we give it
 
@@ -101,7 +102,6 @@ Refactoring:
 - Measure true mean/std of depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
 - Add accuracy computation for semantic segmentation.
-- Consolidate transformations by adding dataset_kwargs to dataset_info.
 - Add normalization for normal labels?
 - Make sure that we are consistently taking either sum or mean of loss over batches for
   each task.
