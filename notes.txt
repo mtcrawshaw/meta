@@ -73,8 +73,8 @@ Try to merge this branch with develop as often as possible (while maintaining st
 so that we don't have an impossible merge to perform later on.
 
 Current sprint (Loss weighting baselines):
---> Add option for constant task loss weights
-    Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
+    Add option for constant task loss weights
+--> Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
     Implement Multi-Loss Dynamic Weighting (https://arxiv.org/abs/1810.12193)
     Implement Random Loss Weighting
 

@@ -2,7 +2,7 @@
 
 from PIL import Image
 from collections import OrderedDict
-from typing import Any, Dict, Union, Callable, List
+from typing import Any, Dict, Union, Callable, List, Optional
 
 import torch
 import numpy as np
@@ -194,13 +194,22 @@ class CosineSimilarityLoss(nn.Module):
 
 
 class MultiTaskLoss(nn.Module):
-    """ Computes the sum of multiple loss functions. """
+    """ Computes the weighted sum of multiple loss functions. """
 
-    def __init__(self, task_losses: List[nn.Module]) -> None:
+    def __init__(
+        self,
+        task_losses: List[Dict[str, Any]],
+        loss_weights: Optional[List[float]] = None,
+    ) -> None:
         """ Init function for MultiTaskLoss. """
 
         super(MultiTaskLoss, self).__init__()
         self.task_losses = task_losses
+        if loss_weights is not None:
+            assert len(loss_weights) == len(self.task_losses)
+            self.loss_weights = torch.Tensor(loss_weights)
+        else:
+            self.loss_weights = torch.ones((len(self.task_losses)))
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """ Compute values of each task losses, then return the sum. """
@@ -213,7 +222,7 @@ class MultiTaskLoss(nn.Module):
             task_loss_vals.append(task_loss_val)
 
         task_loss_vals = torch.stack(task_loss_vals)
-        total_loss = torch.sum(task_loss_vals)
+        total_loss = torch.sum(task_loss_vals * self.loss_weights)
 
         return total_loss
 

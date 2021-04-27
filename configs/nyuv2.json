@@ -1,6 +1,7 @@
 {
     "trainer": "SLTrainer",
     "dataset": "NYUv2",
+    "loss_weights": [1.0, 1.0, 1.0],
     "num_updates": 2,
     "batch_size": 4,
     "num_workers": 2,

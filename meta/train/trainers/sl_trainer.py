@@ -34,65 +34,81 @@ DATASETS = {
         "input_size": (1, 28, 28),
         "output_size": 10,
         "builtin": True,
-        "loss": nn.CrossEntropyLoss(),
+        "loss_cls": nn.CrossEntropyLoss,
+        "loss_kwargs": {},
         "compute_accuracy": True,
         "base_name": "MNIST",
-        "kwargs": {"transform": GRAY_TRANSFORM},
+        "dataset_kwargs": {"transform": GRAY_TRANSFORM},
     },
     "CIFAR10": {
         "input_size": (3, 32, 32),
         "output_size": 10,
         "builtin": True,
-        "loss": nn.CrossEntropyLoss(),
+        "loss_cls": nn.CrossEntropyLoss,
+        "loss_kwargs": {},
         "compute_accuracy": True,
         "base_name": "CIFAR10",
-        "kwargs": {"transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"transform": RGB_TRANSFORM},
     },
     "CIFAR100": {
         "input_size": (3, 32, 32),
         "output_size": 100,
         "builtin": True,
-        "loss": nn.CrossEntropyLoss(),
+        "loss_cls": nn.CrossEntropyLoss,
+        "loss_kwargs": {},
         "compute_accuracy": True,
         "base_name": "CIFAR100",
-        "kwargs": {"transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"transform": RGB_TRANSFORM},
     },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
         "output_size": (13, 480, 64),
         "builtin": False,
-        "loss": nn.CrossEntropyLoss(ignore_index=-1),
+        "loss_cls": nn.CrossEntropyLoss,
+        "loss_kwargs": {"ignore_index": -1},
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "seg_transform": SEG_TRANSFORM},
-        "scale": 0.25,
+        "dataset_kwargs": {
+            "rgb_transform": RGB_TRANSFORM,
+            "seg_transform": SEG_TRANSFORM,
+            "scale": 0.25,
+        },
     },
     "NYUv2_sn": {
         "input_size": (3, 480, 64),
         "output_size": (3, 480, 64),
         "builtin": False,
-        "loss": CosineSimilarityLoss(),
+        "loss_cls": CosineSimilarityLoss,
+        "loss_kwargs": {},
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "sn_transform": SN_TRANSFORM},
-        "scale": 0.25,
+        "dataset_kwargs": {
+            "rgb_transform": RGB_TRANSFORM,
+            "sn_transform": SN_TRANSFORM,
+            "scale": 0.25,
+        },
     },
     "NYUv2_depth": {
         "input_size": (3, 480, 64),
         "output_size": (1, 480, 64),
         "builtin": False,
-        "loss": nn.MSELoss(),
+        "loss_cls": nn.MSELoss,
+        "loss_kwargs": {},
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {"rgb_transform": RGB_TRANSFORM, "depth_transform": DEPTH_TRANSFORM},
-        "scale": 0.25,
+        "dataset_kwargs": {
+            "rgb_transform": RGB_TRANSFORM,
+            "depth_transform": DEPTH_TRANSFORM,
+            "scale": 0.25,
+        },
     },
     "NYUv2": {
         "input_size": (3, 480, 64),
         "output_size": [(13, 480, 64), (3, 480, 64), (1, 480, 64)],
         "builtin": False,
-        "loss": MultiTaskLoss(
-            [
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
                 {
                     "loss": nn.CrossEntropyLoss(ignore_index=-1),
                     "output_slice": lambda x: x[:, :13],
@@ -108,11 +124,11 @@ DATASETS = {
                     "output_slice": lambda x: x[:, 16:17],
                     "label_slice": lambda x: x[:, 4:5],
                 },
-            ]
-        ),
+            ],
+        },
         "compute_accuracy": False,
         "base_name": "NYUv2",
-        "kwargs": {
+        "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
             "seg_transform": SEG_TRANSFORM,
             "sn_transform": SN_TRANSFORM,
@@ -159,9 +175,9 @@ class SLTrainer(Trainer):
         else:
             dataset = eval(self.dataset_info["base_name"])
         root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
-        kwargs = self.dataset_info["kwargs"]
-        train_set = dataset(root=root, train=True, download=True, **kwargs)
-        test_set = dataset(root=root, train=False, download=True, **kwargs)
+        dataset_kwargs = self.dataset_info["dataset_kwargs"]
+        train_set = dataset(root=root, train=True, download=True, **dataset_kwargs)
+        test_set = dataset(root=root, train=False, download=True, **dataset_kwargs)
         train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
@@ -191,7 +207,11 @@ class SLTrainer(Trainer):
         self.network = network_cls(**network_kwargs)
 
         # Construct loss function.
-        self.criterion = self.dataset_info["loss"]
+        loss_cls = self.dataset_info["loss_cls"]
+        loss_kwargs = self.dataset_info["loss_kwargs"]
+        if "loss_weights" in config:
+            loss_kwargs["loss_weights"] = config["loss_weights"]
+        self.criterion = loss_cls(**loss_kwargs)
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
