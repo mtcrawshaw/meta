@@ -1,11 +1,10 @@
 """ Misc functionality for meta/networks. """
 
-from PIL import Image
 from collections import OrderedDict
-from typing import Any, Dict, Union, Callable, List, Optional
+from typing import Any, Dict, Union, Callable, List
 
-import torch
 import numpy as np
+import torch
 import torch.nn as nn
 
 
@@ -177,108 +176,6 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out_name = self.return_layers[name]
                 out[out_name] = x
         return out
-
-
-class CosineSimilarityLoss(nn.Module):
-    """
-    Returns negative mean of cosine similarity (scaled into [0, 1]) between two tensors
-    computed along `dim`.
-    """
-
-    def __init__(self, dim: int = 1, eps: float = 1e-8) -> None:
-        super(CosineSimilarityLoss, self).__init__()
-        self.single_loss = nn.CosineSimilarity(dim=dim, eps=eps)
-
-    def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
-        return (1 - torch.mean(self.single_loss(x1, x2))) / 2.0
-
-
-class MultiTaskLoss(nn.Module):
-    """ Computes the weighted sum of multiple loss functions. """
-
-    def __init__(
-        self,
-        task_losses: List[Dict[str, Any]],
-        loss_weights: Optional[List[float]] = None,
-    ) -> None:
-        """ Init function for MultiTaskLoss. """
-
-        super(MultiTaskLoss, self).__init__()
-        self.task_losses = task_losses
-        if loss_weights is not None:
-            assert len(loss_weights) == len(self.task_losses)
-            self.loss_weights = torch.Tensor(loss_weights)
-        else:
-            self.loss_weights = torch.ones((len(self.task_losses)))
-
-    def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """ Compute values of each task losses, then return the sum. """
-
-        task_loss_vals = []
-        for i, task_loss in enumerate(self.task_losses):
-            task_output = task_loss["output_slice"](outputs)
-            task_label = task_loss["label_slice"](labels)
-            task_loss_val = task_loss["loss"](task_output, task_label)
-            task_loss_vals.append(task_loss_val)
-
-        task_loss_vals = torch.stack(task_loss_vals)
-        total_loss = torch.sum(task_loss_vals * self.loss_weights)
-
-        return total_loss
-
-    def save_batch(self, outputs: torch.Tensor, labels: torch.Tensor) -> None:
-        """
-        Debug function to save out batch of labels as images and exit. Note that this
-        should only be used when doing multi-task training on the NYUv2 dataset.
-        """
-
-        loss_names = ["seg", "sn", "depth"]
-        batch_size = outputs.shape[0]
-        colors = [
-            (0, 0, 0),
-            (0, 0, 127),
-            (0, 0, 255),
-            (0, 127, 0),
-            (0, 127, 127),
-            (0, 127, 255),
-            (0, 255, 0),
-            (0, 255, 127),
-            (0, 255, 255),
-            (127, 0, 0),
-            (127, 0, 127),
-            (127, 0, 255),
-            (127, 127, 0),
-            (127, 127, 127),
-        ]
-
-        for i, task_loss in enumerate(self.task_losses):
-            task_label = task_loss["label_slice"](labels)
-
-            name = loss_names[i]
-            for j in range(batch_size):
-                label = task_label[j]
-                if name == "seg":
-                    label_arr = np.zeros((label.shape[0], label.shape[1], 3))
-                    for x in range(label_arr.shape[0]):
-                        for y in range(label_arr.shape[1]):
-                            label_arr[x, y] = colors[label[x, y]]
-                    label_arr = np.uint8(label_arr)
-                elif name == "sn":
-                    label_arr = np.transpose(label.numpy(), (1, 2, 0))
-                    label_arr = np.uint8(label_arr * 255.0)
-                elif name == "depth":
-                    label_arr = np.transpose(label.numpy(), (1, 2, 0))
-                    min_depth, max_depth = np.min(label_arr), np.max(label_arr)
-                    label_arr = (label_arr - min_depth) / (max_depth - min_depth)
-                    label_arr = np.concatenate([label_arr] * 3, axis=2)
-                    label_arr = np.uint8(label_arr * 255.0)
-                else:
-                    raise NotImplementedError
-
-                img = Image.fromarray(label_arr)
-                img.save("test_%d_%s.png" % (j, name))
-
-        exit()
 
 
 class Parallel(nn.Module):

@@ -10,8 +10,8 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
+from meta.train.loss import CosineSimilarityLoss, MultiTaskLoss
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
-from meta.networks.utils import CosineSimilarityLoss, MultiTaskLoss
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -209,8 +209,8 @@ class SLTrainer(Trainer):
         # Construct loss function.
         loss_cls = self.dataset_info["loss_cls"]
         loss_kwargs = self.dataset_info["loss_kwargs"]
-        if "loss_weights" in config:
-            loss_kwargs["loss_weights"] = config["loss_weights"]
+        if "loss_weighter" in config:
+            loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
         self.criterion = loss_cls(**loss_kwargs)
 
     def _step(self) -> Dict[str, Any]:

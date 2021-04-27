@@ -77,6 +77,7 @@ Current sprint (Loss weighting baselines):
 --> Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
     Implement Multi-Loss Dynamic Weighting (https://arxiv.org/abs/1810.12193)
     Implement Random Loss Weighting
+    Implement Loss Balanced Task Weighting? (https://ojs.aaai.org//index.php/AAAI/article/view/5125)
 
 
 Refactoring:
