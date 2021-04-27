@@ -21,6 +21,7 @@ from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 
 
+SMALL_TOL = 2e-7
 TOL = 2e-3
 
 
@@ -308,11 +309,11 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
                 if bad:
                     expected = torch.Tensor([0.0])
                 else:
-                    expected = torch.sum(grad1 * grad2)
+                    expected = (-torch.sum(grad1 * grad2) + 1.0) / 2.0
             else:
                 raise NotImplementedError
 
-            assert torch.allclose(actual, expected)
+            assert torch.allclose(actual, expected, atol=SMALL_TOL)
 
 
 def grad_stats_template(
@@ -399,7 +400,7 @@ def grad_stats_template(
             elif settings["metric"] == "cosine":
                 grad1 /= sqrt(torch.sum(grad1 ** 2))
                 grad2 /= sqrt(torch.sum(grad2 ** 2))
-                diff = torch.sum(grad1 * grad2)
+                diff = (-torch.sum(grad1 * grad2) + 1.0) / 2.0
             else:
                 raise NotImplementedError
 

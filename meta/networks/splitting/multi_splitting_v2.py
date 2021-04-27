@@ -71,15 +71,8 @@ class MultiTaskSplittingNetworkV2(BaseMultiTaskSplittingNetwork):
         if self.metric == "sqeuclidean":
             distance_scores = self.grad_diff_stats.mean / self.region_sizes
 
-        # If we are using the cosine distance as the metric, rescale linearly so that 1
-        # is mapped to 0 and -1 is mapped to 1. This way the distances are the same
-        # order as Euclidean distance (lower means closer) and a distance of zero means
-        # the values are identical.
-        if self.metric == "cosine":
-            distance_scores = (-distance_scores + 1) / 2.0
-
         # Set distance scores to zero for task/region pairs that aren't shared, have too
-        # small sample size, or have task1 < task 2 (this way we avoid duplicate values
+        # small sample size, or have task1 < task2 (this way we avoid duplicate values
         # from (task1, task2) and (task2, task1).
         is_shared = self.splitting_map.shared_regions()
         distance_scores *= is_shared

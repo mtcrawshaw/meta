@@ -434,6 +434,11 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             task_grad_diffs /= torch.sqrt(pair_norm_prod)
             task_grad_diffs /= -2.0
 
+            # Rescale linearly so that 1 is mapped to 0 and -1 is mapped to 1. This way
+            # the distances are the same order as Euclidean distance (lower means
+            # closer) and a distance of zero means the values are identical.
+            task_grad_diffs = (-task_grad_diffs + 1) / 2.0
+
             # Get rid of any infs or nans that may have appeared from zero division.
             bad_idxs = torch.isnan(task_grad_diffs) + torch.isinf(task_grad_diffs)
             task_grad_diffs[bad_idxs] = 0.0

@@ -51,11 +51,12 @@ Notes for current task:
 - Implement splitting by cosine distance instead of Euclidean distance (DONE)
 - Test cosine distance splitting networks (DONE)
 - Make cosine distance computation more efficient (DONE)
+- Implement training on pre-split architecture (DONE)
 - Run evaluations with cosine distance
-- Implement training on pre-split architecture
 
 Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-
+Normalize grad_diff_stats by region size during grad_diff calculation instead of at
+split time?
 
 ----------------------------------------------------------------------------------------
 
