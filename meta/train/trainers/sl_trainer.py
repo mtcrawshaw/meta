@@ -10,7 +10,14 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
-from meta.train.loss import CosineSimilarityLoss, MultiTaskLoss, get_accuracy
+from meta.train.loss import (
+    CosineSimilarityLoss,
+    MultiTaskLoss,
+    get_accuracy,
+    NYUv2_seg_accuracy,
+    NYUv2_sn_accuracy,
+    NYUv2_depth_accuracy,
+)
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
@@ -66,7 +73,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {"ignore_index": -1},
-        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
+        "extra_metrics": {"accuracy": {"fn": NYUv2_seg_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -80,7 +87,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
+        "extra_metrics": {"accuracy": {"fn": NYUv2_sn_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -94,7 +101,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.MSELoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
+        "extra_metrics": {"accuracy": {"fn": NYUv2_depth_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -244,7 +251,6 @@ class SLTrainer(Trainer):
             full_name = "train_%s" % metric_name
             fn = metric_info["fn"]
             step_metrics[full_name] = [fn(outputs, labels)]
-
 
         return step_metrics
 

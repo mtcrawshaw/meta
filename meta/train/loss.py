@@ -1,5 +1,6 @@
 """ Loss functions and related utils. """
 
+import math
 from PIL import Image
 from typing import List, Dict, Any, Optional
 
@@ -314,6 +315,54 @@ def save_batch(
 
 
 def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
-    """ Compute accuracy of prediction given outputs and labels. """
+    """
+    Compute accuracy of classification prediction given outputs and labels.
+    """
+
     accuracy = torch.sum(torch.argmax(outputs, dim=-1) == labels) / outputs.shape[0]
+    return accuracy.item()
+
+
+def NYUv2_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of semantic segmentation on the NYUv2 dataset. Here we assume that
+    any pixels with label -1 are unlabeled, so we don't count these pixels in the
+    accuracy computation. We also assume that the class dimension is directly after the
+    batch dimension.
+    """
+
+    preds = torch.argmax(outputs, dim=1)
+    correct = torch.sum(preds == labels)
+    valid = torch.sum(labels != -1)
+    accuracy = correct / valid
+    return accuracy.item()
+
+
+def NYUv2_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of surface normal estimation on the NYUv2 dataset. We define this
+    as the number of pixels for which the angle between the true normal and the
+    predicted normal is less than `DEGREE_THRESHOLD` degrees. Here we assume that the
+    normal dimension is 1.
+    """
+
+    DEGREE_THRESHOLD = 10
+    similarity_threshold = math.cos(DEGREE_THRESHOLD / 180 * math.pi)
+    similarity = F.cosine_similarity(outputs, labels, dim=1)
+    accuracy = torch.sum(similarity > similarity_threshold) / torch.numel(similarity)
+
+    return accuracy.item()
+
+
+def NYUv2_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
+    number of pixels for which the absolute value of the difference between the
+    predicted depth and the true depth is less than `DEPTH_THRESHOLD`.
+    """
+
+    DEPTH_THRESHOLD = 0.25
+    difference = torch.abs(outputs - labels)
+    accuracy = torch.sum(difference < DEPTH_THRESHOLD) / torch.numel(difference)
+
     return accuracy.item()

@@ -112,6 +112,9 @@ Tests to add:
 - LossWeighter and all subclasses
 
 
+Just finished implementing evaluation for NYUv2 single tasks. Need to do the same for
+the multi-task variants, then we should be good to run evaluations.
+
 ----------------------------------------------------------------------------------------
 
 
