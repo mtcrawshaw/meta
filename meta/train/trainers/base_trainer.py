@@ -152,3 +152,8 @@ class Trainer:
             torch.nn.utils.clip_grad_norm_(
                 self.parameters(), self.config["max_grad_norm"],
             )
+
+    @property
+    def metric_set(self) -> None:
+        """ Set of metrics for this trainer. """
+        raise NotImplementedError

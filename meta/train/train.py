@@ -104,27 +104,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     trainer = trainer_cls(config, **kwargs)
 
     # Construct metrics object to hold performance metrics.
-    if config["trainer"] == "RLTrainer":
-        train_window = 500
-        test_window = round(train_window / config["evaluation_episodes"])
-        metric_set = [
-            ("train_reward", train_window, False, True),
-            ("train_success", train_window, False, True),
-            ("eval_reward", test_window, True, True),
-            ("eval_success", test_window, True, True),
-        ]
-        metrics = Metrics(metric_set)
-    elif config["trainer"] == "SLTrainer":
-        window = 100
-        metric_set = [
-            ("train_loss", window, False, False),
-            ("train_accuracy", window, False, True),
-            ("eval_loss", window, False, False),
-            ("eval_accuracy", window, False, True),
-        ]
-        metrics = Metrics(metric_set)
-    else:
-        raise NotImplementedError
+    metrics = Metrics(trainer.metric_set)
 
     # Load intermediate progress from checkpoint, if necessary.
     update_iteration = 0

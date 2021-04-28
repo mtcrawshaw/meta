@@ -228,6 +228,20 @@ class RLTrainer(Trainer):
         """ Return parameters of model. """
         return self.policy.policy_network.parameters()
 
+    @property
+    def metric_set(self) -> List[Tuple]:
+        """ Set of metrics for this trainer. """
+
+        train_window = 500
+        test_window = round(train_window / self.config["evaluation_episodes"])
+        metric_set = [
+            ("train_reward", train_window, False, True),
+            ("train_success", train_window, False, True),
+            ("eval_reward", test_window, True, True),
+            ("eval_success", test_window, True, True),
+        ]
+        return metric_set
+
     def collect_rollout(self) -> Tuple[List[float], List[float]]:
         """
         Run environment and collect rollout information (observations, rewards, actions,

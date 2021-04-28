@@ -95,7 +95,7 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     # Write out table of final metrics.
     axs[-1].axis("off")
     row_labels = list(plotted_metrics)
-    col_labels = ["Maximum", "Final"]
+    col_labels = ["Best", "Final"]
     cell_text = []
     for metric_name in plotted_metrics:
         metric_state = metrics_state[metric_name]

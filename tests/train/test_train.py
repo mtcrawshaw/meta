@@ -910,25 +910,32 @@ def test_save_load() -> None:
     # Modify default training config and run training to save checkpoint.
     config["save_name"] = save_name
     checkpoint = train(config)
-    first_metrics = checkpoint["metrics"].state()
+    first_metrics = checkpoint["metrics"]
 
     # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
     checkpoint = train(config)
-    second_metrics = checkpoint["metrics"].state()
+    second_metrics = checkpoint["metrics"]
 
     # Compare metrics.
-    assert list(first_metrics.keys()) == list(second_metrics.keys())
-    for metric_name in first_metrics.keys():
-        first_metric = first_metrics[metric_name]
-        second_metric = second_metrics[metric_name]
+    assert first_metrics.state_vars == second_metrics.state_vars
+    for metric_name in first_metrics.state_vars:
+        first_metric = getattr(first_metrics, metric_name)
+        second_metric = getattr(second_metrics, metric_name)
 
-        assert first_metric["maximum"] <= second_metric["maximum"]
+        # Check that best in first run is not better than best in second run.
+        if first_metric.maximize:
+            assert first_metric.best <= second_metric.best
+        else:
+            assert first_metric.best >= second_metric.best
+
         for key in ["history", "mean", "stdev"]:
-            n = len(first_metric[key])
-            assert first_metric[key][:n] == second_metric[key][:n]
+            first_val = getattr(first_metric, key)
+            second_val = getattr(second_metric, key)
+            n = len(first_val)
+            assert first_val[:n] == second_val[:n]
 
     # Clean up.
     os.system("rm -rf %s" % save_dir_from_name(save_name))
@@ -952,25 +959,32 @@ def test_save_load_multi() -> None:
     config["num_updates"] = int(config["num_updates"] / MP_FACTOR)
     config["num_processes"] *= MP_FACTOR
     checkpoint = train(config)
-    first_metrics = checkpoint["metrics"].state()
+    first_metrics = checkpoint["metrics"]
 
     # Run training for the second time, and load from checkpoint.
     config["load_from"] = save_name
     config["save_name"] = None
     config["num_updates"] *= 2
     checkpoint = train(config)
-    second_metrics = checkpoint["metrics"].state()
+    second_metrics = checkpoint["metrics"]
 
     # Compare metrics.
-    assert list(first_metrics.keys()) == list(second_metrics.keys())
-    for metric_name in first_metrics.keys():
-        first_metric = first_metrics[metric_name]
-        second_metric = second_metrics[metric_name]
+    assert first_metrics.state_vars == second_metrics.state_vars
+    for metric_name in first_metrics.state_vars:
+        first_metric = getattr(first_metrics, metric_name)
+        second_metric = getattr(second_metrics, metric_name)
 
-        assert first_metric["maximum"] <= second_metric["maximum"]
+        # Check that best in first run is not better than best in second run.
+        if first_metric.maximize:
+            assert first_metric.best <= second_metric.best
+        else:
+            assert first_metric.best >= second_metric.best
+
         for key in ["history", "mean", "stdev"]:
-            n = len(first_metric[key])
-            assert first_metric[key][:n] == second_metric[key][:n]
+            first_val = getattr(first_metric, key)
+            second_val = getattr(second_metric, key)
+            n = len(first_val)
+            assert first_val[:n] == second_val[:n]
 
     # Clean up.
     os.system("rm -rf %s" % save_dir_from_name(save_name))

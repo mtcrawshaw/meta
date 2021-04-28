@@ -1,7 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
-from typing import Dict, Iterator, Iterable, Any
+from typing import Dict, Iterator, Iterable, Any, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -291,6 +291,19 @@ class SLTrainer(Trainer):
     def parameters(self) -> Iterator[nn.parameter.Parameter]:
         """ Return parameters of model. """
         return self.network.parameters()
+
+    @property
+    def metric_set(self) -> List[Tuple]:
+        """ Set of metrics for this trainer. """
+
+        window = 100
+        metric_set = [
+            ("train_loss", window, False, False),
+            ("train_accuracy", window, False, True),
+            ("eval_loss", window, False, False),
+            ("eval_accuracy", window, False, True),
+        ]
+        return metric_set
 
 
 def cycle(iterable: Iterable[Any]) -> Any:

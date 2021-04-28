@@ -85,6 +85,11 @@ Possible tweaks for loss weighting baselines:
 - Make weights add to initial total weight
 - Make weights positive for LBTW
 
+Evaluation metrics for NYU v2:
+- Depth prediction: % of the time that absolute error is less than a threshold (1m?)
+- Surface normals: % of the time that angle error is less than a threshold (15 degrees?)
+- Segmentation: % of pixels correctly classified
+
 Refactoring:
 - Measure true mean/std of depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
@@ -97,6 +102,7 @@ Refactoring:
 - Add softmax/some type of normalization layer to depth prediction output (the values
   are between 0 and 1. Do they sum to 1? Do they have an L2 length of 1?
 - Get rid of NYUv2 wrapper and write one from scratch
+- Move metrics into Trainer
 
 Tests to add:
 - ConvNetwork
