@@ -366,3 +366,51 @@ def NYUv2_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     accuracy = torch.sum(difference < DEPTH_THRESHOLD) / torch.numel(difference)
 
     return accuracy.item()
+
+
+def NYUv2_multi_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of semantic segmentation on the NYUv2 dataset when performing
+    multi-task training. This function is essentially a wrapper around
+    `NYUv2_seg_accuracy()`.
+    """
+
+    task_outputs = outputs[:, :13]
+    task_labels = labels[:, 0].long()
+    return NYUv2_seg_accuracy(task_outputs, task_labels)
+
+
+def NYUv2_multi_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of surface normal estimation on the NYUv2 dataset when performing
+    multi-task training. This function is essentially a wrapper around
+    `NYUv2_sn_accuracy()`.
+    """
+
+    task_outputs = outputs[:, 13:16]
+    task_labels = labels[:, 1:4]
+    return NYUv2_sn_accuracy(task_outputs, task_labels)
+
+
+def NYUv2_multi_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute accuracy of depth prediction on the NYUv2 dataset when performing
+    multi-task training. This function is essentially a wrapper around
+    `NYUv2_depth_accuracy()`.
+    """
+
+    task_outputs = outputs[:, 16:17]
+    task_labels = labels[:, 4:5]
+    return NYUv2_depth_accuracy(task_outputs, task_labels)
+
+
+def NYUv2_multi_avg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Compute average accuracy of the three tasks on the NYUv2 dataset when performing
+    multi-task training.
+    """
+
+    seg_accuracy = NYUv2_multi_seg_accuracy(outputs, labels)
+    sn_accuracy = NYUv2_multi_sn_accuracy(outputs, labels)
+    depth_accuracy = NYUv2_multi_depth_accuracy(outputs, labels)
+    return np.mean([seg_accuracy, sn_accuracy, depth_accuracy])

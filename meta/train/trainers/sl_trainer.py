@@ -17,6 +17,10 @@ from meta.train.loss import (
     NYUv2_seg_accuracy,
     NYUv2_sn_accuracy,
     NYUv2_depth_accuracy,
+    NYUv2_multi_seg_accuracy,
+    NYUv2_multi_sn_accuracy,
+    NYUv2_multi_depth_accuracy,
+    NYUv2_multi_avg_accuracy,
 )
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
 from meta.utils.utils import aligned_train_configs, DATA_DIR
@@ -134,10 +138,10 @@ DATASETS = {
             ],
         },
         "extra_metrics": {
-            "seg_accuracy": {"fn": None, "maximize": True},
-            "sn_accuracy": {"fn": None, "maximize": True},
-            "depth_accuracy": {"fn": None, "maximize": True},
-            "avg_accuracy": {"fn": None, "maximize": True},
+            "seg_accuracy": {"fn": NYUv2_multi_seg_accuracy, "maximize": True},
+            "sn_accuracy": {"fn": NYUv2_multi_sn_accuracy, "maximize": True},
+            "depth_accuracy": {"fn": NYUv2_multi_depth_accuracy, "maximize": True},
+            "avg_accuracy": {"fn": NYUv2_multi_avg_accuracy, "maximize": True},
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
