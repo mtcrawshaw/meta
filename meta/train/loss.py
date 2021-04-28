@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class CosineSimilarityLoss(nn.Module):
@@ -40,7 +41,7 @@ class MultiTaskLoss(nn.Module):
         # Set task weighting strategy.
         loss_weighter = loss_weighter_kwargs["type"]
         del loss_weighter_kwargs["type"]
-        if loss_weighter not in ["Constant", "DWA", "MLDW", "RLW"]:
+        if loss_weighter not in ["Constant", "DWA", "MLDW", "LBTW", "NLW", "RWLW"]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
@@ -73,14 +74,17 @@ class LossWeighter:
         """ Init function for LossWeighter. """
 
         # Set state.
+        self.num_tasks = len(loss_weights)
         self.loss_weights = torch.Tensor(loss_weights)
         self.initial_loss_weights = torch.clone(self.loss_weights)
+        self.total_weight = torch.sum(self.loss_weights)
         self.loss_history = []
+        self.MAX_HISTORY_LEN = 2
 
     def update(self, loss_vals: torch.Tensor) -> None:
         """ Compute new loss weights using most recent values of task losses. """
-        self.loss_history.append(loss_vals)
-        self.loss_history = self.loss_history[-2:]
+        self.loss_history.append(loss_vals.detach())
+        self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN:]
         self._update_weights()
 
     def _update_weights(self) -> None:
@@ -105,14 +109,28 @@ class DWA(LossWeighter):
     https://arxiv.org/abs/1803.10704.
     """
 
-    def __init__(self, loss_weights: torch.Tensor, temp: float) -> None:
-        """ Init function for DWA. """
+    def __init__(self, loss_weights: List[float], temp: float) -> None:
+        """
+        Init function for DWA. `temp` is the temperature used to smooth the weight
+        distribution. The default value used in the paper is 2.
+        """
         super(DWA, self).__init__(loss_weights)
         self.temp = temp
 
     def _update_weights(self) -> None:
         """ Compute new loss weights with DWA. """
-        raise NotImplementedError
+
+        # Check that we have already performed a sufficient number of updates.
+        if len(self.loss_history) < self.MAX_HISTORY_LEN:
+            return
+        assert len(self.loss_history) == self.MAX_HISTORY_LEN
+
+        # Update weights.
+        w = self.loss_history[-1] / self.loss_history[-2]
+        w /= self.temp
+        w = F.softmax(w, dim=0)
+        w *= self.total_weight
+        self.loss_weights = w
 
 
 class MLDW(LossWeighter):
@@ -122,16 +140,67 @@ class MLDW(LossWeighter):
     """
 
     def __init__(
-        self, loss_weights: torch.Tensor, ema_alpha: float, gamma: float
+        self, loss_weights: List[float], ema_alpha: float, gamma: float
     ) -> None:
-        """ Init function for MLDW. """
+        """
+        Init function for MLDW. `ema_alpha` is the EMA coefficient used to track a
+        moving average of the losses at each step, `gamma` is the Focal Loss parameter
+        which controls the focusing intensity.
+        """
         super(MLDW, self).__init__(loss_weights)
         self.ema_alpha = ema_alpha
         self.gamma = gamma
+        self.loss_avg = None
 
     def _update_weights(self) -> None:
         """ Compute new loss weights with MLDW. """
-        raise NotImplementedError
+
+        # Update exponential moving average of loss.
+        if self.loss_avg is None:
+            self.loss_avg = self.loss_history[-1]
+            prev_avg = torch.clone(self.loss_avg)
+        else:
+            prev_avg = torch.clone(self.loss_avg)
+            self.loss_avg = self.ema_alpha * self.loss_avg + (1 - self.ema_alpha) * self.loss_history[-1]
+
+        # Update weights.
+        p = torch.min(prev_avg, self.loss_avg) / prev_avg
+        self.loss_weights = -torch.pow(1 - p, self.gamma) * torch.log(p)
+        if torch.all(self.loss_weights == 0):
+            self.loss_weights = torch.clone(self.initial_loss_weights)
+
+
+class LBTW(LossWeighter):
+    """
+    Compute task loss weights with Loss Balanced Task Weighting, detailed in
+    https://ojs.aaai.org//index.php/AAAI/article/view/5125.
+    """
+
+    def __init__(self, loss_weights: List[float], alpha: float, period: int) -> None:
+        """
+        Init function for LBTW. `alpha` is a parameter that controls the focusing
+        intensity: the larger the value of `alpha` the more weight will be given to
+        tasks with slower learning. `period` controls how often the baseline losses are
+        saved.
+        """
+        super(LBTW, self).__init__(loss_weights)
+        self.alpha = alpha
+        self.period = period
+        self.steps = 0
+        self.baseline_losses = None
+
+    def _update_weights(self) -> None:
+        """ Compute new loss weights with MLDW. """
+
+        # Update baseline losses.
+        if self.baseline_losses is None or self.steps % self.period == 0:
+            self.baseline_losses = self.loss_history[-1]
+
+        # Update weights.
+        self.loss_weights = torch.pow(self.loss_history[-1] / self.baseline_losses, self.alpha)
+
+        # Update number of steps.
+        self.steps += 1
 
 
 class NLW(LossWeighter):
@@ -142,7 +211,7 @@ class NLW(LossWeighter):
     compounds.
     """
 
-    def __init__(self, loss_weights: torch.Tensor, sigma: float) -> None:
+    def __init__(self, loss_weights: List[float], sigma: float) -> None:
         """
         Init function for NLW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
@@ -152,17 +221,20 @@ class NLW(LossWeighter):
 
     def _update_weights(self) -> None:
         """ Compute new loss weights with NLW. """
-        raise NotImplementedError
+
+        mean = torch.zeros(self.num_tasks)
+        std = torch.ones(self.num_tasks) * self.sigma
+        self.loss_weights = self.initial_loss_weights + torch.normal(mean, std)
 
 
-def RWLW(LossWeighter):
+class RWLW(LossWeighter):
     """
     Compute task loss weights with Random Walk Loss Weighting. This method simply adds a
     sample from a Gaussian distribution to each previous loss weight, so that the noise
     from each step compounds.
     """
 
-    def __init__(self, loss_weights: torch.Tensor, sigma: float) -> None:
+    def __init__(self, loss_weights: List[float], sigma: float) -> None:
         """
         Init function for RWLW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
@@ -172,7 +244,10 @@ def RWLW(LossWeighter):
 
     def _update_weights(self) -> None:
         """ Compute new loss weights with RWLW. """
-        raise NotImplementedError
+
+        mean = torch.zeros(self.num_tasks)
+        std = torch.ones(self.num_tasks) * self.sigma
+        self.loss_weights = self.loss_weights + torch.normal(mean, std)
 
 
 def save_batch(

@@ -74,11 +74,16 @@ so that we don't have an impossible merge to perform later on.
 
 Current sprint (Loss weighting baselines):
     Add option for constant task loss weights
---> Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
+    Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
     Implement Multi-Loss Dynamic Weighting (https://arxiv.org/abs/1810.12193)
+    Implement Loss Balanced Task Weighting (https://ojs.aaai.org//index.php/AAAI/article/view/5125)
     Implement Random Loss Weighting
-    Implement Loss Balanced Task Weighting? (https://ojs.aaai.org//index.php/AAAI/article/view/5125)
+--> Unified evaluation for various loss weighting strategies
+    Run evaluations
 
+Possible tweaks for loss weighting baselines:
+- Make weights add to initial total weight
+- Make weights positive for LBTW
 
 Refactoring:
 - Measure true mean/std of depth labels.
@@ -98,6 +103,7 @@ Tests to add:
 - BackboneNetwork
 - Parallel
 - MultiTaskLoss
+- LossWeighter and all subclasses
 
 
 ----------------------------------------------------------------------------------------
