@@ -1,4 +1,4 @@
-""" Loss functions and utils for loss functions. """
+""" Loss functions and related utils. """
 
 from PIL import Image
 from typing import List, Dict, Any, Optional
@@ -84,7 +84,7 @@ class LossWeighter:
     def update(self, loss_vals: torch.Tensor) -> None:
         """ Compute new loss weights using most recent values of task losses. """
         self.loss_history.append(loss_vals.detach())
-        self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN:]
+        self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
         self._update_weights()
 
     def _update_weights(self) -> None:
@@ -161,7 +161,10 @@ class MLDW(LossWeighter):
             prev_avg = torch.clone(self.loss_avg)
         else:
             prev_avg = torch.clone(self.loss_avg)
-            self.loss_avg = self.ema_alpha * self.loss_avg + (1 - self.ema_alpha) * self.loss_history[-1]
+            self.loss_avg = (
+                self.ema_alpha * self.loss_avg
+                + (1 - self.ema_alpha) * self.loss_history[-1]
+            )
 
         # Update weights.
         p = torch.min(prev_avg, self.loss_avg) / prev_avg
@@ -197,7 +200,9 @@ class LBTW(LossWeighter):
             self.baseline_losses = self.loss_history[-1]
 
         # Update weights.
-        self.loss_weights = torch.pow(self.loss_history[-1] / self.baseline_losses, self.alpha)
+        self.loss_weights = torch.pow(
+            self.loss_history[-1] / self.baseline_losses, self.alpha
+        )
 
         # Update number of steps.
         self.steps += 1
@@ -306,3 +311,9 @@ def save_batch(
             img.save("test_%d_%s.png" % (j, name))
 
     exit()
+
+
+def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """ Compute accuracy of prediction given outputs and labels. """
+    accuracy = torch.sum(torch.argmax(outputs, dim=-1) == labels) / outputs.shape[0]
+    return accuracy.item()

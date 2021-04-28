@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.datasets import NYUv2
-from meta.train.loss import CosineSimilarityLoss, MultiTaskLoss
+from meta.train.loss import CosineSimilarityLoss, MultiTaskLoss, get_accuracy
 from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
@@ -36,7 +36,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "compute_accuracy": True,
+        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "MNIST",
         "dataset_kwargs": {"transform": GRAY_TRANSFORM},
     },
@@ -46,7 +46,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "compute_accuracy": True,
+        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "CIFAR10",
         "dataset_kwargs": {"transform": RGB_TRANSFORM},
     },
@@ -56,7 +56,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "compute_accuracy": True,
+        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "CIFAR100",
         "dataset_kwargs": {"transform": RGB_TRANSFORM},
     },
@@ -66,7 +66,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {"ignore_index": -1},
-        "compute_accuracy": False,
+        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -80,7 +80,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
         "loss_kwargs": {},
-        "compute_accuracy": False,
+        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -94,7 +94,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.MSELoss,
         "loss_kwargs": {},
-        "compute_accuracy": False,
+        "extra_metrics": {"accuracy": {"fn": None, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -126,7 +126,12 @@ DATASETS = {
                 },
             ],
         },
-        "compute_accuracy": False,
+        "extra_metrics": {
+            "seg_accuracy": {"fn": None, "maximize": True},
+            "sn_accuracy": {"fn": None, "maximize": True},
+            "depth_accuracy": {"fn": None, "maximize": True},
+            "avg_accuracy": {"fn": None, "maximize": True},
+        },
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "rgb_transform": RGB_TRANSFORM,
@@ -167,7 +172,7 @@ class SLTrainer(Trainer):
         self.dataset_info = DATASETS[self.dataset]
         input_size = self.dataset_info["input_size"]
         output_size = self.dataset_info["output_size"]
-        self.compute_accuracy = self.dataset_info["compute_accuracy"]
+        self.extra_metrics = self.dataset_info["extra_metrics"]
 
         # Construct data loaders.
         if self.dataset_info["builtin"]:
@@ -235,12 +240,11 @@ class SLTrainer(Trainer):
         step_metrics = {
             "train_loss": [loss.item()],
         }
-        if self.compute_accuracy:
-            accuracy = (
-                torch.sum(torch.argmax(outputs, dim=-1) == labels)
-                / self.config["batch_size"]
-            )
-            step_metrics["train_accuracy"] = [accuracy.item()]
+        for metric_name, metric_info in self.extra_metrics.items():
+            full_name = "train_%s" % metric_name
+            fn = metric_info["fn"]
+            step_metrics[full_name] = [fn(outputs, labels)]
+
 
         return step_metrics
 
@@ -260,12 +264,10 @@ class SLTrainer(Trainer):
         eval_step_metrics = {
             "eval_loss": [loss.item()],
         }
-        if self.compute_accuracy:
-            accuracy = (
-                torch.sum(torch.argmax(outputs, dim=-1) == labels)
-                / self.config["batch_size"]
-            )
-            eval_step_metrics["eval_accuracy"] = [accuracy.item()]
+        for metric_name, metric_info in self.extra_metrics.items():
+            full_name = "eval_%s" % metric_name
+            fn = metric_info["fn"]
+            eval_step_metrics[full_name] = [fn(outputs, labels)]
 
         return eval_step_metrics
 
@@ -299,10 +301,15 @@ class SLTrainer(Trainer):
         window = 100
         metric_set = [
             ("train_loss", window, False, False),
-            ("train_accuracy", window, False, True),
             ("eval_loss", window, False, False),
-            ("eval_accuracy", window, False, True),
         ]
+        for metric_name, metric_info in self.extra_metrics.items():
+            metric_set.append(
+                ("train_%s" % metric_name, window, False, metric_info["maximize"])
+            )
+            metric_set.append(
+                ("eval_%s" % metric_name, window, False, metric_info["maximize"])
+            )
         return metric_set
 
 
