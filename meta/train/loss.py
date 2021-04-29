@@ -31,10 +31,14 @@ class MultiTaskLoss(nn.Module):
         self,
         task_losses: List[Dict[str, Any]],
         loss_weighter_kwargs: Dict[str, Any] = {},
+        device: torch.device = None,
     ) -> None:
         """ Init function for MultiTaskLoss. """
 
         super(MultiTaskLoss, self).__init__()
+
+        # Set device.
+        self.device = device if device is not None else torch.device("cpu")
 
         # Set task losses.
         self.task_losses = task_losses
@@ -45,6 +49,7 @@ class MultiTaskLoss(nn.Module):
         if loss_weighter not in ["Constant", "DWA", "MLDW", "LBTW", "NLW", "RWLW"]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
+        loss_weighter_kwargs["device"] = self.device
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
@@ -71,12 +76,15 @@ class MultiTaskLoss(nn.Module):
 class LossWeighter:
     """ Compute task loss weights for multi-task learning. """
 
-    def __init__(self, loss_weights: List[float]) -> None:
+    def __init__(self, loss_weights: List[float], device: torch.device = None) -> None:
         """ Init function for LossWeighter. """
+
+        self.device = device if device is not None else torch.device("cpu")
 
         # Set state.
         self.num_tasks = len(loss_weights)
         self.loss_weights = torch.Tensor(loss_weights)
+        self.loss_weights = self.loss_weights.to(self.device)
         self.initial_loss_weights = torch.clone(self.loss_weights)
         self.total_weight = torch.sum(self.loss_weights)
         self.loss_history = []

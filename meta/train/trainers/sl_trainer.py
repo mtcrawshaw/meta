@@ -227,6 +227,8 @@ class SLTrainer(Trainer):
         loss_kwargs = self.dataset_info["loss_kwargs"]
         if "loss_weighter" in config:
             loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
+        if loss_cls == MultiTaskLoss:
+            loss_kwargs["device"] = self.device
         self.criterion = loss_cls(**loss_kwargs)
 
     def _step(self) -> Dict[str, Any]:
