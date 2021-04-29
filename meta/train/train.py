@@ -8,8 +8,8 @@ from typing import Any, Dict
 import gym
 import torch
 
-from meta.train.trainers import RLTrainer, SLTrainer, SUPPORTED_TRAINERS
-from meta.train.ppo import PPOPolicy
+#from meta.train.trainers import RLTrainer, SLTrainer, SUPPORTED_TRAINERS
+from meta.train.trainers import SLTrainer, SUPPORTED_TRAINERS
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.utils.plot import plot
