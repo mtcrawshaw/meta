@@ -1,7 +1,7 @@
 {
     "trainer": "SLTrainer",
     "dataset": "NYUv2",
-    "num_updates": 5000,
+    "num_updates": 100,
     "batch_size": 32,
     "num_workers": 2,
 
@@ -31,5 +31,5 @@
     "load_from": null,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": "vanilla_test"
+    "save_name": "first_test"
 }
