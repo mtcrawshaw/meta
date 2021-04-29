@@ -24,10 +24,6 @@ if __name__ == "__main__":
 
     # Run specified command.
     if args.command == "train":
-
-        # TEMP
-        config["num_updates"] = 20
-
         train(config)
     elif args.command == "tune":
         tune(config)
