@@ -143,12 +143,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
             message = "Update %d | " % update_iteration
             message += str(metrics)
             message += "\t"
-            print(message, end="\r")
-
-        # This is to ensure that printed out values don't get overwritten after we
-        # finish.
-        if update_iteration == config["num_updates"] - 1:
-            print("")
+            print(message)
 
         # Save intermediate training progress, if necessary. Note that we save an
         # incremented version of update_iteration so that the loaded version will take

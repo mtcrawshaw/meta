@@ -1,7 +1,7 @@
 {
     "trainer": "SLTrainer",
     "dataset": "NYUv2",
-    "num_updates": 100,
+    "num_updates": 5000,
     "batch_size": 24,
     "num_workers": 2,
     "loss_weighter": {
@@ -12,9 +12,9 @@
             1.0
         ]
     },
-    "lr_schedule_type": null,
+    "lr_schedule_type": "cosine",
     "initial_lr": 0.0003,
-    "final_lr": 0.0003,
+    "final_lr": 3e-05,
     "max_grad_norm": 0.5,
     "eps": 1e-05,
     "architecture_config": {
@@ -30,5 +30,5 @@
     "load_from": null,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": "first_test"
+    "save_name": "constant"
 }

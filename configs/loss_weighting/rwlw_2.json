@@ -1,20 +1,21 @@
 {
     "trainer": "SLTrainer",
     "dataset": "NYUv2",
-    "num_updates": 100,
+    "num_updates": 5000,
     "batch_size": 24,
     "num_workers": 2,
     "loss_weighter": {
-        "type": "Constant",
+        "type": "RWLW",
         "loss_weights": [
             1.0,
             1.0,
             1.0
-        ]
+        ],
+        "sigma": 0.2
     },
-    "lr_schedule_type": null,
+    "lr_schedule_type": "cosine",
     "initial_lr": 0.0003,
-    "final_lr": 0.0003,
+    "final_lr": 3e-05,
     "max_grad_norm": 0.5,
     "eps": 1e-05,
     "architecture_config": {
@@ -24,11 +25,11 @@
     },
     "evaluation_freq": 5,
     "cuda": true,
-    "seed": 0,
+    "seed": 2,
     "print_freq": 1,
     "save_freq": null,
     "load_from": null,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": "first_test"
+    "save_name": "rwlw_2"
 }
