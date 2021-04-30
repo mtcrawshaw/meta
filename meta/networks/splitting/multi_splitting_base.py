@@ -7,6 +7,7 @@ import pickle
 from copy import deepcopy
 from typing import List, Dict, Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -83,6 +84,14 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                     Either "actor" or "critic". This determines which network
                     architecture within the checkpoint (namely, actor or critic) to load
                     from.
+                load_initialization : bool
+                    Whether or not to load the initial weights of the previous network.
+                    Note that if this is true, we aren't loading the weights produced by
+                    training, we are literally loading the randomly initialized weights
+                    from the beginning of the training run we are loading from. We do
+                    this because the splitting architecture that it learned may be
+                    initialization sensitive, in which case it would help to begin our
+                    new training with that architecture from the same initialization.
             This is incredibly janky but it's what we got for now.
         device : torch.device
             Device to perform computation on, either `torch.device("cpu")` or
@@ -144,6 +153,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.splitting_enabled = True
 
         # Load splitting map, if necessary. If so, we disable splitting.
+        initial_state_dict = None
         if self.network_load is not None:
 
             # Load previous network from checkpoint.
@@ -163,6 +173,8 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             assert self.num_regions == prev_network.num_regions
             self.splitting_map = prev_network.splitting_map
             self.splitting_enabled = False
+            if self.network_load["load_initialization"]:
+                initial_state_dict = prev_network.initial_state_dict
 
         # Initialize layers.
         region_list = []
@@ -195,6 +207,30 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         self.regions = nn.ModuleList(region_list)
 
+        # Load initialization from previous run, if necessary. Note that the
+        # architecture of the original initialization may be different from the
+        # architecture of this initialization, but that's okay. The only differences
+        # should be that the current architecture is a split version of the previous
+        # architecture. This means that we can simply copy the weights of any module
+        # that was split and assign those weights to each copy of that module in the
+        # current architecture.
+        if initial_state_dict is not None:
+            state_dict = {}
+            for i in range(self.num_layers):
+                for m in range(int(self.splitting_map.num_copies[i])):
+                    for p in ["weight", "bias"]:
+                        old_key = "regions.%d.0.0.%s" % (i, p)
+                        key = "regions.%d.%d.0.%s" % (i, m, p)
+                        if m == 0:
+                            state_dict[key] = initial_state_dict[old_key]
+                        else:
+                            state_dict[key] = np.copy(initial_state_dict[old_key])
+
+            # Convert values from numpy to torch Tensors.
+            for key, val in state_dict.items():
+                state_dict[key] = torch.Tensor(val)
+            self.load_state_dict(state_dict)
+
         # Store size of each region. We use this info to initialize tensors that hold
         # gradients with respect to specific regions.
         self.region_sizes = torch.Tensor(
@@ -206,6 +242,12 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.region_sizes = self.region_sizes.to(dtype=torch.long, device=self.device)
         self.max_region_size = int(max(self.region_sizes))
         self.total_region_size = int(sum(self.region_sizes))
+
+        # Store network initialization. We save the values as numpy arrays so that we
+        # eliminate the torch/device dependence.
+        self.initial_state_dict = {}
+        for key, val in self.state_dict().items():
+            self.initial_state_dict[key] = val.numpy()
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
