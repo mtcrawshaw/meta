@@ -118,12 +118,12 @@ class DWA(LossWeighter):
     https://arxiv.org/abs/1803.10704.
     """
 
-    def __init__(self, loss_weights: List[float], temp: float) -> None:
+    def __init__(self, temp: float, **kwargs: Dict[str, Any]) -> None:
         """
         Init function for DWA. `temp` is the temperature used to smooth the weight
         distribution. The default value used in the paper is 2.
         """
-        super(DWA, self).__init__(loss_weights)
+        super(DWA, self).__init__(**kwargs)
         self.temp = temp
 
     def _update_weights(self) -> None:
@@ -149,14 +149,14 @@ class MLDW(LossWeighter):
     """
 
     def __init__(
-        self, loss_weights: List[float], ema_alpha: float, gamma: float
+        self, ema_alpha: float, gamma: float, **kwargs: Dict[str, Any]
     ) -> None:
         """
         Init function for MLDW. `ema_alpha` is the EMA coefficient used to track a
         moving average of the losses at each step, `gamma` is the Focal Loss parameter
         which controls the focusing intensity.
         """
-        super(MLDW, self).__init__(loss_weights)
+        super(MLDW, self).__init__(**kwargs)
         self.ema_alpha = ema_alpha
         self.gamma = gamma
         self.loss_avg = None
@@ -188,14 +188,14 @@ class LBTW(LossWeighter):
     https://ojs.aaai.org//index.php/AAAI/article/view/5125.
     """
 
-    def __init__(self, loss_weights: List[float], alpha: float, period: int) -> None:
+    def __init__(self, alpha: float, period: int, **kwargs: Dict[str, Any]) -> None:
         """
         Init function for LBTW. `alpha` is a parameter that controls the focusing
         intensity: the larger the value of `alpha` the more weight will be given to
         tasks with slower learning. `period` controls how often the baseline losses are
         saved.
         """
-        super(LBTW, self).__init__(loss_weights)
+        super(LBTW, self).__init__(**kwargs)
         self.alpha = alpha
         self.period = period
         self.steps = 0
@@ -225,12 +225,12 @@ class NLW(LossWeighter):
     compounds.
     """
 
-    def __init__(self, loss_weights: List[float], sigma: float) -> None:
+    def __init__(self, sigma: float, **kwargs: Dict[str, Any]) -> None:
         """
         Init function for NLW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
         """
-        super(NLW, self).__init__(loss_weights)
+        super(NLW, self).__init__(**kwargs)
         self.sigma = sigma
 
     def _update_weights(self) -> None:
@@ -248,12 +248,12 @@ class RWLW(LossWeighter):
     from each step compounds.
     """
 
-    def __init__(self, loss_weights: List[float], sigma: float) -> None:
+    def __init__(self, sigma: float, **kwargs: Dict[str, Any]) -> None:
         """
         Init function for RWLW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
         """
-        super(RWLW, self).__init__(loss_weights)
+        super(RWLW, self).__init__(**kwargs)
         self.sigma = sigma
 
     def _update_weights(self) -> None:
