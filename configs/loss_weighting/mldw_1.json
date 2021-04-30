@@ -5,7 +5,7 @@
     "batch_size": 24,
     "num_workers": 2,
     "loss_weighter": {
-        "type": "mldw",
+        "type": "MLDW",
         "loss_weights": [
             1.0,
             1.0,
