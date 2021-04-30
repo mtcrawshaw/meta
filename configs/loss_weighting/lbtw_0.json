@@ -11,7 +11,8 @@
             1.0,
             1.0
         ],
-        "alpha": 0.5
+        "alpha": 0.5,
+        "period": 48
     },
     "lr_schedule_type": "cosine",
     "initial_lr": 0.0003,
