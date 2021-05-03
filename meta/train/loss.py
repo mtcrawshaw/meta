@@ -238,7 +238,8 @@ class NLW(LossWeighter):
 
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
-        self.loss_weights = self.initial_loss_weights + torch.normal(mean, std)
+        noise = torch.normal(mean, std).to(self.device)
+        self.loss_weights = self.initial_loss_weights + noise
 
 
 class RWLW(LossWeighter):
@@ -261,7 +262,8 @@ class RWLW(LossWeighter):
 
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
-        self.loss_weights = self.loss_weights + torch.normal(mean, std)
+        noise = torch.normal(mean, std).to(self.device)
+        self.loss_weights = self.loss_weights + noise
 
 
 def save_batch(
