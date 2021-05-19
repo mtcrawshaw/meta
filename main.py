@@ -2,7 +2,7 @@ import argparse
 import json
 
 from meta.train.train import train
-# from meta.train.meta_train import meta_train
+from meta.train.meta_train import meta_train
 from meta.tune.tune import tune
 
 

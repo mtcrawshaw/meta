@@ -115,24 +115,6 @@ Tests to add:
 ----------------------------------------------------------------------------------------
 
 
-Loss Weighting Evaluations
-
-
-3 seeds from each of the following settings:
-- Constant loss weights (all 1.0)
-- DWA (start as 1.0, temp = 2)
-- MLDW (start as 1.0, ema_alpha = 0.25, gamma = 2)
-- LBTW (start as 1.0, alpha = 0.5)
-- NLW (start as 1.0, sigma = 0.2)
-- RWLW (start as 1.0, sigma = 0.2)
-
-We can still add the improvements:
-- Make weights add to initial total weight
-- Normalize surface normal output (softmax? L2 normalization)
-
-----------------------------------------------------------------------------------------
-
-
 Issues
 
 
