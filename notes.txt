@@ -67,49 +67,32 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Create SLTrainer class with supervised learning functionality (toy dataset, single task)
     Add tests for single task supervised learning
     Add multi-task functionality + dataset
---> Implement loss weighting methods
+    Implement loss weighting methods
+--> Write tests
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
-Current sprint (Loss weighting baselines):
-    Add option for constant task loss weights
-    Implement Dynamic Weight Averaging (https://arxiv.org/abs/1803.10704)
-    Implement Multi-Loss Dynamic Weighting (https://arxiv.org/abs/1810.12193)
-    Implement Loss Balanced Task Weighting (https://ojs.aaai.org//index.php/AAAI/article/view/5125)
-    Implement Random Loss Weighting
-    Unified evaluation for various loss weighting strategies
---> Run evaluations
+Current sprint (Write tests):
+--> ConvNetwork
+    BackboneNetwork
+    Parallel
+    MultiTaskLoss
+    LossWeighter and all subclasses
+    Metric functions in loss.py
 
-Possible tweaks for loss weighting baselines:
-- Make weights add to initial total weight
-- Make weights positive for LBTW
 
 Refactoring:
-- Measure true mean/std of depth labels.
+- Measure true mean/std of NYUv2 depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
-- Add normalization for normal labels?
 - Make sure that we are consistently taking either sum or mean of loss over batches for
   each task.
 - Separate SLTrainer and multi-task functionality (make MultiSLTrainer)
 - Add multitask capability to ConvNetwork
-- Add softmax/some type of normalization layer to depth prediction output (the values
-  are between 0 and 1. Do they sum to 1? Do they have an L2 length of 1?
 - Get rid of NYUv2 wrapper and write one from scratch
 - Move metrics into Trainer
 - Don't repeat output_slice and label_slice. Right now we have two instances of each,
   one in DATASETS and one in the corresponding accuracy functions.
-
-Additions:
-- Get qualitative results
-
-Tests to add:
-- ConvNetwork
-- BackboneNetwork
-- Parallel
-- MultiTaskLoss
-- LossWeighter and all subclasses
-- Metric functions in loss.py
 
 
 ----------------------------------------------------------------------------------------
@@ -297,6 +280,8 @@ SL training:
     explicitly?
 - Additions:
   - MLP support for supervised learning.
+  - In multi-task learning, option to enforce constant sum of loss weights (+ positive
+    loss weights)
 - Nice to have:
 
 Network architectures:
