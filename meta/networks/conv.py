@@ -1,5 +1,6 @@
 """
-Definition of ConvNetwork, a module of convolutional layers.
+Definition of ConvNetwork, a module consisting of a series of convolutional layers
+followed by a series of fully connected layers.
 """
 
 from typing import Tuple, Union, List
