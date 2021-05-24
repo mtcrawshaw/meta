@@ -45,6 +45,10 @@
     "evaluation_freq": 5,
     "evaluation_episodes": 1,
 
+    "env_kwargs": {
+        "save_memory": false,
+        "uniform_tasks": true
+    },
     "cuda": false,
     "seed": 1,
     "print_freq": 1,
@@ -54,6 +58,5 @@
     "metrics_filename": null,
     "baseline_metrics_filename": null,
     "save_name": null,
-    "same_np_seed": true,
-    "save_memory": false
+    "same_np_seed": true
 }

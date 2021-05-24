@@ -63,18 +63,44 @@ def get_env(
         Environment object.
     """
 
-    # Create vectorized environment.
+    # Create seeds for vectorized environment.
     seeds = [seed + i for i in range(num_processes)]
     if same_np_seed:
         np_seeds = [seed] * num_processes
     else:
         np_seeds = list(seeds)
-    env_creators = [
-        get_single_env_creator(
-            env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, **kwargs
+
+    # Set task indices for each environment copy to enforce a uniform distribution of
+    # data across tasks, in case we are using a MetaWorld environment. This is hacky but
+    # we need to do it here, since this is the only place where we have access to the
+    # total number of environment copies and the indices of each copy.
+    uniform_tasks = False
+    num_tasks = get_num_tasks(env_name)
+    if num_tasks > 1 and is_metaworld_env_name(env_name):
+        if kwargs["uniform_tasks"]:
+
+            # Check for a valid number of processes.
+            if num_processes % num_tasks != 0:
+                raise ValueError(
+                    "Number of processes (%d) should be an integer multiple of the"
+                    " number of tasks (%d)." % (num_processes, num_tasks)
+                )
+
+            uniform_tasks = True
+
+        del kwargs["uniform_tasks"]
+
+    # Create vectorized environment.
+    env_creators = []
+    for i in range(num_processes):
+        if uniform_tasks:
+            kwargs["task_idx"] = i % num_tasks
+        env_creators.append(
+            get_single_env_creator(
+                env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, **kwargs
+            )
         )
-        for i in range(num_processes)
-    ]
+
     if num_processes > 1:
         env = ShmemVecEnv(env_creators, context="fork")
     elif num_processes == 1:
@@ -331,6 +357,7 @@ class MetaWorldEnv(Env):
         benchmark_name: str,
         save_memory: bool = False,
         add_observability: bool = False,
+        task_idx: int = None,
     ) -> None:
         """ Init function for environment wrapper. """
 
@@ -438,6 +465,8 @@ class MetaWorldEnv(Env):
             ]
 
         self.num_tasks = len(self.envs_info)
+        self.task_idx = task_idx
+        assert self.task_idx is None or 0 <= self.task_idx < self.num_tasks
 
         # Sample environment.
         self._sample_environment()
@@ -450,7 +479,12 @@ class MetaWorldEnv(Env):
         # because with multi-task benchmarks, each process is given the same numpy seed.
         # We can't use random here because tune() uses it, and using it in both creates
         # reproducibility issues with saving/loading during tuning.
-        self.active_task = torch.randint(high=self.num_tasks, size=(1,)).item()
+        if self.task_idx is None:
+            self.active_task = torch.randint(high=self.num_tasks, size=(1,)).item()
+        else:
+            self.active_task = self.task_idx
+
+        # Set active task.
         if self.save_memory:
             self.active_env = self.envs_info[self.active_task]["env_cls"]()
         else:

@@ -45,6 +45,7 @@
     "evaluation_freq": 1,
     "evaluation_episodes": 10,
 
+    "env_kwargs": {},
     "cuda": false,
     "seed": 1,
     "print_freq": 1,

@@ -64,9 +64,6 @@ class RLTrainer(Trainer):
 
         # Set environment and policy.
         self.num_tasks = get_num_tasks(self.config["env_name"])
-        kwargs = {}
-        if "save_memory" in config:
-            kwargs["save_memory"] = config["save_memory"]
         self.env = get_env(
             self.config["env_name"],
             self.config["num_processes"],
@@ -76,7 +73,7 @@ class RLTrainer(Trainer):
             self.config["normalize_first_n"],
             allow_early_resets=True,
             same_np_seed=config["same_np_seed"],
-            **kwargs,
+            **config["env_kwargs"],
         )
         if policy is None:
             self.policy = PPOPolicy(

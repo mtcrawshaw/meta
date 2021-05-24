@@ -60,6 +60,10 @@
             }
         },
 
+        "env_kwargs": {
+            "save_memory": false,
+            "uniform_tasks": false
+        },
         "evaluation_freq": 25,
         "evaluation_episodes": 100
     },
@@ -92,6 +96,10 @@
 
         "architecture_config": null,
 
+        "env_kwargs": {
+            "save_memory": false,
+            "uniform_tasks": false
+        },
         "evaluation_freq": 1,
         "evaluation_episodes": 100
     },
@@ -105,6 +113,5 @@
     "metrics_filename": null,
     "baseline_metrics_filename": null,
     "save_name": null,
-    "same_np_seed": true,
-    "save_memory": false
+    "same_np_seed": true
 }

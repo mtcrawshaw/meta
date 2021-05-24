@@ -45,6 +45,10 @@
     "evaluation_freq": 1,
     "evaluation_episodes": 10,
 
+    "env_kwargs": {
+        "save_memory": false,
+        "uniform_tasks": false
+    },
     "cuda": false,
     "seed": 1,
     "print_freq": 1,
