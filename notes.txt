@@ -28,35 +28,38 @@ Minor versions (MT10/MT50 baselines):
     )
     Refactoring
 
-Current sprint (Evaluation + baselines):
-    Update Meta-World
-    Benchmark performance for single-task learning
-    Benchmark performance for multi-task learning with splitting networks and multi-task PPO
-    Improve performance for single-task learning
---> Improve performance for multi-task learning with splitting networks
-    Baselines?
+Current sprint (Improve splitting networks on multi-task RL):
+    Option for uniform task data distribution
+--> Fix training tests
+    Merge supervised_learning into develop
+    Tests for uniform task data distribution
+    Tests for saving/loading splitting network architecture/initialization
+    Merge visualize_grad_diffs into develop (keep visualization functionality)
+    Run evaluations with larger batch size/more processes per task and check
+        visualization for gradient consistency
+    Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting
+        networks, cosine splitting networks, retrained splitting networks) to
+        statistical significance
 
 Notes for current task:
-- Option for uniform task data distribution (DONE)
-- Tests for uniform task data distribution
-- Tests for saving/loading splitting network architecture/initialization
-- Fix training tests
-- Merge supervised_learning into develop
-- Merge visualize_grad_diffs into develop (keep visualization functionality)
-- Run evaluations with larger batch size/more processes per task and check visualization
-  for gradient consistency
-- Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting
-  networks, cosine splitting networks, retrained splitting networks) to statistical
-  significance
-
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Normalize grad_diff_stats by region size during grad_diff calculation instead of at
-split time?
+- test_meta_train tests are failing due to tiny inconsistencies between the rewards at
+  each step. Seems like there is a small numerical discrepancy somewhere that gets
+  compounded.
+- Same with lunar_lander tests
+- MT10 MLP rewards are close but off by a larger margin than the previous tests. MT10
+  trunk and splitting seem to be just as close as the previous ones.
+- Best thing to do from here is backtrack through commits and find the last commit where
+  the lunar lander tests still passed. These will be fast to run, and any break in these
+  tests would likely also cause a break in the others.
 
 Overall performance improvements:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
+
+Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
+Normalize grad_diff_stats by region size during grad_diff calculation instead of at
+split time?
 
 
 ----------------------------------------------------------------------------------------
@@ -161,6 +164,11 @@ Training infrastructure:
       also be specific to the Meta-World environments somehow.
     - Remove in-line imports for Meta-World and replace with try-catch imports at the
       top of each file.
+    - Consider removing saving/loading functionality. It would be nice if it worked but
+      it is inherently a source of inconsistency, since the only way to exactly
+      reproduce the results of a paused run is to pause and resume at the exact same
+      place as the original. It may just be better to not include this functionality at
+      all, and it would certainly be easier to implement.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
