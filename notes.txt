@@ -31,36 +31,33 @@ Minor versions (MT10/MT50 baselines):
 Current sprint (Evaluation + baselines):
     Update Meta-World
     Benchmark performance for single-task learning
---> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
-    Benchmark performance for meta-learning with splitting networks
+    Benchmark performance for multi-task learning with splitting networks and multi-task PPO
     Improve performance for single-task learning
-    Improve performance for multi-task learning with splitting networks
-    Improve performance for meta-learning with splitting networks
+--> Improve performance for multi-task learning with splitting networks
     Baselines?
 
-Splitting network improvements:
-- Use cosine distance to split instead of Euclidean distance
-- Try retraining an already split architecture from scratch (keep initialization?)
+Notes for current task:
+- Option for uniform task data distribution (DONE)
+- Tests for uniform task data distribution
+- Tests for saving/loading splitting network architecture/initialization
+- Fix training tests
+- Merge supervised_learning into develop
+- Merge visualize_grad_diffs into develop (keep visualization functionality)
+- Run evaluations with larger batch size/more processes per task and check visualization
+  for gradient consistency
+- Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting
+  networks, cosine splitting networks, retrained splitting networks) to statistical
+  significance
+
+Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
+Normalize grad_diff_stats by region size during grad_diff calculation instead of at
+split time?
 
 Overall performance improvements:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
-Notes for current task:
-- Implement splitting by cosine distance instead of Euclidean distance (DONE)
-- Test cosine distance splitting networks (DONE)
-- Make cosine distance computation more efficient (DONE)
-- Run evaluations with cosine distance (DONE)
-- Implement training on pre-split architecture (DONE)
-- Run evaluations with training on pre-split architecture (DONE)
-- Implement saving/loading of network initialization when loading architecture (DONE)
-- Run evaluations with saving/loading of network initialization
-
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Tests for saving/loading splitting network architecture/initialization
-Normalize grad_diff_stats by region size during grad_diff calculation instead of at
-split time?
 
 ----------------------------------------------------------------------------------------
 
