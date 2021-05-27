@@ -47,7 +47,7 @@
 
     "env_kwargs": {
         "save_memory": false,
-        "uniform_tasks": true
+        "uniform_tasks": false
     },
     "cuda": false,
     "seed": 1,
