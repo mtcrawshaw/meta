@@ -280,6 +280,7 @@ def test_multitask_losses() -> None:
     settings["num_episodes"] = 1
     settings["episode_len"] = 100
     settings["normalize_advantages"] = False
+    settings["env_kwargs"] = {"save_memory": False, "uniform_tasks": False}
     trainer = RLTrainer(settings)
 
     # Initialize rollout and task specific rollouts.
