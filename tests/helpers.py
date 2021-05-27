@@ -44,6 +44,7 @@ DEFAULT_SETTINGS = {
     },
     "evaluation_freq": 5,
     "evaluation_rollouts": 1,
+    "env_kwargs": {},
     "cuda": False,
     "seed": 1,
     "print_freq": 10,
