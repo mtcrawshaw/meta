@@ -97,7 +97,12 @@ def get_env(
             kwargs["task_idx"] = i % num_tasks
         env_creators.append(
             get_single_env_creator(
-                env_name, seeds[i], np_seeds[i], time_limit, allow_early_resets, **kwargs
+                env_name,
+                seeds[i],
+                np_seeds[i],
+                time_limit,
+                allow_early_resets,
+                **kwargs,
             )
         )
 

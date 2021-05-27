@@ -107,7 +107,10 @@ class SLTrainer(Trainer):
         self.optimizer.step()
 
         # Return metrics from training step.
-        step_metrics = {"train_loss": [loss.item()], "train_accuracy": [accuracy.item()]}
+        step_metrics = {
+            "train_loss": [loss.item()],
+            "train_accuracy": [accuracy.item()],
+        }
         return step_metrics
 
     def evaluate(self) -> None:
@@ -127,7 +130,10 @@ class SLTrainer(Trainer):
         )
 
         # Return metrics from training step.
-        eval_step_metrics = {"test_loss": [loss.item()], "test_accuracy": [accuracy.item()]}
+        eval_step_metrics = {
+            "test_loss": [loss.item()],
+            "test_accuracy": [accuracy.item()],
+        }
         return eval_step_metrics
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:

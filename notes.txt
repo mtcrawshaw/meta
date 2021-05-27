@@ -30,8 +30,8 @@ Minor versions (MT10/MT50 baselines):
 
 Current sprint (Improve splitting networks on multi-task RL):
     Option for uniform task data distribution
---> Fix training tests
-    Merge supervised_learning into develop
+    Fix training tests
+--> Merge supervised_learning into develop
     Tests for uniform task data distribution
     Tests for saving/loading splitting network architecture/initialization
     Merge visualize_grad_diffs into develop (keep visualization functionality)

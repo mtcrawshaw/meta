@@ -29,7 +29,7 @@ def main() -> None:
         OUTPUT_SIZE,
         num_layers=NUM_LAYERS,
         hidden_size=HIDDEN_SIZE,
-        device=device
+        device=device,
     )
     optimizer = torch.optim.Adam(net.parameters(), lr=LR)
 
@@ -73,6 +73,6 @@ def main() -> None:
 
     assert not copied_equal and initial_equal
 
+
 if __name__ == "__main__":
     main()
-

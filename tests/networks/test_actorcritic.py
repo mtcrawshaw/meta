@@ -91,7 +91,10 @@ def actorcritic_exclude_task_template(settings: Dict[str, any]):
 
     # Create environment.
     env = get_env(
-        settings["env_name"], settings["num_processes"], allow_early_resets=True, **settings["env_kwargs"]
+        settings["env_name"],
+        settings["num_processes"],
+        allow_early_resets=True,
+        **settings["env_kwargs"]
     )
     obs_size = get_space_size(env.observation_space)
     action_size = get_space_size(env.action_space)
