@@ -72,8 +72,9 @@
 
     "meta_test_config": {
 
-        "env_name": "ML10_test",
+        "trainer": "RLTrainer",
 
+        "env_name": "ML10_test",
         "num_updates": 6,
         "rollout_length": 10,
         "num_ppo_epochs": 1,

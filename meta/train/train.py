@@ -28,7 +28,8 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main function for train.py, runs training using settings from `config`.  The
     expected entries of `config` are documented below. Returns a dictionary holding
-    values of performance metrics from training and evaluation.
+    values of performance metrics from training and evaluation. Extra arguments are
+    passed to the instantiated trainer.
 
     Parameters
     ----------

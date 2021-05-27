@@ -49,6 +49,10 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             raise NotImplementedError
     if config["meta_train_config"]["architecture_config"]["include_task_index"]:
         raise NotImplementedError
+    if config["meta_train_config"]["trainer"] != "RLTrainer":
+        raise NotImplementedError
+    if config["meta_test_config"]["trainer"] != "RLTrainer":
+        raise NotImplementedError
 
     # Add common settings to meta-train config and meta-test config.
     meta_train_config = config["meta_train_config"]
@@ -80,6 +84,6 @@ def meta_train(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
     # Perform meta-testing.
     print("\nMeta-Testing:")
-    checkpoint = train(meta_test_config, policy)
+    checkpoint = train(meta_test_config, policy=policy)
 
     return checkpoint
