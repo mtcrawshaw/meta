@@ -254,6 +254,52 @@ def test_collect_rollout_MT50_multi_save_memory() -> None:
     check_metaworld_rollout(settings)
 
 
+def test_uniform_task_distribution_MT10() -> None:
+    """
+    Test that the rollout contains an equal amount of data from each task in MT10 when
+    the `uniform_tasks` option is set to True.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT10"
+    settings["num_processes"] = 20
+    settings["rollout_length"] = TIME_LIMIT * 5
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
+    settings["env_kwargs"] = {"save_memory": False, "uniform_tasks": True}
+    settings["add_observability"] = False
+
+    # Perform rollout and check that distribution of task data is uniform across tasks.
+    rollout = get_metaworld_rollout(settings)
+    uniform_task_check(rollout, 10)
+
+
+def test_uniform_task_distribution_MT50() -> None:
+    """
+    Test that the rollout contains an equal amount of data from each task in MT50 when
+    the `uniform_tasks` option is set to True. Note that we also set `save_memory` to
+    True here in order to enable the use of many processes without needing to use too
+    much memory.
+    """
+
+    settings = dict(DEFAULT_SETTINGS)
+    settings["env_name"] = "MT50"
+    settings["num_processes"] = 50
+    settings["rollout_length"] = TIME_LIMIT * 5
+    settings["time_limit"] = TIME_LIMIT
+    settings["normalize_transition"] = False
+    settings["normalize_first_n"] = None
+    settings["same_np_seed"] = True
+    settings["env_kwargs"] = {"save_memory": True, "uniform_tasks": True}
+    settings["add_observability"] = False
+
+    # Perform rollout and check that distribution of task data is uniform across tasks.
+    rollout = get_metaworld_rollout(settings)
+    uniform_task_check(rollout, 50)
+
+
 def test_collect_rollout_ML1_train_single() -> None:
     """
     Test the values of the returned RolloutStorage objects collected from a rollout on
@@ -715,9 +761,7 @@ def check_metaworld_rollout(settings: Dict[str, Any]) -> None:
         initial_hand_check(rollout, multitask)
 
 
-def get_metaworld_rollout(
-    settings: Dict[str, Any]
-) -> Tuple[RolloutStorage, np.ndarray]:
+def get_metaworld_rollout(settings: Dict[str, Any]) -> RolloutStorage:
     """
     Execute and return a single rollout over a MetaWorld environment using configuration
     in `settings`.
@@ -966,6 +1010,28 @@ def initial_hand_check(rollout: RolloutStorage, multitask: bool) -> None:
             assert num_unique_obs == 1
 
     print("\nInitial obs for each task: %s" % str(initial_hand_pos))
+
+
+def uniform_task_check(rollout: RolloutStorage, num_tasks: int) -> None:
+    """ Given a rollout, checks that an equal amount of data came from each task. """
+
+    # Count number of observations from each task.
+    task_counts = {t: 0 for t in range(num_tasks)}
+    obs_shape = rollout.obs.shape
+    total_obs = rollout.obs.reshape(-1, *obs_shape[2:])
+    task_indices = get_task_indices(total_obs)
+    for task in task_indices:
+        task_counts[task] += 1
+
+    # Check that the number of observations from each task is equal. Note that the
+    # number of expected observations from each task should be an integer, since the
+    # number of processes is constrained to be a multiple of the number of tasks.
+    expected_obs = ((rollout.rollout_length + 1) * rollout.num_processes) / num_tasks
+    assert expected_obs == int(expected_obs)
+    expected_obs = int(expected_obs)
+    count_values = list(set(task_counts.values()))
+    assert len(count_values) == 1
+    assert count_values[0] == expected_obs
 
 
 def get_task_indices(obs: torch.Tensor) -> List[int]:
