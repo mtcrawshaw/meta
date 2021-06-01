@@ -5,10 +5,10 @@ Templates for tests in tests/networks/splitting/.
 from math import sqrt
 from itertools import product
 from typing import List, Dict, Any, Callable
-from gym.spaces import Box
 
 import numpy as np
 import torch
+from gym.spaces import Box
 
 from meta.networks.utils import init_base
 from meta.networks.splitting import (
@@ -278,9 +278,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
     elif grad_type == "rand_identical":
         task_grads = torch.rand(1, network.num_regions, network.max_region_size)
         task_grads = task_grads.expand(network.num_tasks, -1, -1)
-        pass
     elif grad_type == "rand":
-        pass
         task_grads = torch.rand(
             network.num_tasks, network.num_regions, network.max_region_size
         )

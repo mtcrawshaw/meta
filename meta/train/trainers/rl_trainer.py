@@ -136,14 +136,6 @@ class RLTrainer(Trainer):
                 self.policy.policy_network.actor.check_for_split(step_loss)
                 self.policy.policy_network.critic.check_for_split(step_loss)
 
-            # If we're training a trunk network, check for frequency of conflicting
-            # gradients.
-            if self.policy.policy_network.architecture_type == "trunk":
-                if self.policy.policy_network.actor.monitor_grads:
-                    self.policy.policy_network.actor.check_conflicting_grads(step_loss)
-                if self.policy.policy_network.critic.monitor_grads:
-                    self.policy.policy_network.critic.check_conflicting_grads(step_loss)
-
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if self.num_tasks > 1:
                 step_loss = torch.sum(step_loss)
