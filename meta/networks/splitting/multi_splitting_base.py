@@ -247,7 +247,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         # eliminate the torch/device dependence.
         self.initial_state_dict = {}
         for key, val in self.state_dict().items():
-            self.initial_state_dict[key] = val.numpy()
+            self.initial_state_dict[key] = np.copy(val.numpy())
 
     def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
         """
@@ -623,6 +623,16 @@ class SplittingMap:
         self.copy = torch.zeros(
             self.num_regions, self.num_tasks, dtype=torch.long, device=self.device
         )
+
+    def __eq__(self, other: "SplittingMap") -> bool:
+        """ Definition of `self == other`. """
+
+        eq = True
+        eq = eq and self.num_tasks == other.num_tasks
+        eq = eq and self.num_regions == other.num_regions
+        eq = eq and torch.all(self.num_copies == other.num_copies)
+        eq = eq and torch.all(self.copy == other.copy)
+        return eq
 
     def split(
         self, region: int, copy: int, group_1: List[int], group_2: List[int]

@@ -32,24 +32,13 @@ Current sprint (Improve splitting networks on multi-task RL):
     Option for uniform task data distribution
     Fix training tests
     Tests for uniform task data distribution
---> Tests for saving/loading splitting network architecture/initialization
-    Merge visualize_grad_diffs into develop (keep visualization functionality)
+    Tests for saving/loading splitting network architecture/initialization
+--> Merge visualize_grad_diffs into develop (keep visualization functionality)
     Run evaluations with larger batch size/more processes per task and check
         visualization for gradient consistency
     Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting
         networks, cosine splitting networks, retrained splitting networks) to
         statistical significance
-
-Notes for current task:
-- test_meta_train tests are failing due to tiny inconsistencies between the rewards at
-  each step. Seems like there is a small numerical discrepancy somewhere that gets
-  compounded.
-- Same with lunar_lander tests
-- MT10 MLP rewards are close but off by a larger margin than the previous tests. MT10
-  trunk and splitting seem to be just as close as the previous ones.
-- Best thing to do from here is backtrack through commits and find the last commit where
-  the lunar lander tests still passed. These will be fast to run, and any break in these
-  tests would likely also cause a break in the others.
 
 Overall performance improvements:
 - Use SAC instead of PPO
@@ -334,6 +323,9 @@ Splitting networks:
       to this is to unfreeze specificially those weights during meta-testing, but this
       is not super clean and also goes against the spirit of modularity in splitting
       networks? Not sure.
+    - Implement saving/loading of splitting network architecture for non-RL cases. It
+      would be nice if we could do this is a way that is general so we don't have to add
+      trainer-specific code to perform saving/loading for each trainer type.
 - Nice to have:
     - In actor/critic network, add splitting for action_logstd. Right now each task just
       has a separate set of these parameters.
