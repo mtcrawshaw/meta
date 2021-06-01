@@ -33,7 +33,9 @@ Current sprint (Improve splitting networks on multi-task RL):
     Fix training tests
     Tests for uniform task data distribution
     Tests for saving/loading splitting network architecture/initialization
---> Merge visualize_grad_diffs into develop (keep visualization functionality)
+    Merge visualize_grad_diffs into develop (keep visualization functionality)
+    Add GPU tests for saving/loading architecture + initialization
+--> Visualize gradient diffs with larger batch size + uniform data distribution
     Run evaluations with larger batch size/more processes per task and check
         visualization for gradient consistency
     Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting

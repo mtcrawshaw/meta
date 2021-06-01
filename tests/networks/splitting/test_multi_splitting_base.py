@@ -2,10 +2,8 @@
 Unit tests for meta/networks/splitting/multi_splitting_base.py.
 """
 
-import os
 import math
 import random
-import pickle
 from itertools import product
 from typing import Dict, Any, List
 
@@ -13,11 +11,10 @@ import numpy as np
 from scipy import stats
 import torch
 import torch.nn.functional as F
-from gym.spaces import Box, Discrete
+from gym.spaces import Box
 
 from meta.networks.utils import init_base
 from meta.networks.splitting import BaseMultiTaskSplittingNetwork
-from meta.train.ppo import PPOPolicy
 from meta.utils.estimate import alpha_to_threshold
 from tests.helpers import DEFAULT_SETTINGS, get_obs_batch
 from tests.networks.splitting import BASE_SETTINGS
@@ -28,6 +25,7 @@ from tests.networks.splitting.templates import (
     grad_diffs_template,
     grad_stats_template,
     score_template,
+    load_template,
 )
 
 
@@ -1095,280 +1093,28 @@ def test_shared_regions_multiple() -> None:
 
 
 def test_load_architecture() -> None:
-    """
-    Test that the architecture of a saved splitting network is correctly loaded when we
-    provide the checkpoint point of the saved network in the `network_load` argument to
-    the BaseMultiTaskSplittingNetwork constructor. Right now this requires us to create
-    a PPOPolicy, because the splitting network loading functionality is written in a way
-    that expects the checkpoint to be in the form of RLTrainer's checkpoint.
-    """
-
-    dim = BASE_SETTINGS["obs_dim"] + BASE_SETTINGS["num_tasks"]
+    """ Test that the architecture of a saved splitting network is correctly loaded. """
     checkpoint_path = "results/test_load_architecture/checkpoint.pkl"
-
-    # Set up policy.
-    architecture_config = {
-        "type": "splitting_v2",
-        "recurrent": False,
-        "recurrent_hidden_size": None,
-        "include_task_index": False,
-        "num_tasks": BASE_SETTINGS["num_tasks"],
-        "actor_config": {
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "num_layers": BASE_SETTINGS["num_layers"],
-        },
-        "critic_config": {
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "num_layers": BASE_SETTINGS["num_layers"],
-        },
-    }
-    policy = PPOPolicy(
-        observation_space=Box(
-            low=-np.inf, high=np.inf, shape=(BASE_SETTINGS["obs_dim"],)
-        ),
-        action_space=Discrete(dim),
-        num_minibatch=1,
-        num_processes=1,
-        rollout_length=1,
-        architecture_config=architecture_config,
-    )
-
-    # Split the actor and critic networks.
-    policy.policy_network.actor.split(0, 0, [0, 1], [2, 3])
-    policy.policy_network.actor.split(1, 0, [0, 2], [1, 3])
-    policy.policy_network.actor.split(1, 0, [0], [2])
-    policy.policy_network.actor.split(2, 0, [0, 3], [1, 2])
-    policy.policy_network.critic.split(1, 0, [0, 1], [2, 3])
-
-    # Save a temporary checkpoint.
-    checkpoint = {}
-    checkpoint["policy"] = policy
-    checkpoint_dir = os.path.dirname(checkpoint_path)
-    if os.path.isdir(checkpoint_dir):
-        raise ValueError("Results directory %s already exists." % checkpoint_dir)
-    os.makedirs(checkpoint_dir)
-    with open(checkpoint_path, "wb") as checkpoint_file:
-        pickle.dump(checkpoint, checkpoint_file)
-
-    # Create new policy, loading in the architectures of the saved actor/critic.
-    architecture_config = {
-        "type": "splitting_v2",
-        "recurrent": False,
-        "recurrent_hidden_size": None,
-        "include_task_index": False,
-        "num_tasks": BASE_SETTINGS["num_tasks"],
-        "actor_config": {
-            "num_layers": BASE_SETTINGS["num_layers"],
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "network_load": {
-                "checkpoint_path": checkpoint_path,
-                "network_type": "actor",
-                "load_initialization": False,
-            },
-        },
-        "critic_config": {
-            "num_layers": BASE_SETTINGS["num_layers"],
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "network_load": {
-                "checkpoint_path": checkpoint_path,
-                "network_type": "critic",
-                "load_initialization": False,
-            },
-        },
-    }
-    loaded_policy = PPOPolicy(
-        observation_space=Box(
-            low=-np.inf, high=np.inf, shape=(BASE_SETTINGS["obs_dim"],)
-        ),
-        action_space=Discrete(dim),
-        num_minibatch=1,
-        num_processes=1,
-        rollout_length=1,
-        architecture_config=architecture_config,
-    )
-
-    # Compare architectures of each network.
-    actor = policy.policy_network.actor
-    loaded_actor = loaded_policy.policy_network.actor
-    critic = policy.policy_network.critic
-    loaded_critic = loaded_policy.policy_network.critic
-    assert actor.splitting_map == loaded_actor.splitting_map
-    assert critic.splitting_map == loaded_critic.splitting_map
-
-    # Clean up saved network checkpoint.
-    os.system("rm -rf %s" % os.path.dirname(checkpoint_path))
+    load_template(BASE_SETTINGS, checkpoint_path, load_initialization=False)
 
 
 def test_load_architecture_initialization() -> None:
     """
     Test that the architecture and initialization of a saved splitting network is
-    correctly loaded when we provide the checkpoint point of the saved network in the
-    `network_load` argument to the BaseMultiTaskSplittingNetwork constructor. Right now
-    this requires us to create a PPOPolicy, because the splitting network loading
-    functionality is written in a way that expects the checkpoint to be in the form of
-    RLTrainer's checkpoint.
+    correctly loaded.
     """
-
-    dim = BASE_SETTINGS["obs_dim"] + BASE_SETTINGS["num_tasks"]
     checkpoint_path = "results/test_load_architecture_initialization/checkpoint.pkl"
+    load_template(BASE_SETTINGS, checkpoint_path, load_initialization=True)
 
-    # Set up policy.
-    architecture_config = {
-        "type": "splitting_v2",
-        "recurrent": False,
-        "recurrent_hidden_size": None,
-        "include_task_index": False,
-        "num_tasks": BASE_SETTINGS["num_tasks"],
-        "actor_config": {
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "num_layers": BASE_SETTINGS["num_layers"],
-        },
-        "critic_config": {
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "num_layers": BASE_SETTINGS["num_layers"],
-        },
-    }
-    policy = PPOPolicy(
-        observation_space=Box(
-            low=-np.inf, high=np.inf, shape=(BASE_SETTINGS["obs_dim"],)
-        ),
-        action_space=Discrete(dim),
-        num_minibatch=1,
-        num_processes=1,
-        rollout_length=1,
-        architecture_config=architecture_config,
-    )
 
-    # Store network initialization for later comparison.
-    actor_initial_state_dict = {
-        key: torch.clone(val)
-        for key, val in policy.policy_network.actor.state_dict().items()
-    }
-    critic_initial_state_dict = {
-        key: torch.clone(val)
-        for key, val in policy.policy_network.critic.state_dict().items()
-    }
-
-    # Perturb network weights from initialization.
-    actor_new_state_dict = {
-        key: 2 * val for key, val in actor_initial_state_dict.items()
-    }
-    critic_new_state_dict = {
-        key: 2 * val for key, val in critic_initial_state_dict.items()
-    }
-    policy.policy_network.actor.load_state_dict(actor_new_state_dict)
-    policy.policy_network.critic.load_state_dict(critic_new_state_dict)
-
-    # Split the actor and critic networks.
-    policy.policy_network.actor.split(1, 0, [0, 1], [2, 3])
-    policy.policy_network.critic.split(0, 0, [0, 1], [2, 3])
-    policy.policy_network.critic.split(1, 0, [0, 2], [1, 3])
-    policy.policy_network.critic.split(1, 0, [0], [2])
-    policy.policy_network.critic.split(2, 0, [0, 3], [1, 2])
-
-    # Save a temporary checkpoint.
-    checkpoint = {}
-    checkpoint["policy"] = policy
-    checkpoint_dir = os.path.dirname(checkpoint_path)
-    if os.path.isdir(checkpoint_dir):
-        raise ValueError("Results directory %s already exists." % checkpoint_dir)
-    os.makedirs(checkpoint_dir)
-    with open(checkpoint_path, "wb") as checkpoint_file:
-        pickle.dump(checkpoint, checkpoint_file)
-
-    # Create new policy, loading in the architectures of the saved actor/critic.
-    architecture_config = {
-        "type": "splitting_v2",
-        "recurrent": False,
-        "recurrent_hidden_size": None,
-        "include_task_index": False,
-        "num_tasks": BASE_SETTINGS["num_tasks"],
-        "actor_config": {
-            "num_layers": BASE_SETTINGS["num_layers"],
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "network_load": {
-                "checkpoint_path": checkpoint_path,
-                "network_type": "actor",
-                "load_initialization": True,
-            },
-        },
-        "critic_config": {
-            "num_layers": BASE_SETTINGS["num_layers"],
-            "split_freq": 1,
-            "splits_per_step": 1,
-            "network_load": {
-                "checkpoint_path": checkpoint_path,
-                "network_type": "critic",
-                "load_initialization": True,
-            },
-        },
-    }
-    loaded_policy = PPOPolicy(
-        observation_space=Box(
-            low=-np.inf, high=np.inf, shape=(BASE_SETTINGS["obs_dim"],)
-        ),
-        action_space=Discrete(dim),
-        num_minibatch=1,
-        num_processes=1,
-        rollout_length=1,
-        architecture_config=architecture_config,
-    )
-
-    # Compare architectures of each network.
-    actor = policy.policy_network.actor
-    loaded_actor = loaded_policy.policy_network.actor
-    critic = policy.policy_network.critic
-    loaded_critic = loaded_policy.policy_network.critic
-    actor_state_dict = loaded_actor.state_dict()
-    critic_state_dict = loaded_critic.state_dict()
-    assert actor.splitting_map == loaded_actor.splitting_map
-    assert critic.splitting_map == loaded_critic.splitting_map
-
-    # Compare parameters of loaded network to network initialization. Note that the
-    # loaded network will have been split, so the comparison here looks strange. What we
-    # are checking is that each copy of each layer has been assigned the initial weights
-    # of the original copy of that layer.
-    def check_state_dicts(initial, loaded, num_layers, num_copies) -> None:
-        """ Utility function to check for aligned state dictionaries. """
-
-        initial_keys = []
-        loaded_keys = []
-        for layer in range(num_layers):
-            for copy in range(int(num_copies[layer])):
-                for p in ["weight", "bias"]:
-                    initial_key = "regions.%d.0.0.%s" % (layer, p)
-                    loaded_key = "regions.%d.%d.0.%s" % (layer, copy, p)
-
-                    assert torch.all(loaded[loaded_key] == initial[initial_key])
-                    initial_keys.append(initial_key)
-                    loaded_keys.append(loaded_key)
-
-        # Make sure we checked the entire state dict.
-        assert set(initial_keys) == set(initial.keys())
-        assert set(loaded_keys) == set(loaded.keys())
-
-    check_state_dicts(
-        actor_initial_state_dict,
-        actor_state_dict,
-        actor.num_layers,
-        actor.splitting_map.num_copies,
-    )
-    check_state_dicts(
-        critic_initial_state_dict,
-        critic_state_dict,
-        critic.num_layers,
-        critic.splitting_map.num_copies,
-    )
-
-    # Clean up saved network checkpoint.
-    os.system("rm -rf %s" % os.path.dirname(checkpoint_path))
+def test_load_architecture_initialization_gpu() -> None:
+    """
+    Test that the architecture and initialization of a saved splitting network is
+    correctly loaded when networks are stored on GPU.
+    """
+    checkpoint_path = "results/test_load_architecture_initialization/checkpoint.pkl"
+    BASE_SETTINGS["device"] = torch.device("cuda:0")
+    load_template(BASE_SETTINGS, checkpoint_path, load_initialization=True)
 
 
 def make_task_gradients(
