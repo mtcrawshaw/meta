@@ -58,6 +58,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
 
     # Construct save directory.
+    save_dir = None
     if config["save_name"] is not None:
 
         # Append "_n" (for the minimal n) to name to ensure that save name is unique,
@@ -190,7 +191,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         update_iteration += 1
 
     # Close trainer.
-    trainer.close()
+    trainer.close(save_dir)
 
     # Save metrics if necessary.
     if config["metrics_filename"] is not None:

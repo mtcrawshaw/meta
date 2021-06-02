@@ -151,7 +151,7 @@ class SLTrainer(Trainer):
         checkpoint["config"] = self.config
         return checkpoint
 
-    def close(self) -> None:
+    def close(self, save_dir: str) -> None:
         """ Clean up the training process. """
         pass
 

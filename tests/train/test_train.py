@@ -891,7 +891,7 @@ def test_collect_rollout_values() -> None:
         assert float(action) - int(action) == 0 and int(action) in env.action_space
         assert float(obs) == float(reward)
 
-    trainer.close()
+    trainer.close(None)
 
 
 def test_save_load() -> None:

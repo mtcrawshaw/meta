@@ -138,7 +138,7 @@ class Trainer:
         """ Return trainer state as checkpoint. """
         raise NotImplementedError
 
-    def close(self) -> None:
+    def close(self, save_dir: str) -> None:
         """ Clean up the training process. """
         raise NotImplementedError
 

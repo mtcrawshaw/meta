@@ -1,5 +1,6 @@
 """ Definition of RLTrainer class. """
 
+import os
 from typing import List, Tuple, Dict, Any, Iterator
 
 import torch
@@ -10,6 +11,7 @@ from meta.train.env import get_env, get_num_tasks
 from meta.train.trainers.base_trainer import Trainer
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import aligned_train_configs
+from meta.utils.grad_monitor import GradMonitor
 
 
 class RLTrainer(Trainer):
@@ -56,10 +58,15 @@ class RLTrainer(Trainer):
             Whether or not to use the same numpy random seed across each process. This
             should really only be used when training on MetaWorld, as it allows for
             multiple processes to generate/act over the same set of goals.
-        save_memory : bool
-            (Optional) Whether or not to save memory when training on a multi-task
-            MetaWorld benchmark by creating a new environment instance at each episode.
-            Only applicable to MetaWorld training. Defaults to False if not included.
+        visualize_grad_diffs : Optional[String]
+            What metric to use when producing a visualization of the distances between
+            task-specific gradients, if any. When this is None, no visualization is
+            produced. Otherwise, the value should be one of ["cosine", "sqeuclidean"],
+            and this dictates the metric used to compare task gradients. This should
+            only be used when performing multi-task training.
+        env_kwargs: Dict[str, Any]
+            Keyword arguments to be provided to the constructor of the Env class
+            specified by `env_name`.
         """
 
         # Set environment and policy.
@@ -115,6 +122,31 @@ class RLTrainer(Trainer):
         # Initialize environment and set first observation.
         self.rollout.set_initial_obs(self.env.reset())
 
+        # Construct gradient monitors, if necessary. Since this is an optional entry in
+        # `self.config`, we set it to None in the case that it doesn't exist, to make
+        # things cleaner downstream.
+        if (
+            "visualize_grad_diffs" in self.config
+            and self.config["visualize_grad_diffs"] is not None
+        ):
+            if self.num_tasks > 1:
+                self.actor_monitor = GradMonitor(
+                    self.policy.policy_network.actor,
+                    self.num_tasks,
+                    metric=self.config["visualize_grad_diffs"],
+                )
+                self.critic_monitor = GradMonitor(
+                    self.policy.policy_network.critic,
+                    self.num_tasks,
+                    metric=self.config["visualize_grad_diffs"],
+                )
+            else:
+                raise ValueError(
+                    "`visualize_grad_diffs` is only valid for multi-task training."
+                )
+        else:
+            self.config["visualize_grad_diffs"] = None
+
     def _step(self) -> Dict[str, Any]:
         """
         Perform a training step. Note that this may actually involve multiple gradient
@@ -135,6 +167,14 @@ class RLTrainer(Trainer):
             ]:
                 self.policy.policy_network.actor.check_for_split(step_loss)
                 self.policy.policy_network.critic.check_for_split(step_loss)
+
+            # If we're multi-task training an MLP network, monitor gradient statistics.
+            if (
+                self.policy.policy_network.architecture_type == "mlp"
+                and self.config["visualize_grad_diffs"] is not None
+            ):
+                self.actor_monitor.update_grad_stats(step_loss)
+                self.critic_monitor.update_grad_stats(step_loss)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if self.num_tasks > 1:
@@ -209,9 +249,30 @@ class RLTrainer(Trainer):
         checkpoint["config"] = self.config
         return checkpoint
 
-    def close(self) -> None:
+    def close(self, save_dir: str) -> None:
         """ Clean up the training process. """
+
+        # Close environment.
         self.env.close()
+
+        # Write out results from gradient monitors, if necessary.
+        if self.config["visualize_grad_diffs"] is not None and save_dir is not None:
+            actor_diff_path = os.path.join(
+                save_dir, "%s_actor_diffs.png" % self.config["save_name"]
+            )
+            critic_diff_path = os.path.join(
+                save_dir, "%s_critic_diffs.png" % self.config["save_name"]
+            )
+            actor_table_path = os.path.join(
+                save_dir, "%s_actor_table.csv" % self.config["save_name"]
+            )
+            critic_table_path = os.path.join(
+                save_dir, "%s_critic_table.csv" % self.config["save_name"]
+            )
+            self.actor_monitor.plot_stats(actor_diff_path)
+            self.actor_monitor.write_table(actor_table_path)
+            self.critic_monitor.plot_stats(critic_diff_path)
+            self.critic_monitor.write_table(critic_table_path)
 
     def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
         """ Return parameters of model. """
