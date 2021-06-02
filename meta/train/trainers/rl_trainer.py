@@ -61,9 +61,9 @@ class RLTrainer(Trainer):
         visualize_grad_diffs : Optional[String]
             What metric to use when producing a visualization of the distances between
             task-specific gradients, if any. When this is None, no visualization is
-            produced. Otherwise, the value should be one of ["cosine", "sqeuclidean"],
-            and this dictates the metric used to compare task gradients. This should
-            only be used when performing multi-task training.
+            produced. Otherwise, the value should be one of ["cosine", "sqeuclidean",
+            "cosine,sqeuclidean"], and this dictates the metric(s) used to compare task
+            gradients. This should only be used when performing multi-task training.
         env_kwargs: Dict[str, Any]
             Keyword arguments to be provided to the constructor of the Env class
             specified by `env_name`.
@@ -130,16 +130,20 @@ class RLTrainer(Trainer):
             and self.config["visualize_grad_diffs"] is not None
         ):
             if self.num_tasks > 1:
-                self.actor_monitor = GradMonitor(
-                    self.policy.policy_network.actor,
-                    self.num_tasks,
-                    metric=self.config["visualize_grad_diffs"],
-                )
-                self.critic_monitor = GradMonitor(
-                    self.policy.policy_network.critic,
-                    self.num_tasks,
-                    metric=self.config["visualize_grad_diffs"],
-                )
+                self.grad_metrics = config["visualize_grad_diffs"].split(",")
+                self.actor_monitors = {}
+                self.critic_monitors = {}
+                for grad_metric in self.grad_metrics:
+                    self.actor_monitors[grad_metric] = GradMonitor(
+                        self.policy.policy_network.actor,
+                        self.num_tasks,
+                        metric=grad_metric,
+                    )
+                    self.critic_monitors[grad_metric] = GradMonitor(
+                        self.policy.policy_network.critic,
+                        self.num_tasks,
+                        metric=grad_metric,
+                    )
             else:
                 raise ValueError(
                     "`visualize_grad_diffs` is only valid for multi-task training."
@@ -173,8 +177,9 @@ class RLTrainer(Trainer):
                 self.policy.policy_network.architecture_type == "mlp"
                 and self.config["visualize_grad_diffs"] is not None
             ):
-                self.actor_monitor.update_grad_stats(step_loss)
-                self.critic_monitor.update_grad_stats(step_loss)
+                for grad_metric in self.grad_metrics:
+                    self.actor_monitors[grad_metric].update_grad_stats(step_loss)
+                    self.critic_monitors[grad_metric].update_grad_stats(step_loss)
 
             # If we are multi-task training, consolidate task-losses with weighted sum.
             if self.num_tasks > 1:
@@ -257,22 +262,27 @@ class RLTrainer(Trainer):
 
         # Write out results from gradient monitors, if necessary.
         if self.config["visualize_grad_diffs"] is not None and save_dir is not None:
-            actor_diff_path = os.path.join(
-                save_dir, "%s_actor_diffs.png" % self.config["save_name"]
-            )
-            critic_diff_path = os.path.join(
-                save_dir, "%s_critic_diffs.png" % self.config["save_name"]
-            )
-            actor_table_path = os.path.join(
-                save_dir, "%s_actor_table.csv" % self.config["save_name"]
-            )
-            critic_table_path = os.path.join(
-                save_dir, "%s_critic_table.csv" % self.config["save_name"]
-            )
-            self.actor_monitor.plot_stats(actor_diff_path)
-            self.actor_monitor.write_table(actor_table_path)
-            self.critic_monitor.plot_stats(critic_diff_path)
-            self.critic_monitor.write_table(critic_table_path)
+            for grad_metric in self.grad_metrics:
+                actor_diff_path = os.path.join(
+                    save_dir,
+                    "%s_actor_%s.png" % (self.config["save_name"], grad_metric),
+                )
+                critic_diff_path = os.path.join(
+                    save_dir,
+                    "%s_critic_%s.png" % (self.config["save_name"], grad_metric),
+                )
+                actor_table_path = os.path.join(
+                    save_dir,
+                    "%s_actor_%s.csv" % (self.config["save_name"], grad_metric),
+                )
+                critic_table_path = os.path.join(
+                    save_dir,
+                    "%s_critic_%s.csv" % (self.config["save_name"], grad_metric),
+                )
+                self.actor_monitors[grad_metric].plot_stats(actor_diff_path)
+                self.actor_monitors[grad_metric].write_table(actor_table_path)
+                self.critic_monitors[grad_metric].plot_stats(critic_diff_path)
+                self.critic_monitors[grad_metric].write_table(critic_table_path)
 
     def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
         """ Return parameters of model. """
