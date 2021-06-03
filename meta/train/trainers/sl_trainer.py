@@ -9,7 +9,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
-from meta.train.datasets import NYUv2
+from meta.datasets import NYUv2
 from meta.train.loss import (
     CosineSimilarityLoss,
     MultiTaskLoss,

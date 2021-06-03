@@ -1,4 +1,4 @@
-""" Dataset objects. """
+""" NYUv2 dataset object. """
 
 import os
 import sys

@@ -75,9 +75,9 @@ Try to merge this branch with develop as often as possible (while maintaining st
 so that we don't have an impossible merge to perform later on.
 
 Current sprint (Toy multi-task problem):
---> Script to generate toy dataset from parameters
+    Script to generate toy dataset from parameters
     Toy dataset object
-    Training on toy dataset
+--> Training on toy dataset
     Run evaluations of constant, DWA, NLW on toy problem
 
 Next sprint (Write tests):
