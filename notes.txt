@@ -68,18 +68,26 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Add tests for single task supervised learning
     Add multi-task functionality + dataset
     Implement loss weighting methods
---> Write tests
+--> Toy multi-task problem
+    Write tests
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
-Current sprint (Write tests):
---> ConvNetwork
+Current sprint (Toy multi-task problem):
+--> Script to generate toy dataset from parameters
+    Toy dataset object
+    Training on toy dataset
+    Run evaluations of constant, DWA, NLW on toy problem
+
+Next sprint (Write tests):
+    ConvNetwork
     BackboneNetwork
     Parallel
     MultiTaskLoss
     LossWeighter and all subclasses
     Metric functions in loss.py
+    Training tests
 
 
 Refactoring:
@@ -87,7 +95,7 @@ Refactoring:
 - Figure out if we need to do anything to convert BN layers to test mode.
 - Make sure that we are consistently taking either sum or mean of loss over batches for
   each task.
-- Separate SLTrainer and multi-task functionality (make MultiSLTrainer)
+- Separate SLTrainer and multi-task functionality (make MultiSLTrainer? MultiTrainer?)
 - Add multitask capability to ConvNetwork
 - Get rid of NYUv2 wrapper and write one from scratch
 - Move metrics into Trainer
