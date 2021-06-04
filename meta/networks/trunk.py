@@ -9,16 +9,12 @@ from itertools import product
 import torch
 import torch.nn as nn
 
-from meta.networks.utils import get_fc_layer, init_downscale, init_base
+from meta.networks.utils import get_fc_layer, init_downscale, init_base, Parallel
 from meta.utils.estimate import RunningStats
 
 
 class MultiTaskTrunkNetwork(nn.Module):
-    """
-    Module used to parameterize a multi-task network with a shared trunk. Note that
-    `input_size` should be the size of the observation AFTER the one-hot task vector is
-    appended to it.
-    """
+    """ Module used to parameterize a multi-task network with a shared trunk. """
 
     def __init__(
         self,
@@ -30,9 +26,47 @@ class MultiTaskTrunkNetwork(nn.Module):
         num_task_layers: int = 1,
         hidden_size: int = 64,
         downscale_last_layer: bool = False,
+        parallel_branches: bool = False,
         device: torch.device = None,
         monitor_grads: bool = False,
     ) -> None:
+        """
+        Init function for MultiTaskTrunkNetwork.
+
+        Parameters
+        ----------
+        input_size : int,
+            Input size of network. When `parallel_branches=False`, this size should
+            include the size of the one-hot task vector appended to observations.
+        output_size : int,
+            Output size of network.
+        num_tasks : int,
+            Number of tasks. The network will contain a number of task-specific branches
+            equal to `num_tasks`.
+        activation : str
+            Activation function for each layer besides the last layer,
+            which has no activation.
+        num_shared_layers : int
+            Number of layers in the shared trunk portion.
+        num_task_layers : int
+            Number of layers in each task-specific branch.
+        hidden_size : int
+            Number of units in each hidden layer.
+        downscale_last_layer : bool
+            Whether or not to downscale the variance of initialized weights in the last
+            layer of the network. This is suggested in https://arxiv.org/abs/2006.05990.
+        parallel_branches : bool
+            If `True`, each input will be passed through each task-specific branch, as
+            is common in multi-task computer vision. If `False`, each input will only be
+            routed through the branch corresponding to that input's task, as is common
+            in multi-task RL. Default is `False`.
+        device : torch.device
+            Torch device to train on.
+        monitor_grads : bool
+            Whether or not to monitor the presence of conflicting gradients between
+            tasks. This is older, haven't touched it in awhile and it may not be
+            functioning.
+        """
 
         super(MultiTaskTrunkNetwork, self).__init__()
 
@@ -53,6 +87,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.num_task_layers = num_task_layers
         self.hidden_size = hidden_size
         self.downscale_last_layer = downscale_last_layer
+        self.parallel_branches = parallel_branches
         self.monitor_grads = monitor_grads
 
         # Set device.
@@ -138,62 +173,76 @@ class MultiTaskTrunkNetwork(nn.Module):
 
             heads_list.append(nn.Sequential(*task_layers))
 
-        self.output_heads = nn.ModuleList(heads_list)
+        # Construct task-specific heads, either in parallel or as individual modules.
+        if self.parallel_branches:
+            self.output_heads = Parallel(heads_list, combine_dim=1, new_dim=True)
+        else:
+            self.output_heads = nn.ModuleList(heads_list)
 
-    def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, task_indices: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Forward pass definition for MultiTaskTrunkNetwork.
 
         Arguments
         ---------
         inputs : torch.Tensor
-            Inputs to trunk network. Each input should be a flat vector that ends with a
-            one-hot vector (of length self.num_tasks) denoting the task index
-            corresponding to the input. We do NOT explicitly check this condition so it
-            is up to you to make sure it is true when using this method.
-
+            Inputs to trunk network.
         task_indices : torch.Tensor
-            Task index for each input in ``inputs`` as an integer.
+            If `self.parallel_branches=False`, then `task_indices` should be a tensor of
+            shape `(self.num_tasks)`, where `task_indices[i]` is an integer which
+            denotes the task corresponding to `inputs[i]`. This input will only be
+            routed through the corresonding task branch. We NOT explicitly check this
+            condition so it is up to you to make sure that `task_indices` is correctly
+            specified in this case. If `self.parallel_branches=True`, then
+            `task_indices` is simply ignored.
 
         Returns
         -------
         outputs: torch.Tensor
-            Output of shared trunk network when given ``inputs`` as input.
+            Output of shared trunk network when given `inputs` as input.
         """
 
         # Pass input through shared trunk.
         trunk_output = self.trunk(inputs)
 
-        # To forward pass through the output heads, we first partition the inputs by
-        # their task, so that we can perform only one forward pass through each
-        # task-specific output head.
-        task_batch_indices = [
-            (task_indices == task).nonzero().squeeze(-1)
-            for task in range(self.num_tasks)
-        ]
-        batch_outputs = []
-        for task in range(self.num_tasks):
+        if self.parallel_branches:
+            outputs = self.output_heads(trunk_output)
 
-            # Construct the batch of trunk outputs for a given task head.
-            single_batch_indices = task_batch_indices[task]
+        else:
 
-            # Don't perform forward pass if there are no inputs for the current task.
-            if len(single_batch_indices) == 0:
-                batch_outputs.append(torch.Tensor([0.0]))
-                continue
+            # To forward pass through the output heads, we first partition the inputs by
+            # their task, so that we can perform only one forward pass through each
+            # task-specific output head.
+            task_batch_indices = [
+                (task_indices == task).nonzero().squeeze(-1)
+                for task in range(self.num_tasks)
+            ]
+            batch_outputs = []
+            for task in range(self.num_tasks):
 
-            # Pass batch of trunk outputs through task head.
-            task_batch = trunk_output[single_batch_indices]
-            batch_outputs.append(self.output_heads[task](task_batch))
+                # Construct the batch of trunk outputs for a given task head.
+                single_batch_indices = task_batch_indices[task]
 
-        # Reconstruct batched outputs into a single tensor.
-        outputs_list = []
-        batch_counters = [0 for _ in range(self.num_tasks)]
-        for task in task_indices:
-            batch_counter = batch_counters[task]
-            outputs_list.append(batch_outputs[task][batch_counter])
-            batch_counters[task] += 1
-        outputs = torch.stack(outputs_list)
+                # Don't perform forward pass if there are no inputs for the current
+                # task.
+                if len(single_batch_indices) == 0:
+                    batch_outputs.append(torch.Tensor([0.0]))
+                    continue
+
+                # Pass batch of trunk outputs through task head.
+                task_batch = trunk_output[single_batch_indices]
+                batch_outputs.append(self.output_heads[task](task_batch))
+
+            # Reconstruct batched outputs into a single tensor.
+            outputs_list = []
+            batch_counters = [0 for _ in range(self.num_tasks)]
+            for task in task_indices:
+                batch_counter = batch_counters[task]
+                outputs_list.append(batch_outputs[task][batch_counter])
+                batch_counters[task] += 1
+            outputs = torch.stack(outputs_list)
 
         return outputs
 

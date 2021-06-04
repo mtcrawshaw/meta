@@ -1,8 +1,9 @@
 """ Multi-task regression dataset object (toy problem). """
 
-import torch
-import numpy as np
+import os
 
+import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 
@@ -27,11 +28,11 @@ class MTRegression(Dataset):
 
         # Load dataset files.
         if self.train:
-            self.inputs = np.load(os.path.join("root", "train_input.npy"))
-            self.labels = np.load(os.path.join("root", "train_output.npy"))
+            self.inputs = np.load(os.path.join(self.root, "train_input.npy"))
+            self.labels = np.load(os.path.join(self.root, "train_output.npy"))
         else:
-            self.inputs = np.load(os.path.join("root", "test_input.npy"))
-            self.labels = np.load(os.path.join("root", "test_output.npy"))
+            self.inputs = np.load(os.path.join(self.root, "test_input.npy"))
+            self.labels = np.load(os.path.join(self.root, "test_output.npy"))
 
         # Check for consistent sizes.
         assert self.inputs.shape[0] == self.labels.shape[0]
@@ -39,8 +40,8 @@ class MTRegression(Dataset):
 
     def __getitem__(self, index: int):
 
-        inp = self.input_arr[index]
-        labels = self.label_arr[index]
+        inp = self.inputs[index]
+        labels = self.labels[index]
         return inp, labels
 
     def __len__(self):

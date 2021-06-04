@@ -9,7 +9,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
-from meta.datasets import NYUv2
+from meta.datasets import NYUv2, MTRegression
 from meta.train.loss import (
     CosineSimilarityLoss,
     MultiTaskLoss,
@@ -22,7 +22,13 @@ from meta.train.loss import (
     NYUv2_multi_depth_accuracy,
     NYUv2_multi_avg_accuracy,
 )
-from meta.networks import ConvNetwork, BackboneNetwork, PRETRAINED_MODELS
+from meta.networks import (
+    ConvNetwork,
+    BackboneNetwork,
+    MLPNetwork,
+    MultiTaskTrunkNetwork,
+    PRETRAINED_MODELS,
+)
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -49,7 +55,7 @@ DATASETS = {
         "loss_kwargs": {},
         "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "MNIST",
-        "dataset_kwargs": {"transform": GRAY_TRANSFORM},
+        "dataset_kwargs": {"download": True, "transform": GRAY_TRANSFORM},
     },
     "CIFAR10": {
         "input_size": (3, 32, 32),
@@ -59,7 +65,7 @@ DATASETS = {
         "loss_kwargs": {},
         "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "CIFAR10",
-        "dataset_kwargs": {"transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
     },
     "CIFAR100": {
         "input_size": (3, 32, 32),
@@ -69,7 +75,7 @@ DATASETS = {
         "loss_kwargs": {},
         "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
         "base_name": "CIFAR100",
-        "dataset_kwargs": {"transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
     },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
@@ -80,6 +86,7 @@ DATASETS = {
         "extra_metrics": {"accuracy": {"fn": NYUv2_seg_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
+            "download": True,
             "rgb_transform": RGB_TRANSFORM,
             "seg_transform": SEG_TRANSFORM,
             "scale": 0.25,
@@ -94,6 +101,7 @@ DATASETS = {
         "extra_metrics": {"accuracy": {"fn": NYUv2_sn_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
+            "download": True,
             "rgb_transform": RGB_TRANSFORM,
             "sn_transform": SN_TRANSFORM,
             "scale": 0.25,
@@ -108,6 +116,7 @@ DATASETS = {
         "extra_metrics": {"accuracy": {"fn": NYUv2_depth_accuracy, "maximize": True}},
         "base_name": "NYUv2",
         "dataset_kwargs": {
+            "download": True,
             "rgb_transform": RGB_TRANSFORM,
             "depth_transform": DEPTH_TRANSFORM,
             "scale": 0.25,
@@ -145,12 +154,23 @@ DATASETS = {
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
+            "download": True,
             "rgb_transform": RGB_TRANSFORM,
             "seg_transform": SEG_TRANSFORM,
             "sn_transform": SN_TRANSFORM,
             "depth_transform": DEPTH_TRANSFORM,
             "scale": 0.25,
         },
+    },
+    "MTRegression": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": nn.MSELoss,
+        "loss_kwargs": {},
+        "extra_metrics": {},
+        "base_name": "MTRegression",
+        "dataset_kwargs": {},
     },
 }
 
@@ -192,8 +212,8 @@ class SLTrainer(Trainer):
             dataset = eval(self.dataset_info["base_name"])
         root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
         dataset_kwargs = self.dataset_info["dataset_kwargs"]
-        train_set = dataset(root=root, train=True, download=True, **dataset_kwargs)
-        test_set = dataset(root=root, train=False, download=True, **dataset_kwargs)
+        train_set = dataset(root=root, train=True, **dataset_kwargs)
+        test_set = dataset(root=root, train=False, **dataset_kwargs)
         train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
@@ -209,13 +229,25 @@ class SLTrainer(Trainer):
         self.train_iter = iter(cycle(train_loader))
         self.test_iter = iter(cycle(test_loader))
 
-        # Construct network, either from a pre-trained model or from scratch.
+        # Determine type of network to construct.
         network_kwargs = dict(config["architecture_config"])
+        input_size = self.dataset_info["input_size"]
         if config["architecture_config"]["type"] in PRETRAINED_MODELS:
             network_cls = BackboneNetwork
             network_kwargs["arch_type"] = network_kwargs["type"]
-        else:
+        elif config["architecture_config"]["type"] == "conv":
+            assert isinstance(input_size, tuple) and len(input_size) == 3
             network_cls = ConvNetwork
+        elif config["architecture_config"]["type"] == "mlp":
+            assert isinstance(input_size, int)
+            network_cls = MLPNetwork
+        elif config["architecture_config"]["type"] == "trunk":
+            assert isinstance(input_size, int)
+            network_cls = MultiTaskTrunkNetwork
+        else:
+            raise NotImplementedError
+
+        # Construct network.
         del network_kwargs["type"]
         network_kwargs["input_size"] = input_size
         network_kwargs["output_size"] = output_size

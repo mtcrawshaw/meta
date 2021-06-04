@@ -87,7 +87,7 @@ Next sprint (Write tests):
     MultiTaskLoss
     LossWeighter and all subclasses
     Metric functions in loss.py
-    Training tests
+    SL training tests
 
 
 Refactoring:

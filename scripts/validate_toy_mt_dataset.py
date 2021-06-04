@@ -6,10 +6,10 @@ NUM_SAMPLES = 5
 
 
 # Read in dataset.
-train_input = np.load("data/datasets/toy_multitask/train_input.npy")
-train_output = np.load("data/datasets/toy_multitask/train_output.npy")
-test_input = np.load("data/datasets/toy_multitask/test_input.npy")
-test_output = np.load("data/datasets/toy_multitask/test_output.npy")
+train_input = np.load("data/datasets/MTRegression/train_input.npy")
+train_output = np.load("data/datasets/MTRegression/train_output.npy")
+test_input = np.load("data/datasets/MTRegression/test_input.npy")
+test_output = np.load("data/datasets/MTRegression/test_output.npy")
 
 # Check dataset sizes.
 assert train_input.shape[0] == train_output.shape[0]

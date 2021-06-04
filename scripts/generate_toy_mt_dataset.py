@@ -76,8 +76,8 @@ def main(
         # Save inputs and outputs for split.
         split_input_fname = os.path.join(dataset_dir, "%s_input.npy" % split)
         split_output_fname = os.path.join(dataset_dir, "%s_output.npy" % split)
-        np.save(split_input_fname, split_inputs)
-        np.save(split_output_fname, split_outputs)
+        np.save(split_input_fname, split_inputs.astype(np.float32))
+        np.save(split_output_fname, split_outputs.astype(np.float32))
 
 
 if __name__ == "__main__":
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         help="Variance of elements of e_i. Default: 3.5.",
     )
     parser.add_argument(
-        "--dataset_dir", type=str, default="data/datasets/toy_multitask",
+        "--dataset_dir", type=str, default="data/datasets/MTRegression",
     )
     parser.add_argument(
         "--seed",
