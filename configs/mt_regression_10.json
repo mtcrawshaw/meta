@@ -5,6 +5,11 @@
     "batch_size": 1024,
     "num_workers": 8,
 
+    "loss_weighter": {
+        "type": "Constant",
+        "loss_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    },
+
     "lr_schedule_type": null,
     "initial_lr": 7e-4,
     "final_lr": 7e-4,

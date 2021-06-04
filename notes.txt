@@ -91,17 +91,17 @@ Next sprint (Write tests):
 
 
 Notes for current task:
-- Implement centered loss weighting (CLW)
+- Single metric for evaluating multi-task performance
 - Implement experiment
 - Implement GradNorm?
-- Evaluations to run:
+- Run evaluations on MTRegression:
   - Unit loss weights
   - DWA
   - MLDW
   - LBTW
   - NLW
   - CLW
-- Run em
+  - NCLW
 
 
 Refactoring:

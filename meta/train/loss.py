@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from meta.utils.estimate import RunningStats
+
 
 class CosineSimilarityLoss(nn.Module):
     """
@@ -46,7 +48,16 @@ class MultiTaskLoss(nn.Module):
         # Set task weighting strategy.
         loss_weighter = loss_weighter_kwargs["type"]
         del loss_weighter_kwargs["type"]
-        if loss_weighter not in ["Constant", "DWA", "MLDW", "LBTW", "NLW", "RWLW"]:
+        if loss_weighter not in [
+            "Constant",
+            "DWA",
+            "MLDW",
+            "LBTW",
+            "NLW",
+            "RWLW",
+            "CLW",
+            "NCLW",
+        ]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
         loss_weighter_kwargs["device"] = self.device
@@ -202,7 +213,7 @@ class LBTW(LossWeighter):
         self.baseline_losses = None
 
     def _update_weights(self) -> None:
-        """ Compute new loss weights with MLDW. """
+        """ Compute new loss weights with LBTW. """
 
         # Update baseline losses.
         if self.baseline_losses is None or self.steps % self.period == 0:
@@ -260,6 +271,85 @@ class RWLW(LossWeighter):
     def _update_weights(self) -> None:
         """ Compute new loss weights with RWLW. """
 
+        mean = torch.zeros(self.num_tasks)
+        std = torch.ones(self.num_tasks) * self.sigma
+        noise = torch.normal(mean, std).to(self.device)
+        self.loss_weights = self.loss_weights + noise
+
+
+class CLW(LossWeighter):
+    """
+    Compute task loss weights with Centered Loss Weighting. Here we keep a running std
+    of each task's loss, and set each task's loss weight equal to the inverse of the std
+    of the task loss.
+    """
+
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+        """
+        Init function for CLW. `sigma` is the standard deviation of the distribution
+        from which the Gaussian noise is sampled.
+        """
+        super(CLW, self).__init__(**kwargs)
+
+        self.loss_stats = RunningStats(
+            compute_stdev=True,
+            shape=(self.num_tasks,),
+            ema_alpha=0.99,
+            device=self.device,
+        )
+
+    def _update_weights(self) -> None:
+        """ Compute new loss weights with NLW. """
+
+        # Update stats.
+        self.loss_stats.update(self.loss_history[-1])
+
+        # Set loss weights equal to inverse of loss stdev, then normalize the weights so
+        # they sum to the initial total weight. Note that we don't update the weights
+        # until after the first step, since at that point each stdev is 0.
+        if len(self.loss_history) > 1:
+            self.loss_weights = 1.0 / self.loss_stats.stdev
+            self.loss_weights /= torch.sum(self.loss_weights)
+            self.loss_weights *= self.total_weight
+
+
+class NCLW(LossWeighter):
+    """
+    Compute task loss weights with Noisy Centered Loss Weighting. Here we keep a running
+    std of each task's loss, and set each task's loss weight equal to the inverse of the
+    std of the task loss, plus a small amount of Gaussian noise as in NLW.
+    """
+
+    def __init__(self, sigma: float, **kwargs: Dict[str, Any]) -> None:
+        """
+        Init function for CLW. `sigma` is the standard deviation of the distribution
+        from which the Gaussian noise is sampled.
+        """
+        super(NCLW, self).__init__(**kwargs)
+
+        self.sigma = sigma
+        self.loss_stats = RunningStats(
+            compute_stdev=True,
+            shape=(self.num_tasks,),
+            ema_alpha=0.99,
+            device=self.device,
+        )
+
+    def _update_weights(self) -> None:
+        """ Compute new loss weights with NLW. """
+
+        # Update stats.
+        self.loss_stats.update(self.loss_history[-1])
+
+        # Set loss weights equal to inverse of loss stdev, then normalize the weights so
+        # they sum to the initial total weight. Note that we don't update the weights
+        # until after the first step, since at that point each stdev is 0.
+        if len(self.loss_history) > 1:
+            self.loss_weights = 1.0 / self.loss_stats.stdev
+            self.loss_weights /= torch.sum(self.loss_weights)
+            self.loss_weights *= self.total_weight
+
+        # Add Gaussian noise to weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
         noise = torch.normal(mean, std).to(self.device)

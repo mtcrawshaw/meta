@@ -166,8 +166,17 @@ DATASETS = {
         "input_size": 250,
         "output_size": 100,
         "builtin": False,
-        "loss_cls": nn.MSELoss,
-        "loss_kwargs": {},
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": lambda x: x[:, i],
+                    "label_slice": lambda x: x[:, i],
+                }
+                for i in range(2)
+            ],
+        },
         "extra_metrics": {},
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 2},
@@ -176,8 +185,17 @@ DATASETS = {
         "input_size": 250,
         "output_size": 100,
         "builtin": False,
-        "loss_cls": nn.MSELoss,
-        "loss_kwargs": {},
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": lambda x: x[:, i],
+                    "label_slice": lambda x: x[:, i],
+                }
+                for i in range(10)
+            ],
+        },
         "extra_metrics": {},
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 10},
