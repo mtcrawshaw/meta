@@ -162,7 +162,7 @@ DATASETS = {
             "scale": 0.25,
         },
     },
-    "MTRegression": {
+    "MTRegression_2": {
         "input_size": 250,
         "output_size": 100,
         "builtin": False,
@@ -170,7 +170,17 @@ DATASETS = {
         "loss_kwargs": {},
         "extra_metrics": {},
         "base_name": "MTRegression",
-        "dataset_kwargs": {},
+        "dataset_kwargs": {"num_tasks": 2},
+    },
+    "MTRegression_10": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": nn.MSELoss,
+        "loss_kwargs": {},
+        "extra_metrics": {},
+        "base_name": "MTRegression",
+        "dataset_kwargs": {"num_tasks": 10},
     },
 }
 

@@ -77,8 +77,8 @@ so that we don't have an impossible merge to perform later on.
 Current sprint (Toy multi-task problem):
     Script to generate toy dataset from parameters
     Toy dataset object
---> Training on toy dataset
-    Run evaluations of constant, DWA, NLW on toy problem
+    Training on toy dataset
+--> Run evaluations of constant, DWA, NLW on toy problem
 
 Next sprint (Write tests):
     ConvNetwork
@@ -88,6 +88,20 @@ Next sprint (Write tests):
     LossWeighter and all subclasses
     Metric functions in loss.py
     SL training tests
+
+
+Notes for current task:
+- Implement centered loss weighting (CLW)
+- Implement experiment
+- Implement GradNorm?
+- Evaluations to run:
+  - Unit loss weights
+  - DWA
+  - MLDW
+  - LBTW
+  - NLW
+  - CLW
+- Run em
 
 
 Refactoring:

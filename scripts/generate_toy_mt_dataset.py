@@ -112,10 +112,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--task_scales",
         type=str,
-        default="1.0,100.0",
+        default="1.0,50.0,30.0,70.0,20.0,80.0,10.0,40.0,60.0,90.0",
         help="Comma separated list of floats denoting scale of losses for each task."
         " Note that the length of this list implicitly defines the number of tasks."
-        ' Default: "1.0,100.0".',
+        ' Default: "1.0,50.0,30.0,70.0,20.0,80.0,10.0,40.0,60.0,90.0".',
     )
     parser.add_argument(
         "--base_std",

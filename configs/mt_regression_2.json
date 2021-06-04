@@ -1,6 +1,6 @@
 {
     "trainer": "SLTrainer",
-    "dataset": "MTRegression",
+    "dataset": "MTRegression_2",
     "num_updates": 1000,
     "batch_size": 1024,
     "num_workers": 8,

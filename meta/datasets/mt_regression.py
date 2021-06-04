@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 class MTRegression(Dataset):
     """ PyTorch wrapper for the multi-task regression toy dataset. """
 
-    def __init__(self, root: str, train: bool = True):
+    def __init__(self, root: str, num_tasks: int, train: bool = True):
         """
         Init function for MTRegression.
 
@@ -24,6 +24,7 @@ class MTRegression(Dataset):
 
         super().__init__()
         self.root = root
+        self.num_tasks = num_tasks
         self.train = train
 
         # Load dataset files.
@@ -34,14 +35,15 @@ class MTRegression(Dataset):
             self.inputs = np.load(os.path.join(self.root, "test_input.npy"))
             self.labels = np.load(os.path.join(self.root, "test_output.npy"))
 
-        # Check for consistent sizes.
+        # Check for consistent sizes and valid number of tasks.
         assert self.inputs.shape[0] == self.labels.shape[0]
+        assert self.num_tasks <= self.labels.shape[1]
         self.dataset_size = self.inputs.shape[0]
 
     def __getitem__(self, index: int):
 
         inp = self.inputs[index]
-        labels = self.labels[index]
+        labels = self.labels[index, : self.num_tasks]
         return inp, labels
 
     def __len__(self):
