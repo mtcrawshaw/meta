@@ -2,7 +2,7 @@
 
 import math
 from PIL import Image
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 
 import numpy as np
 import torch
@@ -10,6 +10,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from meta.utils.estimate import RunningStats
+
+
+EPSILON = 1e-5
 
 
 class CosineSimilarityLoss(nn.Module):
@@ -308,7 +311,10 @@ class CLW(LossWeighter):
         # they sum to the initial total weight. Note that we don't update the weights
         # until after the first step, since at that point each stdev is 0.
         if len(self.loss_history) > 1:
-            self.loss_weights = 1.0 / self.loss_stats.stdev
+            threshold_stdev = torch.max(
+                self.loss_stats.stdev, EPSILON * torch.ones_like(self.loss_stats.stdev)
+            )
+            self.loss_weights = 1.0 / threshold_stdev
             self.loss_weights /= torch.sum(self.loss_weights)
             self.loss_weights *= self.total_weight
 
@@ -322,7 +328,7 @@ class NCLW(LossWeighter):
 
     def __init__(self, sigma: float, **kwargs: Dict[str, Any]) -> None:
         """
-        Init function for CLW. `sigma` is the standard deviation of the distribution
+        Init function for NCLW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
         """
         super(NCLW, self).__init__(**kwargs)
@@ -514,3 +520,26 @@ def NYUv2_multi_avg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> flo
     sn_accuracy = NYUv2_multi_sn_accuracy(outputs, labels)
     depth_accuracy = NYUv2_multi_depth_accuracy(outputs, labels)
     return np.mean([seg_accuracy, sn_accuracy, depth_accuracy])
+
+
+def get_MTRegression_normal_loss(
+    num_tasks: int,
+) -> Callable[[torch.Tensor, torch.Tensor], float]:
+    """
+    Constructs and returns a function which computes the MTRegression normalized
+    multi-task loss from a set of labels and the corresponding predictions.
+    """
+
+    WEIGHTS = [1.0, 50.0, 30.0, 70.0, 20.0, 80.0, 10.0, 40.0, 60.0, 90.0]
+    weights_t = torch.Tensor([WEIGHTS[:num_tasks]])
+
+    def metric(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+        """
+        Computes normalized multi-task loss for MTRegression task. Both `outputs` and
+        `labels` should have shape `(batch_size, num_tasks, output_dim)`.
+        """
+        diffs = torch.sum((outputs - labels) ** 2, dim=2)
+        weighted_diffs = torch.mean(diffs / (weights_t ** 2))
+        return float(weighted_diffs)
+
+    return metric

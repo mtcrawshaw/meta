@@ -1,7 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
-from typing import Dict, Iterator, Iterable, Any, List, Tuple
+from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
 
 import torch
 import torch.nn as nn
@@ -21,6 +21,7 @@ from meta.train.loss import (
     NYUv2_multi_sn_accuracy,
     NYUv2_multi_depth_accuracy,
     NYUv2_multi_avg_accuracy,
+    get_MTRegression_normal_loss,
 )
 from meta.networks import (
     ConvNetwork,
@@ -45,6 +46,19 @@ DEPTH_TRANSFORM = transforms.Compose(
 )
 SEG_TRANSFORM = transforms.ToTensor()
 SN_TRANSFORM = transforms.ToTensor()
+
+
+def slice_second_dim(idx: int) -> Callable[[Any], Any]:
+    """
+    Utility function to generate slice functions for MTRegression task losses. Just for
+    convenience so we don't have to hard-code 10 functions of the form generated below.
+    """
+
+    def slice(x: Any) -> Any:
+        return x[:, idx]
+
+    return slice
+
 
 DATASETS = {
     "MNIST": {
@@ -162,7 +176,7 @@ DATASETS = {
             "scale": 0.25,
         },
     },
-    "MTRegression_2": {
+    "MTRegression2": {
         "input_size": 250,
         "output_size": 100,
         "builtin": False,
@@ -171,17 +185,19 @@ DATASETS = {
             "task_losses": [
                 {
                     "loss": nn.MSELoss(),
-                    "output_slice": lambda x: x[:, i],
-                    "label_slice": lambda x: x[:, i],
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
                 }
                 for i in range(2)
             ],
         },
-        "extra_metrics": {},
+        "extra_metrics": {
+            "normal_loss": {"fn": get_MTRegression_normal_loss(2), "maximize": False},
+        },
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 2},
     },
-    "MTRegression_10": {
+    "MTRegression10": {
         "input_size": 250,
         "output_size": 100,
         "builtin": False,
@@ -190,13 +206,15 @@ DATASETS = {
             "task_losses": [
                 {
                     "loss": nn.MSELoss(),
-                    "output_slice": lambda x: x[:, i],
-                    "label_slice": lambda x: x[:, i],
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
                 }
                 for i in range(10)
             ],
         },
-        "extra_metrics": {},
+        "extra_metrics": {
+            "normal_loss": {"fn": get_MTRegression_normal_loss(10), "maximize": False},
+        },
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 10},
     },

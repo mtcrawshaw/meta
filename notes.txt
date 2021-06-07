@@ -91,9 +91,6 @@ Next sprint (Write tests):
 
 
 Notes for current task:
-- Single metric for evaluating multi-task performance
-- Implement experiment
-- Implement GradNorm?
 - Run evaluations on MTRegression:
   - Unit loss weights
   - DWA
@@ -102,6 +99,8 @@ Notes for current task:
   - NLW
   - CLW
   - NCLW
+- Implement experiment?
+- Implement GradNorm?
 
 
 Refactoring:
@@ -115,6 +114,11 @@ Refactoring:
 - Move metrics into Trainer
 - Don't repeat output_slice and label_slice. Right now we have two instances of each,
   one in DATASETS and one in the corresponding accuracy functions.
+- Move functionality to generate MTRegression dataset into the MTRegression object. This
+  creates better modularity and allows us to avoid hard-coding stuff (like the task
+  scales) in two different places.
+- Fix GradNorm to use moving averages instead of the previous two values
+- Enforce positive weights for any methods that need it
 
 
 ----------------------------------------------------------------------------------------
