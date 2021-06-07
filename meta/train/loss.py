@@ -132,24 +132,32 @@ class DWA(LossWeighter):
     https://arxiv.org/abs/1803.10704.
     """
 
-    def __init__(self, temp: float, **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, ema_alpha: float, temp: float, **kwargs: Dict[str, Any]) -> None:
         """
         Init function for DWA. `temp` is the temperature used to smooth the weight
         distribution. The default value used in the paper is 2.
         """
         super(DWA, self).__init__(**kwargs)
+        self.ema_alpha = ema_alpha
         self.temp = temp
+        self.loss_avg = None
 
     def _update_weights(self) -> None:
         """ Compute new loss weights with DWA. """
 
-        # Check that we have already performed a sufficient number of updates.
-        if len(self.loss_history) < self.MAX_HISTORY_LEN:
-            return
-        assert len(self.loss_history) == self.MAX_HISTORY_LEN
+        # Update exponential moving average of loss.
+        if self.loss_avg is None:
+            self.loss_avg = self.loss_history[-1]
+            prev_avg = torch.clone(self.loss_avg)
+        else:
+            prev_avg = torch.clone(self.loss_avg)
+            self.loss_avg = (
+                self.ema_alpha * self.loss_avg
+                + (1 - self.ema_alpha) * self.loss_history[-1]
+            )
 
         # Update weights.
-        w = self.loss_history[-1] / self.loss_history[-2]
+        w = self.loss_avg / prev_avg
         w /= self.temp
         w = F.softmax(w, dim=0)
         w *= self.total_weight
@@ -250,10 +258,15 @@ class NLW(LossWeighter):
     def _update_weights(self) -> None:
         """ Compute new loss weights with NLW. """
 
+        # Add noise to weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
         noise = torch.normal(mean, std).to(self.device)
         self.loss_weights = self.initial_loss_weights + noise
+
+        # Normalize weights to ensure positivity.
+        self.loss_weights = F.softmax(self.loss_weights, dim=0)
+        self.loss_weights *= self.total_weight
 
 
 class RWLW(LossWeighter):
@@ -274,10 +287,15 @@ class RWLW(LossWeighter):
     def _update_weights(self) -> None:
         """ Compute new loss weights with RWLW. """
 
+        # Add noise to weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
         noise = torch.normal(mean, std).to(self.device)
         self.loss_weights = self.loss_weights + noise
+
+        # Normalize weights to ensure positivity.
+        self.loss_weights = F.softmax(self.loss_weights, dim=0)
+        self.loss_weights *= self.total_weight
 
 
 class CLW(LossWeighter):
@@ -355,11 +373,15 @@ class NCLW(LossWeighter):
             self.loss_weights /= torch.sum(self.loss_weights)
             self.loss_weights *= self.total_weight
 
-        # Add Gaussian noise to weights.
+        # Add noise to loss weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
         noise = torch.normal(mean, std).to(self.device)
         self.loss_weights = self.loss_weights + noise
+
+        # Normalize weights to ensure positivity.
+        self.loss_weights = F.softmax(self.loss_weights, dim=0)
+        self.loss_weights *= self.total_weight
 
 
 def save_batch(

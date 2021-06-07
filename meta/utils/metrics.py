@@ -107,7 +107,7 @@ class Metric:
         if len(self.history) > 0:
             mean = self.mean[-1]
             best = self.best
-            message = "mean, best: %.5f, %.5f" % (mean, best)
+            message = "mean, best: %.3f, %.3f" % (mean, best)
         else:
             message = "mean, max: %r, %r" % (None, None)
 
