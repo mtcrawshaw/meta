@@ -553,15 +553,17 @@ def get_MTRegression_normal_loss(
     """
 
     WEIGHTS = [1.0, 50.0, 30.0, 70.0, 20.0, 80.0, 10.0, 40.0, 60.0, 90.0]
-    weights_t = torch.Tensor([WEIGHTS[:num_tasks]])
+    weights_t = np.array(WEIGHTS[:num_tasks])
 
     def metric(outputs: torch.Tensor, labels: torch.Tensor) -> float:
         """
         Computes normalized multi-task loss for MTRegression task. Both `outputs` and
         `labels` should have shape `(batch_size, num_tasks, output_dim)`.
         """
-        diffs = torch.sum((outputs - labels) ** 2, dim=2)
-        weighted_diffs = torch.mean(diffs / (weights_t ** 2))
+        diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
+        diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
+        diffs = diffs.numpy()
+        weighted_diffs = np.mean(diffs / (weights_t ** 2))
         return float(weighted_diffs)
 
     return metric
