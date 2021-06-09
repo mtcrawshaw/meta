@@ -442,7 +442,9 @@ def save_batch(
     exit()
 
 
-def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def get_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of classification prediction given outputs and labels.
     """
@@ -451,7 +453,9 @@ def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return accuracy.item()
 
 
-def NYUv2_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_seg_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of semantic segmentation on the NYUv2 dataset. Here we assume that
     any pixels with label -1 are unlabeled, so we don't count these pixels in the
@@ -466,7 +470,9 @@ def NYUv2_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return accuracy.item()
 
 
-def NYUv2_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_sn_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of surface normal estimation on the NYUv2 dataset. We define this
     as the number of pixels for which the angle between the true normal and the
@@ -482,7 +488,9 @@ def NYUv2_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return accuracy.item()
 
 
-def NYUv2_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_depth_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
     number of pixels for which the absolute value of the difference between the
@@ -496,7 +504,9 @@ def NYUv2_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return accuracy.item()
 
 
-def NYUv2_multi_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_multi_seg_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of semantic segmentation on the NYUv2 dataset when performing
     multi-task training. This function is essentially a wrapper around
@@ -508,7 +518,9 @@ def NYUv2_multi_seg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> flo
     return NYUv2_seg_accuracy(task_outputs, task_labels)
 
 
-def NYUv2_multi_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_multi_sn_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of surface normal estimation on the NYUv2 dataset when performing
     multi-task training. This function is essentially a wrapper around
@@ -520,7 +532,9 @@ def NYUv2_multi_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> floa
     return NYUv2_sn_accuracy(task_outputs, task_labels)
 
 
-def NYUv2_multi_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_multi_depth_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute accuracy of depth prediction on the NYUv2 dataset when performing
     multi-task training. This function is essentially a wrapper around
@@ -532,7 +546,9 @@ def NYUv2_multi_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> f
     return NYUv2_depth_accuracy(task_outputs, task_labels)
 
 
-def NYUv2_multi_avg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+def NYUv2_multi_avg_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+) -> float:
     """
     Compute average accuracy of the three tasks on the NYUv2 dataset when performing
     multi-task training.
@@ -546,7 +562,7 @@ def NYUv2_multi_avg_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> flo
 
 def get_MTRegression_normal_loss(
     num_tasks: int,
-) -> Callable[[torch.Tensor, torch.Tensor], float]:
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
     """
     Constructs and returns a function which computes the MTRegression normalized
     multi-task loss from a set of labels and the corresponding predictions.
@@ -555,7 +571,9 @@ def get_MTRegression_normal_loss(
     WEIGHTS = [1.0, 50.0, 30.0, 70.0, 20.0, 80.0, 10.0, 40.0, 60.0, 90.0]
     weights_t = np.array(WEIGHTS[:num_tasks])
 
-    def metric(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    def metric(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    ) -> float:
         """
         Computes normalized multi-task loss for MTRegression task. Both `outputs` and
         `labels` should have shape `(batch_size, num_tasks, output_dim)`.
@@ -567,3 +585,25 @@ def get_MTRegression_normal_loss(
         return float(weighted_diffs)
 
     return metric
+
+
+def get_multitask_loss_weight(
+    task: int,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Constructs and returns a function which returns the multi-task loss weight for a
+    given task from the multi-task loss function. Note that this should only be used
+    when the given loss function is an instance of `MultiTaskLoss`.
+    """
+
+    def multitask_loss_weight(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    ) -> float:
+        """
+        Returns the multi-task loss weight for a given task from `criterion`, which
+        should be an instance of `MultiTaskLoss`.
+        """
+        assert isinstance(criterion, MultiTaskLoss)
+        return float(criterion.loss_weighter.loss_weights[task])
+
+    return multitask_loss_weight

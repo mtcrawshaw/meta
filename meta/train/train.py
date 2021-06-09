@@ -197,7 +197,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
-        plot(metrics.state(), plot_path)
+        plot(metrics, plot_path)
 
     # Construct checkpoint.
     checkpoint = trainer.get_checkpoint()

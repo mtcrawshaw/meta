@@ -166,7 +166,6 @@ DevOps:
 Training infrastructure:
 - Refactoring:
     - Optimize data transfer to GPU
-    - Use Metrics objects outside of train() instead of state dictionary.
     - Get rid of redundant functionality for saving metrics
     - Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
       have to do so much bullshit to save/load/compare metrics if the functionality was

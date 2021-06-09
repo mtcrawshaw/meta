@@ -22,6 +22,7 @@ from meta.train.loss import (
     NYUv2_multi_depth_accuracy,
     NYUv2_multi_avg_accuracy,
     get_MTRegression_normal_loss,
+    get_multitask_loss_weight,
 )
 from meta.networks import (
     ConvNetwork,
@@ -67,7 +68,22 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "MNIST",
         "dataset_kwargs": {"download": True, "transform": GRAY_TRANSFORM},
     },
@@ -77,7 +93,22 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "CIFAR10",
         "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
     },
@@ -87,7 +118,22 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": get_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": get_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "CIFAR100",
         "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
     },
@@ -97,7 +143,22 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {"ignore_index": -1},
-        "extra_metrics": {"accuracy": {"fn": NYUv2_seg_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": NYUv2_seg_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": NYUv2_seg_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "download": True,
@@ -112,7 +173,22 @@ DATASETS = {
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": NYUv2_sn_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": NYUv2_sn_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": NYUv2_sn_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "download": True,
@@ -127,7 +203,22 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.MSELoss,
         "loss_kwargs": {},
-        "extra_metrics": {"accuracy": {"fn": NYUv2_depth_accuracy, "maximize": True}},
+        "extra_metrics": {
+            "train_accuracy": {
+                "fn": NYUv2_depth_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_accuracy": {
+                "fn": NYUv2_depth_accuracy,
+                "basename": "accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+        },
         "base_name": "NYUv2",
         "dataset_kwargs": {
             "download": True,
@@ -161,10 +252,62 @@ DATASETS = {
             ],
         },
         "extra_metrics": {
-            "seg_accuracy": {"fn": NYUv2_multi_seg_accuracy, "maximize": True},
-            "sn_accuracy": {"fn": NYUv2_multi_sn_accuracy, "maximize": True},
-            "depth_accuracy": {"fn": NYUv2_multi_depth_accuracy, "maximize": True},
-            "avg_accuracy": {"fn": NYUv2_multi_avg_accuracy, "maximize": True},
+            "train_seg_accuracy": {
+                "fn": NYUv2_seg_accuracy,
+                "basename": "seg_accuracy",
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_seg_accuracy": {
+                "fn": NYUv2_seg_accuracy,
+                "basename": "seg_accuracy",
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_sn_accuracy": {
+                "fn": NYUv2_sn_accuracy,
+                "basename": "sn_accuracy",
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_sn_accuracy": {
+                "fn": NYUv2_sn_accuracy,
+                "basename": "sn_accuracy",
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_depth_accuracy": {
+                "fn": NYUv2_depth_accuracy,
+                "basename": "depth_accuracy",
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_depth_accuracy": {
+                "fn": NYUv2_depth_accuracy,
+                "basename": "depth_accuracy",
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_avg_accuracy": {
+                "fn": NYUv2_multi_avg_accuracy,
+                "basename": "avg_accuracy",
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_avg_accuracy": {
+                "fn": NYUv2_multi_avg_accuracy,
+                "basename": "avg_accuracy",
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
@@ -192,7 +335,31 @@ DATASETS = {
             ],
         },
         "extra_metrics": {
-            "normal_loss": {"fn": get_MTRegression_normal_loss(2), "maximize": False},
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(2),
+                "basename": "normal_loss",
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(2),
+                "basename": "normal_loss",
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(2)
+            },
         },
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 2},
@@ -213,7 +380,31 @@ DATASETS = {
             ],
         },
         "extra_metrics": {
-            "normal_loss": {"fn": get_MTRegression_normal_loss(10), "maximize": False},
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(10),
+                "basename": "normal_loss",
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(10),
+                "basename": "normal_loss",
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(10)
+            },
         },
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 10},
@@ -332,9 +523,9 @@ class SLTrainer(Trainer):
             "train_loss": [loss.item()],
         }
         for metric_name, metric_info in self.extra_metrics.items():
-            full_name = "train_%s" % metric_name
-            fn = metric_info["fn"]
-            step_metrics[full_name] = [fn(outputs, labels)]
+            if metric_info["train"]:
+                fn = metric_info["fn"]
+                step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
 
         return step_metrics
 
@@ -355,9 +546,9 @@ class SLTrainer(Trainer):
             "eval_loss": [loss.item()],
         }
         for metric_name, metric_info in self.extra_metrics.items():
-            full_name = "eval_%s" % metric_name
-            fn = metric_info["fn"]
-            eval_step_metrics[full_name] = [fn(outputs, labels)]
+            if not metric_info["train"]:
+                fn = metric_info["fn"]
+                eval_step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
 
         return eval_step_metrics
 
@@ -390,16 +581,34 @@ class SLTrainer(Trainer):
 
         window = 100
         metric_set = [
-            ("train_loss", window, False, False),
-            ("eval_loss", window, False, False),
+            {
+                "name": "train_loss",
+                "basename": "loss",
+                "window": window,
+                "point_avg": False,
+                "maximize": False,
+                "show": True,
+            },
+            {
+                "name": "eval_loss",
+                "basename": "loss",
+                "window": window,
+                "point_avg": False,
+                "maximize": False,
+                "show": True,
+            },
         ]
-        for metric_name, metric_info in self.extra_metrics.items():
-            metric_set.append(
-                ("train_%s" % metric_name, window, False, metric_info["maximize"])
-            )
-            metric_set.append(
-                ("eval_%s" % metric_name, window, False, metric_info["maximize"])
-            )
+        metric_set += [
+            {
+                "name": metric_name,
+                "basename": metric_info["basename"],
+                "window": window,
+                "point_avg": False,
+                "maximize": metric_info["maximize"],
+                "show": metric_info["show"],
+            }
+            for metric_name, metric_info in self.extra_metrics.items()
+        ]
         return metric_set
 
 

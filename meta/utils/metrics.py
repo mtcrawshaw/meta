@@ -12,29 +12,35 @@ class Metrics:
     Metrics object, which stores and updates training performance metrics.
     """
 
-    def __init__(self, metric_set: List[Tuple[Any]]) -> None:
+    def __init__(self, metric_set: List[Dict[str, Any]]) -> None:
         """ Init function for Metrics object. """
 
         # Set metrics.
-        for metric_name, metric_window, point_avg, maximize in metric_set:
+        for metric_info in metric_set:
+            metric_kwargs = dict(metric_info)
+            del metric_kwargs["name"]
             setattr(
-                self,
-                metric_name,
-                Metric(
-                    window_len=metric_window, point_avg=point_avg, maximize=maximize
-                ),
+                self, metric_info["name"], Metric(**metric_kwargs),
             )
 
-        self.state_vars = [single_metric[0] for single_metric in metric_set]
+        self.state_vars = [metric_info["name"] for metric_info in metric_set]
+        self.metric_dict = {
+            state_var: getattr(self, state_var) for state_var in self.state_vars
+        }
 
     def __repr__(self) -> str:
         """ String representation of ``self``. """
 
         message = ""
+        printed_vars = 0
         for i, state_var in enumerate(self.state_vars):
-            if i != 0:
+            metric = getattr(self, state_var)
+            if not metric.show:
+                continue
+            if printed_vars != 0:
                 message += " | "
             message += "%s %s" % (state_var, getattr(self, state_var))
+            printed_vars += 1
 
         return message
 
@@ -79,19 +85,26 @@ class Metric:
     """ Class to store values for a single metric. """
 
     def __init__(
-        self, window_len: int = 50, point_avg: bool = False, maximize: bool = True
+        self,
+        basename: str,
+        window: int = 50,
+        point_avg: bool = False,
+        maximize: bool = True,
+        show: bool = True,
     ) -> None:
         """
         Init function for Metric. We keep track of the total history of metric values, a
-        moving average of the past `window_len` values, a moving standard deviation of
-        the past `window_len` values, and a maximum average so far. If `point_avg` is
+        moving average of the past `window` values, a moving standard deviation of
+        the past `window` values, and a maximum average so far. If `point_avg` is
         True, then `update` will condense the list of given values into their average
         and treat it as a single update for the metric.
         """
 
-        self.window_len = window_len
+        self.basename = basename
+        self.window = window
         self.point_avg = point_avg
         self.maximize = maximize
+        self.show = show
 
         # Metric values.
         self.history: List[float] = []
@@ -104,12 +117,19 @@ class Metric:
     def __repr__(self) -> str:
         """ String representation of ``self``. """
 
-        if len(self.history) > 0:
-            mean = self.mean[-1]
-            best = self.best
-            message = "mean, best: %.3f, %.3f" % (mean, best)
+        if self.maximize is None:
+            if len(self.history) > 0:
+                mean = self.mean[-1]
+                message = "mean: %.3f" % mean
+            else:
+                message = "mean: %f" % None
         else:
-            message = "mean, max: %r, %r" % (None, None)
+            if len(self.history) > 0:
+                mean = self.mean[-1]
+                best = self.best
+                message = "mean, best: %.3f, %.3f" % (mean, best)
+            else:
+                message = "mean, best: %r, %r" % (None, None)
 
         return message
 
@@ -135,10 +155,13 @@ class Metric:
             self.history.append(value)
 
             # Update moving average and standard deviation.
-            self.mean.append(np.mean(self.history[-self.window_len :]))
-            self.stdev.append(np.std(self.history[-self.window_len :]))
+            self.mean.append(np.mean(self.history[-self.window :]))
+            self.stdev.append(np.std(self.history[-self.window :]))
 
             # Compute new best.
+            if self.maximize is None:
+                continue
+
             if self.best is None:
                 self.best = self.mean[-1]
             else:
@@ -151,5 +174,4 @@ class Metric:
 
     def state(self) -> Dict[str, Any]:
         """ Return a dictionary with the value of all state variables. """
-
         return {state_var: getattr(self, state_var) for state_var in self.state_vars}

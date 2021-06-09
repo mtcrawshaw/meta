@@ -5,26 +5,20 @@ from typing import Dict, List
 import numpy as np
 import matplotlib.pyplot as plt
 
+from meta.utils.metrics import Metrics
 
-def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> None:
+
+def plot(metrics: Metrics, plot_path: str) -> None:
     """
-    Plot the metrics given in ``metrics_history``, store image at ``plot_path``.
+    Plot the metrics given in `metrics_history`, store image at `plot_path`.
     """
 
-    # Count the number of plots. We create a plot for each (train, eval) pair of
-    # metrics, and we don't plot any metrics whose histories are empty.
+    # Count the number of plots. We create a plot for each unique basename among all
+    # basenames from the given metrics with non-empty history.
     basenames = []
-    for metric_name, metric_state in metrics_state.items():
-        if len(metric_state["history"]) > 0:
-            if metric_name.startswith("train_") or metric_name.startswith("eval_"):
-                start_pos = metric_name.index("_") + 1
-                basename = metric_name[start_pos:]
-                if basename not in basenames:
-                    basenames.append(basename)
-            else:
-                raise ValueError(
-                    "Can only plot metrics with names of the form 'train_*' or 'eval_*'"
-                )
+    for metric in metrics.metric_dict.values():
+        if len(metric.history) > 0 and metric.basename not in basenames:
+            basenames.append(metric.basename)
 
     # Add an extra plot which will just contain a table.
     num_plots = len(basenames) + 1
@@ -32,7 +26,7 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     # Create subplots.
     fig_width = 12.8
     plot_height = 4.8
-    table_height_ratio = 0.2
+    table_height_ratio = 0.3
     fig, axs = plt.subplots(
         num_plots,
         figsize=(fig_width, plot_height * (num_plots - (1.0 - table_height_ratio))),
@@ -46,24 +40,27 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     # Create figure title.
     fig.suptitle("Training Metrics")
 
-    # Plot each metric on a separate plot.
+    # Plot each metric set on a separate plot.
     plotted_metrics = []
     for i, basename in enumerate(basenames):
 
         # Construct metric names and find max metric length (scale of x-axis).
         legend = []
-        splits = ["train", "eval"]
-        metric_names = ["%s_%s" % (split, basename) for split in splits]
+        metric_names = [
+            metric_name
+            for metric_name, metric in metrics.metric_dict.items()
+            if metric.basename == basename
+        ]
         max_metric_len = max(
-            [len(metrics_state[metric_name]["mean"]) for metric_name in metric_names]
+            [len(metric.mean) for metric in metrics.metric_dict.values()]
         )
 
         for metric_name in metric_names:
 
             # Get metric state values.
-            metric_state = metrics_state[metric_name]
-            mean_array = np.array(metric_state["mean"])
-            stdev_array = np.array(metric_state["stdev"])
+            metric = metrics.metric_dict[metric_name]
+            mean_array = np.array(metric.mean)
+            stdev_array = np.array(metric.stdev)
             assert len(mean_array) == len(stdev_array)
 
             # Assign x-axis values to each data point.
@@ -98,20 +95,20 @@ def plot(metrics_state: Dict[str, Dict[str, List[float]]], plot_path: str) -> No
     col_labels = ["Best", "Final"]
     cell_text = []
     for metric_name in plotted_metrics:
-        metric_state = metrics_state[metric_name]
+        metric = metrics.metric_dict[metric_name]
         row_text = []
-        row_text.append(possibly_none(metric_state["best"]))
-        if len(metric_state["mean"]) == 0:
+        row_text.append(possibly_none(metric.best))
+        if len(metric.mean) == 0:
             row_text.append("None")
         else:
-            row_text.append(possibly_none(metric_state["mean"][-1]))
+            row_text.append(possibly_none(metric.mean[-1]))
         cell_text.append(list(row_text))
     axs[-1].table(
         cellText=cell_text,
         rowLabels=row_labels,
         colLabels=col_labels,
         colWidths=[0.2] * len(col_labels),
-        loc="bottom",
+        loc="upper center",
     )
 
     # Save out plot.

@@ -235,10 +235,38 @@ class RLTrainer(Trainer):
         train_window = 500
         test_window = round(train_window / self.config["evaluation_episodes"])
         metric_set = [
-            ("train_reward", train_window, False, True),
-            ("train_success", train_window, False, True),
-            ("eval_reward", test_window, True, True),
-            ("eval_success", test_window, True, True),
+            {
+                "name": "train_reward",
+                "basename": "reward",
+                "window": train_window,
+                "point_avg": False,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "train_success",
+                "basename": "success",
+                "window": train_window,
+                "point_avg": False,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "eval_reward",
+                "basename": "reward",
+                "window": test_window,
+                "point_avg": True,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "eval_success",
+                "basename": "success",
+                "window": test_window,
+                "point_avg": True,
+                "maximize": True,
+                "show": True,
+            },
         ]
         return metric_set
 
