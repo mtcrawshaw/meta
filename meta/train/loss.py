@@ -53,6 +53,7 @@ class MultiTaskLoss(nn.Module):
         del loss_weighter_kwargs["type"]
         if loss_weighter not in [
             "Constant",
+            "Uncertainty",
             "DWA",
             "MLDW",
             "LBTW",
@@ -66,6 +67,11 @@ class MultiTaskLoss(nn.Module):
         loss_weighter_kwargs["device"] = self.device
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
 
+        # Determine whether loss weights should be updated before or after task loss
+        # computation.
+        pre_loss_weighters = [Uncertainty]
+        self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
+
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """ Compute values of each task losses, then return the sum. """
 
@@ -76,22 +82,33 @@ class MultiTaskLoss(nn.Module):
             task_label = task_loss["label_slice"](labels)
             task_loss_val = task_loss["loss"](task_output, task_label)
             task_loss_vals.append(task_loss_val)
+        task_loss_vals = torch.stack(task_loss_vals)
+
+        # Update loss weighter before loss computation, if necessary.
+        if self.pre_loss_update:
+            self.loss_weighter.update(task_loss_vals)
 
         # Compute total loss as weighted sum of task losses.
-        task_loss_vals = torch.stack(task_loss_vals)
         total_loss = torch.sum(task_loss_vals * self.loss_weighter.loss_weights)
 
-        # Update loss weighter with new task loss values.
-        self.loss_weighter.update(task_loss_vals)
+        # Add regularization term to loss when using "Weighting by Uncertainty".
+        if isinstance(self.loss_weighter, Uncertainty):
+            total_loss += self.loss_weighter.regularization()
+
+        # Update loss weighter after loss computation, if necessary.
+        if not self.pre_loss_update:
+            self.loss_weighter.update(task_loss_vals)
 
         return total_loss
 
 
-class LossWeighter:
+class LossWeighter(nn.Module):
     """ Compute task loss weights for multi-task learning. """
 
     def __init__(self, loss_weights: List[float], device: torch.device = None) -> None:
         """ Init function for LossWeighter. """
+
+        super(LossWeighter, self).__init__()
 
         self.device = device if device is not None else torch.device("cpu")
 
@@ -124,6 +141,34 @@ class Constant(LossWeighter):
         constant, we don't need to do anything.
         """
         pass
+
+
+class Uncertainty(LossWeighter):
+    """
+    Compute task loss weights with "Weighting by Uncertainty", detailed in
+    https://arxiv.org/abs/1705.07115.
+    """
+
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+        """ Init function for Uncertainty. """
+        super(Uncertainty, self).__init__(**kwargs)
+
+        # Initialize weights. Unlike the other loss weighting methods, these are
+        # actually learned parameters. Instead of learning the weights directly, we
+        # learn s_i = -log(2w_i), so w_i = exp(-s_i) / 2, for numerical stability, as
+        # suggested in the paper. We initialize the values of s_i so that each w_i is
+        # equal to the given weight value.
+        with torch.no_grad():
+            log_variance_t = -torch.log(2.0 * self.loss_weights)
+        self.log_variance = nn.Parameter(log_variance_t)
+
+    def regularization(self) -> torch.Tensor:
+        """ Compute regularization term on loss weights. """
+        return torch.sum(self.log_variance / 2.0)
+
+    def _update_weights(self) -> None:
+        """ Compute new loss weights. """
+        self.loss_weights = 0.5 * torch.exp(-self.log_variance)
 
 
 class DWA(LossWeighter):
@@ -448,7 +493,6 @@ def get_accuracy(
     """
     Compute accuracy of classification prediction given outputs and labels.
     """
-
     accuracy = torch.sum(torch.argmax(outputs, dim=-1) == labels) / outputs.shape[0]
     return accuracy.item()
 
@@ -462,7 +506,6 @@ def NYUv2_seg_accuracy(
     accuracy computation. We also assume that the class dimension is directly after the
     batch dimension.
     """
-
     preds = torch.argmax(outputs, dim=1)
     correct = torch.sum(preds == labels)
     valid = torch.sum(labels != -1)
@@ -479,7 +522,6 @@ def NYUv2_sn_accuracy(
     predicted normal is less than `DEGREE_THRESHOLD` degrees. Here we assume that the
     normal dimension is 1.
     """
-
     DEGREE_THRESHOLD = 10
     similarity_threshold = math.cos(DEGREE_THRESHOLD / 180 * math.pi)
     similarity = F.cosine_similarity(outputs, labels, dim=1)
@@ -496,7 +538,6 @@ def NYUv2_depth_accuracy(
     number of pixels for which the absolute value of the difference between the
     predicted depth and the true depth is less than `DEPTH_THRESHOLD`.
     """
-
     DEPTH_THRESHOLD = 0.25
     difference = torch.abs(outputs - labels)
     accuracy = torch.sum(difference < DEPTH_THRESHOLD) / torch.numel(difference)
@@ -512,7 +553,6 @@ def NYUv2_multi_seg_accuracy(
     multi-task training. This function is essentially a wrapper around
     `NYUv2_seg_accuracy()`.
     """
-
     task_outputs = outputs[:, :13]
     task_labels = labels[:, 0].long()
     return NYUv2_seg_accuracy(task_outputs, task_labels)
@@ -526,7 +566,6 @@ def NYUv2_multi_sn_accuracy(
     multi-task training. This function is essentially a wrapper around
     `NYUv2_sn_accuracy()`.
     """
-
     task_outputs = outputs[:, 13:16]
     task_labels = labels[:, 1:4]
     return NYUv2_sn_accuracy(task_outputs, task_labels)
@@ -540,7 +579,6 @@ def NYUv2_multi_depth_accuracy(
     multi-task training. This function is essentially a wrapper around
     `NYUv2_depth_accuracy()`.
     """
-
     task_outputs = outputs[:, 16:17]
     task_labels = labels[:, 4:5]
     return NYUv2_depth_accuracy(task_outputs, task_labels)
@@ -553,7 +591,6 @@ def NYUv2_multi_avg_accuracy(
     Compute average accuracy of the three tasks on the NYUv2 dataset when performing
     multi-task training.
     """
-
     seg_accuracy = NYUv2_multi_seg_accuracy(outputs, labels)
     sn_accuracy = NYUv2_multi_sn_accuracy(outputs, labels)
     depth_accuracy = NYUv2_multi_depth_accuracy(outputs, labels)

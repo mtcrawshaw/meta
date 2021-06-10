@@ -78,7 +78,12 @@ Current sprint (Toy multi-task problem):
     Script to generate toy dataset from parameters
     Toy dataset object
     Training on toy dataset
---> Run evaluations of constant, DWA, NLW on toy problem
+    Run evaluations of constant, DWA, NLW on toy problem
+    Visualize loss weights during training
+    Implement weighting by uncertainty
+--> Implement GradNorm
+    Run evaluations on NYUv2 w/ Constant, Uncertainty, GradNorm, DWA, NLW, and CLW
+
 
 Next sprint (Write tests):
     ConvNetwork
@@ -91,16 +96,10 @@ Next sprint (Write tests):
 
 
 Notes for current task:
-- Run evaluations on MTRegression:
-  - Unit loss weights
-  - DWA
-  - NLW
-  - CLW
 - Implement experiment?
   - Plotting results from different methods on the same graph
   - Showing evolution of task weights throughout training
   - Statistical significance of performance of methods
-- Implement GradNorm?
 
 
 Refactoring:
@@ -117,6 +116,7 @@ Refactoring:
 - Move functionality to generate MTRegression dataset into the MTRegression object. This
   creates better modularity and allows us to avoid hard-coding stuff (like the task
   scales) in two different places.
+- Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
 
 
 ----------------------------------------------------------------------------------------

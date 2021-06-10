@@ -1,6 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
+from itertools import chain
 from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
 
 import torch
@@ -573,7 +574,16 @@ class SLTrainer(Trainer):
 
     def parameters(self) -> Iterator[nn.parameter.Parameter]:
         """ Return parameters of model. """
-        return self.network.parameters()
+
+        # Check whether we need to add extra parameters in the case that we are
+        # multi-task training with "Weighting by Uncertainty".
+        if isinstance(self.criterion, MultiTaskLoss):
+            param_iterator = chain(
+                self.network.parameters(), self.criterion.loss_weighter.parameters()
+            )
+        else:
+            param_iterator = self.network.parameters()
+        return param_iterator
 
     @property
     def metric_set(self) -> List[Tuple]:
