@@ -19,13 +19,13 @@ from meta.networks.utils import (
 )
 
 
-PRETRAINED_MODELS = ["resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]
-OUT_CHANNELS = {
-    "resnet18": 512,
-    "resnet34": 512,
-    "resnet50": 2048,
-    "resnet101": 2048,
-    "resnet152": 2048,
+PRETRAINED_MODELS = ["resnet"]
+SIMPLE_MODELS = ["conv"]
+ARCH_TYPES = SIMPLE_MODELS + PRETRAINED_MODELS
+PRETRAINED_LAYERS = {"resnet": [18, 34, 50, 101, 152]}
+PRETRAINED_INCHANNELS = {"resnet": 64}
+PRETRAINED_OUTCHANNELS = {
+    "resnet": {"18": 512, "34": 512, "50": 2048, "101": 2048, "152": 2048,}
 }
 
 
@@ -34,28 +34,62 @@ class BackboneNetwork(nn.Module):
 
     def __init__(
         self,
-        pretrained: bool,
-        arch_type: str,
-        head_channels: int,
         input_size: Tuple[int, int, int],
         output_size: Union[Tuple[int, int, int], List[Tuple[int, int, int]]],
+        arch_type: str,
+        num_backbone_layers: int,
+        head_channels: int,
+        initial_channels: int = None,
+        pretrained: bool = False,
         device: torch.device = None,
     ) -> None:
+        """
+        Init function for BackboneNetwork.
+
+        Parameters
+        ----------
+        input_size : Tuple[int, int, int]
+            Input size for network, describing dimension of input images.
+        output_size : Union[Tuple[int, int, int], List[Tuple[int, int, int]]]
+            Output size(s) for network. If this is a list of tuples, then the network
+            will have one shared trunk that feeds into task-specific output heads.
+        arch_type : str
+            Trunk architectuer type. The options are listed in `ARCH_TYPES`.
+        num_backbone_layers : int
+            Number of layers in backbone of network.
+        head_channels : int
+            Number of channels in the first layer of each task-specific output head.
+        initial_channels : int
+            Number of channels in first layer of network. This value is ignored when
+            using a pretrained architecture that has a fixed number of initial channels,
+            such as ResNet.
+        pretrained : bool
+            Whether or not to use pre-trained weights. This is only supported when
+            `arch_type` is in `PRETRAINED_MODELS`.
+        device : torch.device
+            Network device. Defaults to CPU.
+        """
 
         super(BackboneNetwork, self).__init__()
 
         # Check architecture type.
-        if arch_type not in PRETRAINED_MODELS:
+        if arch_type not in ARCH_TYPES:
             raise ValueError(
                 "Architecture '%s' not supported for BackboneNetwork." % arch_type
             )
 
-        # Set state.
-        self.pretrained = pretrained
-        self.arch_type = arch_type
-        self.head_channels = head_channels
+        # Set state and check for validity.
         self.input_size = input_size
         self.output_size = output_size
+        self.num_backbone_layers = num_backbone_layers
+        self.head_channels = head_channels
+        self.arch_type = arch_type
+        self.initial_channels = initial_channels
+        self.pretrained = pretrained
+        if self.pretrained:
+            assert self.arch_type in PRETRAINED_MODELS
+            assert self.num_backbone_layers in PRETRAINED_LAYERS[self.arch_type]
+            self.initial_channels = PRETRAINED_INCHANNELS[self.arch_type]
         if isinstance(self.output_size, tuple):
             assert len(self.output_size) == 3
             self.num_tasks = 1
@@ -77,22 +111,42 @@ class BackboneNetwork(nn.Module):
     def initialize_network(self) -> None:
         """ Initialize backbone and output layers of network. """
 
-        # Check that backbone type is ResNet. We do this because our method to get the
-        # features computed by the pre-trained models is specific to the ResNet
-        # implementation in torchvision.
-        assert "resnet" in self.arch_type
+        if self.arch_type == "conv":
 
-        # Initialize backbone and get features (before spatial dimensions are
-        # collapsed).
-        backbone_cls = eval("torchvision.models.%s" % self.arch_type)
-        self.backbone = backbone_cls(
-            pretrained=self.pretrained, replace_stride_with_dilation=[True, True, True],
-        )
-        return_layers = {"layer4": "features"}
-        self.backbone = IntermediateLayerGetter(
-            self.backbone, return_layers=return_layers
-        )
-        backbone_out_channels = OUT_CHANNELS[self.arch_type]
+            backbone_layers = [
+                get_conv_layer(
+                    in_channels=(self.initial_channels * (2 ** i)),
+                    out_channels=(self.initial_channels * (2 ** (i + 1))),
+                    activation="relu",
+                    layer_init=init_base,
+                    batch_norm=True,
+                )
+                for i in range(self.num_backbone_layers)
+            ]
+            self.backbone = nn.Sequential(*backbone_layers)
+            backbone_out_channels = self.initial_channels * (
+                2 ** self.num_backbone_layers
+            )
+
+        elif self.arch_type == "resnet":
+
+            # Initialize backbone and get features (before spatial dimensions are
+            # collapsed).
+            backbone_cls = eval(
+                "torchvision.models.resnet.%d" % self.num_backbone_layers
+            )
+            self.backbone = backbone_cls(
+                pretrained=self.pretrained,
+                replace_stride_with_dilation=[True, True, True],
+            )
+            return_layers = {"layer4": "features"}
+            self.backbone = IntermediateLayerGetter(
+                self.backbone, return_layers=return_layers
+            )
+            backbone_out_channels = PRETRAINED_OUTCHANNELS[self.arch_type]
+
+        else:
+            raise NotImplementedError
 
         # Initialize output head(s).
         if self.num_tasks == 1:

@@ -78,8 +78,7 @@ so that we don't have an impossible merge to perform later on.
 
 
 Current sprint (Write tests):
---> ConvNetwork
-    BackboneNetwork
+--> BackboneNetwork
     Parallel
     MultiTaskLoss
     LossWeighter and all subclasses
@@ -109,6 +108,7 @@ Refactoring:
   creates better modularity and allows us to avoid hard-coding stuff (like the task
   scales) in two different places.
 - Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
+- Merge redundant networks (Trunk + Backbone? Conv + MLP?)
 
 
 Loss weighting experiments:
