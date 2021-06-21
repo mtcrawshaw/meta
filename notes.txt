@@ -68,25 +68,17 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Add tests for single task supervised learning
     Add multi-task functionality + dataset
     Implement loss weighting methods
---> Toy multi-task problem
-    Write tests
+    Toy multi-task problem
+--> Write tests
+    Loss weighting experiments
+    Refactoring
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
-Current sprint (Toy multi-task problem):
-    Script to generate toy dataset from parameters
-    Toy dataset object
-    Training on toy dataset
-    Run evaluations of constant, DWA, NLW on toy problem
-    Visualize loss weights during training
-    Implement weighting by uncertainty
---> Implement GradNorm
-    Run evaluations on NYUv2 w/ Constant, Uncertainty, GradNorm, DWA, NLW, and CLW
 
-
-Next sprint (Write tests):
-    ConvNetwork
+Current sprint (Write tests):
+--> ConvNetwork
     BackboneNetwork
     Parallel
     MultiTaskLoss
@@ -95,11 +87,11 @@ Next sprint (Write tests):
     SL training tests
 
 
-Notes for current task:
-- Implement experiment?
-  - Plotting results from different methods on the same graph
-  - Showing evolution of task weights throughout training
-  - Statistical significance of performance of methods
+Next sprint (Loss weighting experiments):
+    GradNorm
+    Experiment command (run multiple configs)
+    Run experiment to statistical significance
+    Shared plotting in experiment
 
 
 Refactoring:
@@ -117,6 +109,15 @@ Refactoring:
   creates better modularity and allows us to avoid hard-coding stuff (like the task
   scales) in two different places.
 - Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
+
+
+Loss weighting experiments:
+- Datasets: MTRegression, NYUv2
+- Methods: Constant, Uncertainty, GradNorm, DWA, NLW, CLW, NCLW
+- Architecture: Shared trunk: ResNet encoder (either 50 or 101, depending on how much we
+  can fit on GPU), task specific output heads with 1 3x3 Conv-BN-ReLU + 1 1x1 Conv.
+- Methodology: Repeat each method with different random seeds until we reach pairwise
+  statistical significance, or until we hit X trials.
 
 
 ----------------------------------------------------------------------------------------
@@ -434,5 +435,7 @@ Style:
     each file in that subpackage.
   - Convert config into an object or just store config values as members in the relevant
     class, so that we can get rid of magic strings everywhere.
+  - Fix security issues with `eval()`. Anytime `eval()` is used, we need to check that
+    the input is a member of a fixed whitelist.
 - Additions:
 - Nice to have:
