@@ -254,42 +254,42 @@ DATASETS = {
         },
         "extra_metrics": {
             "train_seg_accuracy": {
-                "fn": NYUv2_seg_accuracy,
+                "fn": NYUv2_multi_seg_accuracy,
                 "basename": "seg_accuracy",
                 "maximize": True,
                 "train": True,
                 "show": False,
             },
             "eval_seg_accuracy": {
-                "fn": NYUv2_seg_accuracy,
+                "fn": NYUv2_multi_seg_accuracy,
                 "basename": "seg_accuracy",
                 "maximize": True,
                 "train": False,
                 "show": False,
             },
             "train_sn_accuracy": {
-                "fn": NYUv2_sn_accuracy,
+                "fn": NYUv2_multi_sn_accuracy,
                 "basename": "sn_accuracy",
                 "maximize": True,
                 "train": True,
                 "show": False,
             },
             "eval_sn_accuracy": {
-                "fn": NYUv2_sn_accuracy,
+                "fn": NYUv2_multi_sn_accuracy,
                 "basename": "sn_accuracy",
                 "maximize": True,
                 "train": False,
                 "show": False,
             },
             "train_depth_accuracy": {
-                "fn": NYUv2_depth_accuracy,
+                "fn": NYUv2_multi_depth_accuracy,
                 "basename": "depth_accuracy",
                 "maximize": True,
                 "train": True,
                 "show": False,
             },
             "eval_depth_accuracy": {
-                "fn": NYUv2_depth_accuracy,
+                "fn": NYUv2_multi_depth_accuracy,
                 "basename": "depth_accuracy",
                 "maximize": True,
                 "train": False,
@@ -470,9 +470,8 @@ class SLTrainer(Trainer):
         # Determine type of network to construct.
         network_kwargs = dict(config["architecture_config"])
         input_size = self.dataset_info["input_size"]
-        if config["architecture_config"]["type"] in PRETRAINED_MODELS:
+        if config["architecture_config"]["type"] == "backbone":
             network_cls = BackboneNetwork
-            network_kwargs["arch_type"] = network_kwargs["type"]
         elif config["architecture_config"]["type"] == "conv":
             assert isinstance(input_size, tuple) and len(input_size) == 3
             network_cls = ConvNetwork

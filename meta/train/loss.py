@@ -488,7 +488,7 @@ def save_batch(
 
 
 def get_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of classification prediction given outputs and labels.
@@ -498,7 +498,7 @@ def get_accuracy(
 
 
 def NYUv2_seg_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of semantic segmentation on the NYUv2 dataset. Here we assume that
@@ -514,7 +514,7 @@ def NYUv2_seg_accuracy(
 
 
 def NYUv2_sn_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of surface normal estimation on the NYUv2 dataset. We define this
@@ -531,7 +531,7 @@ def NYUv2_sn_accuracy(
 
 
 def NYUv2_depth_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
@@ -546,7 +546,7 @@ def NYUv2_depth_accuracy(
 
 
 def NYUv2_multi_seg_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of semantic segmentation on the NYUv2 dataset when performing
@@ -555,11 +555,11 @@ def NYUv2_multi_seg_accuracy(
     """
     task_outputs = outputs[:, :13]
     task_labels = labels[:, 0].long()
-    return NYUv2_seg_accuracy(task_outputs, task_labels)
+    return NYUv2_seg_accuracy(task_outputs, task_labels, criterion)
 
 
 def NYUv2_multi_sn_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of surface normal estimation on the NYUv2 dataset when performing
@@ -572,7 +572,7 @@ def NYUv2_multi_sn_accuracy(
 
 
 def NYUv2_multi_depth_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of depth prediction on the NYUv2 dataset when performing
@@ -585,7 +585,7 @@ def NYUv2_multi_depth_accuracy(
 
 
 def NYUv2_multi_avg_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute average accuracy of the three tasks on the NYUv2 dataset when performing
@@ -609,7 +609,7 @@ def get_MTRegression_normal_loss(
     weights_t = np.array(WEIGHTS[:num_tasks])
 
     def metric(
-        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
     ) -> float:
         """
         Computes normalized multi-task loss for MTRegression task. Both `outputs` and
@@ -634,7 +634,7 @@ def get_multitask_loss_weight(
     """
 
     def multitask_loss_weight(
-        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
     ) -> float:
         """
         Returns the multi-task loss weight for a given task from `criterion`, which

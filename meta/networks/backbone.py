@@ -24,9 +24,7 @@ SIMPLE_MODELS = ["conv"]
 ARCH_TYPES = SIMPLE_MODELS + PRETRAINED_MODELS
 PRETRAINED_LAYERS = {"resnet": [18, 34, 50, 101, 152]}
 PRETRAINED_INCHANNELS = {"resnet": 64}
-PRETRAINED_OUTCHANNELS = {
-    "resnet": {"18": 512, "34": 512, "50": 2048, "101": 2048, "152": 2048,}
-}
+PRETRAINED_OUTCHANNELS = {"resnet": {18: 512, 34: 512, 50: 2048, 101: 2048, 152: 2048}}
 
 
 class BackboneNetwork(nn.Module):
@@ -49,10 +47,12 @@ class BackboneNetwork(nn.Module):
         Parameters
         ----------
         input_size : Tuple[int, int, int]
-            Input size for network, describing dimension of input images.
+            Input size for network, describing dimension of input images. Order of
+            dimensions is [channels, width, height].
         output_size : Union[Tuple[int, int, int], List[Tuple[int, int, int]]]
             Output size(s) for network. If this is a list of tuples, then the network
-            will have one shared trunk that feeds into task-specific output heads.
+            will have one shared trunk that feeds into task-specific output heads. Order
+            of channels is same as `input_size`.
         arch_type : str
             Trunk architectuer type. The options are listed in `ARCH_TYPES`.
         num_backbone_layers : int
@@ -85,11 +85,14 @@ class BackboneNetwork(nn.Module):
         self.head_channels = head_channels
         self.arch_type = arch_type
         self.initial_channels = initial_channels
+        if self.arch_type in PRETRAINED_MODELS:
+            assert self.num_backbone_layers in PRETRAINED_LAYERS[self.arch_type]
+            self.initial_channels = PRETRAINED_INCHANNELS[self.arch_type]
+        else:
+            assert self.initial_channels is not None
         self.pretrained = pretrained
         if self.pretrained:
             assert self.arch_type in PRETRAINED_MODELS
-            assert self.num_backbone_layers in PRETRAINED_LAYERS[self.arch_type]
-            self.initial_channels = PRETRAINED_INCHANNELS[self.arch_type]
         if isinstance(self.output_size, tuple):
             assert len(self.output_size) == 3
             self.num_tasks = 1
@@ -115,17 +118,26 @@ class BackboneNetwork(nn.Module):
 
             backbone_layers = [
                 get_conv_layer(
+                    in_channels=self.input_size[0],
+                    out_channels=self.initial_channels,
+                    activation="relu",
+                    layer_init=init_base,
+                    batch_norm=True,
+                )
+            ]
+            backbone_layers += [
+                get_conv_layer(
                     in_channels=(self.initial_channels * (2 ** i)),
                     out_channels=(self.initial_channels * (2 ** (i + 1))),
                     activation="relu",
                     layer_init=init_base,
                     batch_norm=True,
                 )
-                for i in range(self.num_backbone_layers)
+                for i in range(self.num_backbone_layers - 1)
             ]
             self.backbone = nn.Sequential(*backbone_layers)
             backbone_out_channels = self.initial_channels * (
-                2 ** self.num_backbone_layers
+                2 ** (self.num_backbone_layers - 1)
             )
 
         elif self.arch_type == "resnet":
@@ -133,7 +145,7 @@ class BackboneNetwork(nn.Module):
             # Initialize backbone and get features (before spatial dimensions are
             # collapsed).
             backbone_cls = eval(
-                "torchvision.models.resnet.%d" % self.num_backbone_layers
+                "torchvision.models.resnet%d" % self.num_backbone_layers
             )
             self.backbone = backbone_cls(
                 pretrained=self.pretrained,
@@ -143,7 +155,9 @@ class BackboneNetwork(nn.Module):
             self.backbone = IntermediateLayerGetter(
                 self.backbone, return_layers=return_layers
             )
-            backbone_out_channels = PRETRAINED_OUTCHANNELS[self.arch_type]
+            backbone_out_channels = PRETRAINED_OUTCHANNELS[self.arch_type][
+                self.num_backbone_layers
+            ]
 
         else:
             raise NotImplementedError
@@ -207,7 +221,12 @@ class BackboneNetwork(nn.Module):
         input_size = inputs.shape[-2:]
 
         # Pass input through backbone and output head.
-        features = self.backbone(inputs)["features"]
+        if self.arch_type == "conv":
+            features = self.backbone(inputs)
+        elif self.arch_type == "resnet":
+            features = self.backbone(inputs)["features"]
+        else:
+            raise NotImplementedError
         out = self.head(features)
 
         # Upsample output to match input resolution.
