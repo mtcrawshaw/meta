@@ -51,10 +51,10 @@ def test_backward() -> None:
 
         # Compute loss over outputs from the current task.
         task_start = sum([size[0] for size in SETTINGS["output_size"][:i]])
-        task_end = sum([size[0] for size in SETTINGS["output_size"][:i+1]])
+        task_end = sum([size[0] for size in SETTINGS["output_size"][: i + 1]])
         print(f"task_start: {task_start}")
         print(f"task_end: {task_end}")
-        loss = torch.sum(output[:, task_start: task_end] ** 2)
+        loss = torch.sum(output[:, task_start:task_end] ** 2)
 
         # Test gradients.
         loss.backward(retain_graph=True)

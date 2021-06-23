@@ -59,5 +59,4 @@ def test_no_new_dim():
     for layer in range(NUM_LAYERS):
         layer_start = layer * BATCH_SIZE
         layer_end = (layer + 1) * BATCH_SIZE
-        assert torch.allclose(outputs[layer_start: layer_end], modules[layer](inputs))
-
+        assert torch.allclose(outputs[layer_start:layer_end], modules[layer](inputs))

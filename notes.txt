@@ -80,10 +80,8 @@ so that we don't have an impossible merge to perform later on.
 Current sprint (Write tests):
     BackboneNetwork
     Parallel
---> MultiTaskLoss
-    LossWeighter and all subclasses
     Metric functions in loss.py
-    SL training tests
+--> SL training tests
 
 
 Next sprint (Loss weighting experiments):
