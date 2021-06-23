@@ -1,5 +1,5 @@
 """
-Unit tests for meta/train/train.py.
+Unit tests for meta/train/trainers/rl_trainer.py.
 """
 
 import os
@@ -7,12 +7,10 @@ import json
 
 import torch
 
-from meta.train.env import get_env
 from meta.train.train import train
 from meta.train.trainers import RLTrainer
-from meta.utils.storage import RolloutStorage
 from meta.utils.utils import save_dir_from_name
-from tests.helpers import get_policy, check_results_name, DEFAULT_SETTINGS
+from tests.helpers import check_results_name, DEFAULT_SETTINGS
 
 
 MP_FACTOR = 4

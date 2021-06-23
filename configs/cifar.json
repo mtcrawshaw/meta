@@ -13,7 +13,7 @@
 
     "architecture_config": {
         "type": "conv",
-        "num_conv_layers": 2,
+        "num_conv_layers": 3,
         "initial_channels": 32,
         "num_fc_layers": 1,
         "fc_hidden_size": 32,

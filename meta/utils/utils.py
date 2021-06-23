@@ -14,6 +14,8 @@ METRICS_DIR = os.path.join("data", "metrics")
 RESULTS_DIR = os.path.join("results")
 DATA_DIR = os.path.join("data", "datasets")
 
+TOL = 5e-5
+
 
 class AddBias(nn.Module):
     """ Hacky fix for Gaussian policies. """
@@ -79,7 +81,7 @@ def compare_metrics(metrics: Dict[str, List[float]], metrics_filename: str) -> N
 
             current_val = metrics[key][i]
             baseline_val = baseline_metrics[key][i]
-            if current_val != baseline_val:
+            if abs(current_val - baseline_val) > TOL:
                 diff[key].append((i, current_val, baseline_val))
 
     print("Metrics diff: %s" % diff)
