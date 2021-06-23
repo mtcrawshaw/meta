@@ -69,23 +69,16 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Add multi-task functionality + dataset
     Implement loss weighting methods
     Toy multi-task problem
---> Write tests
-    Loss weighting experiments
+    Write tests
+--> Loss weighting experiments
     Refactoring
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
 
-Current sprint (Write tests):
-    BackboneNetwork
-    Parallel
-    Metric functions in loss.py
---> SL training tests
-
-
-Next sprint (Loss weighting experiments):
-    GradNorm
+Current sprint (Loss weighting experiments):
+--> GradNorm
     Experiment command (run multiple configs)
     Run experiment to statistical significance
     Shared plotting in experiment
