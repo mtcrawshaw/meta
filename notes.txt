@@ -110,6 +110,22 @@ Loss weighting experiments:
 - Methodology: Repeat each method with different random seeds until we reach pairwise
   statistical significance, or until we hit X trials.
 
+Rename MultiTaskTrunkNetwork to TrunkNetwork.
+
+Notes for current task:
+Added some infrastructure to get GradNorm to work. The GradNorm object (LossWeighter
+subclass) now has a reference to the last shared layer of parameters of the network
+being trained, which means that to finish GradNorm we only need to add things to the
+actual GradNorm object. However, we have to be careful about using the Iterator over
+these parameters. Do we need to "reset" the iterator every time we cycle over it? Is
+this iterator independent from the iterator over the parameters that is passed to the
+optimizer? I might just be overthinking it but I'm unsure because I don't know the
+details of Iterators as well as I'd like to. I think the easiest way to test these
+properties is to add an iteration over the parameters to the GradNorm
+`_update_weights()` function and confirm that the training metrics don't change at all.
+If this is true, we should be good to go, and otherwise we need to learn about
+Iterators.
+
 
 ----------------------------------------------------------------------------------------
 

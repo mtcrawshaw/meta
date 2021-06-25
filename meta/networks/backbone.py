@@ -151,10 +151,7 @@ class BackboneNetwork(nn.Module):
                 pretrained=self.pretrained,
                 replace_stride_with_dilation=[True, True, True],
             )
-            return_layers = {"layer4": "features"}
-            self.backbone = IntermediateLayerGetter(
-                self.backbone, return_layers=return_layers
-            )
+            self.backbone = IntermediateLayerGetter(self.backbone, "layer4")
             backbone_out_channels = PRETRAINED_OUTCHANNELS[self.arch_type][
                 self.num_backbone_layers
             ]
@@ -221,12 +218,7 @@ class BackboneNetwork(nn.Module):
         input_size = inputs.shape[-2:]
 
         # Pass input through backbone and output head.
-        if self.arch_type == "conv":
-            features = self.backbone(inputs)
-        elif self.arch_type == "resnet":
-            features = self.backbone(inputs)["features"]
-        else:
-            raise NotImplementedError
+        features = self.backbone(inputs)
         out = self.head(features)
 
         # Upsample output to match input resolution.

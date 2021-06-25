@@ -2,7 +2,7 @@
 
 import math
 from PIL import Image
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Iterator
 
 import numpy as np
 import torch
@@ -54,6 +54,7 @@ class MultiTaskLoss(nn.Module):
         if loss_weighter not in [
             "Constant",
             "Uncertainty",
+            "GradNorm",
             "DWA",
             "MLDW",
             "LBTW",
@@ -169,6 +170,31 @@ class Uncertainty(LossWeighter):
     def _update_weights(self) -> None:
         """ Compute new loss weights. """
         self.loss_weights = 0.5 * torch.exp(-self.log_variance)
+
+
+class GradNorm(LossWeighter):
+    """
+    Compute task loss weights with GradNorm, detailed in
+    https://arxiv.org/abs/1711.02257.
+    """
+
+    def __init__(
+        self,
+        shared_params: Iterator[nn.Parameter],
+        asymmetry: float,
+        **kwargs: Dict[str, Any]
+    ) -> None:
+        """ Init function for Uncertainty. """
+
+        super(GradNorm, self).__init__(**kwargs)
+
+        # Save state.
+        self.shared_params = shared_params
+        self.asymmetry = asymmetry
+
+    def _update_weights(self) -> None:
+        """ Compute new loss weights. """
+        pass
 
 
 class DWA(LossWeighter):

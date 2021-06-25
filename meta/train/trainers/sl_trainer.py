@@ -32,6 +32,7 @@ from meta.networks import (
     MultiTaskTrunkNetwork,
     PRETRAINED_MODELS,
 )
+from meta.networks import last_shared_params
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -491,13 +492,20 @@ class SLTrainer(Trainer):
         network_kwargs["device"] = self.device
         self.network = network_cls(**network_kwargs)
 
-        # Construct loss function.
+        # Set up case for loss function.
         loss_cls = self.dataset_info["loss_cls"]
         loss_kwargs = self.dataset_info["loss_kwargs"]
+
+        # Add arguments to `loss_kwargs` in case we are multi-task training.
         if "loss_weighter" in config:
-            loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
+            loss_weighter_kwargs = dict(config["loss_weighter"])
+            if config["loss_weighter"]["type"] == "GradNorm":
+                loss_weighter_kwargs["shared_params"] = last_shared_params(self.network)
+            loss_kwargs["loss_weighter_kwargs"] = loss_weighter_kwargs
         if loss_cls == MultiTaskLoss:
             loss_kwargs["device"] = self.device
+
+        # Construct loss function.
         self.criterion = loss_cls(**loss_kwargs)
 
     def _step(self) -> Dict[str, Any]:
