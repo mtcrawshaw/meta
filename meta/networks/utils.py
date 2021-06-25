@@ -140,7 +140,7 @@ class IntermediateLayerGetter(nn.Sequential):
             if name == m_name:
                 break
 
-        super(IntermediateLayerGetter, self).__init__(layers)
+        super(IntermediateLayerGetter, self).__init__(*layers)
 
 
 class Parallel(nn.Module):
