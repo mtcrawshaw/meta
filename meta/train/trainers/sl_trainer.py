@@ -70,6 +70,10 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -95,6 +99,10 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -120,6 +128,10 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -145,6 +157,10 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {"ignore_index": -1},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_seg_accuracy,
@@ -175,6 +191,10 @@ DATASETS = {
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
         "loss_kwargs": {},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_sn_accuracy,
@@ -205,6 +225,10 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.MSELoss,
         "loss_kwargs": {},
+        "criterion_kwargs": {
+            "train": {},
+            "eval": {},
+        },
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_depth_accuracy,
@@ -252,6 +276,10 @@ DATASETS = {
                     "label_slice": lambda x: x[:, 4:5],
                 },
             ],
+        },
+        "criterion_kwargs": {
+            "train": {"train": True},
+            "eval": {"train": False},
         },
         "extra_metrics": {
             "train_seg_accuracy": {
@@ -336,6 +364,10 @@ DATASETS = {
                 for i in range(2)
             ],
         },
+        "criterion_kwargs": {
+            "train": {"train": True},
+            "eval": {"train": False},
+        },
         "extra_metrics": {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(2),
@@ -380,6 +412,10 @@ DATASETS = {
                 }
                 for i in range(10)
             ],
+        },
+        "criterion_kwargs": {
+            "train": {"train": True},
+            "eval": {"train": False},
         },
         "extra_metrics": {
             "train_normal_loss": {
@@ -507,6 +543,7 @@ class SLTrainer(Trainer):
 
         # Construct loss function.
         self.criterion = loss_cls(**loss_kwargs)
+        self.criterion_kwargs = self.dataset_info["criterion_kwargs"]
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -518,7 +555,7 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
-        loss = self.criterion(outputs, labels)
+        loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self.network.zero_grad()
@@ -547,7 +584,7 @@ class SLTrainer(Trainer):
 
         # Perform forward pass and copmute loss.
         outputs = self.network(inputs)
-        loss = self.criterion(outputs, labels)
+        loss = self.criterion(outputs, labels, **self.criterion_kwargs["eval"])
 
         # Compute metrics from evaluation step.
         eval_step_metrics = {

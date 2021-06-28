@@ -73,7 +73,7 @@ class MultiTaskLoss(nn.Module):
         pre_loss_weighters = [Uncertainty]
         self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
-    def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor, train: bool = True) -> torch.Tensor:
         """ Compute values of each task losses, then return the sum. """
 
         # Compute task losses.
@@ -86,7 +86,7 @@ class MultiTaskLoss(nn.Module):
         task_loss_vals = torch.stack(task_loss_vals)
 
         # Update loss weighter before loss computation, if necessary.
-        if self.pre_loss_update:
+        if train and self.pre_loss_update:
             self.loss_weighter.update(task_loss_vals)
 
         # Compute total loss as weighted sum of task losses.
@@ -97,7 +97,7 @@ class MultiTaskLoss(nn.Module):
             total_loss += self.loss_weighter.regularization()
 
         # Update loss weighter after loss computation, if necessary.
-        if not self.pre_loss_update:
+        if train and not self.pre_loss_update:
             self.loss_weighter.update(task_loss_vals)
 
         return total_loss

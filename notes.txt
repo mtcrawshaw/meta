@@ -100,6 +100,8 @@ Refactoring:
   scales) in two different places.
 - Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
 - Merge redundant networks (Trunk + Backbone? Conv + MLP?)
+- Replace training tests for loss weighters with actual unit tests that compute the
+  expected value of each weight.
 
 
 Loss weighting experiments:
