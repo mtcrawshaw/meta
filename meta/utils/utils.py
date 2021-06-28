@@ -14,7 +14,7 @@ METRICS_DIR = os.path.join("data", "metrics")
 RESULTS_DIR = os.path.join("results")
 DATA_DIR = os.path.join("data", "datasets")
 
-TOL = 5e-5
+TOL = 5e-4
 
 
 class AddBias(nn.Module):
