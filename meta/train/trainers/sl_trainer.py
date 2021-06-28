@@ -553,12 +553,14 @@ class SLTrainer(Trainer):
         inputs = inputs.to(self.device)
         labels = labels.to(self.device)
 
+        # Zero gradients.
+        self.optimizer.zero_grad()
+
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # Perform backward pass, clip gradient, and take optimizer step.
-        self.network.zero_grad()
         loss.backward()
         self.clip_grads()
         self.optimizer.step()
