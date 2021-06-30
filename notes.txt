@@ -53,6 +53,7 @@ Notes for current task:
 - Implement training on pre-split architecture
 
 Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
+Change max_grad_norm to None for all configs (update baselines accordingly)
 
 ----------------------------------------------------------------------------------------
 
@@ -79,6 +80,7 @@ so that we don't have an impossible merge to perform later on.
 
 Current sprint (Loss weighting experiments):
 --> GradNorm
+    Proper testing for loss weighters
     Experiment command (run multiple configs)
     Run experiment to statistical significance
     Shared plotting in experiment

@@ -70,11 +70,21 @@ class MultiTaskLoss(nn.Module):
 
         # Determine whether loss weights should be updated before or after task loss
         # computation.
-        pre_loss_weighters = [Uncertainty]
+        pre_loss_weighters = [Uncertainty, GradNorm]
         self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
-    def forward(self, outputs: torch.Tensor, labels: torch.Tensor, train: bool = True) -> torch.Tensor:
-        """ Compute values of each task losses, then return the sum. """
+    def forward(
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        train: bool = True,
+        **kwargs: Dict[str, Any],
+    ) -> torch.Tensor:
+        """
+        Compute values of each task losses, update the task-loss weights, then return
+        the weighted sum of task losses. Extra arguments are passed to `update()` of
+        `LossWeighter`.
+        """
 
         # Compute task losses.
         task_loss_vals = []
@@ -87,7 +97,7 @@ class MultiTaskLoss(nn.Module):
 
         # Update loss weighter before loss computation, if necessary.
         if train and self.pre_loss_update:
-            self.loss_weighter.update(task_loss_vals)
+            self.loss_weighter.update(task_loss_vals, **kwargs)
 
         # Compute total loss as weighted sum of task losses.
         total_loss = torch.sum(task_loss_vals * self.loss_weighter.loss_weights)
@@ -98,7 +108,7 @@ class MultiTaskLoss(nn.Module):
 
         # Update loss weighter after loss computation, if necessary.
         if train and not self.pre_loss_update:
-            self.loss_weighter.update(task_loss_vals)
+            self.loss_weighter.update(task_loss_vals, **kwargs)
 
         return total_loss
 
@@ -120,13 +130,20 @@ class LossWeighter(nn.Module):
         self.initial_loss_weights = torch.clone(self.loss_weights)
         self.total_weight = torch.sum(self.loss_weights)
         self.loss_history = []
+        self.steps = 0
         self.MAX_HISTORY_LEN = 2
 
-    def update(self, loss_vals: torch.Tensor) -> None:
-        """ Compute new loss weights using most recent values of task losses. """
+    def update(self, loss_vals: torch.Tensor, **kwargs: Dict[str, Any]) -> None:
+        """
+        Compute new loss weights using most recent values of task losses. Extra
+        arguments are passed to `self._update_weights()`.
+        """
         self.loss_history.append(loss_vals.detach())
         self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
-        self._update_weights()
+        if isinstance(self, GradNorm):
+            kwargs["loss_vals"] = loss_vals
+        self._update_weights(**kwargs)
+        self.steps += 1
 
     def _update_weights(self) -> None:
         """ Update loss weights. Should be implemented in subclasses. """
@@ -180,9 +197,10 @@ class GradNorm(LossWeighter):
 
     def __init__(
         self,
-        shared_params: Iterator[nn.Parameter],
+        shared_params: List[nn.Parameter],
         asymmetry: float,
-        **kwargs: Dict[str, Any]
+        weight_lr: float,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """ Init function for Uncertainty. """
 
@@ -191,10 +209,61 @@ class GradNorm(LossWeighter):
         # Save state.
         self.shared_params = shared_params
         self.asymmetry = asymmetry
+        self.weight_lr = weight_lr
+        self.grad_len = sum([param.numel() for param in self.shared_params])
+        self.baseline_losses = None
 
-    def _update_weights(self) -> None:
+        # Create parameter for loss weights and the corresponding optimizer.
+        self.loss_weight_p = nn.Parameter(self.loss_weights.clone().detach())
+        self.loss_weight_optim = torch.optim.Adam(self.parameters(), lr=self.weight_lr)
+
+    def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compute new loss weights. """
-        pass
+
+        # Store losses from the first training step.
+        if self.baseline_losses is None:
+            self.baseline_losses = self.loss_history[-1]
+
+        # Compute gradients of each task's loss.
+        task_grads = torch.zeros((self.num_tasks, self.grad_len))
+        for task in range(self.num_tasks):
+            network.zero_grad()
+            loss_vals[task].backward(retain_graph=True)
+            task_grad = torch.cat([param.grad.view(-1) for param in self.shared_params])
+            task_grads[task] = task_grad.detach()
+        network.zero_grad()
+
+        # Compute gradient norms.
+        task_grad_norms = torch.sqrt(
+            torch.sum((task_grads * self.loss_weight_p.unsqueeze(-1)) ** 2, dim=-1)
+        )
+
+        # Compute gradient norm targets from the average gradient norm and relative
+        # inverse training rates. These are treated as constants in the GradNorm loss
+        # function.
+        with torch.no_grad():
+            avg_grad_norm = torch.mean(task_grad_norms)
+
+            inv_rate = self.loss_history[-1] / self.baseline_losses
+            avg_inv_rate = torch.mean(inv_rate)
+            rel_inv_rate = inv_rate / avg_inv_rate
+
+            grad_norm_target = avg_grad_norm * (rel_inv_rate ** self.asymmetry)
+
+        # Compute GradNorm loss.
+        gradnorm_loss = torch.sum(torch.abs(task_grad_norms - grad_norm_target))
+
+        # Update loss weights.
+        self.loss_weight_optim.zero_grad()
+        gradnorm_loss.backward()
+        self.loss_weight_optim.step()
+
+        # Renormalize loss weights and assign values from internal parameter to
+        # `self.loss_weights`.
+        with torch.no_grad():
+            self.loss_weight_p /= torch.sum(self.loss_weight_p)
+            self.loss_weight_p *= self.total_weight
+            self.loss_weights = self.loss_weight_p.data.clone().detach()
 
 
 class DWA(LossWeighter):
@@ -291,7 +360,6 @@ class LBTW(LossWeighter):
         super(LBTW, self).__init__(**kwargs)
         self.alpha = alpha
         self.period = period
-        self.steps = 0
         self.baseline_losses = None
 
     def _update_weights(self) -> None:
@@ -305,9 +373,6 @@ class LBTW(LossWeighter):
         self.loss_weights = torch.pow(
             self.loss_history[-1] / self.baseline_losses, self.alpha
         )
-
-        # Update number of steps.
-        self.steps += 1
 
 
 class NLW(LossWeighter):

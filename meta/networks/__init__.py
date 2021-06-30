@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import List
 
 import torch.nn as nn
 
@@ -15,14 +15,14 @@ from meta.networks.splitting import (
 )
 
 
-def last_shared_params(net: nn.Module) -> Iterator[nn.Parameter]:
+def last_shared_params(net: nn.Module) -> List[nn.Parameter]:
     """
-    Return an Iterator over the parameters of the last layer in `net` whose parameters
-    are shared between multiple tasks. This is used in the GradNorm implementation,
-    since this method only considers the gradients of the last layer of shared
-    parameters. Note that this only applies in the multi-task setting, so `net` must be
-    an instance of `BackboneNetwork` or `MultiTaskTrunkNetwork` and `net` must be a
-    multi-task network.
+    Return a list of the parameters of the last layer in `net` whose parameters are
+    shared between multiple tasks. This is used in the GradNorm implementation, since
+    this method only considers the gradients of the last layer of shared parameters.
+    Note that this only applies in the multi-task setting, so `net` must be an instance
+    of `BackboneNetwork` or `MultiTaskTrunkNetwork` and `net` must be a multi-task
+    network.
     """
 
     # Check for valid network.
@@ -36,9 +36,9 @@ def last_shared_params(net: nn.Module) -> Iterator[nn.Parameter]:
 
     # Get last shared layer of parameters.
     if is_backbone:
-        params = net.backbone[-1].parameters()
+        params = list(net.backbone[-1].parameters())
     elif is_trunk:
-        params = net.trunk[-1].parameters()
+        params = list(net.trunk[-1].parameters())
     else:
         # This should never execute.
         assert False

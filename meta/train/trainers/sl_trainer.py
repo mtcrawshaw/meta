@@ -14,6 +14,7 @@ from meta.datasets import NYUv2, MTRegression
 from meta.train.loss import (
     CosineSimilarityLoss,
     MultiTaskLoss,
+    Uncertainty,
     get_accuracy,
     NYUv2_seg_accuracy,
     NYUv2_sn_accuracy,
@@ -70,10 +71,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -99,10 +97,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -128,10 +123,7 @@ DATASETS = {
         "builtin": True,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": get_accuracy,
@@ -157,10 +149,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
         "loss_kwargs": {"ignore_index": -1},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_seg_accuracy,
@@ -191,10 +180,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
         "loss_kwargs": {},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_sn_accuracy,
@@ -225,10 +211,7 @@ DATASETS = {
         "builtin": False,
         "loss_cls": nn.MSELoss,
         "loss_kwargs": {},
-        "criterion_kwargs": {
-            "train": {},
-            "eval": {},
-        },
+        "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy": {
                 "fn": NYUv2_depth_accuracy,
@@ -277,10 +260,7 @@ DATASETS = {
                 },
             ],
         },
-        "criterion_kwargs": {
-            "train": {"train": True},
-            "eval": {"train": False},
-        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
             "train_seg_accuracy": {
                 "fn": NYUv2_multi_seg_accuracy,
@@ -364,10 +344,7 @@ DATASETS = {
                 for i in range(2)
             ],
         },
-        "criterion_kwargs": {
-            "train": {"train": True},
-            "eval": {"train": False},
-        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(2),
@@ -413,10 +390,7 @@ DATASETS = {
                 for i in range(10)
             ],
         },
-        "criterion_kwargs": {
-            "train": {"train": True},
-            "eval": {"train": False},
-        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(10),
@@ -532,7 +506,8 @@ class SLTrainer(Trainer):
         loss_cls = self.dataset_info["loss_cls"]
         loss_kwargs = self.dataset_info["loss_kwargs"]
 
-        # Add arguments to `loss_kwargs` in case we are multi-task training.
+        # Add arguments to `self.criterion` in case we are multi-task training. These
+        # are passed as arguments to the constructor of `self.criterion`.
         if "loss_weighter" in config:
             loss_weighter_kwargs = dict(config["loss_weighter"])
             if config["loss_weighter"]["type"] == "GradNorm":
@@ -543,7 +518,20 @@ class SLTrainer(Trainer):
 
         # Construct loss function.
         self.criterion = loss_cls(**loss_kwargs)
-        self.criterion_kwargs = self.dataset_info["criterion_kwargs"]
+
+        # Construct arguments to `self.criterion`. These are passed as arguments to the
+        # forward pass through `self.criterion`. Here we include the network itself as
+        # an argument to the loss function, since computing the task-specific gradients
+        # requires zero-ing out gradients between tasks, and this requires access to the
+        # Module containing the relevant parameters. Note that this will need to change
+        # in the case that GradNorm is operating over parameters outside of
+        # `self.network`, or if the task-specific loss functions are dependent on
+        # parameters outside of `self.network`.
+        criterion_kwargs = self.dataset_info["criterion_kwargs"]
+        if "loss_weighter" in config:
+            if config["loss_weighter"]["type"] == "GradNorm":
+                criterion_kwargs["train"]["network"] = self.network
+        self.criterion_kwargs = dict(criterion_kwargs)
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -623,7 +611,9 @@ class SLTrainer(Trainer):
 
         # Check whether we need to add extra parameters in the case that we are
         # multi-task training with "Weighting by Uncertainty".
-        if isinstance(self.criterion, MultiTaskLoss):
+        if isinstance(self.criterion, MultiTaskLoss) and isinstance(
+            self.criterion.loss_weighter, Uncertainty
+        ):
             param_iterator = chain(
                 self.network.parameters(), self.criterion.loss_weighter.parameters()
             )
