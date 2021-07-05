@@ -225,7 +225,7 @@ class GradNorm(LossWeighter):
             self.baseline_losses = self.loss_history[-1]
 
         # Compute gradients of each task's loss.
-        task_grads = torch.zeros((self.num_tasks, self.grad_len))
+        task_grads = torch.zeros((self.num_tasks, self.grad_len), device=self.device)
         for task in range(self.num_tasks):
             network.zero_grad()
             loss_vals[task].backward(retain_graph=True)
