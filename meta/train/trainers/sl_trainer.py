@@ -318,6 +318,17 @@ DATASETS = {
                 "train": False,
                 "show": True,
             },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(3)
+            },
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
