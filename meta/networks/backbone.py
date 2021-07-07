@@ -36,6 +36,7 @@ class BackboneNetwork(nn.Module):
         output_size: Union[Tuple[int, int, int], List[Tuple[int, int, int]]],
         arch_type: str,
         num_backbone_layers: int,
+        num_head_layers: int,
         head_channels: int,
         initial_channels: int = None,
         pretrained: bool = False,
@@ -57,8 +58,10 @@ class BackboneNetwork(nn.Module):
             Trunk architectuer type. The options are listed in `ARCH_TYPES`.
         num_backbone_layers : int
             Number of layers in backbone of network.
+        num_head_layers: int
+            Number of layers in each task's output head.
         head_channels : int
-            Number of channels in the first layer of each task-specific output head.
+            Number of channels in each layer of each task-specific output head.
         initial_channels : int
             Number of channels in first layer of network. This value is ignored when
             using a pretrained architecture that has a fixed number of initial channels,
@@ -82,6 +85,7 @@ class BackboneNetwork(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.num_backbone_layers = num_backbone_layers
+        self.num_head_layers = num_head_layers
         self.head_channels = head_channels
         self.arch_type = arch_type
         self.initial_channels = initial_channels
@@ -159,45 +163,39 @@ class BackboneNetwork(nn.Module):
         else:
             raise NotImplementedError
 
+        def get_head(num_layers, head_channels, output_size):
+            """ Helper function to get output head. """
+            head_layers = []
+            for i in range(num_layers):
+                in_channels = backbone_out_channels if i == 0 else head_channels
+                out_channels = output_size if i == num_layers - 1 else head_channels
+                activation = None if i == num_layers - 1 else "relu"
+                batch_norm = i < num_layers - 1
+                kernel_size = 1 if i == num_layers - 1 else 3
+                head_layers.append(
+                    get_conv_layer(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        activation=activation,
+                        layer_init=init_base,
+                        batch_norm=batch_norm,
+                        kernel_size=kernel_size,
+                    )
+                )
+            return nn.Sequential(*head_layers)
+
         # Initialize output head(s).
         if self.num_tasks == 1:
-            head_layers = [
-                get_conv_layer(
-                    in_channels=backbone_out_channels,
-                    out_channels=self.head_channels,
-                    activation="relu",
-                    layer_init=init_base,
-                    batch_norm=True,
-                ),
-                get_conv_layer(
-                    in_channels=self.head_channels,
-                    out_channels=self.output_size[0],
-                    activation=None,
-                    layer_init=init_base,
-                    kernel_size=1,
-                ),
-            ]
-            self.head = nn.Sequential(*head_layers)
+            self.head = get_head(
+                self.num_head_layers, self.head_channels, self.output_size[0]
+            )
         else:
-            heads = []
-            for task in range(self.num_tasks):
-                head_layers = [
-                    get_conv_layer(
-                        in_channels=backbone_out_channels,
-                        out_channels=self.head_channels,
-                        activation="relu",
-                        layer_init=init_base,
-                        batch_norm=True,
-                    ),
-                    get_conv_layer(
-                        in_channels=self.head_channels,
-                        out_channels=self.output_size[task][0],
-                        activation=None,
-                        layer_init=init_base,
-                        kernel_size=1,
-                    ),
-                ]
-                heads.append(nn.Sequential(*head_layers))
+            heads = [
+                get_head(
+                    self.num_head_layers, self.head_channels, self.output_size[task][0]
+                )
+                for task in range(self.num_tasks)
+            ]
             self.head = Parallel(heads, combine_dim=1)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
