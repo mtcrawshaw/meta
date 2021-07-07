@@ -677,7 +677,7 @@ class SLTrainer(Trainer):
             {
                 "name": "eval_loss",
                 "basename": "loss",
-                "window": TEST_WINDOW,
+                "window": EVAL_WINDOW,
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
