@@ -79,11 +79,11 @@ so that we don't have an impossible merge to perform later on.
 
 
 Current sprint (Loss weighting experiments):
---> GradNorm
-    Proper testing for loss weighters
-    Experiment command (run multiple configs)
+    GradNorm
+--> Experiment command (run multiple configs)
     Run experiment to statistical significance
     Shared plotting in experiment
+    Proper testing for loss weighters
 
 
 Refactoring:
