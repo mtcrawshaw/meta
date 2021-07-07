@@ -64,6 +64,8 @@ def slice_second_dim(idx: int) -> Callable[[Any], Any]:
     return slice
 
 
+TRAIN_WINDOW = 100
+EVAL_WINDOW = 10
 DATASETS = {
     "MNIST": {
         "input_size": (1, 28, 28),
@@ -76,6 +78,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -83,6 +86,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -102,6 +106,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -109,6 +114,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -128,6 +134,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -135,6 +142,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": get_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -154,6 +162,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": NYUv2_seg_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -161,6 +170,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": NYUv2_seg_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -185,6 +195,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": NYUv2_sn_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -192,6 +203,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": NYUv2_sn_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -216,6 +228,7 @@ DATASETS = {
             "train_accuracy": {
                 "fn": NYUv2_depth_accuracy,
                 "basename": "accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -223,6 +236,7 @@ DATASETS = {
             "eval_accuracy": {
                 "fn": NYUv2_depth_accuracy,
                 "basename": "accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -265,6 +279,7 @@ DATASETS = {
             "train_seg_accuracy": {
                 "fn": NYUv2_multi_seg_accuracy,
                 "basename": "seg_accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -272,6 +287,7 @@ DATASETS = {
             "eval_seg_accuracy": {
                 "fn": NYUv2_multi_seg_accuracy,
                 "basename": "seg_accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": False,
@@ -279,6 +295,7 @@ DATASETS = {
             "train_sn_accuracy": {
                 "fn": NYUv2_multi_sn_accuracy,
                 "basename": "sn_accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -286,6 +303,7 @@ DATASETS = {
             "eval_sn_accuracy": {
                 "fn": NYUv2_multi_sn_accuracy,
                 "basename": "sn_accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": False,
@@ -293,6 +311,7 @@ DATASETS = {
             "train_depth_accuracy": {
                 "fn": NYUv2_multi_depth_accuracy,
                 "basename": "depth_accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -300,6 +319,7 @@ DATASETS = {
             "eval_depth_accuracy": {
                 "fn": NYUv2_multi_depth_accuracy,
                 "basename": "depth_accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": False,
@@ -307,6 +327,7 @@ DATASETS = {
             "train_avg_accuracy": {
                 "fn": NYUv2_multi_avg_accuracy,
                 "basename": "avg_accuracy",
+                "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -314,6 +335,7 @@ DATASETS = {
             "eval_avg_accuracy": {
                 "fn": NYUv2_multi_avg_accuracy,
                 "basename": "avg_accuracy",
+                "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
@@ -323,6 +345,7 @@ DATASETS = {
                 % i: {
                     "fn": get_multitask_loss_weight(i),
                     "basename": "loss_weight",
+                    "window": 1,
                     "maximize": None,
                     "train": True,
                     "show": False,
@@ -360,6 +383,7 @@ DATASETS = {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(2),
                 "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
                 "show": True,
@@ -367,6 +391,7 @@ DATASETS = {
             "eval_normal_loss": {
                 "fn": get_MTRegression_normal_loss(2),
                 "basename": "normal_loss",
+                "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,
                 "show": True,
@@ -376,6 +401,7 @@ DATASETS = {
                 % i: {
                     "fn": get_multitask_loss_weight(i),
                     "basename": "loss_weight",
+                    "window": 1,
                     "maximize": None,
                     "train": True,
                     "show": False,
@@ -406,6 +432,7 @@ DATASETS = {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(10),
                 "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
                 "show": True,
@@ -413,6 +440,7 @@ DATASETS = {
             "eval_normal_loss": {
                 "fn": get_MTRegression_normal_loss(10),
                 "basename": "normal_loss",
+                "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,
                 "show": True,
@@ -422,6 +450,7 @@ DATASETS = {
                 % i: {
                     "fn": get_multitask_loss_weight(i),
                     "basename": "loss_weight",
+                    "window": 1,
                     "maximize": None,
                     "train": True,
                     "show": False,
@@ -636,12 +665,11 @@ class SLTrainer(Trainer):
     def metric_set(self) -> List[Tuple]:
         """ Set of metrics for this trainer. """
 
-        window = 100
         metric_set = [
             {
                 "name": "train_loss",
                 "basename": "loss",
-                "window": window,
+                "window": TRAIN_WINDOW,
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
@@ -649,7 +677,7 @@ class SLTrainer(Trainer):
             {
                 "name": "eval_loss",
                 "basename": "loss",
-                "window": window,
+                "window": TEST_WINDOW,
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
@@ -659,7 +687,7 @@ class SLTrainer(Trainer):
             {
                 "name": metric_name,
                 "basename": metric_info["basename"],
-                "window": window,
+                "window": metric_info["window"],
                 "point_avg": False,
                 "maximize": metric_info["maximize"],
                 "show": metric_info["show"],
