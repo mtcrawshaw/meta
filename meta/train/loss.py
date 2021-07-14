@@ -660,10 +660,10 @@ def NYUv2_seg_class_IOU(
             torch.logical_and(preds == label, labels == label)
         )
         class_union = torch.sum(torch.logical_or(preds == label, labels == label))
-        class_IOUS[i] = class_correct / class_valid
+        class_IOUs[i] = class_intersection / class_union
 
     # Return average class accuracy.
-    return class_accuracies.mean().item()
+    return class_IOUs.mean().item()
 
 
 def get_NYUv2_sn_accuracy(
@@ -760,43 +760,144 @@ def NYUv2_depth_invariant_RMSE(
     return torch.sqrt(mse - relative).item()
 
 
-def NYUv2_multi_seg_accuracy(
+def NYUv2_multi_seg_pixel_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute pixel accuracy of semantic segmentation on the NYUv2 dataset when performing
+    multi-task training. This function is essentially a wrapper around
+    `NYUv2_seg_pixel_accuracy()`.
+    """
+    task_outputs = outputs[:, :13]
+    task_labels = labels[:, 0].long()
+    return NYUv2_seg_pixel_accuracy(task_outputs, task_labels, criterion)
+
+
+def NYUv2_multi_seg_class_accuracy(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
     Compute accuracy of semantic segmentation on the NYUv2 dataset when performing
     multi-task training. This function is essentially a wrapper around
-    `NYUv2_seg_accuracy()`.
+    `NYUv2_seg_class_accuracy()`.
     """
     task_outputs = outputs[:, :13]
     task_labels = labels[:, 0].long()
-    return NYUv2_seg_accuracy(task_outputs, task_labels, criterion)
+    return NYUv2_seg_class_accuracy(task_outputs, task_labels, criterion)
 
 
-def NYUv2_multi_sn_accuracy(
+def NYUv2_multi_seg_class_IOU(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Compute accuracy of surface normal estimation on the NYUv2 dataset when performing
+    Compute accuracy of semantic segmentation on the NYUv2 dataset when performing
     multi-task training. This function is essentially a wrapper around
-    `NYUv2_sn_accuracy()`.
+    `NYUv2_seg_class_IOU()`.
+    """
+    task_outputs = outputs[:, :13]
+    task_labels = labels[:, 0].long()
+    return NYUv2_seg_class_IOU(task_outputs, task_labels, criterion)
+
+
+def get_NYUv2_multi_sn_accuracy(
+    threshold: float,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Constructs and returns a function that computes the percentage of surface normal
+    predictions which are within `threshold` degrees of the ground truth when multi-task
+    training.
+    """
+
+    NYUv2_sn_accuracy = get_NYUv2_sn_accuracy(threshold)
+
+    def NYUv2_multi_sn_accuracy(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Compute accuracy of surface normal estimation on the NYUv2 dataset when performing
+        multi-task training. This function is essentially a wrapper around
+        `get_NYUv2_sn_accuracy()`.
+        """
+        task_outputs = outputs[:, 13:16]
+        task_labels = labels[:, 1:4]
+        return NYUv2_sn_accuracy(task_outputs, task_labels)
+
+    return NYUv2_multi_sn_accuracy
+
+
+def NYUv2_multi_sn_angle(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute mean error angle of surface normal estimation on the NYUv2 dataset when
+    performing multi-task training. This function is essentially a wrapper around
+    `NYUv2_sn_angle()`.
     """
     task_outputs = outputs[:, 13:16]
     task_labels = labels[:, 1:4]
-    return NYUv2_sn_accuracy(task_outputs, task_labels)
+    return NYUv2_sn_angle(task_outputs, task_labels)
 
 
-def NYUv2_multi_depth_accuracy(
+def get_NYUv2_multi_depth_accuracy(
+    threshold: float,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Construct and return a function that computes the accuracy of depth predictions at
+    threshold `threshold` while multi-task training.
+    """
+
+    NYUv2_depth_accuracy = get_NYUv2_depth_accuracy(threshold)
+
+    def NYUv2_multi_depth_accuracy(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Compute accuracy of depth prediction on the NYUv2 dataset when performing
+        multi-task training. This function is essentially a wrapper around
+        `get_NYUv2_depth_accuracy()`.
+        """
+        task_outputs = outputs[:, 16:17]
+        task_labels = labels[:, 4:5]
+        return NYUv2_depth_accuracy(task_outputs, task_labels)
+
+    return NYUv2_multi_depth_accuracy
+
+
+def NYUv2_multi_depth_RMSE(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Compute accuracy of depth prediction on the NYUv2 dataset when performing
-    multi-task training. This function is essentially a wrapper around
-    `NYUv2_depth_accuracy()`.
+    Compute RMSE of depth prediction on the NYUv2 dataset when performing multi-task
+    training. This function is essentially a wrapper around `NYUv2_depth_RMSE()`.
     """
     task_outputs = outputs[:, 16:17]
     task_labels = labels[:, 4:5]
-    return NYUv2_depth_accuracy(task_outputs, task_labels)
+    return NYUv2_depth_RMSE(task_outputs, task_labels)
+
+
+def NYUv2_multi_depth_log_RMSE(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute log-RMSE of depth prediction on the NYUv2 dataset when performing multi-task
+    training. This function is essentially a wrapper around `NYUv2_depth_log_RMSE()`.
+    """
+    task_outputs = outputs[:, 16:17]
+    task_labels = labels[:, 4:5]
+    return NYUv2_depth_log_RMSE(task_outputs, task_labels)
+
+
+def NYUv2_multi_depth_invariant_RMSE(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute scale-invariant RMSE of depth prediction on the NYUv2 dataset when
+    performing multi-task training. This function is essentially a wrapper around
+    `NYUv2_depth_invariant_RMSE()`.
+    """
+    task_outputs = outputs[:, 16:17]
+    task_labels = labels[:, 4:5]
+    return NYUv2_depth_invariant_RMSE(task_outputs, task_labels)
 
 
 def NYUv2_multi_avg_accuracy(
@@ -806,9 +907,9 @@ def NYUv2_multi_avg_accuracy(
     Compute average accuracy of the three tasks on the NYUv2 dataset when performing
     multi-task training.
     """
-    seg_accuracy = NYUv2_multi_seg_accuracy(outputs, labels)
-    sn_accuracy = NYUv2_multi_sn_accuracy(outputs, labels)
-    depth_accuracy = NYUv2_multi_depth_accuracy(outputs, labels)
+    seg_accuracy = NYUv2_multi_seg_pixel_accuracy(outputs, labels)
+    sn_accuracy = get_NYUv2_multi_sn_accuracy(11.25)(outputs, labels)
+    depth_accuracy = get_NYUv2_multi_depth_accuracy(1.25)(outputs, labels)
     return np.mean([seg_accuracy, sn_accuracy, depth_accuracy])
 
 
