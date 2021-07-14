@@ -588,12 +588,12 @@ def get_accuracy(
     return accuracy.item()
 
 
-def NYUv2_seg_accuracy(
+def NYUv2_seg_pixel_accuracy(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Compute accuracy of semantic segmentation on the NYUv2 dataset. Here we assume that
-    any pixels with label -1 are unlabeled, so we don't count these pixels in the
+    Compute pixel accuracy of semantic segmentation on the NYUv2 dataset. Here we assume
+    that any pixels with label -1 are unlabeled, so we don't count these pixels in the
     accuracy computation. We also assume that the class dimension is directly after the
     batch dimension.
     """
@@ -604,36 +604,160 @@ def NYUv2_seg_accuracy(
     return accuracy.item()
 
 
-def NYUv2_sn_accuracy(
+def NYUv2_seg_class_accuracy(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Compute accuracy of surface normal estimation on the NYUv2 dataset. We define this
-    as the number of pixels for which the angle between the true normal and the
-    predicted normal is less than `DEGREE_THRESHOLD` degrees. Here we assume that the
-    normal dimension is 1.
+    Compute class accuracy of semantic segmentation on the NYUv2 dataset. Here we assume
+    that any pixels with label -1 are unlabeled, so we don't count these pixels in the
+    accuracy computation. We also assume that the class dimension is directly after the
+    batch dimension.
     """
-    DEGREE_THRESHOLD = 10
-    similarity_threshold = math.cos(DEGREE_THRESHOLD / 180 * math.pi)
-    similarity = F.cosine_similarity(outputs, labels, dim=1)
-    accuracy = torch.sum(similarity > similarity_threshold) / torch.numel(similarity)
 
-    return accuracy.item()
+    # Get predictions.
+    preds = torch.argmax(outputs, dim=1)
+
+    # Get list of all labels in image.
+    unlabel = -1
+    all_labels = labels.unique().tolist()
+    if unlabel in all_labels:
+        all_labels.remove(unlabel)
+
+    # Compute accuracy per-class.
+    class_accuracies = torch.zeros(len(all_labels), device=outputs.device)
+    for i, label in enumerate(all_labels):
+        class_correct = torch.sum(torch.logical_and(preds == label, labels == label))
+        class_valid = torch.sum(labels == label)
+        class_accuracies[i] = class_correct / class_valid
+
+    # Return average class accuracy.
+    return class_accuracies.mean().item()
 
 
-def NYUv2_depth_accuracy(
+def NYUv2_seg_class_IOU(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
-    number of pixels for which the absolute value of the difference between the
-    predicted depth and the true depth is less than `DEPTH_THRESHOLD`.
+    Compute mean of IOU for each class of semantic segmentation on the NYUv2 dataset.
+    Here we assume that any pixels with label -1 are unlabeled, so we don't count these
+    pixels in the accuracy computation. We also assume that the class dimension is
+    directly after the batch dimension.
     """
-    DEPTH_THRESHOLD = 0.25
-    difference = torch.abs(outputs - labels)
-    accuracy = torch.sum(difference < DEPTH_THRESHOLD) / torch.numel(difference)
 
-    return accuracy.item()
+    # Get predictions.
+    preds = torch.argmax(outputs, dim=1)
+
+    # Get list of all labels in image.
+    unlabel = -1
+    all_labels = labels.unique().tolist()
+    if unlabel in all_labels:
+        all_labels.remove(unlabel)
+
+    # Compute IOU per-class.
+    class_IOUs = torch.zeros(len(all_labels), device=outputs.device)
+    for i, label in enumerate(all_labels):
+        class_intersection = torch.sum(
+            torch.logical_and(preds == label, labels == label)
+        )
+        class_union = torch.sum(torch.logical_or(preds == label, labels == label))
+        class_IOUS[i] = class_correct / class_valid
+
+    # Return average class accuracy.
+    return class_accuracies.mean().item()
+
+
+def get_NYUv2_sn_accuracy(
+    threshold: float,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Constructs and returns a function that computes the percentage of surface normal
+    predictions which are within `threshold` degrees of the ground truth.
+    """
+
+    def NYUv2_sn_accuracy(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Compute accuracy of surface normal estimation on the NYUv2 dataset. We define
+        this as the number of pixels for which the angle between the true normal and the
+        predicted normal is less than `threshold` degrees. Here we assume that the
+        normal dimension is 1.
+        """
+        similarity_threshold = math.cos(threshold / 180 * math.pi)
+        similarity = F.cosine_similarity(outputs, labels, dim=1)
+        accuracy = torch.sum(similarity > similarity_threshold) / torch.numel(
+            similarity
+        )
+
+        return accuracy.item()
+
+    return NYUv2_sn_accuracy
+
+
+def NYUv2_sn_angle(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute the mean angle between ground truth and predicted normal for the NYUv2
+    dataset.
+    """
+    cos = F.cosine_similarity(outputs, labels, dim=1)
+    cos = torch.clamp(cos, -1, 1)
+    angle = torch.acos(cos) * 180 / math.pi
+    return torch.mean(angle).item()
+
+
+def get_NYUv2_depth_accuracy(
+    threshold: float,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Construct and return a function that computes the accuracy of depth predictions at
+    threshold `threshold`.
+    """
+
+    def NYUv2_depth_accuracy(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
+        number of pixels for which the ratio between the predicted depth and the true depth
+        is less than `threshold`.
+        """
+        ratio = torch.max(outputs / labels, labels / outputs)
+        accuracy = torch.sum(
+            torch.logical_and(ratio < threshold, ratio > 1.0 / threshold)
+        ) / torch.numel(ratio)
+        return accuracy.item()
+
+    return NYUv2_depth_accuracy
+
+
+def NYUv2_depth_RMSE(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """ Root mean-square error for NYUv2 depth prediction. """
+    return torch.sqrt(torch.mean((outputs - labels) ** 2)).item()
+
+
+def NYUv2_depth_log_RMSE(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """ RMSE of log-prediction and log-ground truth for NYUv2 depth prediction. """
+    preds = torch.max(outputs, 1e-5 * torch.ones_like(outputs))
+    return torch.sqrt(torch.mean((torch.log(preds) - torch.log(labels)) ** 2)).item()
+
+
+def NYUv2_depth_invariant_RMSE(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Scale-invariant RMSE of log-prediction and log-ground truth for NYUv2 depth prediction.
+    """
+    preds = torch.max(outputs, 1e-5 * torch.ones_like(outputs))
+    diffs = torch.log(preds) - torch.log(labels)
+    mse = torch.mean(diffs ** 2)
+    relative = torch.sum(diffs) ** 2 / torch.numel(diffs) ** 2
+    return torch.sqrt(mse - relative).item()
 
 
 def NYUv2_multi_seg_accuracy(

@@ -12,9 +12,12 @@
     "eps": 1e-5,
 
     "architecture_config": {
-        "type": "resnet50",
-        "pretrained": true,
-        "head_channels": 256
+        "type": "backbone",
+        "arch_type": "resnet",
+        "num_backbone_layers": 50,
+        "num_head_layers": 3,
+        "head_channels": 256,
+        "pretrained": false
     },
 
     "evaluation_freq": 2,

@@ -16,9 +16,15 @@ from meta.train.loss import (
     MultiTaskLoss,
     Uncertainty,
     get_accuracy,
-    NYUv2_seg_accuracy,
-    NYUv2_sn_accuracy,
-    NYUv2_depth_accuracy,
+    NYUv2_seg_pixel_accuracy,
+    NYUv2_seg_class_accuracy,
+    NYUv2_seg_class_IOU,
+    get_NYUv2_sn_accuracy,
+    NYUv2_sn_angle,
+    get_NYUv2_depth_accuracy,
+    NYUv2_depth_RMSE,
+    NYUv2_depth_log_RMSE,
+    NYUv2_depth_invariant_RMSE,
     NYUv2_multi_seg_accuracy,
     NYUv2_multi_sn_accuracy,
     NYUv2_multi_depth_accuracy,
@@ -37,17 +43,13 @@ from meta.networks import last_shared_params
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
-DEPTH_MEAN = 2.5
-DEPTH_STD = 1
 GRAY_TRANSFORM = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
 )
 RGB_TRANSFORM = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize([0.5] * 3, [0.5] * 3)]
 )
-DEPTH_TRANSFORM = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize(DEPTH_MEAN, DEPTH_STD)]
-)
+DEPTH_TRANSFORM = transforms.ToTensor()
 SEG_TRANSFORM = transforms.ToTensor()
 SN_TRANSFORM = transforms.ToTensor()
 
@@ -159,21 +161,53 @@ DATASETS = {
         "loss_kwargs": {"ignore_index": -1},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
-            "train_accuracy": {
-                "fn": NYUv2_seg_accuracy,
-                "basename": "accuracy",
+            "train_pixel_accuracy": {
+                "fn": NYUv2_seg_pixel_accuracy,
+                "basename": "pixel_accuracy",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
             },
-            "eval_accuracy": {
-                "fn": NYUv2_seg_accuracy,
-                "basename": "accuracy",
+            "eval_pixel_accuracy": {
+                "fn": NYUv2_seg_pixel_accuracy,
+                "basename": "pixel_accuracy",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
+            },
+            "train_class_accuracy": {
+                "fn": NYUv2_seg_class_accuracy,
+                "basename": "class_accuracy",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_class_accuracy": {
+                "fn": NYUv2_seg_class_accuracy,
+                "basename": "class_accuracy",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_class_IOU": {
+                "fn": NYUv2_seg_class_IOU,
+                "basename": "class_IOU",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_class_IOU": {
+                "fn": NYUv2_seg_class_IOU,
+                "basename": "class_IOU",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
             },
         },
         "base_name": "NYUv2",
@@ -192,21 +226,69 @@ DATASETS = {
         "loss_kwargs": {},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
-            "train_accuracy": {
-                "fn": NYUv2_sn_accuracy,
-                "basename": "accuracy",
+            "train_accuracy_11.25": {
+                "fn": get_NYUv2_sn_accuracy(11.25),
+                "basename": "accuracy_11.25",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
             },
-            "eval_accuracy": {
-                "fn": NYUv2_sn_accuracy,
-                "basename": "accuracy",
+            "eval_accuracy_11.25": {
+                "fn": get_NYUv2_sn_accuracy(11.25),
+                "basename": "accuracy_11.25",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
+            },
+            "train_accuracy_22.5": {
+                "fn": get_NYUv2_sn_accuracy(22.5),
+                "basename": "accuracy_22.5",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_accuracy_22.5": {
+                "fn": get_NYUv2_sn_accuracy(22.5),
+                "basename": "accuracy_22.5",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_accuracy_30": {
+                "fn": get_NYUv2_sn_accuracy(30),
+                "basename": "accuracy_30",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_accuracy_30": {
+                "fn": get_NYUv2_sn_accuracy(30),
+                "basename": "accuracy_30",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_angle": {
+                "fn": NYUv2_sn_angle,
+                "basename": "angle",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
+            "eval_angle": {
+                "fn": NYUv2_sn_angle,
+                "basename": "angle",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": False,
             },
         },
         "base_name": "NYUv2",
@@ -225,21 +307,101 @@ DATASETS = {
         "loss_kwargs": {},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
-            "train_accuracy": {
-                "fn": NYUv2_depth_accuracy,
-                "basename": "accuracy",
+            "train_accuracy_1.25": {
+                "fn": get_NYUv2_depth_accuracy(1.25),
+                "basename": "accuracy_1.25",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
                 "show": True,
             },
-            "eval_accuracy": {
-                "fn": NYUv2_depth_accuracy,
-                "basename": "accuracy",
+            "eval_accuracy_1.25": {
+                "fn": get_NYUv2_depth_accuracy(1.25),
+                "basename": "accuracy_1.25",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
                 "show": True,
+            },
+            "train_accuracy_1.25^2": {
+                "fn": get_NYUv2_depth_accuracy(1.5625),
+                "basename": "accuracy_1.25^2",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_accuracy_1.25^2": {
+                "fn": get_NYUv2_depth_accuracy(1.5625),
+                "basename": "accuracy_1.25^2",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_accuracy_1.25^3": {
+                "fn": get_NYUv2_depth_accuracy(1.953125),
+                "basename": "accuracy_1.25^3",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_accuracy_1.25^3": {
+                "fn": get_NYUv2_depth_accuracy(1.953125),
+                "basename": "accuracy_1.25^3",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_RMSE": {
+                "fn": NYUv2_depth_RMSE,
+                "basename": "RMSE",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
+            "eval_RMSE": {
+                "fn": NYUv2_depth_RMSE,
+                "basename": "RMSE",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": False,
+            },
+            "train_log_RMSE": {
+                "fn": NYUv2_depth_log_RMSE,
+                "basename": "log_RMSE",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
+            "eval_log_RMSE": {
+                "fn": NYUv2_depth_log_RMSE,
+                "basename": "log_RMSE",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": False,
+            },
+            "train_invariant_RMSE": {
+                "fn": NYUv2_depth_invariant_RMSE,
+                "basename": "invariant_RMSE",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
+            "eval_invariant_RMSE": {
+                "fn": NYUv2_depth_invariant_RMSE,
+                "basename": "invariant_RMSE",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": False,
             },
         },
         "base_name": "NYUv2",
@@ -597,10 +759,11 @@ class SLTrainer(Trainer):
         step_metrics = {
             "train_loss": [loss.item()],
         }
-        for metric_name, metric_info in self.extra_metrics.items():
-            if metric_info["train"]:
-                fn = metric_info["fn"]
-                step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
+        with torch.no_grad():
+            for metric_name, metric_info in self.extra_metrics.items():
+                if metric_info["train"]:
+                    fn = metric_info["fn"]
+                    step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
 
         return step_metrics
 

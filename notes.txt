@@ -109,6 +109,14 @@ Refactoring:
 - Merge redundant networks (Trunk + Backbone? Conv + MLP?)
 - Replace training tests for loss weighters with actual unit tests that compute the
   expected value of each weight.
+- Fix evaluation format. We should go through one evaluation epoch every now and then
+  instead of doing a single batch constantly. This way we also don't need to worry about
+  moving averages.
+- Add scale invariance of predictions for depth and/or add normalization so that the
+  network output is predicted the log depth.
+- De-modularize metric functionality. Combine all metric computation for a single
+  dataset into one function, then add that function as a class method of the
+  corresponding Dataset object. This will clean things up a lot.
 
 
 Loss weighting experiments:
@@ -124,7 +132,7 @@ Rename MultiTaskTrunkNetwork to TrunkNetwork.
 Notes for current task:
 Success metrics for each of the three tasks.
 - Semantic segmentation: class accuracy, pixel accuracy, IoU
-- Normal estimation: 1 - |cos|, mean angle, % with angle < {11.25,22.5,30}
+- Normal estimation: mean angle, % with angle < {11.25,22.5,30}
 - Depth estimation: % with ratio < {1.25,1.25^2,1.25^3}, RMSE, log-RMSE, scale-invariant log-RMSE
 
 
