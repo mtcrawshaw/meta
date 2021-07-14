@@ -80,10 +80,12 @@ so that we don't have an impossible merge to perform later on.
 
 Current sprint (Loss weighting experiments):
     GradNorm
---> Implement common metrics for NYUv2 tasks
-    Experiment command to run multiple configs
+    Implement common metrics for NYUv2 tasks
+--> Experiment command to run multiple configs
     Statistical significance in experiment command
     Shared plotting in experiment
+    Fix sum/mean of NYUv2 task losses
+    Fix evaluation format
     Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
     Better architecture
     Measure accuracy of gradient norm estimate
@@ -92,7 +94,6 @@ Current sprint (Loss weighting experiments):
 
 
 Refactoring:
-- Measure true mean/std of NYUv2 depth labels.
 - Figure out if we need to do anything to convert BN layers to test mode.
 - Make sure that we are consistently taking either sum or mean of loss over batches for
   each task.
