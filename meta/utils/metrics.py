@@ -46,9 +46,8 @@ class Metrics:
 
     def update(self, update_values: Dict[str, List[float]]) -> None:
         """
-        Update performance metrics with a sequence of the most recent episode rewards.
+        Update performance metrics with a sequence of the most recent metric values.
         """
-
         for metric_name, metric_values in update_values.items():
             getattr(self, metric_name).update(metric_values)
 
@@ -56,7 +55,6 @@ class Metrics:
         """
         Return a dictionary of the most recent values for each performance metric.
         """
-
         return {
             state_var: getattr(self, state_var).mean[-1]
             for state_var in self.state_vars
@@ -66,7 +64,6 @@ class Metrics:
         """
         Return a dictionary of the history of values for each performance metric.
         """
-
         return {
             state_var: getattr(self, state_var).history for state_var in self.state_vars
         }
@@ -75,10 +72,73 @@ class Metrics:
         """
         Return a dictionary with the value of all state variables.
         """
-
         return {
             state_var: getattr(self, state_var).state() for state_var in self.state_vars
         }
+
+    @staticmethod
+    def mean(metrics_list: List["Metrics"]) -> "Metrics":
+        """
+        Compute the mean of a given list of metrics from multiple trials, each trial
+        with the same metrics.
+
+        This method requires `metrics_list` is non-empty, and that each `Metrics`
+        objects in `metrics_list` has the same set of state variables (stored in
+        `self.state_vars`). Further, for each state variable, each corresponding
+        `Metric` object must have the same values of the following attributes:
+        `['len(history)', 'basename', 'window', 'point_avg', 'maximize', 'show']`.
+        """
+
+        assert len(metrics_list) > 0
+
+        # Check that state variables and attributes of underlying `Metric` objects of
+        # each element of `metrics_list` match those of the first element of
+        # `metric_list`.
+        first = metrics_list[0]
+        state_vars = list(first.state_vars)
+        for metrics in metrics_list:
+            assert metrics.state_vars == state_vars
+            for state_var in state_vars:
+                exp_metric = first.metric_dict[state_var]
+                metric = metrics.metric_dict[state_var]
+                assert len(metric.history) == len(exp_metric.history)
+                assert metric.basename == exp_metric.basename
+                assert metric.window == exp_metric.window
+                assert metric.point_avg == exp_metric.point_avg
+                assert metric.maximize == exp_metric.maximize
+                assert metric.show == exp_metric.show
+
+        # Instantiate mean metrics object. Notice that we set `point_avg` to False for
+        # `mean_metrics`. If `point_avg` is True for any of the metrics that we are
+        # taking the mean over, then the original values given to `Metric.update()` will
+        # have already been averaged before being stored in the metric history. So there
+        # is no need to average again.
+        metric_attrs = ["basename", "window", "maximize", "show"]
+        mean_metrics = Metrics(
+            [
+                {
+                    "name": state_var,
+                    "point_avg": False,
+                    **{
+                        attr: getattr(first.metric_dict[state_var], attr)
+                        for attr in metric_attrs
+                    },
+                }
+                for state_var in state_vars
+            ]
+        )
+
+        # Compute mean of each metric at each timestep.
+        mean_histories = {}
+        for state_var in state_vars:
+            var_history = np.array(
+                [metrics.metric_dict[state_var].history for metrics in metrics_list]
+            )
+            mean_histories[state_var] = np.mean(var_history, axis=0)
+
+        # Fill mean metrics and return.
+        mean_metrics.update(mean_histories)
+        return mean_metrics
 
 
 class Metric:
@@ -136,8 +196,8 @@ class Metric:
     def update(self, values: List[float]) -> None:
         """ Update history, mean, and stdev with new values. """
 
-        # Replace ``values`` with average of ``values`` if self.point_avg, using recent
-        # history to fill in if ``values`` is empty.
+        # Replace `values` with average of `values` if self.point_avg, using recent
+        # history to fill in if `values` is empty.
         if self.point_avg:
 
             if len(values) > 0:
@@ -145,7 +205,7 @@ class Metric:
             elif len(self.mean) > 0:
                 new_val = self.mean[-1]
             else:
-                # If ``values`` and history are both empty, do nothing.
+                # If `values` and history are both empty, do nothing.
                 return
 
             values = [new_val]

@@ -3,7 +3,11 @@ import json
 
 from meta.train.train import train
 from meta.train.meta_train import meta_train
+from meta.train.experiment import experiment
 from meta.tune.tune import tune
+
+
+COMMANDS = ["train", "tune", "meta_train", "experiment"]
 
 
 if __name__ == "__main__":
@@ -11,7 +15,9 @@ if __name__ == "__main__":
     # Parse config filename from command line arguments.
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "command", type=str, help="Command to run. Either 'train' or 'tune'.",
+        "command",
+        type=str,
+        help=f"Command to run. Must be one of the following: {COMMANDS}.",
     )
     parser.add_argument(
         "config_filename", type=str, help="Name of config file to load from.",
@@ -23,11 +29,7 @@ if __name__ == "__main__":
         config = json.load(config_file)
 
     # Run specified command.
-    if args.command == "train":
-        train(config)
-    elif args.command == "tune":
-        tune(config)
-    elif args.command == "meta_train":
-        meta_train(config)
-    else:
+    if args.command not in COMMANDS:
         raise ValueError("Unsupported command: '%s'" % args.command)
+    command = eval(args.command)
+    command(config)
