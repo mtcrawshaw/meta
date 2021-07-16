@@ -86,6 +86,7 @@ Current sprint (Loss weighting experiments):
     Shared plotting in experiment
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
+    CLW/CLAW
     Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
     Better architecture
     Measure accuracy of gradient norm estimate
