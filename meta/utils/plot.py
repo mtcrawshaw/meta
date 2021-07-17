@@ -144,8 +144,8 @@ def plot(metrics: Union[Metrics, Dict[str, Metrics]], plot_path: str, summary: D
     # Write out table of final metrics.
     axs[-1].axis("off")
     cell_text = []
-    row_labels = list(plotted_metrics)
     if isinstance(metrics, Metrics):
+        row_labels = list(plotted_metrics)
         col_labels = ["Best", "Final"]
 
         for metric_name in plotted_metrics:
@@ -159,9 +159,10 @@ def plot(metrics: Union[Metrics, Dict[str, Metrics]], plot_path: str, summary: D
             cell_text.append(list(row_text))
 
     elif isinstance(metrics, dict):
+        row_labels = list(summary.keys())
         col_labels = list(metrics.keys())
 
-        for metric_name in plotted_metrics:
+        for metric_name in summary:
             row_text = []
             for method, method_metrics in metrics.items():
                 method_results = summary[metric_name][method]
