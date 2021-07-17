@@ -36,9 +36,9 @@
     "base_train_config": {
         "trainer": "SLTrainer",
         "dataset": "NYUv2",
-        "num_updates": 5,
-        "batch_size": 2,
-        "num_workers": 2,
+        "num_updates": 100,
+        "batch_size": 64,
+        "num_workers": 8,
 
         "loss_weighter": {
             "type": "Constant",
@@ -53,17 +53,16 @@
 
         "architecture_config": {
             "type": "backbone",
-            "arch_type": "conv",
-            "num_backbone_layers": 4,
-            "num_head_layers": 2,
-            "initial_channels": 32,
-            "head_channels": 32
+            "arch_type": "resnet",
+            "num_backbone_layers": 50,
+            "num_head_layers": 3,
+            "head_channels": 256
         },
 
-        "evaluation_freq": 10,
+        "evaluation_freq": 5,
 
         "cuda": true,
-        "print_freq": 10,
+        "print_freq": 1,
         "save_freq": null,
         "load_from": null,
         "metrics_filename": null,
@@ -77,5 +76,5 @@
     },
 
     "seed": 0,
-    "save_name": null
+    "save_name": "nyuv2_experiment_test"
 }
