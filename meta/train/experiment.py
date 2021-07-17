@@ -5,6 +5,8 @@ results.
 
 import os
 import json
+from collections import OrderedDict
+from copy import deepcopy
 from math import sqrt
 from typing import Dict, Any
 
@@ -14,6 +16,7 @@ from scipy import stats
 from meta.train.train import train
 from meta.utils.metrics import Metrics
 from meta.utils.utils import save_dir_from_name
+from meta.utils.plot import plot
 
 
 def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -140,7 +143,7 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
     # key metric.
     metrics["summary"] = {}
     for key_metric in config["key_metrics"]:
-        metrics["summary"][key_metric] = []
+        metrics["summary"][key_metric] = OrderedDict()
         performances = [
             (method, metrics[method]["summary"][key_metric]["mean"])
             for method in config["methods"]
@@ -151,31 +154,27 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         for method, performance in performances:
             conf = 0.95
             CI_name = f"CI@{conf}"
-            metrics["summary"][key_metric].append(
-                {
-                    "method": method,
-                    "mean_performance": performance,
-                    "std_performance": metrics[method]["summary"][key_metric]["std"],
-                    "CI": metrics[method]["summary"][key_metric][CI_name],
-                    "conf": conf,
-                }
-            )
+            metrics["summary"][key_metric][method] = {
+                "mean_performance": performance,
+                "std_performance": metrics[method]["summary"][key_metric]["std"],
+                "CI": metrics[method]["summary"][key_metric][CI_name],
+                "conf": conf,
+            }
 
     # Print out results summary.
     for key_metric in config["key_metrics"]:
         print(f"\nMean, std, LB, UB {key_metric}:")
-        for results in metrics["summary"][key_metric]:
-            method = results["method"]
+        for method, results in metrics["summary"][key_metric].items():
             mean = results["mean_performance"]
             std = results["std_performance"]
             CI = results["CI"]
-            print(f"    {method}: {mean:.3f}, {std:.3f}, {CI[0]:.3f}, {CI[1]:.3f}")
+            print(f"    {method}: {mean:.5f}, {std:.5f}, {CI[0]:.5f}, {CI[1]:.5f}")
 
     # Save results if necessary.
     if config["save_name"] is not None:
 
         # Convert `metrics` into a nested dictionary.
-        metrics_dict = dict(metrics)
+        metrics_dict = deepcopy(metrics)
         for method in config["methods"]:
             for trial in range(config["trials_per_method"]):
                 metrics_dict[method]["trials"][trial] = metrics_dict[method]["trials"][
@@ -189,7 +188,12 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             json.dump(metrics_dict, metrics_file)
 
         # Plot results.
-        # TODO: Add plotting.
+        plot_path = os.path.join(save_dir, f"{config['save_name']}_plot.png")
+        plot(
+            {method: metrics[method]["mean"] for method in config["methods"]},
+            plot_path,
+            summary=metrics["summary"],
+        )
 
     return metrics
 

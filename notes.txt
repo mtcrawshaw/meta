@@ -87,10 +87,10 @@ Current sprint (Loss weighting experiments):
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
     CLW/CLAW
-    Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
-    Better architecture
-    Measure accuracy of gradient norm estimate
     Scale invariant loss function for depth estimation
+    Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
+    Measure accuracy of gradient norm estimate
+    Better architecture
     Add other task sets
 
 
@@ -119,6 +119,11 @@ Refactoring:
 - De-modularize metric functionality. Combine all metric computation for a single
   dataset into one function, then add that function as a class method of the
   corresponding Dataset object. This will clean things up a lot.
+- Extend Metrics object to hold metrics from multiple runs, with multiple methods. This
+  will allow us to clean things up in places where we have a list of Metrics that all
+  have redundant information.
+- Add some constraints to `experiment()` so that some options must remain fixed between
+  different methods, such as trainer type and dataset.
 
 
 Loss weighting experiments:
