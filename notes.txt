@@ -58,84 +58,46 @@ Change max_grad_norm to None for all configs (update baselines accordingly)
 ----------------------------------------------------------------------------------------
 
 
-supervised_learning branch:
+complete_knowledge_distillation branch:
 
 
-The goal of this branch is to convert the trainer into a more modular system that can
-perform training for both RL settings and supervised learning settings, in order to
-implement the random multi-task loss weighting idea. Here's the roadmap:
-    Create Trainer and RLTrainer class with RL specific functionality
-    Create SLTrainer class with supervised learning functionality (toy dataset, single task)
-    Add tests for single task supervised learning
-    Add multi-task functionality + dataset
-    Implement loss weighting methods
-    Toy multi-task problem
-    Write tests
---> Loss weighting experiments
-    Refactoring
-
-Try to merge this branch with develop as often as possible (while maintaining stability)
-so that we don't have an impossible merge to perform later on.
-
-
-Current sprint (Loss weighting experiments):
-    GradNorm
-    Implement common metrics for NYUv2 tasks
-    Experiment command to run multiple configs
---> Statistical significance in experiment command
-    Shared plotting in experiment
-    Fix sum/mean of NYUv2 task losses
-    Fix evaluation format
-    CLW/CLAW
-    Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
-    Better architecture
-    Measure accuracy of gradient norm estimate
-    Scale invariant loss function for depth estimation
-    Add other task sets
-
-
-Refactoring:
-- Figure out if we need to do anything to convert BN layers to test mode.
-- Make sure that we are consistently taking either sum or mean of loss over batches for
-  each task.
-- Separate SLTrainer and multi-task functionality (make MultiSLTrainer? MultiTrainer?)
-- Add multitask capability to ConvNetwork
-- Get rid of NYUv2 wrapper and write one from scratch
-- Move metrics into Trainer
-- Don't repeat output_slice and label_slice. Right now we have two instances of each,
-  one in DATASETS and one in the corresponding accuracy functions.
-- Move functionality to generate MTRegression dataset into the MTRegression object. This
-  creates better modularity and allows us to avoid hard-coding stuff (like the task
-  scales) in two different places.
-- Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
-- Merge redundant networks (Trunk + Backbone? Conv + MLP?)
-- Replace training tests for loss weighters with actual unit tests that compute the
-  expected value of each weight.
-- Fix evaluation format. We should go through one evaluation epoch every now and then
-  instead of doing a single batch constantly. This way we also don't need to worry about
-  moving averages.
-- Add scale invariance of predictions for depth and/or add normalization so that the
-  network output is predicted the log depth.
-- De-modularize metric functionality. Combine all metric computation for a single
-  dataset into one function, then add that function as a class method of the
-  corresponding Dataset object. This will clean things up a lot.
-
-
-Loss weighting experiments:
-- Datasets: MTRegression, NYUv2
-- Methods: Constant, Uncertainty, GradNorm, DWA, NLW, CLW
-- Architecture: Shared trunk: ResNet encoder (either 50 or 101, depending on how much we
-  can fit on GPU), task specific output heads with 1 3x3 Conv-BN-ReLU + 1 1x1 Conv.
-- Methodology: Repeat each method with different random seeds until we reach pairwise
-  statistical significance, or until we hit X trials.
-
-Rename MultiTaskTrunkNetwork to TrunkNetwork.
-
-Notes for current task:
-Success metrics for each of the three tasks.
-- Semantic segmentation: class accuracy, pixel accuracy, IoU
-- Normal estimation: mean angle, % with angle < {11.25,22.5,30}
-- Depth estimation: % with ratio < {1.25,1.25^2,1.25^3}, RMSE, log-RMSE, scale-invariant log-RMSE
+The goal of this branch is to implement Complete Knowledge Distillation within our
+current training infrastructure. So far I've added CKDTrainer, but I think I was getting
+ahead of myself and I backtracked to just playing with CKD in a standalone script called
+scripts/ckd_sandbox.py. So far, the script is able to produce a SymPy expression that
+approximates the output of a given MLP (with exponential activation function), and we
+can evaluate this SymPy expression by plugging in Tensors for the symbols representing
+input values + network parameter values. It won't be too hard to extend this and
+actually implement CKD, we just have to include the ability to produce the SymPy
+expression corresponding to two networks, take the squared difference of the
+expressions, then evaluate it with Tensor operations. This is our loss, and we should be
+able to backpropagate through it. To train a student network to mimic a teacher. The
+script shows that we can decently approximate the output of a tiny network with this
+polynomial represented by the SymPy expression, but the limiting factor here is compute
+time. For a network with 3 layers, with input/hidden/output size <= 4, and expanding the
+power series of the exponential out for 5 terms, it didn't finish computing the SymPy
+expression within 15 minutes. I don't know how long it would've taken, I just stopped
+it. And that is a TINY network. This may be bad enough to kill the idea entirely.
+Possible ways around this: move from SymPy to a more optimized computer algebra system
+written in a different language. This is gonna be super messy, not just because we have
+to interface to that code through Python, but because we NEED a representation of the
+expression accessible from Python so that we can perform torch Tensor operations
+according to that expression. Alternatively, we could write a very simple symbolic
+computation system that would only handle the operations necessary to compute the
+network output, and we could do this in C. Still, this might not be enough to save it.
+Given that the computation time grew that fast for such a tiny network, we will likely
+need many orders of magnitude speedup to make this possible. Parallelization will help
+this, but only by a factor equal to the number of threads on the machine, which is 12
+for me. The most extreme option is to employ massive parallelization by writing CUDA
+code to perform the symbolic computation on the GPU. This is technically a highly
+parallelizable operation, since we are performing matrix multiplication, just
+symbolically. My only worry about this is the fact that the computation isn't
+homogeneous across cores, as it would be if we were performing numerical matrix
+multiplication. I think that this homogeneity is important for maximizing speedup from
+parallelization on the GPU, so this might kill the GPU idea. For now, just try to extend
+the current script to handle the student/teacher setup and perform training. If this
+works okay, we should think seriously about increasing efficiency and possibly bring it
+to Jana.
 
 
 ----------------------------------------------------------------------------------------
