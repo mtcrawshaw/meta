@@ -83,11 +83,11 @@ Current sprint (Loss weighting experiments):
     Implement common metrics for NYUv2 tasks
     Experiment command to run multiple configs
     Statistical significance in experiment command
---> Shared plotting in experiment
+    Shared plotting in experiment
+--> CLW/CLAW
+    Scale invariant loss function for depth estimation
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
-    CLW/CLAW
-    Scale invariant loss function for depth estimation
     Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
     Measure accuracy of gradient norm estimate
     Better architecture
