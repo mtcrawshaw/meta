@@ -18,6 +18,7 @@ OUTPUT_SIZE = 2
 NUM_LAYERS = 3
 HIDDEN_SIZE = 3
 MAX_PS_DEGREE = 3
+BATCH_SIZE = 4
 
 
 class ExpActivation(nn.Module):
@@ -87,6 +88,14 @@ def network_to_expr(
     return outputs
 
 
+def estimate_output(input_data: torch.Tensor, network_expr: Expr) -> torch.Tensor:
+    """
+    Estimate the output of the neural network whose approximate expression is
+    `network_expr` by evaluating the expression on input `input_data.
+    """
+    raise NotImplementedError
+
+
 def main():
     """ Main function for ckd_sandbox.py. """
 
@@ -123,10 +132,16 @@ def main():
     # Get power series representation of output.
     network_expr = network_to_expr(network, input_symbols, weight_symbols, bias_symbols)
 
-    print(network_expr)
+    # Generate input data to test network approximation.
+    mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
+    std = torch.ones((BATCH_SIZE, INPUT_SIZE))
+    input_data = torch.normal(mean, std)
 
-    # Next: Generate input and evaluate both the network output and the approximate
-    # expression on this input. Compare the two and see how good the approximation is!
+    # Get actual network output, estimated output, and compare.
+    actual_output = network(input_data)
+    estimated_output = estimate_output(input_data, network_expr)
+    error = torch.mean((actual_output - estimated_output) ** 2).item()
+    print(f"Mean error: {error}")
 
 
 if __name__ == "__main__":
