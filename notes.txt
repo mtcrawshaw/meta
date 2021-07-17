@@ -82,8 +82,8 @@ Current sprint (Loss weighting experiments):
     GradNorm
     Implement common metrics for NYUv2 tasks
     Experiment command to run multiple configs
---> Statistical significance in experiment command
-    Shared plotting in experiment
+    Statistical significance in experiment command
+--> Shared plotting in experiment
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
     CLW/CLAW
