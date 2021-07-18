@@ -973,7 +973,9 @@ class SLTrainer(Trainer):
 
         # Average value of metrics over all batches.
         for metric_name in eval_step_metrics:
-            eval_step_metrics[metric_name] = [np.average(eval_step_metrics[metric_name], weights=batch_sizes)]
+            eval_step_metrics[metric_name] = [
+                np.average(eval_step_metrics[metric_name], weights=batch_sizes)
+            ]
 
         return eval_step_metrics
 

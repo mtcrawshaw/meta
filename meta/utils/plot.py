@@ -8,7 +8,11 @@ import matplotlib.pyplot as plt
 from meta.utils.metrics import Metrics
 
 
-def plot(metrics: Union[Metrics, Dict[str, Metrics]], plot_path: str, summary: Dict[str, Any] = None) -> None:
+def plot(
+    metrics: Union[Metrics, Dict[str, Metrics]],
+    plot_path: str,
+    summary: Dict[str, Any] = None,
+) -> None:
     """
     Plot the metrics from `metrics`, store image at `plot_path`. `metrics` should be a
     `Metrics` object in the case that the metrics from a single training run should be
@@ -111,9 +115,7 @@ def plot(metrics: Union[Metrics, Dict[str, Metrics]], plot_path: str, summary: D
             # Assign x-axis values to each data point.
             num_points = len(mean_arrs[0])
             num_intervals = num_points if num_points > 1 else 1
-            x_axis = [
-                (j * max_metric_len) // num_intervals for j in range(num_points)
-            ]
+            x_axis = [(j * max_metric_len) // num_intervals for j in range(num_points)]
 
             # Plot mean.
             for j in range(len(mean_arrs)):
@@ -202,9 +204,7 @@ def get_basenames(metrics: Metrics) -> List[str]:
 
 def get_max_metric_len(metrics: Metrics) -> List[str]:
     """ Utility function to get maximum length of a metric from `metrics`. """
-    return max(
-        [len(metric.mean) for metric in metrics.metric_dict.values()]
-    )
+    return max([len(metric.mean) for metric in metrics.metric_dict.values()])
 
 
 def get_metric_names(metrics: Metrics, basename: str) -> List[str]:
