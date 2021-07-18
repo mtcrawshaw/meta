@@ -86,8 +86,8 @@ Current sprint (Loss weighting experiments):
     Shared plotting in experiment
     CLW/CLAW
     Scale invariant loss function for depth estimation
---> Fix sum/mean of NYUv2 task losses
-    Fix evaluation format
+    Fix sum/mean of NYUv2 task losses
+--> Fix evaluation format
     Evaluation
     Measure accuracy of gradient norm estimate
     Tune general parameters + loss weighting parameters
@@ -98,8 +98,6 @@ Current sprint (Loss weighting experiments):
 
 Refactoring:
 - Figure out if we need to do anything to convert BN layers to test mode.
-- Make sure that we are consistently taking either sum or mean of loss over batches for
-  each task.
 - Separate SLTrainer and multi-task functionality (make MultiSLTrainer? MultiTrainer?)
 - Add multitask capability to ConvNetwork
 - Get rid of NYUv2 wrapper and write one from scratch
@@ -136,12 +134,6 @@ Loss weighting experiments:
   statistical significance, or until we hit X trials.
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
-
-Notes for current task:
-Success metrics for each of the three tasks.
-- Semantic segmentation: class accuracy, pixel accuracy, IoU
-- Normal estimation: mean angle, % with angle < {11.25,22.5,30}
-- Depth estimation: % with ratio < {1.25,1.25^2,1.25^3}, RMSE, log-RMSE, scale-invariant log-RMSE
 
 
 ----------------------------------------------------------------------------------------

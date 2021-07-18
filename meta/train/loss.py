@@ -21,12 +21,31 @@ class CosineSimilarityLoss(nn.Module):
     computed along `dim`.
     """
 
-    def __init__(self, dim: int = 1, eps: float = 1e-8) -> None:
+    def __init__(
+        self, dim: int = 1, eps: float = 1e-8, reduction: str = "mean"
+    ) -> None:
         super(CosineSimilarityLoss, self).__init__()
         self.single_loss = nn.CosineSimilarity(dim=dim, eps=eps)
+        self.reduction = reduction
+        assert self.reduction in ["none", "mean", "sum"]
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
-        return (1 - torch.mean(self.single_loss(x1, x2))) / 2.0
+        batch_loss = self.single_loss(x1, x2)
+        batch_size = batch_loss.shape[0]
+        batch_loss = batch_loss.view(batch_size, -1)
+        batch_loss = (1 - torch.mean(batch_loss, dim=-1)) / 2.0
+
+        # Reduce loss.
+        if self.reduction == "none":
+            loss = batch_loss
+        elif self.reduction == "mean":
+            loss = torch.mean(batch_loss)
+        elif self.reduction == "sum":
+            loss = torch.sum(batch_loss)
+        else:
+            raise NotImplementedError
+
+        return loss
 
 
 class ScaleInvariantDepthLoss(nn.Module):

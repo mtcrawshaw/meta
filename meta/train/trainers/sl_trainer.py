@@ -231,7 +231,7 @@ DATASETS = {
         "output_size": (3, 480, 64),
         "builtin": False,
         "loss_cls": CosineSimilarityLoss,
-        "loss_kwargs": {},
+        "loss_kwargs": {"reduction": "mean"},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy_11.25": {
@@ -433,7 +433,7 @@ DATASETS = {
                     "label_slice": lambda x: x[:, 0].long(),
                 },
                 {
-                    "loss": CosineSimilarityLoss(),
+                    "loss": CosineSimilarityLoss(reduction="mean"),
                     "output_slice": lambda x: x[:, 13:16],
                     "label_slice": lambda x: x[:, 1:4],
                 },
