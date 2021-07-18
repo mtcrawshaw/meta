@@ -124,6 +124,7 @@ Refactoring:
   have redundant information.
 - Add some constraints to `experiment()` so that some options must remain fixed between
   different methods, such as trainer type and dataset.
+- Add tests for `experiment()` to check that results are consistent with `train()`.
 
 
 Loss weighting experiments:

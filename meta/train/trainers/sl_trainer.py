@@ -1,6 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
+from copy import deepcopy
 from itertools import chain
 from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
 
@@ -897,7 +898,7 @@ class SLTrainer(Trainer):
         # in the case that GradNorm is operating over parameters outside of
         # `self.network`, or if the task-specific loss functions are dependent on
         # parameters outside of `self.network`.
-        criterion_kwargs = self.dataset_info["criterion_kwargs"]
+        criterion_kwargs = deepcopy(self.dataset_info["criterion_kwargs"])
         if "loss_weighter" in config:
             if config["loss_weighter"]["type"] in ["GradNorm", "CLW"]:
                 criterion_kwargs["train"]["network"] = self.network

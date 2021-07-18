@@ -468,9 +468,11 @@ class CLW(LossWeighter):
         task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
 
         # Set loss weights equal to inverse of gradient norms, then normalize the
-        # weights so they sum to the initial total weight. Note that we don't update the
-        # weights until after the first step, since at that point each stdev is 0.
-        self.loss_weights = 1.0 / task_grad_norms
+        # weights so they sum to the initial total weight.
+        threshold_norm = torch.max(
+            task_grad_norms, EPSILON * torch.ones_like(task_grad_norms)
+        )
+        self.loss_weights = 1.0 / threshold_norm
         self.loss_weights /= torch.sum(self.loss_weights)
         self.loss_weights *= self.total_weight
 
@@ -501,8 +503,8 @@ class CLAW(LossWeighter):
 
         # Set loss weights equal to inverse of loss stdev, then normalize the weights so
         # they sum to the initial total weight. Note that we don't update the weights
-        # until after the first step, since at that point each stdev is 0.
-        if len(self.loss_history) > 1:
+        # until after the first step, since at that point each stdev is undefined.
+        if self.steps > 0 and not any(torch.isnan(self.loss_stats.stdev)):
             threshold_stdev = torch.max(
                 self.loss_stats.stdev, EPSILON * torch.ones_like(self.loss_stats.stdev)
             )
