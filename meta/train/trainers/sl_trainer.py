@@ -880,6 +880,8 @@ class SLTrainer(Trainer):
             loss_weighter_kwargs = dict(config["loss_weighter"])
             if config["loss_weighter"]["type"] == "GradNorm":
                 loss_weighter_kwargs["shared_params"] = last_shared_params(self.network)
+            elif config["loss_weighter"]["type"] == "CLW":
+                loss_weighter_kwargs["shared_params"] = list(self.network.parameters())
             loss_kwargs["loss_weighter_kwargs"] = loss_weighter_kwargs
         if loss_cls == MultiTaskLoss:
             loss_kwargs["device"] = self.device
@@ -897,7 +899,7 @@ class SLTrainer(Trainer):
         # parameters outside of `self.network`.
         criterion_kwargs = self.dataset_info["criterion_kwargs"]
         if "loss_weighter" in config:
-            if config["loss_weighter"]["type"] == "GradNorm":
+            if config["loss_weighter"]["type"] in ["GradNorm", "CLW"]:
                 criterion_kwargs["train"]["network"] = self.network
         self.criterion_kwargs = dict(criterion_kwargs)
 

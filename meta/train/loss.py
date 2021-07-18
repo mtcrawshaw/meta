@@ -60,8 +60,8 @@ class MultiTaskLoss(nn.Module):
             "LBTW",
             "NLW",
             "RWLW",
+            "CLW",
             "CLAW",
-            "NCLW",
         ]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
@@ -70,7 +70,7 @@ class MultiTaskLoss(nn.Module):
 
         # Determine whether loss weights should be updated before or after task loss
         # computation.
-        pre_loss_weighters = [Uncertainty, GradNorm]
+        pre_loss_weighters = [Uncertainty, GradNorm, CLW, CLAW]
         self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
     def forward(
@@ -140,7 +140,7 @@ class LossWeighter(nn.Module):
         """
         self.loss_history.append(loss_vals.detach())
         self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
-        if isinstance(self, GradNorm):
+        if isinstance(self, GradNorm) or isinstance(self, CLW):
             kwargs["loss_vals"] = loss_vals
         self._update_weights(**kwargs)
         self.steps += 1
@@ -202,7 +202,7 @@ class GradNorm(LossWeighter):
         weight_lr: float,
         **kwargs: Dict[str, Any],
     ) -> None:
-        """ Init function for Uncertainty. """
+        """ Init function for GradNorm. """
 
         super(GradNorm, self).__init__(**kwargs)
 
@@ -233,7 +233,7 @@ class GradNorm(LossWeighter):
             task_grads[task] = task_grad.detach()
         network.zero_grad()
 
-        # Compute gradient norms.
+        # Compute weighted gradient norms.
         task_grad_norms = torch.sqrt(
             torch.sum((task_grads * self.loss_weight_p.unsqueeze(-1)) ** 2, dim=-1)
         )
@@ -434,6 +434,47 @@ class RWLW(LossWeighter):
         self.loss_weights *= self.total_weight
 
 
+class CLW(LossWeighter):
+    """
+    Compute task loss weights with Centered Loss Weighting. At each step, we compute the
+    gradient of each task's loss function, set each task's weight equal to the
+    reciprocal of the norm of this gradient, then normalize weights.
+    """
+
+    def __init__(
+        self, shared_params: List[nn.Parameter], **kwargs: Dict[str, Any]
+    ) -> None:
+        """ Init function for GradNorm. """
+
+        super(CLW, self).__init__(**kwargs)
+
+        # Save state.
+        self.shared_params = shared_params
+        self.grad_len = sum([param.numel() for param in self.shared_params])
+
+    def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
+        """ Compute new loss weights with CLW. """
+
+        # Compute gradients of each task's loss.
+        task_grads = torch.zeros((self.num_tasks, self.grad_len), device=self.device)
+        for task in range(self.num_tasks):
+            network.zero_grad()
+            loss_vals[task].backward(retain_graph=True)
+            task_grad = torch.cat([param.grad.view(-1) for param in self.shared_params])
+            task_grads[task] = task_grad.detach()
+        network.zero_grad()
+
+        # Compute gradient norms.
+        task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
+
+        # Set loss weights equal to inverse of gradient norms, then normalize the
+        # weights so they sum to the initial total weight. Note that we don't update the
+        # weights until after the first step, since at that point each stdev is 0.
+        self.loss_weights = 1.0 / task_grad_norms
+        self.loss_weights /= torch.sum(self.loss_weights)
+        self.loss_weights *= self.total_weight
+
+
 class CLAW(LossWeighter):
     """
     Compute task loss weights with Centered Loss Approximated Weighting. Here we keep a
@@ -442,10 +483,7 @@ class CLAW(LossWeighter):
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
-        """
-        Init function for CLAW. `sigma` is the standard deviation of the distribution
-        from which the Gaussian noise is sampled.
-        """
+        """ Init function for CLAW. """
         super(CLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
@@ -456,7 +494,7 @@ class CLAW(LossWeighter):
         )
 
     def _update_weights(self) -> None:
-        """ Compute new loss weights with NLW. """
+        """ Compute new loss weights with CLAW. """
 
         # Update stats.
         self.loss_stats.update(self.loss_history[-1])
@@ -471,53 +509,6 @@ class CLAW(LossWeighter):
             self.loss_weights = 1.0 / threshold_stdev
             self.loss_weights /= torch.sum(self.loss_weights)
             self.loss_weights *= self.total_weight
-
-
-class NCLW(LossWeighter):
-    """
-    Compute task loss weights with Noisy Centered Loss Weighting. Here we keep a running
-    std of each task's loss, and set each task's loss weight equal to the inverse of the
-    std of the task loss, plus a small amount of Gaussian noise as in NLW.
-    """
-
-    def __init__(self, sigma: float, **kwargs: Dict[str, Any]) -> None:
-        """
-        Init function for NCLW. `sigma` is the standard deviation of the distribution
-        from which the Gaussian noise is sampled.
-        """
-        super(NCLW, self).__init__(**kwargs)
-
-        self.sigma = sigma
-        self.loss_stats = RunningStats(
-            compute_stdev=True,
-            shape=(self.num_tasks,),
-            ema_alpha=0.99,
-            device=self.device,
-        )
-
-    def _update_weights(self) -> None:
-        """ Compute new loss weights with NLW. """
-
-        # Update stats.
-        self.loss_stats.update(self.loss_history[-1])
-
-        # Set loss weights equal to inverse of loss stdev, then normalize the weights so
-        # they sum to the initial total weight. Note that we don't update the weights
-        # until after the first step, since at that point each stdev is 0.
-        if len(self.loss_history) > 1:
-            self.loss_weights = 1.0 / self.loss_stats.stdev
-            self.loss_weights /= torch.sum(self.loss_weights)
-            self.loss_weights *= self.total_weight
-
-        # Add noise to loss weights.
-        mean = torch.zeros(self.num_tasks)
-        std = torch.ones(self.num_tasks) * self.sigma
-        noise = torch.normal(mean, std).to(self.device)
-        self.loss_weights = self.loss_weights + noise
-
-        # Normalize weights to ensure positivity.
-        self.loss_weights = F.softmax(self.loss_weights, dim=0)
-        self.loss_weights *= self.total_weight
 
 
 def save_batch(
