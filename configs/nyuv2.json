@@ -20,6 +20,7 @@
         "type": "backbone",
         "arch_type": "conv",
         "num_backbone_layers": 4,
+        "num_head_layers": 2,
         "initial_channels": 32,
         "head_channels": 32
     },

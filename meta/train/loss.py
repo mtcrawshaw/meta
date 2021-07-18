@@ -60,7 +60,7 @@ class MultiTaskLoss(nn.Module):
             "LBTW",
             "NLW",
             "RWLW",
-            "CLW",
+            "CLAW",
             "NCLW",
         ]:
             raise NotImplementedError
@@ -434,19 +434,19 @@ class RWLW(LossWeighter):
         self.loss_weights *= self.total_weight
 
 
-class CLW(LossWeighter):
+class CLAW(LossWeighter):
     """
-    Compute task loss weights with Centered Loss Weighting. Here we keep a running std
-    of each task's loss, and set each task's loss weight equal to the inverse of the std
-    of the task loss.
+    Compute task loss weights with Centered Loss Approximated Weighting. Here we keep a
+    running std of each task's loss, and set each task's loss weight equal to the
+    inverse of the std of the task loss.
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
         """
-        Init function for CLW. `sigma` is the standard deviation of the distribution
+        Init function for CLAW. `sigma` is the standard deviation of the distribution
         from which the Gaussian noise is sampled.
         """
-        super(CLW, self).__init__(**kwargs)
+        super(CLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
             compute_stdev=True,
