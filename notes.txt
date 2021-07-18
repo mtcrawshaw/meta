@@ -84,12 +84,14 @@ Current sprint (Loss weighting experiments):
     Experiment command to run multiple configs
     Statistical significance in experiment command
     Shared plotting in experiment
---> CLW/CLAW
+    CLW/CLAW
     Scale invariant loss function for depth estimation
-    Fix sum/mean of NYUv2 task losses
+--> Fix sum/mean of NYUv2 task losses
     Fix evaluation format
-    Evaluation (tune general parameters, evaluate single-task models, tune loss weighting parameters, evaluation)
+    Evaluation
     Measure accuracy of gradient norm estimate
+    Tune general parameters + loss weighting parameters
+    Evaluate single-task models
     Better architecture
     Add other task sets
 
@@ -114,8 +116,6 @@ Refactoring:
 - Fix evaluation format. We should go through one evaluation epoch every now and then
   instead of doing a single batch constantly. This way we also don't need to worry about
   moving averages.
-- Add scale invariance of predictions for depth and/or add normalization so that the
-  network output is predicted the log depth.
 - De-modularize metric functionality. Combine all metric computation for a single
   dataset into one function, then add that function as a class method of the
   corresponding Dataset object. This will clean things up a lot.

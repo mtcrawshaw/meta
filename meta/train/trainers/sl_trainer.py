@@ -14,6 +14,7 @@ from meta.train.trainers.base_trainer import Trainer
 from meta.datasets import NYUv2, MTRegression
 from meta.train.loss import (
     CosineSimilarityLoss,
+    ScaleInvariantDepthLoss,
     MultiTaskLoss,
     Uncertainty,
     get_accuracy,
@@ -165,7 +166,7 @@ DATASETS = {
         "output_size": (13, 480, 64),
         "builtin": False,
         "loss_cls": nn.CrossEntropyLoss,
-        "loss_kwargs": {"ignore_index": -1},
+        "loss_kwargs": {"ignore_index": -1, "reduction": "mean"},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_pixel_accuracy": {
@@ -310,8 +311,8 @@ DATASETS = {
         "input_size": (3, 480, 64),
         "output_size": (1, 480, 64),
         "builtin": False,
-        "loss_cls": nn.MSELoss,
-        "loss_kwargs": {},
+        "loss_cls": ScaleInvariantDepthLoss,
+        "loss_kwargs": {"alpha": 0.5, "reduction": "mean"},
         "criterion_kwargs": {"train": {}, "eval": {}},
         "extra_metrics": {
             "train_accuracy_1.25": {
@@ -427,7 +428,7 @@ DATASETS = {
         "loss_kwargs": {
             "task_losses": [
                 {
-                    "loss": nn.CrossEntropyLoss(ignore_index=-1),
+                    "loss": nn.CrossEntropyLoss(ignore_index=-1, reduction="mean"),
                     "output_slice": lambda x: x[:, :13],
                     "label_slice": lambda x: x[:, 0].long(),
                 },
@@ -437,7 +438,7 @@ DATASETS = {
                     "label_slice": lambda x: x[:, 1:4],
                 },
                 {
-                    "loss": nn.MSELoss(),
+                    "loss": ScaleInvariantDepthLoss(alpha=0.5, reduction="mean"),
                     "output_slice": lambda x: x[:, 16:17],
                     "label_slice": lambda x: x[:, 4:5],
                 },

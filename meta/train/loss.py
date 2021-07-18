@@ -29,6 +29,47 @@ class CosineSimilarityLoss(nn.Module):
         return (1 - torch.mean(self.single_loss(x1, x2))) / 2.0
 
 
+class ScaleInvariantDepthLoss(nn.Module):
+    """
+    Returns the scale invariant loss for depth prediction. This loss function is
+    detailed in https://arxiv.org/abs/1406.2283. Here `alpha` is the coefficient
+    `lambda` used in equation (4) of the above paper.
+    """
+
+    def __init__(self, alpha: float = 0.5, reduction: str = "mean") -> None:
+        super(ScaleInvariantDepthLoss, self).__init__()
+        self.alpha = alpha
+        self.reduction = reduction
+        assert self.reduction in ["none", "mean", "sum"]
+
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """
+        Compute scale invariant depth loss from predictions and ground truth. Note that
+        we are comparing `outputs` with the log depth labels, so the network is being
+        trained to predict the log depth.
+        """
+
+        # Compute loss for each element of batch.
+        diffs = outputs - torch.log(labels)
+        batch_size = diffs.shape[0]
+        diffs = diffs.view(batch_size, -1)
+        mse = torch.mean(diffs ** 2, dim=-1)
+        relative = torch.sum(diffs, dim=-1) ** 2 / diffs.shape[1] ** 2
+        batch_loss = mse - self.alpha * relative
+
+        # Reduce loss.
+        if self.reduction == "none":
+            loss = batch_loss
+        elif self.reduction == "mean":
+            loss = torch.mean(batch_loss)
+        elif self.reduction == "sum":
+            loss = torch.sum(batch_loss)
+        else:
+            raise NotImplementedError
+
+        return loss
+
+
 class MultiTaskLoss(nn.Module):
     """ Computes the weighted sum of multiple loss functions. """
 
@@ -705,7 +746,8 @@ def get_NYUv2_depth_accuracy(
 ) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
     """
     Construct and return a function that computes the accuracy of depth predictions at
-    threshold `threshold`.
+    threshold `threshold`. Note that the network is trained to compute the log-depth (in
+    `ScaleInvariantDepthLoss`).
     """
 
     def NYUv2_depth_accuracy(
@@ -716,10 +758,9 @@ def get_NYUv2_depth_accuracy(
         number of pixels for which the ratio between the predicted depth and the true depth
         is less than `threshold`.
         """
-        ratio = torch.max(outputs / labels, labels / outputs)
-        accuracy = torch.sum(
-            torch.logical_and(ratio < threshold, ratio > 1.0 / threshold)
-        ) / torch.numel(ratio)
+        preds = torch.exp(outputs)
+        ratio = torch.max(preds / labels, labels / preds)
+        accuracy = torch.sum(ratio < threshold) / torch.numel(ratio)
         return accuracy.item()
 
     return NYUv2_depth_accuracy
@@ -729,25 +770,26 @@ def NYUv2_depth_RMSE(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """ Root mean-square error for NYUv2 depth prediction. """
-    return torch.sqrt(torch.mean((outputs - labels) ** 2)).item()
+    preds = torch.exp(outputs)
+    return torch.sqrt(torch.mean((preds - labels) ** 2)).item()
 
 
 def NYUv2_depth_log_RMSE(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """ RMSE of log-prediction and log-ground truth for NYUv2 depth prediction. """
-    preds = torch.max(outputs, 1e-5 * torch.ones_like(outputs))
-    return torch.sqrt(torch.mean((torch.log(preds) - torch.log(labels)) ** 2)).item()
+    return torch.sqrt(torch.mean((outputs - torch.log(labels)) ** 2)).item()
 
 
 def NYUv2_depth_invariant_RMSE(
     outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
 ) -> float:
     """
-    Scale-invariant RMSE of log-prediction and log-ground truth for NYUv2 depth prediction.
+    Scale-invariant RMSE of log-prediction and log-ground truth for NYUv2 depth
+    prediction. Note that the network is trained to compute the log-depth (in
+    `ScaleInvariantDepthLoss`).
     """
-    preds = torch.max(outputs, 1e-5 * torch.ones_like(outputs))
-    diffs = torch.log(preds) - torch.log(labels)
+    diffs = outputs - torch.log(labels)
     mse = torch.mean(diffs ** 2)
     relative = torch.sum(diffs) ** 2 / torch.numel(diffs) ** 2
     return torch.sqrt(mse - relative).item()
