@@ -87,8 +87,8 @@ Current sprint (Loss weighting experiments):
     CLW/CLAW
     Scale invariant loss function for depth estimation
     Fix sum/mean of NYUv2 task losses
---> Fix evaluation format
-    Evaluation
+    Fix evaluation format
+--> Evaluation
     Measure accuracy of gradient norm estimate
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
@@ -123,6 +123,9 @@ Refactoring:
 - Add some constraints to `experiment()` so that some options must remain fixed between
   different methods, such as trainer type and dataset.
 - Add tests for `experiment()` to check that results are consistent with `train()`.
+- Fix memory issue. For some reason, when we changed the evaluation format so that we
+  evaluate the network on the entire test set each time `evaluate()` is called, the GPU
+  memory usage increased by a factor of 1.5. This happened in commit dcdee654.
 
 
 Loss weighting experiments:
