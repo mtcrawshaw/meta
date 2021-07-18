@@ -132,9 +132,12 @@ Loss weighting experiments:
   can fit on GPU), task specific output heads with 1 3x3 Conv-BN-ReLU + 1 1x1 Conv.
 - Methodology: Repeat each method with different random seeds until we reach pairwise
   statistical significance, or until we hit X trials.
+- Small details:
+  - Make sure that TRAIN_WINDOW and config["evaluation_freq"] are set so that the
+    training metrics are averaged over the last epoch and we are evaluating once per
+    epoch.
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
-
 
 ----------------------------------------------------------------------------------------
 

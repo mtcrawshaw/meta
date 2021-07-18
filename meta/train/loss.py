@@ -30,12 +30,14 @@ class CosineSimilarityLoss(nn.Module):
         assert self.reduction in ["none", "mean", "sum"]
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+
+        # Compute loss for each element in the batch.
         batch_loss = self.single_loss(x1, x2)
         batch_size = batch_loss.shape[0]
         batch_loss = batch_loss.view(batch_size, -1)
         batch_loss = (1 - torch.mean(batch_loss, dim=-1)) / 2.0
 
-        # Reduce loss.
+        # Reduce loss over the batch.
         if self.reduction == "none":
             loss = batch_loss
         elif self.reduction == "mean":
@@ -76,7 +78,7 @@ class ScaleInvariantDepthLoss(nn.Module):
         relative = torch.sum(diffs, dim=-1) ** 2 / diffs.shape[1] ** 2
         batch_loss = mse - self.alpha * relative
 
-        # Reduce loss.
+        # Reduce loss over the batch.
         if self.reduction == "none":
             loss = batch_loss
         elif self.reduction == "mean":

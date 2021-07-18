@@ -5,6 +5,7 @@ from copy import deepcopy
 from itertools import chain
 from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torchvision
@@ -75,7 +76,7 @@ def slice_second_dim(idx: int) -> Callable[[Any], Any]:
 
 
 TRAIN_WINDOW = 100
-EVAL_WINDOW = 10
+EVAL_WINDOW = 1
 DATASETS = {
     "MNIST": {
         "input_size": (1, 28, 28),
@@ -839,14 +840,13 @@ class SLTrainer(Trainer):
             shuffle=True,
             num_workers=config["num_workers"],
         )
-        test_loader = torch.utils.data.DataLoader(
+        self.test_loader = torch.utils.data.DataLoader(
             test_set,
             batch_size=config["batch_size"],
             shuffle=False,
             num_workers=config["num_workers"],
         )
         self.train_iter = iter(cycle(train_loader))
-        self.test_iter = iter(cycle(test_loader))
 
         # Determine type of network to construct.
         network_kwargs = dict(config["architecture_config"])
@@ -940,23 +940,40 @@ class SLTrainer(Trainer):
     def evaluate(self) -> None:
         """ Evaluate current model. """
 
-        # Sample a batch and move it to device.
-        inputs, labels = next(self.test_iter)
-        inputs = inputs.to(self.device)
-        labels = labels.to(self.device)
-
-        # Perform forward pass and copmute loss.
-        outputs = self.network(inputs)
-        loss = self.criterion(outputs, labels, **self.criterion_kwargs["eval"])
-
-        # Compute metrics from evaluation step.
+        # Initialize metrics.
         eval_step_metrics = {
-            "eval_loss": [loss.item()],
+            "eval_loss": [],
+            **{
+                metric_name: []
+                for metric_name, metric_info in self.extra_metrics.items()
+                if not metric_info["train"]
+            },
         }
-        for metric_name, metric_info in self.extra_metrics.items():
-            if not metric_info["train"]:
-                fn = metric_info["fn"]
-                eval_step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
+        batch_sizes = []
+
+        # Iterate over entire test set.
+        for (inputs, labels) in self.test_loader:
+
+            # Sample a batch and move it to device.
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            batch_sizes.append(len(inputs))
+
+            # Perform forward pass and compute loss.
+            outputs = self.network(inputs)
+            loss = self.criterion(outputs, labels, **self.criterion_kwargs["eval"])
+
+            # Compute metrics from evaluation step.
+            eval_step_metrics["eval_loss"].append(loss.item())
+            for metric_name, metric_info in self.extra_metrics.items():
+                if not metric_info["train"]:
+                    fn = metric_info["fn"]
+                    metric_val = fn(outputs, labels, self.criterion)
+                    eval_step_metrics[metric_name].append(metric_val)
+
+        # Average value of metrics over all batches.
+        for metric_name in eval_step_metrics:
+            eval_step_metrics[metric_name] = [np.average(eval_step_metrics[metric_name], weights=batch_sizes)]
 
         return eval_step_metrics
 
