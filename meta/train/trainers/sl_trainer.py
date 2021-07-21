@@ -75,7 +75,7 @@ def slice_second_dim(idx: int) -> Callable[[Any], Any]:
     return slice
 
 
-TRAIN_WINDOW = 100
+TRAIN_WINDOW = 33
 EVAL_WINDOW = 1
 DATASETS = {
     "MNIST": {
@@ -449,7 +449,7 @@ DATASETS = {
         "extra_metrics": {
             "train_avg_accuracy": {
                 "fn": NYUv2_multi_avg_accuracy,
-                "basename": "avg_accuracy",
+                "basename": "train_avg_accuracy",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -457,7 +457,7 @@ DATASETS = {
             },
             "eval_avg_accuracy": {
                 "fn": NYUv2_multi_avg_accuracy,
-                "basename": "avg_accuracy",
+                "basename": "eval_avg_accuracy",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -465,7 +465,7 @@ DATASETS = {
             },
             "train_seg_pixel_accuracy": {
                 "fn": NYUv2_multi_seg_pixel_accuracy,
-                "basename": "seg_pixel_accuracy",
+                "basename": "train_seg_pixel_accuracy",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -473,7 +473,7 @@ DATASETS = {
             },
             "eval_seg_pixel_accuracy": {
                 "fn": NYUv2_multi_seg_pixel_accuracy,
-                "basename": "seg_pixel_accuracy",
+                "basename": "eval_seg_pixel_accuracy",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -481,7 +481,7 @@ DATASETS = {
             },
             "train_seg_class_accuracy": {
                 "fn": NYUv2_multi_seg_class_accuracy,
-                "basename": "seg_class_accuracy",
+                "basename": "train_seg_class_accuracy",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -489,7 +489,7 @@ DATASETS = {
             },
             "eval_seg_class_accuracy": {
                 "fn": NYUv2_multi_seg_class_accuracy,
-                "basename": "seg_class_accuracy",
+                "basename": "eval_seg_class_accuracy",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -497,7 +497,7 @@ DATASETS = {
             },
             "train_seg_class_IOU": {
                 "fn": NYUv2_multi_seg_class_IOU,
-                "basename": "seg_class_IOU",
+                "basename": "train_seg_class_IOU",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -505,7 +505,7 @@ DATASETS = {
             },
             "eval_seg_class_IOU": {
                 "fn": NYUv2_multi_seg_class_IOU,
-                "basename": "seg_class_IOU",
+                "basename": "eval_seg_class_IOU",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -513,7 +513,7 @@ DATASETS = {
             },
             "train_sn_accuracy_11.25": {
                 "fn": get_NYUv2_multi_sn_accuracy(11.25),
-                "basename": "sn_accuracy_11.25",
+                "basename": "train_sn_accuracy_11.25",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -521,7 +521,7 @@ DATASETS = {
             },
             "eval_sn_accuracy_11.25": {
                 "fn": get_NYUv2_multi_sn_accuracy(11.25),
-                "basename": "sn_accuracy_11.25",
+                "basename": "eval_sn_accuracy_11.25",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -529,7 +529,7 @@ DATASETS = {
             },
             "train_sn_accuracy_22.5": {
                 "fn": get_NYUv2_multi_sn_accuracy(22.5),
-                "basename": "sn_accuracy_22.5",
+                "basename": "train_sn_accuracy_22.5",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -537,7 +537,7 @@ DATASETS = {
             },
             "eval_sn_accuracy_22.5": {
                 "fn": get_NYUv2_multi_sn_accuracy(22.5),
-                "basename": "sn_accuracy_22.5",
+                "basename": "eval_sn_accuracy_22.5",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -545,7 +545,7 @@ DATASETS = {
             },
             "train_sn_accuracy_30": {
                 "fn": get_NYUv2_multi_sn_accuracy(30),
-                "basename": "sn_accuracy_30",
+                "basename": "train_sn_accuracy_30",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -553,7 +553,7 @@ DATASETS = {
             },
             "eval_sn_accuracy_30": {
                 "fn": get_NYUv2_multi_sn_accuracy(30),
-                "basename": "sn_accuracy_30",
+                "basename": "eval_sn_accuracy_30",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -561,7 +561,7 @@ DATASETS = {
             },
             "train_sn_angle": {
                 "fn": NYUv2_multi_sn_angle,
-                "basename": "sn_angle",
+                "basename": "train_sn_angle",
                 "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
@@ -569,7 +569,7 @@ DATASETS = {
             },
             "eval_sn_angle": {
                 "fn": NYUv2_multi_sn_angle,
-                "basename": "sn_angle",
+                "basename": "eval_sn_angle",
                 "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,
@@ -577,7 +577,7 @@ DATASETS = {
             },
             "train_depth_accuracy_1.25": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.25),
-                "basename": "depth_accuracy_1.25",
+                "basename": "train_depth_accuracy_1.25",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -585,7 +585,7 @@ DATASETS = {
             },
             "eval_depth_accuracy_1.25": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.25),
-                "basename": "depth_accuracy_1.25",
+                "basename": "eval_depth_accuracy_1.25",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -593,7 +593,7 @@ DATASETS = {
             },
             "train_depth_accuracy_1.25^2": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.5625),
-                "basename": "depth_accuracy_1.25^2",
+                "basename": "train_depth_accuracy_1.25^2",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -601,7 +601,7 @@ DATASETS = {
             },
             "eval_depth_accuracy_1.25^2": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.5625),
-                "basename": "depth_accuracy_1.25^2",
+                "basename": "eval_depth_accuracy_1.25^2",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -609,7 +609,7 @@ DATASETS = {
             },
             "train_depth_accuracy_1.25^3": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.953125),
-                "basename": "depth_accuracy_1.25^3",
+                "basename": "train_depth_accuracy_1.25^3",
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
@@ -617,7 +617,7 @@ DATASETS = {
             },
             "eval_depth_accuracy_1.25^3": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.953125),
-                "basename": "depth_accuracy_1.25^3",
+                "basename": "eval_depth_accuracy_1.25^3",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,
@@ -625,7 +625,7 @@ DATASETS = {
             },
             "train_depth_RMSE": {
                 "fn": NYUv2_multi_depth_RMSE,
-                "basename": "depth_RMSE",
+                "basename": "train_depth_RMSE",
                 "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
@@ -633,7 +633,7 @@ DATASETS = {
             },
             "eval_depth_RMSE": {
                 "fn": NYUv2_multi_depth_RMSE,
-                "basename": "depth_RMSE",
+                "basename": "eval_depth_RMSE",
                 "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,
@@ -641,7 +641,7 @@ DATASETS = {
             },
             "train_depth_log_RMSE": {
                 "fn": NYUv2_multi_depth_log_RMSE,
-                "basename": "depth_log_RMSE",
+                "basename": "train_depth_log_RMSE",
                 "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
@@ -649,7 +649,7 @@ DATASETS = {
             },
             "eval_depth_log_RMSE": {
                 "fn": NYUv2_multi_depth_log_RMSE,
-                "basename": "depth_log_RMSE",
+                "basename": "eval_depth_log_RMSE",
                 "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,
@@ -657,7 +657,7 @@ DATASETS = {
             },
             "train_depth_invariant_RMSE": {
                 "fn": NYUv2_multi_depth_invariant_RMSE,
-                "basename": "depth_invariant_RMSE",
+                "basename": "train_depth_invariant_RMSE",
                 "window": TRAIN_WINDOW,
                 "maximize": False,
                 "train": True,
@@ -665,7 +665,7 @@ DATASETS = {
             },
             "eval_depth_invariant_RMSE": {
                 "fn": NYUv2_multi_depth_invariant_RMSE,
-                "basename": "depth_invariant_RMSE",
+                "basename": "eval_depth_invariant_RMSE",
                 "window": EVAL_WINDOW,
                 "maximize": False,
                 "train": False,

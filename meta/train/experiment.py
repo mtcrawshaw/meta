@@ -203,12 +203,11 @@ def add_settings(
 ) -> Dict[str, Any]:
     """
     Recursively add entries from a nested dictionary `settings` to a nested dictionary
-    `base_config`. Any key from `settings` should also be a key in `base_config`.
+    `base_config`.
     """
 
     new_config = dict(base_config)
     for key in settings:
-        assert key in new_config
         if isinstance(settings[key], dict):
             new_config[key] = add_settings(new_config[key], settings[key])
         else:

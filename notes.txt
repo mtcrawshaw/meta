@@ -126,6 +126,8 @@ Refactoring:
 - Fix memory issue. For some reason, when we changed the evaluation format so that we
   evaluate the network on the entire test set each time `evaluate()` is called, the GPU
   memory usage increased by a factor of 1.5. This happened in commit dcdee654.
+- Print method name during experiment so that it's easier to tell how good each method
+  is doing during training.
 
 
 Loss weighting experiments:
@@ -139,6 +141,13 @@ Loss weighting experiments:
   - Make sure that TRAIN_WINDOW and config["evaluation_freq"] are set so that the
     training metrics are averaged over the last epoch and we are evaluating once per
     epoch.
+  - Make sure plot formatting is passable before starting
+  - trials per method: 8
+  - training steps: 660
+  - evaluation freq: 33
+  - Modify loss weighters so that the initial weights are equal to the best constant
+    weights. This is particularly important for Constant and NLW.
+  - Tune ema_alpha of CLAW
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 
