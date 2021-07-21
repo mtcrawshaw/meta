@@ -88,8 +88,8 @@ Current sprint (Loss weighting experiments):
     Scale invariant loss function for depth estimation
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
---> Evaluation
-    Measure accuracy of gradient norm estimate
+    Evaluation
+--> Measure accuracy of gradient norm estimate
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
     Better architecture
@@ -128,6 +128,9 @@ Refactoring:
   memory usage increased by a factor of 1.5. This happened in commit dcdee654.
 - Print method name during experiment so that it's easier to tell how good each method
   is doing during training.
+- Change scales of MTRegression task. Having a 1 and a 100 really throws off the
+  relative scale when trying to visualize things. Weights between 10 and 100 would be a
+  lot better.
 
 
 Loss weighting experiments:
@@ -145,9 +148,14 @@ Loss weighting experiments:
   - trials per method: 8
   - training steps: 660
   - evaluation freq: 33
-  - Modify loss weighters so that the initial weights are equal to the best constant
-    weights. This is particularly important for Constant and NLW.
-  - Tune ema_alpha of CLAW
+
+Improvements to NLW/CLW/CLAW:
+- Modify loss weighters so that the initial weights are equal to the best constant
+  weights. This is particularly important for Constant and NLW.
+- Tune ema_alpha of CLAW
+- Try NLW with cyclic weights instead of pure noise.
+- Try taking EMA of gradient norms for CLW. This might stabilize the loss function a bit
+  and improve optimization performance.
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 

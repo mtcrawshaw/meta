@@ -1,8 +1,10 @@
 """ Loss functions and related utils. """
 
+import os
+import random
 import math
 from PIL import Image
-from typing import List, Dict, Any, Optional, Callable, Iterator
+from typing import List, Dict, Any, Optional, Callable, Iterator, Tuple
 
 import numpy as np
 import torch
@@ -124,6 +126,7 @@ class MultiTaskLoss(nn.Module):
             "RWLW",
             "CLW",
             "CLAW",
+            "CLAWTester",
         ]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
@@ -132,7 +135,7 @@ class MultiTaskLoss(nn.Module):
 
         # Determine whether loss weights should be updated before or after task loss
         # computation.
-        pre_loss_weighters = [Uncertainty, GradNorm, CLW, CLAW]
+        pre_loss_weighters = [Uncertainty, GradNorm, CLW, CLAW, CLAWTester]
         self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
     def forward(
@@ -202,7 +205,11 @@ class LossWeighter(nn.Module):
         """
         self.loss_history.append(loss_vals.detach())
         self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
-        if isinstance(self, GradNorm) or isinstance(self, CLW):
+        if (
+            isinstance(self, GradNorm)
+            or isinstance(self, CLW)
+            or isinstance(self, CLAWTester)
+        ):
             kwargs["loss_vals"] = loss_vals
         self._update_weights(**kwargs)
         self.steps += 1
@@ -506,7 +513,7 @@ class CLW(LossWeighter):
     def __init__(
         self, shared_params: List[nn.Parameter], **kwargs: Dict[str, Any]
     ) -> None:
-        """ Init function for GradNorm. """
+        """ Init function for CLW. """
 
         super(CLW, self).__init__(**kwargs)
 
@@ -573,6 +580,110 @@ class CLAW(LossWeighter):
             self.loss_weights = 1.0 / threshold_stdev
             self.loss_weights /= torch.sum(self.loss_weights)
             self.loss_weights *= self.total_weight
+
+
+class CLAWTester(LossWeighter):
+    """
+    Utility class to evaluate CLAW as an approximation to CLW. This class shouldn't ever
+    be used for training because it will call `exit()` at a random step during the
+    training process.
+    """
+
+    def __init__(
+        self,
+        step_bounds: Tuple[int, int],
+        claw_data_path: str,
+        claw_log_path: str,
+        shared_params: List[nn.Parameter],
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        """ Init function for CLAWTester. """
+
+        super(CLAWTester, self).__init__(**kwargs)
+
+        # Save state.
+        self.step_bounds = step_bounds
+        self.claw_data_path = claw_data_path
+        self.claw_log_path = claw_log_path
+        self.shared_params = shared_params
+        self.grad_len = sum([param.numel() for param in self.shared_params])
+
+        # Randomly generate the step index at which the CLAW vs. CLW comparison will be
+        # made.
+        self.last_step = random.randrange(self.step_bounds[0], self.step_bounds[1])
+
+        self.loss_stats = RunningStats(
+            compute_stdev=True,
+            shape=(self.num_tasks,),
+            ema_alpha=0.99,
+            device=self.device,
+        )
+
+    def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
+        """ Compare CLW and CLAW weights. """
+
+        # Update stats.
+        self.loss_stats.update(self.loss_history[-1])
+
+        # Determine whether or not to perform comparison on the current update step. If
+        # so, then write out results to file and exit training.
+        if self.steps >= self.last_step:
+
+            # Compute gradients of each task's loss.
+            task_grads = torch.zeros(
+                (self.num_tasks, self.grad_len), device=self.device
+            )
+            for task in range(self.num_tasks):
+                network.zero_grad()
+                loss_vals[task].backward(retain_graph=True)
+                task_grad = torch.cat(
+                    [param.grad.view(-1) for param in self.shared_params]
+                )
+                task_grads[task] = task_grad.detach()
+            network.zero_grad()
+
+            # Compute gradient norms.
+            task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
+
+            # Compute CLW weights.
+            threshold_norm = torch.max(
+                task_grad_norms, EPSILON * torch.ones_like(task_grad_norms)
+            )
+            clw_weights = 1.0 / threshold_norm
+            clw_weights /= torch.sum(clw_weights)
+            clw_weights *= self.total_weight
+
+            # Compute CLAW weights.
+            if self.steps > 0 and not any(torch.isnan(self.loss_stats.stdev)):
+                threshold_stdev = torch.max(
+                    self.loss_stats.stdev,
+                    EPSILON * torch.ones_like(self.loss_stats.stdev),
+                )
+                claw_weights = 1.0 / threshold_stdev
+                claw_weights /= torch.sum(claw_weights)
+                claw_weights *= self.total_weight
+            else:
+                claw_weights = None
+
+            # Save and exit if CLAW weights are valid.
+            if claw_weights is not None:
+
+                clw_weights = clw_weights.cpu().numpy()
+                claw_weights = claw_weights.cpu().numpy()
+                current_entry = np.stack([clw_weights, claw_weights])
+                current_entry = np.expand_dims(current_entry, 0)
+
+                if os.path.isfile(self.claw_data_path):
+                    total_entries = np.load(self.claw_data_path)
+                    total_entries = np.concatenate([total_entries, current_entry])
+                else:
+                    total_entries = current_entry
+                np.save(self.claw_data_path, total_entries)
+
+                with open(self.claw_log_path, "a+") as log_file:
+                    log_file.write(f"Exiting at step {self.steps}\n")
+
+                exit()
 
 
 def save_batch(
