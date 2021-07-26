@@ -149,13 +149,17 @@ Loss weighting experiments:
   - training steps: 660
   - evaluation freq: 33
 
-Improvements to NLW/CLW/CLAW:
+Additions to make paper stronger:
 - Modify loss weighters so that the initial weights are equal to the best constant
   weights. This is particularly important for Constant and NLW.
 - Tune ema_alpha of CLAW
 - Try NLW with cyclic weights instead of pure noise.
 - Try taking EMA of gradient norms for CLW. This might stabilize the loss function a bit
   and improve optimization performance.
+- Motivating experiment: For a multi-task training run, measure the average spread of
+  weighted gradient norms, then plot that against the training loss and/or evaluation
+  loss. This would bring a lot more evidence to the scale side of the noise/scale
+  hypothesis.
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 

@@ -303,9 +303,8 @@ class GradNorm(LossWeighter):
         network.zero_grad()
 
         # Compute weighted gradient norms.
-        task_grad_norms = torch.sqrt(
-            torch.sum((task_grads * self.loss_weight_p.unsqueeze(-1)) ** 2, dim=-1)
-        )
+        task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
+        task_grad_norms *= self.loss_weight_p
 
         # Compute gradient norm targets from the average gradient norm and relative
         # inverse training rates. These are treated as constants in the GradNorm loss
