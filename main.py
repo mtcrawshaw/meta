@@ -5,9 +5,10 @@ from meta.train.train import train
 from meta.train.meta_train import meta_train
 from meta.train.experiment import experiment
 from meta.tune.tune import tune
+from meta.utils.plot import plot
 
 
-COMMANDS = ["train", "tune", "meta_train", "experiment"]
+COMMANDS = ["train", "tune", "meta_train", "experiment", "plot"]
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import torch
 from meta.train.trainers import RLTrainer, SLTrainer, SUPPORTED_TRAINERS
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
-from meta.utils.plot import plot
+from meta.utils.plot import plot_metrics
 from meta.utils.utils import (
     compare_metrics,
     save_dir_from_name,
@@ -197,7 +197,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         # Plot results.
         plot_path = os.path.join(save_dir, "%s_plot.png" % config["save_name"])
-        plot(metrics, plot_path)
+        plot_metrics(metrics, plot_path)
 
     # Construct checkpoint.
     checkpoint = trainer.get_checkpoint()

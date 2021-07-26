@@ -4,6 +4,7 @@ results.
 """
 
 import os
+import pickle
 import json
 from collections import OrderedDict
 from copy import deepcopy
@@ -16,7 +17,7 @@ from scipy import stats
 from meta.train.train import train
 from meta.utils.metrics import Metrics
 from meta.utils.utils import save_dir_from_name
-from meta.utils.plot import plot
+from meta.utils.plot import plot_metrics
 
 
 def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -173,6 +174,13 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
     # Save results if necessary.
     if config["save_name"] is not None:
 
+        # Save checkpoint.
+        checkpoint = {}
+        checkpoint["metrics"] = metrics
+        checkpoint_path = os.path.join(save_dir, "checkpoint.pkl")
+        with open(checkpoint_path, "wb") as checkpoint_file:
+            pickle.dump(checkpoint, checkpoint_file)
+
         # Convert `metrics` into a nested dictionary.
         metrics_dict = deepcopy(metrics)
         for method in config["methods"]:
@@ -189,7 +197,7 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
         # Plot results.
         plot_path = os.path.join(save_dir, f"{config['save_name']}_plot.png")
-        plot(
+        plot_metrics(
             {method: metrics[method]["mean"] for method in config["methods"]},
             plot_path,
             summary=metrics["summary"],

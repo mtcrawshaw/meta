@@ -114,8 +114,8 @@ Refactoring:
 - Fix evaluation format. We should go through one evaluation epoch every now and then
   instead of doing a single batch constantly. This way we also don't need to worry about
   moving averages.
-- De-modularize metric functionality. Combine all metric computation for a single
-  dataset into one function, then add that function as a class method of the
+- De-modularize SLTrainer metric functionality. Combine all metric computation for a
+  single dataset into one function, then add that function as a class method of the
   corresponding Dataset object. This will clean things up a lot.
 - Extend Metrics object to hold metrics from multiple runs, with multiple methods. This
   will allow us to clean things up in places where we have a list of Metrics that all
@@ -160,6 +160,7 @@ Additions to make paper stronger:
   weighted gradient norms, then plot that against the training loss and/or evaluation
   loss. This would bring a lot more evidence to the scale side of the noise/scale
   hypothesis.
+- Qualitative output for each method on each task.
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 
