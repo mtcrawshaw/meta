@@ -17,7 +17,7 @@ from scipy import stats
 from meta.train.train import train
 from meta.utils.metrics import Metrics
 from meta.utils.utils import save_dir_from_name
-from meta.utils.plot import plot_metrics
+from meta.report.plot import plot
 
 
 def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -197,7 +197,7 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
         # Plot results.
         plot_path = os.path.join(save_dir, f"{config['save_name']}_plot.png")
-        plot_metrics(
+        plot(
             {method: metrics[method]["mean"] for method in config["methods"]},
             plot_path,
             summary=metrics["summary"],

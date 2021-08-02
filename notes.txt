@@ -131,6 +131,11 @@ Refactoring:
 - Change scales of MTRegression task. Having a 1 and a 100 really throws off the
   relative scale when trying to visualize things. Weights between 10 and 100 would be a
   lot better.
+- Add radius of confidence interval to output of experiment
+- Create Latex report as output of experiment with table + plot. Could be generic that
+  works for any Metrics object or could be different for each experiment type.
+- Add some way to call `report()` from `train()` and `experiment()`, so that we don't
+  have to manually run `python3 main.py report` after every train or experiment.
 
 
 Loss weighting experiments:
@@ -161,6 +166,24 @@ Additions to make paper stronger:
   loss. This would bring a lot more evidence to the scale side of the noise/scale
   hypothesis.
 - Qualitative output for each method on each task.
+- Add ideal constant loss weights to comparison on MTRegression
+- Measure computational cost per step for each method.
+- Include GradNorm with alpha = 0.
+- Run experiments without gradient clipping!
+- Include CLAW-GN. Just do GradNorm but approximate the norm of the gradients of each
+  task with var(L).
+- Strengthen the theorem so that K_1 and K_2 (and \delta ?) are equal for multiple loss
+  functions. This will allows us to conclude that the normalized variances are equal to
+  the normalized gradient norms.
+- Measure the standard deviation of normal loss/accuracy across tasks in
+  MTRegression/NYUv2. This will allow us to compare how equitable the training process
+  is across tasks.
+- Add IMTL to experiments.
+- Add something to verify the correctness of our implementations of the existing
+  methods. We could compare our results with theirs on reported benchmarks, and put this
+  comparison in the appendix. That would be a lot of work though.
+- Add other training tricks like data augmentation + general hyperparameter tuning
+- Evaluate single-task models
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 

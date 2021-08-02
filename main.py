@@ -5,10 +5,10 @@ from meta.train.train import train
 from meta.train.meta_train import meta_train
 from meta.train.experiment import experiment
 from meta.tune.tune import tune
-from meta.utils.plot import plot
+from meta.report.report import report
 
 
-COMMANDS = ["train", "tune", "meta_train", "experiment", "plot"]
+COMMANDS = ["train", "tune", "meta_train", "experiment", "report"]
 
 
 if __name__ == "__main__":

@@ -1,76 +1,14 @@
 """ Plotting for performance metrics. """
 
-import os
-import pickle
-import json
 from typing import Dict, List, Union, Any
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from meta.utils.utils import save_dir_from_name
 from meta.utils.metrics import Metrics
 
 
-def plot(config: Dict[str, Any]) -> None:
-    """
-    Plot the saved results of a training run. The expected entries of `config` are
-    documented below.
-
-    Parameters
-    ----------
-    save_name : str
-        Name of saved results directory to plot results from.
-    """
-
-    # Check that requested results exist.
-    results_dir = save_dir_from_name(config["save_name"])
-    if not os.path.isdir(results_dir):
-        raise ValueError(f"Results directory '{results_dir}' does not exist.")
-
-    # Create save directory for this plotting.
-    save_name = f"{config['save_name']}_replotted"
-    original_save_name = str(save_name)
-    save_dir = save_dir_from_name(save_name)
-    n = 0
-    while os.path.isdir(save_dir):
-        n += 1
-        if n > 1:
-            index_start = save_name.rindex("_")
-            save_name = f"{save_name[:index_start]}_{n}"
-        else:
-            save_name += f"_{n}"
-        save_dir = save_dir_from_name(save_name)
-    os.makedirs(save_dir)
-    if original_save_name != save_name:
-        print(
-            f"There already exists saved results with name '{original_save_name}'."
-            f" Saving current results under name '{save_name}'."
-        )
-
-    # Save config.
-    config_path = os.path.join(save_dir, f"{save_name}_config.json")
-    with open(config_path, "w") as config_file:
-        json.dump(config, config_file, indent=4)
-
-    # Load checkpoint from saved results and get metrics.
-    checkpoint_path = os.path.join(results_dir, "checkpoint.pkl")
-    with open(checkpoint_path, "rb") as checkpoint_file:
-        checkpoint = pickle.load(checkpoint_file)
-    metrics = checkpoint["metrics"]
-
-    # Create plot.
-    plot_path = os.path.join(save_dir, f"{save_name}_plot.png")
-    summary = None
-    if isinstance(metrics, dict):
-        methods = list(metrics.keys())
-        methods.remove("summary")
-        summary = metrics["summary"]
-        metrics = {method: metrics[method]["mean"] for method in methods}
-    plot_metrics(metrics, plot_path, summary)
-
-
-def plot_metrics(
+def plot(
     metrics: Union[Metrics, Dict[str, Metrics]],
     plot_path: str,
     summary: Dict[str, Any] = None,
