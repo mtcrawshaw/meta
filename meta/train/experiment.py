@@ -136,9 +136,11 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             for conf in [0.99, 0.98, 0.95]:
                 name = f"CI@{conf}"
                 t = stats.t.ppf(1 - (1 - conf) / 2, n - 1)
-                ub = mean + t * std / sqrt(n)
-                lb = mean - t * std / sqrt(n)
+                radius = t * std / sqrt(n)
+                ub = mean + radius
+                lb = mean - radius
                 metrics[method]["summary"][key_metric][name] = (lb, ub)
+                metrics[method]["summary"][key_metric][f"{name}_radius"] = radius
 
     # Compute results summary. Here we sort the methods by their performance on the each
     # key metric.
@@ -155,21 +157,26 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         for method, performance in performances:
             conf = 0.95
             CI_name = f"CI@{conf}"
+            info = metrics[method]["summary"][key_metric]
             metrics["summary"][key_metric][method] = {
                 "mean_performance": performance,
-                "std_performance": metrics[method]["summary"][key_metric]["std"],
-                "CI": metrics[method]["summary"][key_metric][CI_name],
+                "std_performance": info["std"],
+                "CI": info[CI_name],
+                "CI_radius": info[f"{CI_name}_radius"],
                 "conf": conf,
             }
 
     # Print out results summary.
     for key_metric in config["key_metrics"]:
-        print(f"\nMean, std, LB, UB {key_metric}:")
+        print(f"\nMean, std, CI radius, LB, UB {key_metric}:")
         for method, results in metrics["summary"][key_metric].items():
             mean = results["mean_performance"]
             std = results["std_performance"]
+            radius = results["CI_radius"]
             CI = results["CI"]
-            print(f"    {method}: {mean:.5f}, {std:.5f}, {CI[0]:.5f}, {CI[1]:.5f}")
+            print(
+                f"    {method}: {mean:.5f}, {std:.5f}, {radius:.5f}, {CI[0]:.5f}, {CI[1]:.5f}"
+            )
 
     # Save results if necessary.
     if config["save_name"] is not None:

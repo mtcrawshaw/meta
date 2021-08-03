@@ -6,6 +6,7 @@ import json
 from typing import Dict, Any
 
 from meta.report.plot import plot
+from meta.report.tabulate import tabulate
 from meta.utils.utils import save_dir_from_name
 from meta.utils.metrics import Metrics
 
@@ -19,6 +20,11 @@ def report(config: Dict[str, Any]) -> None:
     ----------
     save_name : str
         Name of saved results directory to report results from.
+    tables : List[List[str]]
+        Specification of tables to create. Each element of `tables` is a list of strings
+        that specifies the contents of a single table. Each table will have a row for
+        each method used in the experiment we are reporting on, a column for each metric
+        whose name is in the corresponding element of `tables`.
     """
 
     # Check that requested results exist.
@@ -62,7 +68,12 @@ def report(config: Dict[str, Any]) -> None:
     summary = None
     if isinstance(metrics, dict):
         methods = list(metrics.keys())
-        methods.remove("summary")
         summary = metrics["summary"]
-        metrics = {method: metrics[method]["mean"] for method in methods}
-    plot(metrics, plot_path, summary)
+        plot_metrics = {
+            method: metrics[method]["mean"] for method in methods if method != "summary"
+        }
+    plot(plot_metrics, plot_path, summary)
+
+    # Create tables.
+    table_path = os.path.join(save_dir, f"{save_name}_table.tex")
+    tabulate(metrics, table_path, config["tables"])
