@@ -541,11 +541,10 @@ class CLW(LossWeighter):
             )
 
         for task in range(self.num_tasks):
-            network.zero_grad()
-            loss_vals[task].backward(retain_graph=True)
-            task_grad = torch.cat(
-                [param.grad.view(-1) for param in network.last_shared_params()]
+            task_grad = torch.autograd.grad(
+                loss_vals[task], network.last_shared_params(), retain_graph=True
             )
+            task_grad = torch.cat([grad.view(-1) for grad in task_grad])
 
             if self.grad_len is None:
                 self.grad_len = int(task_grad.shape[0])
@@ -554,7 +553,6 @@ class CLW(LossWeighter):
                 )
 
             task_grads[task] = task_grad.detach()
-        network.zero_grad()
 
         # Compute gradient norms.
         task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
@@ -661,11 +659,10 @@ class CLAWTester(LossWeighter):
                 )
 
             for task in range(self.num_tasks):
-                network.zero_grad()
-                loss_vals[task].backward(retain_graph=True)
-                task_grad = torch.cat(
-                    [param.grad.view(-1) for param in network.last_shared_params()]
+                task_grad = torch.autograd.grad(
+                    loss_vals[task], network.last_shared_params(), retain_graph=True
                 )
+                task_grad = torch.cat([grad.view(-1) for grad in task_grad])
 
                 if self.grad_len is None:
                     self.grad_len = int(task_grad.shape[0])
@@ -674,7 +671,6 @@ class CLAWTester(LossWeighter):
                     )
 
                 task_grads[task] = task_grad.detach()
-            network.zero_grad()
 
             # Compute gradient norms.
             task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
