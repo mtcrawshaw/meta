@@ -31,8 +31,6 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
     trials_per_method : int
         Number of training trials to run for each method given. The final performance of
         each method is measured as the mean performance across all trials.
-    key_metrics : List[str]
-        List of metrics by which to compare performance of methods.
     base_train_config : Dict[str, Any]
         Training config that will be used as the base for all methods. This dictionary
         will be used as a config argument to `train()`, so the entries of this
@@ -118,47 +116,61 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         # Compute mean metrics over all trials.
         metrics[method]["mean"] = Metrics.mean(metrics[method]["trials"])
 
-        # Compute mean/std of best metric values across training. Note that this is
-        # different from the best mean across training. Mean of best is greater than
-        # best mean.
+        # Get list of all metrics.
+        metric_names = list(metrics[method]["trials"][0].state_vars)
+
+        # Compute confidence intervals of best metric values across training. Note that
+        # this is different from the best mean across training. Mean of best is greater
+        # than best mean. Alternatively, if `maximize = None` for any metrics, we just
+        # compute the mean and std of final values.
         metrics[method]["summary"] = {}
-        for key_metric in config["key_metrics"]:
-            metrics[method]["summary"][key_metric] = {}
-            bests = [
-                trial_metrics.metric_dict[key_metric].best
-                for trial_metrics in metrics[method]["trials"]
-            ]
-            mean = np.mean(bests)
-            std = np.std(bests, ddof=1)
-            n = len(bests)
-            metrics[method]["summary"][key_metric]["mean"] = mean
-            metrics[method]["summary"][key_metric]["std"] = std
+        for metric in metric_names:
+            metrics[method]["summary"][metric] = {}
+
+            if metrics[method]["trials"][0].metric_dict[metric].maximize is not None:
+                vals = [
+                    trial_metrics.metric_dict[metric].best
+                    for trial_metrics in metrics[method]["trials"]
+                ]
+            else:
+                vals = [
+                    trial_metrics.metric_dict[metric].mean[-1]
+                    for trial_metrics in metrics[method]["trials"]
+                ]
+            mean = np.mean(vals)
+            std = np.std(vals, ddof=1)
+            n = len(vals)
+
+            metrics[method]["summary"][metric]["mean"] = mean
+            metrics[method]["summary"][metric]["std"] = std
             for conf in [0.99, 0.98, 0.95]:
                 name = f"CI@{conf}"
                 t = stats.t.ppf(1 - (1 - conf) / 2, n - 1)
                 radius = t * std / sqrt(n)
                 ub = mean + radius
                 lb = mean - radius
-                metrics[method]["summary"][key_metric][name] = (lb, ub)
-                metrics[method]["summary"][key_metric][f"{name}_radius"] = radius
+                metrics[method]["summary"][metric][name] = (lb, ub)
+                metrics[method]["summary"][metric][f"{name}_radius"] = radius
 
     # Compute results summary. Here we sort the methods by their performance on the each
-    # key metric.
+    # key metric. If `maximize = None` for any metric, then no sorting is necessary.
     metrics["summary"] = {}
-    for key_metric in config["key_metrics"]:
-        metrics["summary"][key_metric] = OrderedDict()
+    for metric in metric_names:
+        metrics["summary"][metric] = OrderedDict()
         performances = [
-            (method, metrics[method]["summary"][key_metric]["mean"])
+            (method, metrics[method]["summary"][metric]["mean"])
             for method in config["methods"]
         ]
         method = list(config["methods"].keys())[0]
-        maximize = metrics[method]["mean"].metric_dict[key_metric].maximize
-        performances = sorted(performances, key=lambda x: x[1], reverse=maximize)
+        maximize = metrics[method]["mean"].metric_dict[metric].maximize
+        if maximize is not None:
+            performances = sorted(performances, key=lambda x: x[1], reverse=maximize)
+
         for method, performance in performances:
             conf = 0.95
             CI_name = f"CI@{conf}"
-            info = metrics[method]["summary"][key_metric]
-            metrics["summary"][key_metric][method] = {
+            info = metrics[method]["summary"][metric]
+            metrics["summary"][metric][method] = {
                 "mean_performance": performance,
                 "std_performance": info["std"],
                 "CI": info[CI_name],
@@ -167,9 +179,9 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             }
 
     # Print out results summary.
-    for key_metric in config["key_metrics"]:
-        print(f"\nMean, std, CI radius, LB, UB {key_metric}:")
-        for method, results in metrics["summary"][key_metric].items():
+    for metric in metric_names:
+        print(f"\nMean, std, CI radius, LB, UB {metric}:")
+        for method, results in metrics["summary"][metric].items():
             mean = results["mean_performance"]
             std = results["std_performance"]
             radius = results["CI_radius"]

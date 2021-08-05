@@ -202,7 +202,7 @@ Experiments:
     per step against number of tasks
 
 To do:
-- Cost per step
+- Cost per step (DONE)
 - Make GradNorm implementation efficient
 - MTRegressionX
 - Visualization of cost per step vs. number of tasks (MTRegressionX)

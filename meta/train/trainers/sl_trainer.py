@@ -1,6 +1,7 @@
 """ Definition of SLTrainer class for supervised learning. """
 
 import os
+import time
 from copy import deepcopy
 from itertools import chain
 from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
@@ -908,6 +909,9 @@ class SLTrainer(Trainer):
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
+        # Start timer for current step.
+        start_time = time.time()
+
         # Sample a batch and move it to device.
         inputs, labels = next(self.train_iter)
         inputs = inputs.to(self.device)
@@ -925,9 +929,14 @@ class SLTrainer(Trainer):
         self.clip_grads()
         self.optimizer.step()
 
+        # Stop timer for current step.
+        end_time = time.time()
+        train_step_time = end_time - start_time
+
         # Compute metrics from training step.
         step_metrics = {
             "train_loss": [loss.item()],
+            "train_step_time": [train_step_time],
         }
         with torch.no_grad():
             for metric_name, metric_info in self.extra_metrics.items():
@@ -1033,6 +1042,14 @@ class SLTrainer(Trainer):
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
+            },
+            {
+                "name": "train_step_time",
+                "basename": "train_step_time",
+                "window": None,
+                "point_avg": False,
+                "maximize": None,
+                "show": False,
             },
         ]
         metric_set += [

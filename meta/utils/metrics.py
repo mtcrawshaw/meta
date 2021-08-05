@@ -215,8 +215,12 @@ class Metric:
             self.history.append(value)
 
             # Update moving average and standard deviation.
-            self.mean.append(np.mean(self.history[-self.window :]))
-            self.stdev.append(np.std(self.history[-self.window :]))
+            if self.window is not None:
+                self.mean.append(np.mean(self.history[-self.window :]))
+                self.stdev.append(np.std(self.history[-self.window :]))
+            else:
+                self.mean.append(np.mean(self.history))
+                self.stdev.append(np.std(self.history))
 
             # Compute new best.
             if self.maximize is None:
