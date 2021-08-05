@@ -5,6 +5,7 @@ head for each task.
 """
 
 from itertools import product
+from typing import Iterator
 
 import torch
 import torch.nn as nn
@@ -245,6 +246,13 @@ class MultiTaskTrunkNetwork(nn.Module):
             outputs = torch.stack(outputs_list)
 
         return outputs
+
+    def last_shared_params(self) -> Iterator[nn.Parameter]:
+        """
+        Return a list of the parameters of the last layer in `self` whose parameters are
+        shared between multiple tasks.
+        """
+        return self.trunk[-1].parameters()
 
     def check_conflicting_grads(self, task_losses: torch.Tensor) -> None:
         """

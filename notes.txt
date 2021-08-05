@@ -130,6 +130,8 @@ Refactoring:
   lot better.
 - Add some way to call `report()` from `train()` and `experiment()`, so that we don't
   have to manually run `python3 main.py report` after every train or experiment.
+- Tests:
+  - GradNorm: Test that values of .requires_grad are preserved during GradNorm update.
 
 
 Loss weighting experiments:
@@ -203,7 +205,7 @@ Experiments:
 
 To do:
 - Cost per step (DONE)
-- Make GradNorm implementation efficient
+- Make GradNorm implementation efficient (DONE)
 - MTRegressionX
 - Visualization of cost per step vs. number of tasks (MTRegressionX)
 - Visualization of eval normal loss vs. number of tasks (MTRegressionX)

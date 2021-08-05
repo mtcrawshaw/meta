@@ -4,7 +4,7 @@ initialized output head. This network is meant to be used for dense computer vis
 tasks, i.e. the output shape has the same spatial resolution as the input.
 """
 
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Iterator
 
 import torch
 import torch.nn as nn
@@ -223,3 +223,10 @@ class BackboneNetwork(nn.Module):
         out = F.interpolate(out, size=input_size, mode="bilinear", align_corners=False)
 
         return out
+
+    def last_shared_params(self) -> Iterator[nn.Parameter]:
+        """
+        Return a list of the parameters of the last layer in `self` whose parameters are
+        shared between multiple tasks.
+        """
+        return self.backbone[-1].parameters()

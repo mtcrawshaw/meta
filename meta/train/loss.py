@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from meta.networks import MultiTaskTrunkNetwork, BackboneNetwork
 from meta.utils.estimate import RunningStats
 
 
@@ -265,21 +266,16 @@ class GradNorm(LossWeighter):
     """
 
     def __init__(
-        self,
-        shared_params: List[nn.Parameter],
-        asymmetry: float,
-        weight_lr: float,
-        **kwargs: Dict[str, Any],
+        self, asymmetry: float, weight_lr: float, **kwargs: Dict[str, Any],
     ) -> None:
         """ Init function for GradNorm. """
 
         super(GradNorm, self).__init__(**kwargs)
 
         # Save state.
-        self.shared_params = shared_params
         self.asymmetry = asymmetry
         self.weight_lr = weight_lr
-        self.grad_len = sum([param.numel() for param in self.shared_params])
+        self.grad_len = None
         self.baseline_losses = None
 
         # Create parameter for loss weights and the corresponding optimizer.
@@ -293,14 +289,61 @@ class GradNorm(LossWeighter):
         if self.baseline_losses is None:
             self.baseline_losses = self.loss_history[-1]
 
-        # Compute gradients of each task's loss.
-        task_grads = torch.zeros((self.num_tasks, self.grad_len), device=self.device)
+        # Save the value of `requires_grad` for every parameter in the trunk of the
+        # network. We do this so that we can restore the value of `requires_grad` after
+        # computing the task-specific gradients.
+        if isinstance(network, MultiTaskTrunkNetwork):
+            named_params = network.trunk.named_parameters()
+        elif isinstance(network, BackboneNetwork):
+            named_params = network.backbone.named_parameters()
+        else:
+            raise NotImplementedError
+        requires_dict = {name: param.requires_grad for (name, param) in named_params}
+
+        # Turn off `requires_grad` for parameters before last layer of shared trunk, if
+        # possible. Otherwise, GradNorm computation will involve computing a backwards
+        # pass over the entire network for each task, and this will be much slower.
+        if isinstance(network, MultiTaskTrunkNetwork):
+            network.trunk.requires_grad_(False)
+            network.trunk[-1].requires_grad_(True)
+        elif isinstance(network, BackboneNetwork):
+            network.backbone.requires_grad_(False)
+            network.backbone[-1].requires_grad_(True)
+
+        # Compute gradients of each task's loss. Note that `last_shared_params()` may
+        # not be defined for any instance of `nn.Module`, so there will be compatibility
+        # issues with other networks.
+        if self.grad_len is None:
+            task_grads = None
+        else:
+            task_grads = torch.zeros(
+                (self.num_tasks, self.grad_len), device=self.device
+            )
         for task in range(self.num_tasks):
             network.zero_grad()
             loss_vals[task].backward(retain_graph=True)
-            task_grad = torch.cat([param.grad.view(-1) for param in self.shared_params])
+            task_grad = torch.cat(
+                [param.grad.view(-1) for param in network.last_shared_params()]
+            )
+
+            if self.grad_len is None:
+                self.grad_len = int(task_grad.shape[0])
+                task_grads = torch.zeros(
+                    (self.num_tasks, self.grad_len), device=self.device
+                )
+
             task_grads[task] = task_grad.detach()
         network.zero_grad()
+
+        # Restore the values of `requires_grad`.
+        if isinstance(network, MultiTaskTrunkNetwork):
+            named_params = network.trunk.named_parameters()
+        elif isinstance(network, BackboneNetwork):
+            named_params = network.backbone.named_parameters()
+        else:
+            raise NotImplementedError
+        for name, param in named_params:
+            param.requires_grad_(requires_dict[name])
 
         # Compute weighted gradient norms.
         task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
@@ -509,26 +552,40 @@ class CLW(LossWeighter):
     reciprocal of the norm of this gradient, then normalize weights.
     """
 
-    def __init__(
-        self, shared_params: List[nn.Parameter], **kwargs: Dict[str, Any]
-    ) -> None:
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
         """ Init function for CLW. """
 
         super(CLW, self).__init__(**kwargs)
 
         # Save state.
-        self.shared_params = shared_params
-        self.grad_len = sum([param.numel() for param in self.shared_params])
+        self.grad_len = None
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compute new loss weights with CLW. """
 
-        # Compute gradients of each task's loss.
-        task_grads = torch.zeros((self.num_tasks, self.grad_len), device=self.device)
+        # Compute gradients of each task's loss. Note that `last_shared_params()` may
+        # not be defined for any instance of `nn.Module`, so there will be compatibility
+        # issues with other networks.
+        if self.grad_len is None:
+            task_grads = None
+        else:
+            task_grads = torch.zeros(
+                (self.num_tasks, self.grad_len), device=self.device
+            )
+
         for task in range(self.num_tasks):
             network.zero_grad()
             loss_vals[task].backward(retain_graph=True)
-            task_grad = torch.cat([param.grad.view(-1) for param in self.shared_params])
+            task_grad = torch.cat(
+                [param.grad.view(-1) for param in network.last_shared_params()]
+            )
+
+            if self.grad_len is None:
+                self.grad_len = int(task_grad.shape[0])
+                task_grads = torch.zeros(
+                    (self.num_tasks, self.grad_len), device=self.device
+                )
+
             task_grads[task] = task_grad.detach()
         network.zero_grad()
 
@@ -593,7 +650,6 @@ class CLAWTester(LossWeighter):
         step_bounds: Tuple[int, int],
         claw_data_path: str,
         claw_log_path: str,
-        shared_params: List[nn.Parameter],
         **kwargs: Dict[str, Any],
     ) -> None:
         """ Init function for CLAWTester. """
@@ -604,8 +660,7 @@ class CLAWTester(LossWeighter):
         self.step_bounds = step_bounds
         self.claw_data_path = claw_data_path
         self.claw_log_path = claw_log_path
-        self.shared_params = shared_params
-        self.grad_len = sum([param.numel() for param in self.shared_params])
+        self.grad_len = None
 
         # Randomly generate the step index at which the CLAW vs. CLW comparison will be
         # made.
@@ -628,16 +683,29 @@ class CLAWTester(LossWeighter):
         # so, then write out results to file and exit training.
         if self.steps >= self.last_step:
 
-            # Compute gradients of each task's loss.
-            task_grads = torch.zeros(
-                (self.num_tasks, self.grad_len), device=self.device
-            )
+            # Compute gradients of each task's loss. Note that `last_shared_params()`
+            # may not be defined for any instance of `nn.Module`, so there will be
+            # compatibility issues with other networks.
+            if self.grad_len is None:
+                task_grads = None
+            else:
+                task_grads = torch.zeros(
+                    (self.num_tasks, self.grad_len), device=self.device
+                )
+
             for task in range(self.num_tasks):
                 network.zero_grad()
                 loss_vals[task].backward(retain_graph=True)
                 task_grad = torch.cat(
-                    [param.grad.view(-1) for param in self.shared_params]
+                    [param.grad.view(-1) for param in network.last_shared_params()]
                 )
+
+                if self.grad_len is None:
+                    self.grad_len = int(task_grad.shape[0])
+                    task_grads = torch.zeros(
+                        (self.num_tasks, self.grad_len), device=self.device
+                    )
+
                 task_grads[task] = task_grad.detach()
             network.zero_grad()
 

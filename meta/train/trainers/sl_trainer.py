@@ -49,7 +49,6 @@ from meta.networks import (
     MultiTaskTrunkNetwork,
     PRETRAINED_MODELS,
 )
-from meta.networks import last_shared_params
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
 
@@ -880,12 +879,7 @@ class SLTrainer(Trainer):
         # Add arguments to `self.criterion` in case we are multi-task training. These
         # are passed as arguments to the constructor of `self.criterion`.
         if "loss_weighter" in config:
-            loss_weighter_kwargs = dict(config["loss_weighter"])
-            if config["loss_weighter"]["type"] == "GradNorm":
-                loss_weighter_kwargs["shared_params"] = last_shared_params(self.network)
-            elif config["loss_weighter"]["type"] in ["CLW", "CLAWTester"]:
-                loss_weighter_kwargs["shared_params"] = list(self.network.parameters())
-            loss_kwargs["loss_weighter_kwargs"] = loss_weighter_kwargs
+            loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
         if loss_cls == MultiTaskLoss:
             loss_kwargs["device"] = self.device
 
