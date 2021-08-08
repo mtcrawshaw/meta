@@ -40,6 +40,7 @@ from meta.train.loss import (
     NYUv2_multi_depth_invariant_RMSE,
     NYUv2_multi_avg_accuracy,
     get_MTRegression_normal_loss,
+    get_MTRegression_weight_error,
     get_multitask_loss_weight,
 )
 from meta.networks import (
@@ -727,6 +728,14 @@ DATASETS = {
                 "train": False,
                 "show": True,
             },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(2),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
             **{
                 "loss_weight_%d"
                 % i: {
@@ -775,6 +784,14 @@ DATASETS = {
                 "maximize": False,
                 "train": False,
                 "show": True,
+            },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(10),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
             },
             **{
                 "loss_weight_%d"
@@ -825,6 +842,14 @@ DATASETS = {
                 "train": False,
                 "show": True,
             },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(20),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
             **{
                 "loss_weight_%d"
                 % i: {
@@ -873,6 +898,14 @@ DATASETS = {
                 "maximize": False,
                 "train": False,
                 "show": True,
+            },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(30),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
             },
             **{
                 "loss_weight_%d"
@@ -923,6 +956,14 @@ DATASETS = {
                 "train": False,
                 "show": True,
             },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(40),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
+            },
             **{
                 "loss_weight_%d"
                 % i: {
@@ -971,6 +1012,14 @@ DATASETS = {
                 "maximize": False,
                 "train": False,
                 "show": True,
+            },
+            "loss_weight_error": {
+                "fn": get_MTRegression_weight_error(50),
+                "basename": "loss_weight_error",
+                "window": 1,
+                "maximize": False,
+                "train": True,
+                "show": False,
             },
             **{
                 "loss_weight_%d"

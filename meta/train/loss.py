@@ -1127,7 +1127,7 @@ def get_MTRegression_normal_loss(
     multi-task loss from a set of labels and the corresponding predictions.
     """
 
-    weights_t = np.array(SCALES[num_tasks])
+    scales = np.array(SCALES[num_tasks])
 
     def metric(
         outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
@@ -1139,10 +1139,38 @@ def get_MTRegression_normal_loss(
         diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
         diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
         diffs = diffs.numpy()
-        weighted_diffs = np.mean(diffs / (weights_t ** 2))
+        weighted_diffs = np.mean(diffs / (scales ** 2))
         return float(weighted_diffs)
 
     return metric
+
+
+def get_MTRegression_weight_error(
+    num_tasks: int,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Constructs and returns a function which computes the MSE from the current
+    (normalized) loss weights to the ideal loss weights for the MTRegression dataset.
+    """
+
+    scales = np.array(SCALES[num_tasks])
+    ideal_weights = 1.0 / (scales ** 2)
+    ideal_weights *= num_tasks / np.sum(ideal_weights)
+
+    def weight_error(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Computes MSE from the current (normalized) loss weights to the ideal loss
+        weights for the MTRegression dataset.
+        """
+        assert isinstance(criterion, MultiTaskLoss)
+        current_weights = criterion.loss_weighter.loss_weights.detach().cpu().numpy()
+        normalized_weights = num_tasks * current_weights / np.sum(current_weights)
+        error = np.mean((normalized_weights - ideal_weights) ** 2)
+        return error
+
+    return weight_error
 
 
 def get_multitask_loss_weight(
