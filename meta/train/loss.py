@@ -1119,6 +1119,19 @@ def NYUv2_multi_avg_accuracy(
     return np.mean([seg_accuracy, sn_accuracy, depth_accuracy])
 
 
+def NYUv2_multi_var_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Compute variance of accuracies of the three tasks on the NYUv2 dataset when
+    performing multi-task training.
+    """
+    seg_accuracy = NYUv2_multi_seg_pixel_accuracy(outputs, labels)
+    sn_accuracy = get_NYUv2_multi_sn_accuracy(11.25)(outputs, labels)
+    depth_accuracy = get_NYUv2_multi_depth_accuracy(1.25)(outputs, labels)
+    return np.var([seg_accuracy, sn_accuracy, depth_accuracy])
+
+
 def get_MTRegression_normal_loss(
     num_tasks: int,
 ) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
@@ -1129,7 +1142,7 @@ def get_MTRegression_normal_loss(
 
     scales = np.array(SCALES[num_tasks])
 
-    def metric(
+    def normal_loss(
         outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
     ) -> float:
         """
@@ -1137,12 +1150,40 @@ def get_MTRegression_normal_loss(
         `labels` should have shape `(batch_size, num_tasks, output_dim)`.
         """
         diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
+        diffs = torch.mean(diffs, dim=0)
         diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
         diffs = diffs.numpy()
         weighted_diffs = np.mean(diffs / (scales ** 2))
         return float(weighted_diffs)
 
-    return metric
+    return normal_loss
+
+
+def get_MTRegression_normal_loss_variance(
+    num_tasks: int,
+) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
+    """
+    Constructs and returns a function which computes the variance of the MTRegression
+    normalized loss across tasks from a set of labels and the corresponding predictions.
+    """
+
+    scales = np.array(SCALES[num_tasks])
+
+    def normal_loss_variance(
+        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+    ) -> float:
+        """
+        Computes variance of normalized loss across tasks for MTRegression task. Both
+        `outputs` and `labels` should have shape `(batch_size, num_tasks, output_dim)`.
+        """
+        diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
+        diffs = torch.mean(diffs, dim=0)
+        diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
+        diffs = diffs.numpy()
+        diffs = diffs / (scales ** 2)
+        return float(np.var(diffs))
+
+    return normal_loss_variance
 
 
 def get_MTRegression_weight_error(
