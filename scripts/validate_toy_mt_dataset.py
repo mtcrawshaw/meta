@@ -2,14 +2,15 @@ import random
 import numpy as np
 
 
+NUM_TASKS = 10
 NUM_SAMPLES = 5
 
 
 # Read in dataset.
-train_input = np.load("data/datasets/MTRegression/train_input.npy")
-train_output = np.load("data/datasets/MTRegression/train_output.npy")
-test_input = np.load("data/datasets/MTRegression/test_input.npy")
-test_output = np.load("data/datasets/MTRegression/test_output.npy")
+train_input = np.load(f"data/datasets/MTRegression/MTRegression{NUM_TASKS}/train_input.npy")
+train_output = np.load(f"data/datasets/MTRegression/MTRegression{NUM_TASKS}/train_label.npy")
+test_input = np.load(f"data/datasets/MTRegression/MTRegression{NUM_TASKS}/test_input.npy")
+test_output = np.load(f"data/datasets/MTRegression/MTRegression{NUM_TASKS}/test_label.npy")
 
 # Check dataset sizes.
 assert train_input.shape[0] == train_output.shape[0]

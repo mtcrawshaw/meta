@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from meta.networks import MultiTaskTrunkNetwork, BackboneNetwork
+from meta.datasets.mt_regression import SCALES
 from meta.utils.estimate import RunningStats
 
 
@@ -1118,8 +1119,7 @@ def get_MTRegression_normal_loss(
     multi-task loss from a set of labels and the corresponding predictions.
     """
 
-    WEIGHTS = [1.0, 50.0, 30.0, 70.0, 20.0, 80.0, 10.0, 40.0, 60.0, 90.0]
-    weights_t = np.array(WEIGHTS[:num_tasks])
+    weights_t = np.array(SCALES[num_tasks])
 
     def metric(
         outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
