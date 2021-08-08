@@ -202,25 +202,29 @@ Experiments:
     per step against number of tasks
 
 To do:
-- Cost per step (DONE)
-- Make GradNorm implementation efficient (DONE)
-- MTRegressionX (DONE)
-- Visualization of cost per step vs. number of tasks (MTRegressionX)
-- Visualization of eval normal loss vs. number of tasks (MTRegressionX)
-- Visualization of loss variance vs. gradient norm
-- Visualization of learned loss weights throughout training
+- DONE: Cost per step
+- DONE: Make GradNorm implementation efficient
+- DONE: MTRegressionX
 - Loss weight error (MTRegression)
 - Normal loss task variance (MTRegression)
 - Accuracy task variance (NYUv2)
+- Visualization of learned loss weights throughout training
+- Run experiments!
+- Visualization of cost per step vs. number of tasks (MTRegressionX)
+- Visualization of eval normal loss vs. number of tasks (MTRegressionX)
+- Visualization of loss variance vs. gradient norm
+- Qualitative output of each method on each task
+- Run experiments!
 - Implement IMTL
 - Implement CLAW-GN
-- Qualitative output of each method on each task
+- Run experiments!
 - Tuning (if time):
     - Tune ema_alpha of CLAW
     - Data augmentation, hyperparameter tuning, other tricks
     - Evaluate squared loss for depth vs. scale invariant depth
 - Evaluate single-task models (if time)
 - Gradient normalization justification (if time)
+- Run experiments!
 
 Rename MultiTaskTrunkNetwork to TrunkNetwork.
 

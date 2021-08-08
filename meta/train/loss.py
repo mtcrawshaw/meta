@@ -113,6 +113,7 @@ class MultiTaskLoss(nn.Module):
 
         # Set task losses.
         self.task_losses = task_losses
+        self.num_tasks = len(self.task_losses)
 
         # Set task weighting strategy.
         loss_weighter = loss_weighter_kwargs["type"]
@@ -132,6 +133,7 @@ class MultiTaskLoss(nn.Module):
         ]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
+        loss_weighter_kwargs["num_tasks"] = self.num_tasks
         loss_weighter_kwargs["device"] = self.device
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
 
@@ -183,7 +185,9 @@ class MultiTaskLoss(nn.Module):
 class LossWeighter(nn.Module):
     """ Compute task loss weights for multi-task learning. """
 
-    def __init__(self, loss_weights: List[float], device: torch.device = None) -> None:
+    def __init__(
+        self, num_tasks: int, loss_weights: List[float], device: torch.device = None
+    ) -> None:
         """ Init function for LossWeighter. """
 
         super(LossWeighter, self).__init__()
@@ -191,8 +195,12 @@ class LossWeighter(nn.Module):
         self.device = device if device is not None else torch.device("cpu")
 
         # Set state.
-        self.num_tasks = len(loss_weights)
-        self.loss_weights = torch.Tensor(loss_weights)
+        self.num_tasks = num_tasks
+        if loss_weights is not None:
+            assert len(loss_weights) == self.num_tasks
+            self.loss_weights = torch.Tensor(loss_weights)
+        else:
+            self.loss_weights = torch.ones((self.num_tasks,))
         self.loss_weights = self.loss_weights.to(self.device)
         self.initial_loss_weights = torch.clone(self.loss_weights)
         self.total_weight = torch.sum(self.loss_weights)

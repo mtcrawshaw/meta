@@ -792,6 +792,202 @@ DATASETS = {
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 10},
     },
+    "MTRegression20": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
+                }
+                for i in range(20)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(20),
+                "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(20),
+                "basename": "normal_loss",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(20)
+            },
+        },
+        "base_name": "MTRegression",
+        "dataset_kwargs": {"num_tasks": 20},
+    },
+    "MTRegression30": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
+                }
+                for i in range(30)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(30),
+                "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(30),
+                "basename": "normal_loss",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(30)
+            },
+        },
+        "base_name": "MTRegression",
+        "dataset_kwargs": {"num_tasks": 30},
+    },
+    "MTRegression40": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
+                }
+                for i in range(40)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(40),
+                "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(40),
+                "basename": "normal_loss",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(40)
+            },
+        },
+        "base_name": "MTRegression",
+        "dataset_kwargs": {"num_tasks": 40},
+    },
+    "MTRegression50": {
+        "input_size": 250,
+        "output_size": 100,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i),
+                }
+                for i in range(50)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_normal_loss": {
+                "fn": get_MTRegression_normal_loss(50),
+                "basename": "normal_loss",
+                "window": TRAIN_WINDOW,
+                "maximize": False,
+                "train": True,
+                "show": True,
+            },
+            "eval_normal_loss": {
+                "fn": get_MTRegression_normal_loss(50),
+                "basename": "normal_loss",
+                "window": EVAL_WINDOW,
+                "maximize": False,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(50)
+            },
+        },
+        "base_name": "MTRegression",
+        "dataset_kwargs": {"num_tasks": 50},
+    },
 }
 
 
