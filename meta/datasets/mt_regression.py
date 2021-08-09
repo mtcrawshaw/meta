@@ -12,7 +12,6 @@ from torch.utils.data import Dataset
 
 SCALES = {
     2: [1, 10],
-    5: [1, 3, 5, 7, 9],
     **{num_tasks: list(range(1, num_tasks + 1)) for num_tasks in [10, 20, 30, 40, 50]},
 }
 DATASET_SIZE = 10000

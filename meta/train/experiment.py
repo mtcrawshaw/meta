@@ -96,6 +96,7 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         metrics[method]["trials"] = []
 
         # Trials for a single method.
+        print(f"\n{method}:")
         for trial in range(config["trials_per_method"]):
 
             # Construct training config from base training config.

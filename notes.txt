@@ -124,6 +124,7 @@ Refactoring:
   is doing during training.
 - Add some way to call `report()` from `train()` and `experiment()`, so that we don't
   have to manually run `python3 main.py report` after every train or experiment.
+- Automatically bold results from best method when creating LaTeX table in `tabulate()`.
 
 
 Loss weighting experiments:
