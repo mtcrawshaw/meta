@@ -25,6 +25,9 @@ def report(config: Dict[str, Any]) -> None:
         that specifies the contents of a single table. Each table will have a row for
         each method used in the experiment we are reporting on, a column for each metric
         whose name is in the corresponding element of `tables`.
+    name_subs : Dict[str, str]
+        Translation table from internal metric names to display metric names. Used to
+        make plots and tables that are more readable.
     """
 
     # Check that requested results exist.
@@ -76,4 +79,4 @@ def report(config: Dict[str, Any]) -> None:
 
     # Create tables.
     table_path = os.path.join(save_dir, f"{save_name}_table.tex")
-    tabulate(metrics, table_path, config["tables"])
+    tabulate(metrics, table_path, config["tables"], config["name_subs"])

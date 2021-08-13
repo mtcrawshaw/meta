@@ -681,26 +681,19 @@ class CLAWTester(LossWeighter):
 
                 task_grads[task] = task_grad.detach()
 
-            # Compute gradient norms.
-            task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
-
             # Compute CLW weights.
-            threshold_norm = torch.max(
-                task_grad_norms, EPSILON * torch.ones_like(task_grad_norms)
-            )
-            clw_weights = 1.0 / threshold_norm
-            clw_weights /= torch.sum(clw_weights)
-            clw_weights *= self.total_weight
+            task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
+            norm_recip = 1.0 / task_grad_norms
+            clw_weights = self.num_tasks * norm_recip / torch.sum(norm_recip)
 
             # Compute CLAW weights.
             if self.steps > 0 and not any(torch.isnan(self.loss_stats.stdev)):
-                threshold_stdev = torch.max(
+                approx_norms = torch.max(
                     self.loss_stats.stdev,
                     EPSILON * torch.ones_like(self.loss_stats.stdev),
                 )
-                claw_weights = 1.0 / threshold_stdev
-                claw_weights /= torch.sum(claw_weights)
-                claw_weights *= self.total_weight
+                approx_norm_recip = 1.0 / approx_norms
+                claw_weights = self.num_tasks * approx_norm_recip / torch.sum(approx_norm_recip)
             else:
                 claw_weights = None
 

@@ -1,5 +1,6 @@
 """ Create LaTeX tables of results from training. """
 
+from math import sqrt
 from typing import Union, Dict, List
 
 from meta.utils.metrics import Metrics
@@ -12,6 +13,7 @@ def tabulate(
     metrics: Union[Metrics, Dict[str, Metrics]],
     table_path: str,
     tables: List[List[str]],
+    name_subs: Dict[str, str],
 ) -> None:
     """
     Create LaTeX tables of values from `metrics` according to `tables`, and write the
@@ -20,6 +22,7 @@ def tabulate(
 
     if isinstance(metrics, Metrics):
         print("Tabulation for single training runs is not yet supported.")
+    methods = [method for method in metrics.keys() if method != "summary"]
 
     # Construct LaTeX header.
     table_str = ""
@@ -37,22 +40,20 @@ def tabulate(
 
         # Column names.
         for metric_name in metric_names:
-            fixed_name = metric_name.replace("_", "\_")
-            table_str += f" & {fixed_name}"
+            display_name = name_subs[metric_name] if metric_name in name_subs else metric_name
+            table_str += f" & {display_name}"
         table_str += " \\\\\n"
         table_str += "\\hline\\hline\n"
 
         # Table content.
-        for method in metrics.keys():
-            if method == "summary":
-                continue
-
-            table_str += method + " "
+        for method in methods:
+            table_str += method
             for metric_name in metric_names:
                 method_summary = metrics["summary"][metric_name][method]
                 mean = method_summary["mean_performance"]
                 radius = method_summary["CI_radius"]
-                table_str += f"& {mean:.3f} $\\pm$ {radius:.3f}"
+                table_str += f" & ${mean:.3f} \\pm {radius:.3f}$"
+
             table_str += " \\\\\n"
 
         # Table footer.

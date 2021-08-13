@@ -122,10 +122,12 @@ Refactoring:
   memory usage increased by a factor of 1.5. This happened in commit dcdee654.
 - Print method name during experiment so that it's easier to tell how good each method
   is doing during training.
-- Add some way to call `report()` from `train()` and `experiment()`, so that we don't
-  have to manually run `python3 main.py report` after every train or experiment.
 - Automatically bold results from best method when creating LaTeX table in `tabulate()`.
-
+- Use name_subs for plotting in `report()`.
+- Allow more flexibility in settings for `tabulate()`. Settings can include list of
+  methods to include, list of metrics to include, and settings or each method and
+  metric: decimal precision, whether to include CI radius, display names, etc. Also, we
+  can group the metrics and methods, then place table dividers accordingly.
 
 Loss weighting experiments:
 - Datasets: MTRegression, NYUv2
@@ -157,6 +159,7 @@ Additions to make paper stronger:
 - Add something to verify the correctness of our implementations of the existing
   methods. We could compare our results with theirs on reported benchmarks, and put this
   comparison in the appendix. That would be a lot of work though.
+- Verify our claims about DWA using the author's own implementation.
 
 Experiments:
 - Gradient normalization justification (if time):
@@ -203,13 +206,14 @@ To do:
 - DONE: Loss weight error (MTRegression)
 - DONE: Normal loss task variance (MTRegression)
 - DONE: Accuracy task variance (NYUv2)
+- Run experiments!
+- DONE: Visualization of cost per step vs. number of tasks (MTRegressionX)
+- DONE: Visualization of eval normal loss vs. number of tasks (MTRegressionX)
+- Qualitative output of each method on each task (NYUv2)
 - Visualization of learned loss weights throughout training
 - Visualization of loss variance vs. gradient norm
-- Run experiments!
-- Visualization of cost per step vs. number of tasks (MTRegressionX)
-- Visualization of eval normal loss vs. number of tasks (MTRegressionX)
-- Qualitative output of each method on each task (NYUv2)
 - Implement IMTL
+- Implement PCGrad
 - Implement CLAW-GN
 - Run experiments!
 - Tuning (if time):
