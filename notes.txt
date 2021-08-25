@@ -89,11 +89,13 @@ Current sprint (Loss weighting experiments):
     Fix sum/mean of NYUv2 task losses
     Fix evaluation format
     Evaluation
---> Measure accuracy of gradient norm estimate
+    Measure accuracy of gradient norm estimate
+--> PCBA Dataset
+    Training on PCBA (loss function)
+    Metrics for PCBA
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
     Better architecture
-    Add other task sets
 
 
 Refactoring:
@@ -206,12 +208,14 @@ To do:
 - DONE: Loss weight error (MTRegression)
 - DONE: Normal loss task variance (MTRegression)
 - DONE: Accuracy task variance (NYUv2)
-- Run experiments!
+- DONE: Run experiments!
 - DONE: Visualization of cost per step vs. number of tasks (MTRegressionX)
 - DONE: Visualization of eval normal loss vs. number of tasks (MTRegressionX)
 - Qualitative output of each method on each task (NYUv2)
 - Visualization of learned loss weights throughout training
-- Visualization of loss variance vs. gradient norm
+- DONE: Visualization of loss variance vs. gradient norm
+- Implement PCBA experiments
+- Run experiments!
 - Implement IMTL
 - Implement PCGrad
 - Implement CLAW-GN
