@@ -90,9 +90,10 @@ Current sprint (Loss weighting experiments):
     Fix evaluation format
     Evaluation
     Measure accuracy of gradient norm estimate
---> PCBA Dataset
-    Training on PCBA (loss function)
+    PCBA Dataset
+--> Training on PCBA
     Metrics for PCBA
+    Pyramidal network for PCBA
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
     Better architecture

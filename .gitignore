@@ -4,5 +4,5 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 results/
-data/datasets
-!data/datasets/pcba.csv
+data/datasets/*
+!data/datasets/pcba.csv.gz
