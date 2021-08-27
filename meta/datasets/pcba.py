@@ -19,7 +19,6 @@ from torch.utils.data import Dataset
 
 TOTAL_TASKS = 128
 DOWNLOAD_URL = "https://github.com/deepchem/deepchem/raw/master/datasets/pcba.csv.gz"
-DATA_DIRNAME = "PCBA"
 RAW_DATA_FNAME = "pcba.csv.gz"
 DATASET_CONFIG = {
     "feature_size": 2048,
@@ -53,8 +52,8 @@ class PCBA(Dataset):
         # Save state.
         super().__init__()
         self.num_tasks = num_tasks
-        self.root = os.path.join(root, DATA_DIRNAME)
-        self.raw_data_path = os.path.join(root, RAW_DATA_FNAME)
+        self.root = root
+        self.raw_data_path = os.path.join(os.path.dirname(root), RAW_DATA_FNAME)
         self.train = train
         self.split = "train" if self.train else "test"
         self.feature_size = DATASET_CONFIG["feature_size"]
@@ -71,10 +70,10 @@ class PCBA(Dataset):
 
         # Load data.
         self.inputs = np.load(self.data_path(train=self.train, inp=True))
-        self.outputs = np.load(self.data_path(train=self.train, inp=False))
-        self.outputs = self.outputs[:, : self.num_tasks]
+        self.labels = np.load(self.data_path(train=self.train, inp=False))
+        self.labels = self.labels[:, : self.num_tasks]
         self.dataset_size = len(self.inputs)
-        assert len(self.inputs) == len(self.outputs)
+        assert len(self.inputs) == len(self.labels)
 
         # Load dataset config to ensure that the config of loaded data matches the
         # current config.
@@ -142,10 +141,10 @@ class PCBA(Dataset):
         random.shuffle(idxs)
         train_idxs = idxs[:train_size]
         test_idxs = idxs[train_size:]
-        train_input = features[train_idxs]
-        test_input = features[test_idxs]
-        train_label = dataframe.iloc[train_idxs].to_numpy(dtype=float)
-        test_label = dataframe.iloc[test_idxs].to_numpy(dtype=float)
+        train_input = features[train_idxs].astype(dtype=np.float32)
+        test_input = features[test_idxs].astype(dtype=np.float32)
+        train_label = dataframe.iloc[train_idxs].to_numpy(dtype=np.float32)
+        test_label = dataframe.iloc[test_idxs].to_numpy(dtype=np.float32)
 
         # Save results as numpy arrays.
         os.makedirs(self.root)

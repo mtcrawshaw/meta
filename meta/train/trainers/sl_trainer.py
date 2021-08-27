@@ -13,7 +13,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
-from meta.datasets import NYUv2, MTRegression
+from meta.datasets import NYUv2, MTRegression, PCBA
 from meta.train.loss import (
     CosineSimilarityLoss,
     ScaleInvariantDepthLoss,
@@ -1150,6 +1150,39 @@ DATASETS = {
         },
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 50},
+    },
+    "PCBA": {
+        "input_size": 2048,
+        "output_size": 2,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.CrossEntropyLoss(ignore_index=-1, reduction="mean"),
+                    "output_slice": lambda x: x[:, i],
+                    "label_slice": lambda x: x[:, i].long(),
+                }
+                for i in range(128)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(50)
+            },
+        },
+        "base_name": "PCBA",
+        "dataset_kwargs": {"num_tasks": 128},
     },
 }
 

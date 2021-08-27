@@ -91,9 +91,9 @@ Current sprint (Loss weighting experiments):
     Evaluation
     Measure accuracy of gradient norm estimate
     PCBA Dataset
---> Training on PCBA
-    Metrics for PCBA
-    Pyramidal network for PCBA
+    Training on PCBA
+--> Metrics for PCBA (confirm that performance is improving)
+    Tweak performance (pyramidal network, class weights for classification loss)
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
     Better architecture
