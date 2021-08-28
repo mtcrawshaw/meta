@@ -10,3 +10,4 @@ metaworld
 matplotlib
 pandas
 h5py
+sklearn

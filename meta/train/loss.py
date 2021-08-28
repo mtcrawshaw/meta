@@ -7,6 +7,7 @@ from PIL import Image
 from typing import List, Dict, Any, Optional, Callable, Iterator, Tuple
 
 import numpy as np
+from sklearn.metrics import roc_auc_score
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -693,7 +694,9 @@ class CLAWTester(LossWeighter):
                     EPSILON * torch.ones_like(self.loss_stats.stdev),
                 )
                 approx_norm_recip = 1.0 / approx_norms
-                claw_weights = self.num_tasks * approx_norm_recip / torch.sum(approx_norm_recip)
+                claw_weights = (
+                    self.num_tasks * approx_norm_recip / torch.sum(approx_norm_recip)
+                )
             else:
                 claw_weights = None
 
@@ -1205,6 +1208,22 @@ def get_MTRegression_weight_error(
         return error
 
     return weight_error
+
+
+def PCBA_ROC_AUC(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Computes the area under the ROC curve for the PCBA binary classification task.
+    """
+    softmax_outputs = F.softmax(outputs, dim=2)
+    flat_outputs = softmax_outputs[:, :, 1].reshape(-1)
+    flat_labels = labels.reshape(-1)
+    valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
+    valid_outputs = flat_outputs[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().numpy()
+    score = roc_auc_score(valid_labels, valid_outputs, average="samples")
+    return score
 
 
 def get_multitask_loss_weight(

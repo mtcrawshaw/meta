@@ -43,6 +43,7 @@ from meta.train.loss import (
     get_MTRegression_normal_loss,
     get_MTRegression_normal_loss_variance,
     get_MTRegression_weight_error,
+    PCBA_ROC_AUC,
     get_multitask_loss_weight,
 )
 from meta.networks import (
@@ -1168,6 +1169,22 @@ DATASETS = {
         },
         "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
+            "train_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
             **{
                 "loss_weight_%d"
                 % i: {
@@ -1178,7 +1195,7 @@ DATASETS = {
                     "train": True,
                     "show": False,
                 }
-                for i in range(50)
+                for i in range(128)
             },
         },
         "base_name": "PCBA",
