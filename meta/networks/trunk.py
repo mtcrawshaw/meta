@@ -5,7 +5,7 @@ head for each task.
 """
 
 from itertools import product
-from typing import Iterator
+from typing import Iterator, Union, List
 
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         activation: str = "tanh",
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
-        hidden_size: int = 64,
+        hidden_size: Union[int, List[int]] = 64,
         downscale_last_layer: bool = False,
         parallel_branches: bool = False,
         device: torch.device = None,
@@ -51,8 +51,12 @@ class MultiTaskTrunkNetwork(nn.Module):
             Number of layers in the shared trunk portion.
         num_task_layers : int
             Number of layers in each task-specific branch.
-        hidden_size : int
-            Number of units in each hidden layer.
+        hidden_size : Union[int, List[int]]
+            Number of units in each hidden layer. This can either be specified with a
+            single integer, in which case all hidden layers will have the same size, or
+            with a list of integers denoting the hidden sizes of each individual layer.
+            The length of this list must be equal to `num_shared_layers +
+            num_task_layers - 1`.
         downscale_last_layer : bool
             Whether or not to downscale the variance of initialized weights in the last
             layer of the network. This is suggested in https://arxiv.org/abs/2006.05990.
@@ -78,6 +82,9 @@ class MultiTaskTrunkNetwork(nn.Module):
                 "each be at least 1. Given values are: %d, %d"
                 % (num_shared_layers, num_task_layers)
             )
+        num_hidden_layers = num_shared_layers + num_task_layers - 1
+        if isinstance(hidden_size, list):
+            assert len(hidden_size) == num_hidden_layers
 
         # Set state.
         self.input_size = input_size
@@ -86,7 +93,11 @@ class MultiTaskTrunkNetwork(nn.Module):
         self.activation = activation
         self.num_shared_layers = num_shared_layers
         self.num_task_layers = num_task_layers
-        self.hidden_size = hidden_size
+        if isinstance(hidden_size, list):
+            self.hidden_size = hidden_size
+        else:
+            assert isinstance(hidden_size, int)
+            self.hidden_size = [hidden_size] * num_hidden_layers
         self.downscale_last_layer = downscale_last_layer
         self.parallel_branches = parallel_branches
         self.monitor_grads = monitor_grads
@@ -125,14 +136,15 @@ class MultiTaskTrunkNetwork(nn.Module):
         trunk_layers = []
         for i in range(self.num_shared_layers):
 
-            # Calcuate input size of layer.
-            layer_input_size = self.input_size if i == 0 else self.hidden_size
+            # Calcuate input and output size of layer.
+            layer_input_size = self.input_size if i == 0 else self.hidden_size[i - 1]
+            layer_output_size = self.hidden_size[i]
 
             # Initialize layer.
             trunk_layers.append(
                 get_fc_layer(
                     in_size=layer_input_size,
-                    out_size=self.hidden_size,
+                    out_size=layer_output_size,
                     activation=self.activation,
                     layer_init=init_base,
                 )
@@ -147,9 +159,11 @@ class MultiTaskTrunkNetwork(nn.Module):
             task_layers = []
             for i in range(self.num_task_layers):
 
-                # Calculate output size of layer.
-                output_size = (
-                    self.hidden_size
+                # Calculate input and output size of layer.
+                layer_idx = i + self.num_shared_layers
+                layer_input_size = self.hidden_size[layer_idx - 1]
+                layer_output_size = (
+                    self.hidden_size[layer_idx]
                     if i != self.num_task_layers - 1
                     else self.output_size
                 )
@@ -163,8 +177,8 @@ class MultiTaskTrunkNetwork(nn.Module):
                 # Initialize layer.
                 task_layers.append(
                     get_fc_layer(
-                        in_size=self.hidden_size,
-                        out_size=output_size,
+                        in_size=layer_input_size,
+                        out_size=layer_output_size,
                         activation=self.activation
                         if i != self.num_task_layers - 1
                         else None,
