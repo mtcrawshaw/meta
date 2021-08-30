@@ -132,6 +132,10 @@ Refactoring:
   methods to include, list of metrics to include, and settings or each method and
   metric: decimal precision, whether to include CI radius, display names, etc. Also, we
   can group the metrics and methods, then place table dividers accordingly.
+- Fix MultiTaskLoss specification in PCBA so that we don't have to hardcode a device.
+  Right now CPU training on PCBA just isn't supported because of this hacky workaround.
+  Fixing this will be a lot easier once we've refactored the info in DATASET_CONFIG so
+  that each dataset's information is in its own class.
 
 Loss weighting experiments:
 - Datasets: MTRegression, NYUv2

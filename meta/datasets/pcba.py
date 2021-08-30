@@ -25,6 +25,8 @@ DATASET_CONFIG = {
     "train_split": 0.9,
     "ecfp_radius": 4,
 }
+CLASS_SAMPLES = np.array([30269634, 427685])
+CLASS_WEIGHTS = 1.0 - CLASS_SAMPLES / np.sum(CLASS_SAMPLES)
 
 
 class PCBA(Dataset):

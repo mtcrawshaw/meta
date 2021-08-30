@@ -14,6 +14,7 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.datasets import NYUv2, MTRegression, PCBA
+from meta.datasets.pcba import CLASS_WEIGHTS
 from meta.train.loss import (
     CosineSimilarityLoss,
     ScaleInvariantDepthLoss,
@@ -1160,7 +1161,15 @@ DATASETS = {
         "loss_kwargs": {
             "task_losses": [
                 {
-                    "loss": nn.CrossEntropyLoss(ignore_index=-1, reduction="mean"),
+                    "loss": nn.CrossEntropyLoss(
+                        weight=torch.as_tensor(
+                            CLASS_WEIGHTS,
+                            dtype=torch.float32,
+                            device=torch.device("cuda:0"),
+                        ),
+                        ignore_index=-1,
+                        reduction="mean",
+                    ),
                     "output_slice": lambda x: x[:, i],
                     "label_slice": lambda x: x[:, i].long(),
                 }
