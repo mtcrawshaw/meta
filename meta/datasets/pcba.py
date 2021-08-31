@@ -8,7 +8,7 @@ import os
 import random
 import json
 import gzip
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 import pandas
@@ -32,7 +32,13 @@ CLASS_WEIGHTS = 1.0 - CLASS_SAMPLES / np.sum(CLASS_SAMPLES)
 class PCBA(Dataset):
     """ PyTorch wrapper for the PCBA dataset. """
 
-    def __init__(self, root: str, num_tasks: int, train: bool = True):
+    def __init__(
+        self,
+        root: str,
+        num_tasks: int,
+        data_tasks: Optional[int] = None,
+        train: bool = True,
+    ):
         """
         Init function for PCBA.
 
@@ -44,16 +50,23 @@ class PCBA(Dataset):
             Number of tasks for instance of PCBA. Should be between 1 and `TOTAL_TASKS`.
             For each input molecule, only the labels from the first `num_tasks` tasks
             are loaded.
+        data_tasks : Optional[int]
+            Only use data points that are labeled for at least one of the first
+            `data_tasks` tasks. This can be used to ensure that a comparison of training
+            on e.g. 128 tasks vs. 32 tasks is using the same data, by setting
+            `data_tasks = 32`. If None, this will be set to `num_tasks`.
         train : bool
             Whether to load training set. Otherwise, test set is loaded.
         """
 
         # Check that parameter values are valid.
         assert 1 <= num_tasks <= TOTAL_TASKS
+        assert data_tasks is None or 1 <= data_tasks <= TOTAL_TASKS
 
         # Save state.
         super().__init__()
         self.num_tasks = num_tasks
+        self.data_tasks = data_tasks if data_tasks is not None else self.num_tasks
         self.root = root
         self.raw_data_path = os.path.join(os.path.dirname(root), RAW_DATA_FNAME)
         self.train = train
@@ -73,9 +86,23 @@ class PCBA(Dataset):
         # Load data.
         self.inputs = np.load(self.data_path(train=self.train, inp=True))
         self.labels = np.load(self.data_path(train=self.train, inp=False))
-        self.labels = self.labels[:, : self.num_tasks]
-        self.dataset_size = len(self.inputs)
         assert len(self.inputs) == len(self.labels)
+        original_dataset_size = len(self.inputs)
+
+        # Remove datapoints that aren't labeled for any of the chosen subset of tasks.
+        good_idxs = np.any(self.labels[:, : self.data_tasks] != -1, axis=1).nonzero()[0]
+        self.inputs = self.inputs[good_idxs]
+        self.labels = self.labels[good_idxs]
+        self.dataset_size = len(self.inputs)
+        if len(good_idxs) != original_dataset_size:
+            removed = original_dataset_size - len(good_idxs)
+            print(
+                f"Removing {removed} datapoints from PCBA {self.split} that aren't"
+                f" labeled for first {self.data_tasks} tasks."
+            )
+
+        # Remove labels from tasks not being trained on.
+        self.labels = self.labels[:, : self.num_tasks]
 
         # Load dataset config to ensure that the config of loaded data matches the
         # current config.

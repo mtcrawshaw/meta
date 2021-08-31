@@ -71,11 +71,13 @@ SN_TRANSFORM = transforms.ToTensor()
 
 def slice_second_dim(idx: int, to_long: bool = False) -> Callable[[Any], Any]:
     """ Utility function to generate slice functions for multi-task losses. """
+
     def slice(x: Any) -> Any:
         if to_long:
             return x[:, idx].long()
         else:
             return x[:, idx]
+
     return slice
 
 
@@ -1223,7 +1225,7 @@ DATASETS = {
             },
         },
         "base_name": "PCBA",
-        "dataset_kwargs": {"num_tasks": 128},
+        "dataset_kwargs": {"num_tasks": 128, "data_tasks": 32},
     },
 }
 
