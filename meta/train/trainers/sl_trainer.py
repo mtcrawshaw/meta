@@ -45,6 +45,7 @@ from meta.train.loss import (
     get_MTRegression_normal_loss_variance,
     get_MTRegression_weight_error,
     PCBA_ROC_AUC,
+    PCBA_avg_precision,
     get_multitask_loss_weight,
 )
 from meta.networks import (
@@ -68,19 +69,17 @@ SEG_TRANSFORM = transforms.ToTensor()
 SN_TRANSFORM = transforms.ToTensor()
 
 
-def slice_second_dim(idx: int) -> Callable[[Any], Any]:
-    """
-    Utility function to generate slice functions for MTRegression task losses. Just for
-    convenience so we don't have to hard-code 10 functions of the form generated below.
-    """
-
+def slice_second_dim(idx: int, to_long: bool = False) -> Callable[[Any], Any]:
+    """ Utility function to generate slice functions for multi-task losses. """
     def slice(x: Any) -> Any:
-        return x[:, idx]
-
+        if to_long:
+            return x[:, idx].long()
+        else:
+            return x[:, idx]
     return slice
 
 
-TRAIN_WINDOW = 33
+TRAIN_WINDOW = 8
 EVAL_WINDOW = 1
 DATASETS = {
     "MNIST": {
@@ -1170,8 +1169,8 @@ DATASETS = {
                         ignore_index=-1,
                         reduction="mean",
                     ),
-                    "output_slice": lambda x: x[:, i],
-                    "label_slice": lambda x: x[:, i].long(),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i, to_long=True),
                 }
                 for i in range(128)
             ],
@@ -1184,11 +1183,27 @@ DATASETS = {
                 "window": TRAIN_WINDOW,
                 "maximize": True,
                 "train": True,
-                "show": True,
+                "show": False,
             },
             "eval_ROC_AUC": {
                 "fn": PCBA_ROC_AUC,
                 "basename": "ROC_AUC",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
                 "window": EVAL_WINDOW,
                 "maximize": True,
                 "train": False,

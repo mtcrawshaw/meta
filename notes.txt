@@ -93,8 +93,8 @@ Current sprint (Loss weighting experiments):
     PCBA Dataset
     Training on PCBA
     Metrics for PCBA
---> Tweak performance (pyramidal network, class weights for classification loss)
-    Add option for varying number of tasks in PCBA (remove dud data points for each task subset)
+    Tweak performance (pyramidal network, class weights for classification loss)
+--> Add option for varying number of tasks in PCBA (remove dud data points for each task subset)
     Tune general parameters + loss weighting parameters
     Evaluate single-task models
     Better architecture

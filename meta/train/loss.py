@@ -7,7 +7,7 @@ from PIL import Image
 from typing import List, Dict, Any, Optional, Callable, Iterator, Tuple
 
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -1223,6 +1223,22 @@ def PCBA_ROC_AUC(
     valid_outputs = flat_outputs[valid].detach().cpu().numpy()
     valid_labels = flat_labels[valid].detach().cpu().numpy()
     score = roc_auc_score(valid_labels, valid_outputs, average="samples")
+    return score
+
+
+def PCBA_avg_precision(
+    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
+) -> float:
+    """
+    Computes the average precision (AP) for the PCBA binary classification task.
+    """
+    softmax_outputs = F.softmax(outputs, dim=2)
+    flat_outputs = softmax_outputs[:, :, 1].reshape(-1)
+    flat_labels = labels.reshape(-1)
+    valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
+    valid_outputs = flat_outputs[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().numpy()
+    score = average_precision_score(valid_labels, valid_outputs, average="samples")
     return score
 
 
