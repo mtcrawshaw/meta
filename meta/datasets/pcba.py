@@ -94,11 +94,12 @@ class PCBA(Dataset):
         self.inputs = self.inputs[good_idxs]
         self.labels = self.labels[good_idxs]
         self.dataset_size = len(self.inputs)
-        if len(good_idxs) != original_dataset_size:
-            removed = original_dataset_size - len(good_idxs)
+        if self.dataset_size != original_dataset_size:
+            removed = original_dataset_size - self.dataset_size
             print(
                 f"Removing {removed} datapoints from PCBA {self.split} that aren't"
-                f" labeled for first {self.data_tasks} tasks."
+                f" labeled for first {self.data_tasks} tasks. {self.dataset_size}"
+                f" {self.split} datapoints remaining."
             )
 
         # Remove labels from tasks not being trained on.

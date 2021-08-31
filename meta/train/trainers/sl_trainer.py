@@ -1154,7 +1154,226 @@ DATASETS = {
         "base_name": "MTRegression",
         "dataset_kwargs": {"num_tasks": 50},
     },
-    "PCBA": {
+    "PCBA32": {
+        "input_size": 2048,
+        "output_size": 2,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.CrossEntropyLoss(
+                        weight=torch.as_tensor(
+                            CLASS_WEIGHTS,
+                            dtype=torch.float32,
+                            device=torch.device("cuda:0"),
+                        ),
+                        ignore_index=-1,
+                        reduction="mean",
+                    ),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i, to_long=True),
+                }
+                for i in range(32)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(32)
+            },
+        },
+        "base_name": "PCBA",
+        "dataset_kwargs": {"num_tasks": 32, "data_tasks": 32},
+    },
+    "PCBA64": {
+        "input_size": 2048,
+        "output_size": 2,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.CrossEntropyLoss(
+                        weight=torch.as_tensor(
+                            CLASS_WEIGHTS,
+                            dtype=torch.float32,
+                            device=torch.device("cuda:0"),
+                        ),
+                        ignore_index=-1,
+                        reduction="mean",
+                    ),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i, to_long=True),
+                }
+                for i in range(64)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(64)
+            },
+        },
+        "base_name": "PCBA",
+        "dataset_kwargs": {"num_tasks": 64, "data_tasks": 32},
+    },
+    "PCBA96": {
+        "input_size": 2048,
+        "output_size": 2,
+        "builtin": False,
+        "loss_cls": MultiTaskLoss,
+        "loss_kwargs": {
+            "task_losses": [
+                {
+                    "loss": nn.CrossEntropyLoss(
+                        weight=torch.as_tensor(
+                            CLASS_WEIGHTS,
+                            dtype=torch.float32,
+                            device=torch.device("cuda:0"),
+                        ),
+                        ignore_index=-1,
+                        reduction="mean",
+                    ),
+                    "output_slice": slice_second_dim(i),
+                    "label_slice": slice_second_dim(i, to_long=True),
+                }
+                for i in range(96)
+            ],
+        },
+        "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
+        "extra_metrics": {
+            "train_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": False,
+            },
+            "eval_ROC_AUC": {
+                "fn": PCBA_ROC_AUC,
+                "basename": "ROC_AUC",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": False,
+            },
+            "train_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": TRAIN_WINDOW,
+                "maximize": True,
+                "train": True,
+                "show": True,
+            },
+            "eval_AP": {
+                "fn": PCBA_avg_precision,
+                "basename": "AP",
+                "window": EVAL_WINDOW,
+                "maximize": True,
+                "train": False,
+                "show": True,
+            },
+            **{
+                "loss_weight_%d"
+                % i: {
+                    "fn": get_multitask_loss_weight(i),
+                    "basename": "loss_weight",
+                    "window": 1,
+                    "maximize": None,
+                    "train": True,
+                    "show": False,
+                }
+                for i in range(96)
+            },
+        },
+        "base_name": "PCBA",
+        "dataset_kwargs": {"num_tasks": 96, "data_tasks": 32},
+    },
+    "PCBA128": {
         "input_size": 2048,
         "output_size": 2,
         "builtin": False,

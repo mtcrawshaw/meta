@@ -138,26 +138,7 @@ Refactoring:
   Fixing this will be a lot easier once we've refactored the info in DATASET_CONFIG so
   that each dataset's information is in its own class.
 
-Loss weighting experiments:
-- Datasets: MTRegression, NYUv2
-- Methods: Constant, Uncertainty, GradNorm, DWA, NLW, CLAW, CLW
-- Architecture: Shared trunk: ResNet encoder (either 50 or 101, depending on how much we
-  can fit on GPU), task specific output heads with 1 3x3 Conv-BN-ReLU + 1 1x1 Conv.
-- Methodology: Repeat each method with different random seeds until we reach pairwise
-  statistical significance, or until we hit X trials.
-- Small details:
-  - Make sure that TRAIN_WINDOW and config["evaluation_freq"] are set so that the
-    training metrics are averaged over the last epoch and we are evaluating once per
-    epoch.
-  - Make sure plot formatting is passable before starting
-  - trials per method: 8
-  - training steps: 660
-  - evaluation freq: 33
-
 Additions to make paper stronger:
-- Try NLW with cyclic weights instead of pure noise.
-- Try taking EMA of gradient norms for CLW. This might stabilize the loss function a bit
-  and improve optimization performance.
 - Motivating experiment: For a multi-task training run, measure the average spread of
   weighted gradient norms, then plot that against the training loss and/or evaluation
   loss. This would bring a lot more evidence to the scale side of the noise/scale
@@ -171,38 +152,31 @@ Additions to make paper stronger:
 - Verify our claims about DWA using the author's own implementation.
 
 Experiments:
-- Gradient normalization justification (if time):
-  - Purpose: Demonstrate that large differences in norms of task gradients leads to
-    difficulty in multi-task optimization.
-  - Methods: Constant, GradNorm, GradNormZero, DWA, IMTL, CLAW, CLAW-GN
-  - Metrics: Variance of task gradient norms
-  - Visual results: Plot of task gradient norm variance vs. eval accuracy for NYUv2,
-    Plot of task gradient norm variance vs. eval normal loss for MTRegression10
 - CLAW empirical justification:
   - Purpose: Demonstrate that CLAW can accurately estimate the norm of task gradients.
   - Methods: CLAW
   - Metrics: Loss variance, task gradient norms
-  - Visual results: Plot of loss variance vs. gradient norm for MTRegression10, same
-    plot for NYUv2
-- NYUv2
-  - Purpose: Demonstrate performance of CLAW on a real dataset compared to SOTA.
-  - Methods: Constant, Uncertainty, GradNorm, GradNormZero, DWA, IMTL, CLAW, CLAW-GN
+  - Visual results: Plot of loss variance vs. gradient norm for MTRegression10
+- Loss weight quality
+  - Purpose: Demonstrate that learned loss weights converge to ideal weights for
+    MTRegression10.
+  - Methods: Constant, IdealConstant, GradNorm, DWA, CLAW
+  - Metrics: Train/eval loss, train/eval normal loss, cost per step, loss weights,
+    train/eval normal loss task variance, loss weight error
+  - Visual results: Table of all metrics for all methods, plots of some metrics for all
+    methods, plot of loss weight error for GradNorm, DWA, CLAW, and plot of loss
+    weights for IdealConstant, GradNorm, CLAW (for appendix)
+- Performance
+  - Purpose: Demonstrate performance of CLAW on a real dataset (NYUv2) compared to SOTA.
+  - Methods: Constant, Uncertainty, GradNorm, DWA, CLAW
   - Metrics: All NYUv2 metrics, cost per step, loss weights, train/eval accuracy task
     variance
   - Visual results: Table of all metrics for all methods, plots of some metrics for all
     methods, qualitative output for each method on each task
-- MTRegression10
-  - Purpose: Demonstrate that learned loss weights converge to ideal weights.
-  - Methods: Constant, IdealConstant, GradNorm, GradNormZero, DWA, IMTL, CLAW, CLAW-GN
-  - Metrics: Train/eval loss, train/eval normal loss, cost per step, loss weights,
-    train/eval normal loss task variance, loss weight error
-  - Visual results: Table of all metrics for all methods, plots of some metrics for all
-    methods, plot of loss weight error for GradNorm, IMTL, CLAW, CLAW-GN, plot of loss
-    weights for IdealConstant, GradNorm, IMTL, CLAW, CLAW-GN (for appendix)
-- MTRegressionX
+- Efficiency
   - Purpose: Demonstrate efficiency of CLAW as the number of tasks grows compared to
-    SOTA.
-  - Methods: GradNorm, IMTL, CLAW, CLAW-GN
+    SOTA using PCBA dataset.
+  - Methods: GradNorm, CLAW, Constant
   - Metrics: Train/eval loss, train/eval normal loss, cost per step, loss weights,
     train/eval normal loss task variance, loss weight error
   - Visual results: Table of all metrics for all methods (for appendix), plots of cost
