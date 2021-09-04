@@ -44,7 +44,6 @@ from meta.train.loss import (
     get_MTRegression_normal_loss,
     get_MTRegression_normal_loss_variance,
     get_MTRegression_weight_error,
-    PCBA_ROC_AUC,
     PCBA_avg_precision,
     get_multitask_loss_weight,
 )
@@ -81,7 +80,7 @@ def slice_second_dim(idx: int, to_long: bool = False) -> Callable[[Any], Any]:
     return slice
 
 
-TRAIN_WINDOW = 8
+TRAIN_WINDOW = 9
 EVAL_WINDOW = 1
 DATASETS = {
     "MNIST": {
@@ -1179,22 +1178,6 @@ DATASETS = {
         },
         "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
-            "train_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": TRAIN_WINDOW,
-                "maximize": True,
-                "train": True,
-                "show": False,
-            },
-            "eval_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": EVAL_WINDOW,
-                "maximize": True,
-                "train": False,
-                "show": False,
-            },
             "train_AP": {
                 "fn": PCBA_avg_precision,
                 "basename": "AP",
@@ -1252,22 +1235,6 @@ DATASETS = {
         },
         "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
-            "train_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": TRAIN_WINDOW,
-                "maximize": True,
-                "train": True,
-                "show": False,
-            },
-            "eval_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": EVAL_WINDOW,
-                "maximize": True,
-                "train": False,
-                "show": False,
-            },
             "train_AP": {
                 "fn": PCBA_avg_precision,
                 "basename": "AP",
@@ -1325,22 +1292,6 @@ DATASETS = {
         },
         "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
-            "train_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": TRAIN_WINDOW,
-                "maximize": True,
-                "train": True,
-                "show": False,
-            },
-            "eval_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": EVAL_WINDOW,
-                "maximize": True,
-                "train": False,
-                "show": False,
-            },
             "train_AP": {
                 "fn": PCBA_avg_precision,
                 "basename": "AP",
@@ -1398,22 +1349,6 @@ DATASETS = {
         },
         "criterion_kwargs": {"train": {"train": True}, "eval": {"train": False}},
         "extra_metrics": {
-            "train_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": TRAIN_WINDOW,
-                "maximize": True,
-                "train": True,
-                "show": False,
-            },
-            "eval_ROC_AUC": {
-                "fn": PCBA_ROC_AUC,
-                "basename": "ROC_AUC",
-                "window": EVAL_WINDOW,
-                "maximize": True,
-                "train": False,
-                "show": False,
-            },
             "train_AP": {
                 "fn": PCBA_avg_precision,
                 "basename": "AP",

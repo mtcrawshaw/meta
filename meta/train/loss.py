@@ -1221,7 +1221,7 @@ def PCBA_ROC_AUC(
     flat_labels = labels.reshape(-1)
     valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
     valid_outputs = flat_outputs[valid].detach().cpu().numpy()
-    valid_labels = flat_labels[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().long().numpy()
     score = roc_auc_score(valid_labels, valid_outputs, average="samples")
     return score
 
@@ -1237,7 +1237,7 @@ def PCBA_avg_precision(
     flat_labels = labels.reshape(-1)
     valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
     valid_outputs = flat_outputs[valid].detach().cpu().numpy()
-    valid_labels = flat_labels[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().long().numpy()
     score = average_precision_score(valid_labels, valid_outputs, average="samples")
     return score
 
