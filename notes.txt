@@ -95,17 +95,20 @@ Current sprint (Loss weighting experiments):
     Metrics for PCBA
     Tweak performance (pyramidal network, class weights for classification loss)
     Remove dud data points for each task subset
---> PCBA experiments
-    Tune general parameters + loss weighting parameters
-    Evaluate single-task models
-    Better architecture
+    PCBA experiments
+    PCGrad
+    PCGrad experiments
+    Data augmentation for NYUv2
+--> Augmented NYUv2 experiments
 
 
 Refactoring:
 - Figure out if we need to do anything to convert BN layers to test mode.
-- Separate SLTrainer and multi-task functionality (make MultiSLTrainer? MultiTrainer?)
+- Separate SLTrainer and multi-task functionality by creating MTLTrainer (general) or
+  MultiTaskSLTrainer (SL-specific).
 - Add multitask capability to ConvNetwork
-- Get rid of NYUv2 wrapper and write one from scratch
+- Get rid of NYUv2 wrapper and write one from scratch (fix dependence on random +
+  setting random seeds!)
 - Move metrics into Trainer
 - Don't repeat output_slice and label_slice. Right now we have two instances of each,
   one in DATASETS and one in the corresponding accuracy functions.
@@ -137,6 +140,10 @@ Refactoring:
   Right now CPU training on PCBA just isn't supported because of this hacky workaround.
   Fixing this will be a lot easier once we've refactored the info in DATASET_CONFIG so
   that each dataset's information is in its own class.
+- Make `pre_loss_update` a property of each loss weighter subclass, instead of being
+  hardcoded in MultiTaskLoss
+- Generally clean up PCGrad in SLTrainer
+- Move data augmentation settings into config file
 
 Additions to make paper stronger:
 - Motivating experiment: For a multi-task training run, measure the average spread of

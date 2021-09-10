@@ -21,6 +21,8 @@ NUM_TRIALS = 120
 NUM_STEPS = 1000
 START_STEP = 100
 END_STEP = 1000
+MARKERS = [".", "v", "^", "s", "+", "x", "|", "_", "P", "1"]
+MARKER_SIZE = 12
 
 
 def collect_samples():
@@ -90,12 +92,14 @@ def main(reuse: bool = False):
     cmap = plt.get_cmap("tab10")
     for sample in range(num_samples):
         task = random.randrange(num_tasks)
-        plt.scatter(weights[task, sample, 0], weights[task, sample, 1], c=cmap(task), s=9)
+        color = cmap(task)
+        marker = MARKERS[task]
+        plt.scatter(weights[task, sample, 0], weights[task, sample, 1], c=color, marker=marker, s=MARKER_SIZE)
 
     # Title plot and axes.
-    plt.title("Loss Weight Estimation by CLAW")
+    plt.title("Loss Weight Estimation by SLAW")
     plt.xlabel(r"$w_i$ (Equation 4)", usetex=True)
-    plt.ylabel(r"$w_i$ (CLAW, Equation 9)", usetex=True)
+    plt.ylabel(r"$w_i$ (SLAW, Equation 9)", usetex=True)
 
     # Transform axis scales.
     ax = plt.gca()

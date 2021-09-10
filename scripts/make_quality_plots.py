@@ -27,14 +27,16 @@ SCALES = {
 }
 METHOD_REPLACEMENTS = {
     "GradNormZero": "GN-Zero",
+    "CLAW": "SLAW",
 }
-COLORS = {
-    "Constant": "black",
-    "IdealConstant": "magenta",
-    "GradNorm": "red",
-    "DWA": "green",
-    "CLAW": "blue",
+SETTINGS = {
+    "Constant": ("black", "."),
+    "IdealConstant": ("magenta", "v"),
+    "GradNorm": ("red", "+"),
+    "DWA": ("green", "^"),
+    "CLAW": ("blue", "x"),
 }
+MARK_INTERVAL = 250
 
 def file_exists(path: str) -> bool:
     """ Utility function to check whether file exists and print error message if so. """
@@ -70,9 +72,9 @@ def plot_normalized_loss(metrics: Dict[str, Any], config: Dict[str, Any], plot_p
             assert len(test_nl) == num_steps
 
         # Plot.
+        color, marker = SETTINGS[method]
         label = METHOD_REPLACEMENTS[method] if method in METHOD_REPLACEMENTS else method
-        color = COLORS[method]
-        plt.plot(list(range(1, num_steps + 1)), test_nl, color, label=label)
+        plt.plot(list(range(1, num_steps + 1)), test_nl, color=color, marker=marker, label=label, markevery=MARK_INTERVAL)
         legend.append(label)
 
     # Title plot and axes, and create legend.
@@ -113,9 +115,9 @@ def plot_weight_quality(metrics: Dict[str, Any], config: Dict[str, Any], plot_pa
             assert len(weight_error) == num_steps
 
         # Plot.
+        color, marker = SETTINGS[method]
         label = METHOD_REPLACEMENTS[method] if method in METHOD_REPLACEMENTS else method
-        color = COLORS[method]
-        plt.plot(list(range(1, num_steps + 1)), weight_error, color, label=label)
+        plt.plot(list(range(1, num_steps + 1)), weight_error, color=color, marker=marker, label=label, markevery=MARK_INTERVAL)
         legend.append(label)
 
     # Title plot and axes, and create legend.
