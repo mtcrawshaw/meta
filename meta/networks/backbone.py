@@ -198,6 +198,12 @@ class BackboneNetwork(nn.Module):
             ]
             self.head = Parallel(heads, combine_dim=1)
 
+            # Save number of shared and task-specific parameters.
+            self.num_shared_params = sum([p.numel() for p in self.backbone.parameters()])
+            self.num_specific_params = {
+                task: sum([p.numel() for p in self.head[task].parameters()]) for task in range(self.num_tasks)
+            }
+
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Forward pass definition for BackboneNetwork.
@@ -230,3 +236,12 @@ class BackboneNetwork(nn.Module):
         shared between multiple tasks.
         """
         return self.backbone[-1].parameters()
+
+    def shared_params(self) -> Iterator[nn.parameter.Parameter]:
+        """ Iterator over parameters which are shared between all tasks. """
+        return self.backbone.parameters()
+
+    def specific_params(self, task: int) -> Iterator[nn.parameter.Parameter]:
+        """ Iterator over task-specific parameters. """
+        assert self.num_tasks > 1
+        return self.head[task].parameters()

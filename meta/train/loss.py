@@ -102,10 +102,26 @@ class MultiTaskLoss(nn.Module):
     def __init__(
         self,
         task_losses: List[Dict[str, Any]],
-        loss_weighter_kwargs: Dict[str, Any] = {},
+        loss_weighter_kwargs: Dict[str, Any],
         device: torch.device = None,
     ) -> None:
-        """ Init function for MultiTaskLoss. """
+        """
+        Init function for MultiTaskLoss.
+
+        Parameters
+        ----------
+        task_losses : List[Dict[str, Any]]
+            Loss functions for each task. Each element of the list is a dictionary which
+            defines the loss function for a single task, with three keys:
+            "output_slice", "label_slice", and "loss". The keys corresponding to
+            "output_slice" and "label_slice" are functions that produce the task output
+            and task label, respectively, given the multi-task output and the multi-task
+            label. The key for "loss" is the task loss function.
+        loss_weighter_kwargs : Dict[str, Any]
+            Keyword arguments to be passed to LossWeighter instance.
+        device : torch.device
+            What device to store Tensors on. If None (default), defaults to CPU.
+        """
 
         super(MultiTaskLoss, self).__init__()
 
@@ -148,12 +164,35 @@ class MultiTaskLoss(nn.Module):
         outputs: torch.Tensor,
         labels: torch.Tensor,
         train: bool = True,
+        combine_losses: bool = True,
         **kwargs: Dict[str, Any],
     ) -> torch.Tensor:
         """
         Compute values of each task losses, update the task-loss weights, then return
         the weighted sum of task losses. Extra arguments are passed to `update()` of
         `LossWeighter`.
+
+        Parameters
+        ----------
+        outputs : torch.Tensor
+            Multi-task network output.
+        labels : torch.Tensor
+            Multi-task labels.
+        train : bool
+            Whether or not this is a training step or testing step.
+        combine_losses : bool
+            Whether or not to combine task losses into a single scalar value. Defaults
+            to `True`, which will almost always be used. When `False`, returns a tensor
+            of shape `(len(task_losses),)` (the number of tasks), which holds the
+            individual values of each task's loss function. In this case, no loss
+            weighter is used.  Be careful using this option: it can easily break
+            training. The task losses do have to be reduced into a single scalar
+            somewhere in order to perform training.
+
+        Returns
+        -------
+        loss : torch.Tensor
+            Value of multi-task loss (weighted sum of task losses).
         """
 
         # Compute task losses.
@@ -164,6 +203,10 @@ class MultiTaskLoss(nn.Module):
             task_loss_val = task_loss["loss"](task_output, task_label)
             task_loss_vals.append(task_loss_val)
         task_loss_vals = torch.stack(task_loss_vals)
+
+        # Return without combining task losses, if necessary.
+        if not combine_losses:
+            return task_loss_vals
 
         # Update loss weighter before loss computation, if necessary.
         if train and self.pre_loss_update:
@@ -722,7 +765,7 @@ class CLAWTester(LossWeighter):
 
 
 def save_batch(
-    task_losses: Dict[str, Any], outputs: torch.Tensor, labels: torch.Tensor
+    task_losses: Dict[str, Any], inputs: torch.Tensor, outputs: torch.Tensor, labels: torch.Tensor
 ) -> None:
     """
     Debug function to save out batch of NYUv2 labels as images and exit. Should be
@@ -730,7 +773,13 @@ def save_batch(
     doing multi-task training on the NYUv2 dataset.
     """
 
+    inputs = inputs.detach().cpu()
+    outputs = outputs.detach().cpu()
+    labels = labels.detach().cpu()
+
     loss_names = ["seg", "sn", "depth"]
+    assert outputs.shape[0] == inputs.shape[0]
+    assert inputs.shape[0] == labels.shape[0]
     batch_size = outputs.shape[0]
     colors = [
         (0, 0, 0),
@@ -748,6 +797,13 @@ def save_batch(
         (127, 127, 0),
         (127, 127, 127),
     ]
+
+    for j in range(batch_size):
+        img_arr = np.transpose(inputs[j].numpy(), (1, 2, 0))
+        img_arr = (img_arr + 1.0) / 2.0
+        img_arr = np.uint8(img_arr * 255.0)
+        img = Image.fromarray(img_arr)
+        img.save("test_%d_input.png" % j)
 
     for i, task_loss in enumerate(task_losses):
         task_label = task_loss["label_slice"](labels)

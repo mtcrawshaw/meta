@@ -194,6 +194,12 @@ class MultiTaskTrunkNetwork(nn.Module):
         else:
             self.output_heads = nn.ModuleList(heads_list)
 
+        # Save number of shared and task-specific parameters.
+        self.num_shared_params = sum([p.numel() for p in self.trunk.parameters()])
+        self.num_specific_params = {
+            task: sum([p.numel() for p in self.output_heads[task].parameters()]) for task in range(self.num_tasks)
+        }
+
     def forward(
         self, inputs: torch.Tensor, task_indices: torch.Tensor = None
     ) -> torch.Tensor:
@@ -267,6 +273,14 @@ class MultiTaskTrunkNetwork(nn.Module):
         shared between multiple tasks.
         """
         return self.trunk[-1].parameters()
+
+    def shared_params(self) -> Iterator[nn.parameter.Parameter]:
+        """ Iterator over parameters which are shared between all tasks. """
+        return self.trunk.parameters()
+
+    def specific_params(self, task: int) -> Iterator[nn.parameter.Parameter]:
+        """ Iterator over task-specific parameters. """
+        return self.output_heads[task].parameters()
 
     def check_conflicting_grads(self, task_losses: torch.Tensor) -> None:
         """

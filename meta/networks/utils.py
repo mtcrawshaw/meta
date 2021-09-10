@@ -175,3 +175,7 @@ class Parallel(nn.Module):
             out = torch.cat(outs, dim=self.combine_dim)
 
         return out
+
+    def __getitem__(self, i: int) -> nn.Module:
+        """ Access `i`th module. """
+        return self.p_modules[i]

@@ -109,7 +109,7 @@ DATASETS = {
             },
         },
         "base_name": "MNIST",
-        "dataset_kwargs": {"download": True, "transform": GRAY_TRANSFORM},
+        "dataset_kwargs": {"train": {"download": True, "transform": GRAY_TRANSFORM}, "eval": {"download": True, "transform": GRAY_TRANSFORM}}
     },
     "CIFAR10": {
         "input_size": (3, 32, 32),
@@ -137,7 +137,7 @@ DATASETS = {
             },
         },
         "base_name": "CIFAR10",
-        "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"train": {"download": True, "transform": RGB_TRANSFORM}, "eval": {"download": True, "transform": RGB_TRANSFORM}},
     },
     "CIFAR100": {
         "input_size": (3, 32, 32),
@@ -165,7 +165,7 @@ DATASETS = {
             },
         },
         "base_name": "CIFAR100",
-        "dataset_kwargs": {"download": True, "transform": RGB_TRANSFORM},
+        "dataset_kwargs": {"train": {"download": True, "transform": RGB_TRANSFORM}, "eval": {"download": True, "transform": RGB_TRANSFORM}},
     },
     "NYUv2_seg": {
         "input_size": (3, 480, 64),
@@ -178,7 +178,7 @@ DATASETS = {
             "train_pixel_accuracy": {
                 "fn": NYUv2_seg_pixel_accuracy,
                 "basename": "pixel_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -194,7 +194,7 @@ DATASETS = {
             "train_class_accuracy": {
                 "fn": NYUv2_seg_class_accuracy,
                 "basename": "class_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -210,7 +210,7 @@ DATASETS = {
             "train_class_IOU": {
                 "fn": NYUv2_seg_class_IOU,
                 "basename": "class_IOU",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -226,10 +226,18 @@ DATASETS = {
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
-            "download": True,
-            "rgb_transform": RGB_TRANSFORM,
-            "seg_transform": SEG_TRANSFORM,
-            "scale": 0.25,
+            "train": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "seg_transform": SEG_TRANSFORM,
+                "scale": 0.25,
+            },
+            "eval": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "seg_transform": SEG_TRANSFORM,
+                "scale": 0.25,
+            },
         },
     },
     "NYUv2_sn": {
@@ -243,7 +251,7 @@ DATASETS = {
             "train_accuracy_11.25": {
                 "fn": get_NYUv2_sn_accuracy(11.25),
                 "basename": "accuracy_11.25",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -259,7 +267,7 @@ DATASETS = {
             "train_accuracy_22.5": {
                 "fn": get_NYUv2_sn_accuracy(22.5),
                 "basename": "accuracy_22.5",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -275,7 +283,7 @@ DATASETS = {
             "train_accuracy_30": {
                 "fn": get_NYUv2_sn_accuracy(30),
                 "basename": "accuracy_30",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -291,7 +299,7 @@ DATASETS = {
             "train_angle": {
                 "fn": NYUv2_sn_angle,
                 "basename": "angle",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -307,10 +315,18 @@ DATASETS = {
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
-            "download": True,
-            "rgb_transform": RGB_TRANSFORM,
-            "sn_transform": SN_TRANSFORM,
-            "scale": 0.25,
+            "train": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "sn_transform": SN_TRANSFORM,
+                "scale": 0.25,
+            },
+            "eval": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "sn_transform": SN_TRANSFORM,
+                "scale": 0.25,
+            }
         },
     },
     "NYUv2_depth": {
@@ -324,7 +340,7 @@ DATASETS = {
             "train_accuracy_1.25": {
                 "fn": get_NYUv2_depth_accuracy(1.25),
                 "basename": "accuracy_1.25",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -340,7 +356,7 @@ DATASETS = {
             "train_accuracy_1.25^2": {
                 "fn": get_NYUv2_depth_accuracy(1.5625),
                 "basename": "accuracy_1.25^2",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -356,7 +372,7 @@ DATASETS = {
             "train_accuracy_1.25^3": {
                 "fn": get_NYUv2_depth_accuracy(1.953125),
                 "basename": "accuracy_1.25^3",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -372,7 +388,7 @@ DATASETS = {
             "train_RMSE": {
                 "fn": NYUv2_depth_RMSE,
                 "basename": "RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -388,7 +404,7 @@ DATASETS = {
             "train_log_RMSE": {
                 "fn": NYUv2_depth_log_RMSE,
                 "basename": "log_RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -404,7 +420,7 @@ DATASETS = {
             "train_invariant_RMSE": {
                 "fn": NYUv2_depth_invariant_RMSE,
                 "basename": "invariant_RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -420,10 +436,18 @@ DATASETS = {
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
-            "download": True,
-            "rgb_transform": RGB_TRANSFORM,
-            "depth_transform": DEPTH_TRANSFORM,
-            "scale": 0.25,
+            "train": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "depth_transform": DEPTH_TRANSFORM,
+                "scale": 0.25,
+            },
+            "eval": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "depth_transform": DEPTH_TRANSFORM,
+                "scale": 0.25,
+            }
         },
     },
     "NYUv2": {
@@ -455,7 +479,7 @@ DATASETS = {
             "train_avg_accuracy": {
                 "fn": NYUv2_multi_avg_accuracy,
                 "basename": "train_avg_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": True,
@@ -471,7 +495,7 @@ DATASETS = {
             "train_var_accuracy": {
                 "fn": NYUv2_multi_var_accuracy,
                 "basename": "train_var_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": None,
                 "train": True,
                 "show": False,
@@ -487,7 +511,7 @@ DATASETS = {
             "train_seg_pixel_accuracy": {
                 "fn": NYUv2_multi_seg_pixel_accuracy,
                 "basename": "train_seg_pixel_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -503,7 +527,7 @@ DATASETS = {
             "train_seg_class_accuracy": {
                 "fn": NYUv2_multi_seg_class_accuracy,
                 "basename": "train_seg_class_accuracy",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -519,7 +543,7 @@ DATASETS = {
             "train_seg_class_IOU": {
                 "fn": NYUv2_multi_seg_class_IOU,
                 "basename": "train_seg_class_IOU",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -535,7 +559,7 @@ DATASETS = {
             "train_sn_accuracy_11.25": {
                 "fn": get_NYUv2_multi_sn_accuracy(11.25),
                 "basename": "train_sn_accuracy_11.25",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -551,7 +575,7 @@ DATASETS = {
             "train_sn_accuracy_22.5": {
                 "fn": get_NYUv2_multi_sn_accuracy(22.5),
                 "basename": "train_sn_accuracy_22.5",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -567,7 +591,7 @@ DATASETS = {
             "train_sn_accuracy_30": {
                 "fn": get_NYUv2_multi_sn_accuracy(30),
                 "basename": "train_sn_accuracy_30",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -583,7 +607,7 @@ DATASETS = {
             "train_sn_angle": {
                 "fn": NYUv2_multi_sn_angle,
                 "basename": "train_sn_angle",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -599,7 +623,7 @@ DATASETS = {
             "train_depth_accuracy_1.25": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.25),
                 "basename": "train_depth_accuracy_1.25",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -615,7 +639,7 @@ DATASETS = {
             "train_depth_accuracy_1.25^2": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.5625),
                 "basename": "train_depth_accuracy_1.25^2",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -631,7 +655,7 @@ DATASETS = {
             "train_depth_accuracy_1.25^3": {
                 "fn": get_NYUv2_multi_depth_accuracy(1.953125),
                 "basename": "train_depth_accuracy_1.25^3",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": True,
                 "train": True,
                 "show": False,
@@ -647,7 +671,7 @@ DATASETS = {
             "train_depth_RMSE": {
                 "fn": NYUv2_multi_depth_RMSE,
                 "basename": "train_depth_RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -663,7 +687,7 @@ DATASETS = {
             "train_depth_log_RMSE": {
                 "fn": NYUv2_multi_depth_log_RMSE,
                 "basename": "train_depth_log_RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -679,7 +703,7 @@ DATASETS = {
             "train_depth_invariant_RMSE": {
                 "fn": NYUv2_multi_depth_invariant_RMSE,
                 "basename": "train_depth_invariant_RMSE",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": False,
@@ -707,12 +731,22 @@ DATASETS = {
         },
         "base_name": "NYUv2",
         "dataset_kwargs": {
-            "download": True,
-            "rgb_transform": RGB_TRANSFORM,
-            "seg_transform": SEG_TRANSFORM,
-            "sn_transform": SN_TRANSFORM,
-            "depth_transform": DEPTH_TRANSFORM,
-            "scale": 0.25,
+            "train": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "seg_transform": SEG_TRANSFORM,
+                "sn_transform": SN_TRANSFORM,
+                "depth_transform": DEPTH_TRANSFORM,
+                "scale": 0.25,
+            },
+            "eval": {
+                "download": True,
+                "rgb_transform": RGB_TRANSFORM,
+                "seg_transform": SEG_TRANSFORM,
+                "sn_transform": SN_TRANSFORM,
+                "depth_transform": DEPTH_TRANSFORM,
+                "scale": 0.25,
+            }
         },
     },
     "MTRegression2": {
@@ -786,7 +820,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 2},
+        "dataset_kwargs": {"train": {"num_tasks": 2}, "eval": {"num_tasks": 2}},
     },
     "MTRegression10": {
         "input_size": 250,
@@ -808,7 +842,7 @@ DATASETS = {
             "train_normal_loss": {
                 "fn": get_MTRegression_normal_loss(10),
                 "basename": "normal_loss",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": False,
                 "train": True,
                 "show": True,
@@ -824,7 +858,7 @@ DATASETS = {
             "train_normal_loss_variance": {
                 "fn": get_MTRegression_normal_loss_variance(10),
                 "basename": "normal_loss_variance",
-                "window": TRAIN_WINDOW,
+                "window": 33,
                 "maximize": None,
                 "train": True,
                 "show": False,
@@ -859,7 +893,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 10},
+        "dataset_kwargs": {"train": {"num_tasks": 10}, "eval": {"num_tasks": 10}},
     },
     "MTRegression20": {
         "input_size": 250,
@@ -932,7 +966,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 20},
+        "dataset_kwargs": {"train": {"num_tasks": 20}, "eval": {"num_tasks": 20}},
     },
     "MTRegression30": {
         "input_size": 250,
@@ -1005,7 +1039,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 30},
+        "dataset_kwargs": {"train": {"num_tasks": 30}, "eval": {"num_tasks": 30}},
     },
     "MTRegression40": {
         "input_size": 250,
@@ -1078,7 +1112,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 40},
+        "dataset_kwargs": {"train": {"num_tasks": 40}, "eval": {"num_tasks": 40}},
     },
     "MTRegression50": {
         "input_size": 250,
@@ -1151,7 +1185,7 @@ DATASETS = {
             },
         },
         "base_name": "MTRegression",
-        "dataset_kwargs": {"num_tasks": 50},
+        "dataset_kwargs": {"train": {"num_tasks": 50}, "eval": {"num_tasks": 50}},
     },
     "PCBA32": {
         "input_size": 2048,
@@ -1208,7 +1242,7 @@ DATASETS = {
             },
         },
         "base_name": "PCBA",
-        "dataset_kwargs": {"num_tasks": 32, "data_tasks": 32},
+        "dataset_kwargs": {"train": {"num_tasks": 32, "data_tasks": 32}, "eval": {"num_tasks": 32, "data_tasks": 32}},
     },
     "PCBA64": {
         "input_size": 2048,
@@ -1265,7 +1299,7 @@ DATASETS = {
             },
         },
         "base_name": "PCBA",
-        "dataset_kwargs": {"num_tasks": 64, "data_tasks": 32},
+        "dataset_kwargs": {"train": {"num_tasks": 64, "data_tasks": 32}, "eval": {"num_tasks": 64, "data_tasks": 32}},
     },
     "PCBA96": {
         "input_size": 2048,
@@ -1322,7 +1356,7 @@ DATASETS = {
             },
         },
         "base_name": "PCBA",
-        "dataset_kwargs": {"num_tasks": 96, "data_tasks": 32},
+        "dataset_kwargs": {"train": {"num_tasks": 96, "data_tasks": 32}, "eval": {"num_tasks": 96, "data_tasks": 32}},
     },
     "PCBA128": {
         "input_size": 2048,
@@ -1379,7 +1413,7 @@ DATASETS = {
             },
         },
         "base_name": "PCBA",
-        "dataset_kwargs": {"num_tasks": 128, "data_tasks": 32},
+        "dataset_kwargs": {"train": {"num_tasks": 128, "data_tasks": 32}, "eval": {"num_tasks": 128, "data_tasks": 32}},
     },
 }
 
@@ -1421,8 +1455,8 @@ class SLTrainer(Trainer):
             dataset = eval(self.dataset_info["base_name"])
         root = os.path.join(DATA_DIR, self.dataset_info["base_name"])
         dataset_kwargs = self.dataset_info["dataset_kwargs"]
-        train_set = dataset(root=root, train=True, **dataset_kwargs)
-        test_set = dataset(root=root, train=False, **dataset_kwargs)
+        train_set = dataset(root=root, train=True, **dataset_kwargs["train"])
+        test_set = dataset(root=root, train=False, **dataset_kwargs["eval"])
         train_loader = torch.utils.data.DataLoader(
             train_set,
             batch_size=config["batch_size"],
@@ -1487,6 +1521,21 @@ class SLTrainer(Trainer):
         if "loss_weighter" in config:
             if config["loss_weighter"]["type"] in ["GradNorm", "CLW", "CLAWTester"]:
                 criterion_kwargs["train"]["network"] = self.network
+
+        # Determine whether or not to use PCGrad for training and check for appropriate
+        # settings.
+        if "PCGrad" in config:
+            self.pcgrad = bool(config["PCGrad"])
+            if self.pcgrad:
+                mt_loss = (loss_cls == MultiTaskLoss)
+                if not mt_loss:
+                    raise ValueError(
+                        "If using PCGrad, loss function must be MultiTaskLoss."
+                    )
+                criterion_kwargs["train"]["combine_losses"] = False
+        else:
+            self.pcgrad = False
+
         self.criterion_kwargs = dict(criterion_kwargs)
 
     def _step(self) -> Dict[str, Any]:
@@ -1508,7 +1557,7 @@ class SLTrainer(Trainer):
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # Perform backward pass, clip gradient, and take optimizer step.
-        loss.backward()
+        self._compute_grad(loss)
         self.clip_grads()
         self.optimizer.step()
 
@@ -1518,7 +1567,7 @@ class SLTrainer(Trainer):
 
         # Compute metrics from training step.
         step_metrics = {
-            "train_loss": [loss.item()],
+            "train_loss": [torch.sum(loss).item()],
             "train_step_time": [train_step_time],
         }
         with torch.no_grad():
@@ -1528,6 +1577,77 @@ class SLTrainer(Trainer):
                     step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
 
         return step_metrics
+
+    def _compute_grad(self, loss: torch.Tensor) -> None:
+        """
+        Compute gradient of task parameters with respect to `loss`. This may be as
+        simple as calling `backward()`, but for edge cases (such as PCGrad) we have to
+        do some funky stuff.
+        """
+
+        # Use PCGrad. Compute the gradient of each task's loss individually, and use the
+        # PCGrad projection rule to modify the gradients for each parameter which is
+        # shared between all tasks. Note that this implementation assumes that each
+        # parameter of the network is either shared between all tasks or specific to a
+        # single task.
+        if self.pcgrad:
+
+            # Compute and store gradients of each task loss.
+            num_tasks = self.criterion.num_tasks
+            shared_grads = torch.zeros(num_tasks, self.network.num_shared_params, device=self.device)
+            specific_grads = [
+                torch.zeros(self.network.num_specific_params[task], device=self.device)
+                for task in range(num_tasks)
+            ]
+            for task in range(num_tasks):
+                loss[task].backward(retain_graph=True)
+                shared_grads[task] = torch.cat([p.grad.view(-1) for p in self.network.shared_params()])
+                specific_grads[task] = torch.cat([p.grad.view(-1) for p in self.network.specific_params(task)])
+                self.network.zero_grad()
+
+            # Project the gradients of shared parameters to avoid pairwise conflicts.
+            with torch.no_grad():
+                new_shared_grads = torch.clone(shared_grads)
+
+                for i in range(num_tasks):
+                    other_tasks = list(range(num_tasks))
+                    other_tasks.remove(i)
+                    other_tasks = np.array(other_tasks)
+                    np.random.shuffle(other_tasks)
+
+                    for j in other_tasks:
+
+                        # Project a single gradient if the current pair is conflicting.
+                        gi = new_shared_grads[i]
+                        gj = shared_grads[j]
+                        dot = torch.sum(gi * gj)
+                        if dot < 0:
+                            sq_j = torch.sum(gj ** 2)
+                            new_shared_grads[i] = gi - gj * dot / sq_j
+
+                combined_shared_grads = torch.sum(new_shared_grads, dim=0)
+
+            # Set the gradients of shared and task-specific parameters.
+            idx = 0
+            for p in self.network.shared_params():
+                grad_len = p.numel()
+                flattened_grad = combined_shared_grads[idx: idx+grad_len]
+                reshaped_grad = flattened_grad.reshape(p.shape)
+                p.grad = reshaped_grad
+                idx += grad_len
+
+            for task in range(num_tasks):
+                idx = 0
+                for p in self.network.specific_params(task):
+                    grad_len = p.numel()
+                    flattened_grad = specific_grads[task][idx: idx+grad_len]
+                    reshaped_grad = flattened_grad.reshape(p.shape)
+                    p.grad = reshaped_grad
+                    idx += grad_len
+
+        # Regular case, just perform backwards pass.
+        else:
+            loss.backward()
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
