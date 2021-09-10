@@ -19,6 +19,8 @@ from torchvision.datasets.utils import download_url
 
 # This is HxW, as is expected by transforms.Resize.
 IMG_SIZE = (480, 640)
+SEED = 1
+EPSILON = 1e-5
 
 
 class NYUv2(Dataset):
@@ -51,7 +53,9 @@ class NYUv2(Dataset):
         seg_transform=None,
         sn_transform=None,
         depth_transform=None,
-        scale=1,
+        min_crop_ratio: float = 1.0,
+        jitter_factor: float = 0.0,
+        scale: float = 1,
     ):
         """
         Will return tuples based on what data source has been enabled (rgb, seg etc).
@@ -67,11 +71,18 @@ class NYUv2(Dataset):
         :param depth_transform: the transformation pipeline for depth images. If the
         transformation ends in a tensor, the result will be automatically converted
         to meters
+        :param min_crop_ratio: minimum of ratio of size of randomly cropped image to
+        original image.  Should be between 0 and 1. If 1, no cropping is performed.
+        :param jitter_factor: Factor by which to jitter brightness, constrast,
+        saturation, and hue. Should be between 0 and 1. If 0,
         :param scale: how to scale images/labels. If 1 image sizes will not be changed,
         if 0.5 each dimension will be reduced by a factor of 2, etc.
         """
         super().__init__()
         self.root = root
+
+        assert 0.0 <= min_crop_ratio <= 1.0
+        assert 0.0 <= jitter_factor <= 1.0
 
         self.scale = scale
         self.size = (round(IMG_SIZE[0] * self.scale), round(IMG_SIZE[1] * self.scale))
@@ -79,29 +90,33 @@ class NYUv2(Dataset):
         self.seg_transform = seg_transform
         self.sn_transform = sn_transform
         self.depth_transform = depth_transform
+        self.min_crop_ratio = min_crop_ratio
+        self.random_crop = self.min_crop_ratio != 1.0
+        self.jitter_factor = jitter_factor
+        self.jitter = self.jitter_factor != 0.0
 
-        # Add scaling to transforms if necessary.
+        # Construct scaling transforms if necessary.
         if self.rgb_transform is not None and self.scale != 1:
-            self.rgb_transform = transforms.Compose(
-                [rgb_transform, transforms.Resize(self.size)]
-            )
+            self.rgb_scale = transforms.Resize(self.size)
         if self.seg_transform is not None and self.scale != 1:
-            self.seg_transform = transforms.Compose(
-                [
-                    seg_transform,
-                    transforms.Resize(
-                        self.size, interpolation=InterpolationMode.NEAREST
-                    ),
-                ]
-            )
+            self.seg_scale = transforms.Resize(self.size, interpolation=InterpolationMode.NEAREST)
         if self.sn_transform is not None and self.scale != 1:
-            self.sn_transform = transforms.Compose(
-                [sn_transform, transforms.Resize(self.size)]
-            )
+            self.sn_scale = transforms.Resize(self.size)
         if self.depth_transform is not None and self.scale != 1:
-            self.depth_transform = transforms.Compose(
-                [depth_transform, transforms.Resize(self.size)]
-            )
+            self.depth_scale = transforms.Resize(self.size)
+
+        # Add jitter to transforms, if necessary.
+        if self.jitter:
+            if self.rgb_transform is not None:
+                self.rgb_transform = transforms.Compose([
+                    transforms.ColorJitter(
+                        brightness=self.jitter_factor,
+                        contrast=self.jitter_factor,
+                        saturation=self.jitter_factor,
+                        hue=self.jitter_factor / 2.0,
+                    ),
+                    self.rgb_transform,
+                ])
 
         self.train = train
         self._split = "train" if train else "test"
@@ -117,9 +132,10 @@ class NYUv2(Dataset):
         # rgb folder as ground truth
         self._files = os.listdir(os.path.join(root, f"{self._split}_rgb"))
 
+        random.seed(SEED)
+
     def __getitem__(self, index: int):
         folder = lambda name: os.path.join(self.root, f"{self._split}_{name}")
-        seed = random.randrange(sys.maxsize)
         input_img = None
         labels = []
 
@@ -128,16 +144,32 @@ class NYUv2(Dataset):
         sn = self.sn_transform is not None
         depth = self.depth_transform is not None
 
+        if self.random_crop:
+            crop_ratio = self.min_crop_ratio + random.random() * (1 - self.min_crop_ratio)
+            crop_height = round(IMG_SIZE[0] * crop_ratio)
+            crop_width = round(IMG_SIZE[1] * crop_ratio)
+            crop_top = random.randrange(IMG_SIZE[0] - crop_height + 1)
+            crop_left = random.randrange(IMG_SIZE[1] - crop_width + 1)
+            crop_bottom = crop_top + crop_height
+            crop_right = crop_left + crop_width
+
         if rgb:
-            random.seed(seed)
             img = Image.open(os.path.join(folder("rgb"), self._files[index]))
             img = self.rgb_transform(img)
+            if self.random_crop:
+                img = img[:, crop_top:crop_bottom, crop_left:crop_right]
+            if self.scale != 1.0:
+                img = self.rgb_scale(img)
+
             input_img = img
 
         if seg:
-            random.seed(seed)
             img = Image.open(os.path.join(folder("seg13"), self._files[index]))
             img = self.seg_transform(img)
+            if self.random_crop:
+                img = img[:, crop_top:crop_bottom, crop_left:crop_right]
+            if self.scale != 1.0:
+                img = self.seg_scale(img)
             if isinstance(img, torch.Tensor):
                 # ToTensor scales to [0, 1] by default
                 img = (img * 255).long()
@@ -148,16 +180,23 @@ class NYUv2(Dataset):
             labels.append(img)
 
         if sn:
-            random.seed(seed)
             img = Image.open(os.path.join(folder("sn"), self._files[index]))
             img = self.sn_transform(img)
+            if self.random_crop:
+                img = img[:, crop_top:crop_bottom, crop_left:crop_right]
+            if self.scale != 1.0:
+                img = self.sn_scale(img)
             labels.append(img)
 
         if depth:
-            random.seed(seed)
             img = Image.open(os.path.join(folder("depth"), self._files[index]))
             img = np.array(img, dtype=np.float32) / 1e4
             img = self.depth_transform(img)
+            if self.random_crop:
+                img = img[:, crop_top:crop_bottom, crop_left:crop_right]
+            if self.scale != 1.0:
+                img = self.depth_scale(img)
+            img = torch.maximum(img, EPSILON * torch.ones_like(img))
             labels.append(img)
 
         # Reduce labels list if there is only a single label, otherwise combine into a
