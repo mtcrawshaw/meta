@@ -80,16 +80,20 @@ so that we don't have an impossible merge to perform later on.
 
 
 Current sprint (Refactoring):
---> Get SL tests to pass
+    Get SL tests to pass (that won't change significantly during refactoring)
+--> Rename CLAW to SLAW and CLW to SLW
     Move dataset info into Dataset objects
     Fix hard-coded device for PCBA
     Don't repeat output_slice and label_slice
+    Replace most training tests with tests on easy benchmarks (CIFAR, MNIST) that only check for sufficiently high accuracy
+    Write tests for metric computations in Dataset objects (use old version of test_loss.py for NYUv2)
+    Write actual unit tests for loss weighters (remove training tests)
     Clean up PCGrad (separate into MTLTrainer?)
     Rewrite NYUv2 wrapper from scratch (remove random dependence)
-    Write actual unit tests for loss weighters (remove training tests)
     Clean up pre_loss_update
     Convert BN layers to test mode when necessary
     Fix memory issue with evaluate (compare to commit dcdee654)
+    Get all SL tests to pass
 
 
 ----------------------------------------------------------------------------------------
@@ -353,6 +357,9 @@ Experiment:
     - Add some constraints to `experiment()` so that some options must remain fixed between
       different methods, such as trainer type and dataset.
 - Additions:
+    - Option to resume a previous experiment that only ran partially.
+    - Option to add to an existing experiment. This way we could run an experiment with
+      some baselines, then implement other baselines and just add in the results.
 - Nice to have:
 
 Report:
@@ -381,8 +388,9 @@ Hyperparameter search:
       unique names, but what we really need is for each search space to be tied to the
       path through the config tree to the corresponding leaf. To do this, we should just
       specify the search spaces within the base train config dictionary. Instead of
-      having individual values within this config, we just have a list of values, or
-      another dict which describes the search space.
+      having individual values within this config, we just have a dict of values that
+      works the same way as the dictionaries to modify configs in `experiment` config
+      files.
 - Additions:
     - An actual good random search: Check Bengio et al. (2014ish) for a competitive
       random hyperparameter search technique
@@ -397,6 +405,8 @@ Hyperparameter search:
       (arithmetic, geometric).  Not sure how this will work with discrete variables but
       we can at least use this for continuous parameters.
     - Add option to use meta_train() instead of train().
+    - Support for new Metric format. We should be using Metric.best instead of
+      Metric.maximum, since some metrics should be minimized instead of maximized.
 - Nice to have:
     - Plots to show progression of various hyperparameters during hyperparameter search
     - Include name of search parameter in name of results file for IC grid search

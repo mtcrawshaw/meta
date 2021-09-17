@@ -198,8 +198,8 @@ def test_mean_std_rand_ema():
             1.0 - EMA_ALPHA
         )
         expected_stdev = torch.sqrt(expected_square_mean - expected_mean ** 2)
-        assert torch.allclose(stats.mean, expected_mean)
-        assert torch.allclose(stats.stdev, expected_stdev)
+        assert torch.allclose(stats.mean, expected_mean, atol=TOL)
+        assert torch.allclose(stats.stdev, expected_stdev, atol=TOL)
 
 
 def test_mean_condense_arithmetic():

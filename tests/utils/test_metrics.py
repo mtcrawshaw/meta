@@ -13,7 +13,7 @@ def test_update_single() -> None:
     """ Test Metric.update() when adding a single data point per update call. """
 
     # Set up case.
-    metric = Metric(window_len=2)
+    metric = Metric(basename="test", window=2)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.
@@ -24,14 +24,14 @@ def test_update_single() -> None:
     assert metric.history == data
     assert metric.mean == [1.0, 0.0, 1.0, 2.0]
     assert metric.stdev == [0.0, 1.0, 2.0, 1.0]
-    assert metric.maximum == 2.0
+    assert metric.best == 2.0
 
 
 def test_update_multi() -> None:
     """ Test Metric.update()  when adding multiple data points per update call. """
 
     # Set up case.
-    metric = Metric(window_len=2)
+    metric = Metric(basename="test", window=2)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.
@@ -42,7 +42,7 @@ def test_update_multi() -> None:
     assert metric.history == data
     assert metric.mean == [1.0, 0.0, 1.0, 2.0]
     assert metric.stdev == [0.0, 1.0, 2.0, 1.0]
-    assert metric.maximum == 2.0
+    assert metric.best == 2.0
 
 
 def test_update_point_avg() -> None:
@@ -52,7 +52,7 @@ def test_update_point_avg() -> None:
     """
 
     # Set up case.
-    metric = Metric(point_avg=True, window_len=2)
+    metric = Metric(basename="test", window=2, point_avg=True)
     data = [1.0, -1.0, 3.0, 1.0, 0.0, -1.0]
 
     # Call update.
@@ -63,4 +63,4 @@ def test_update_point_avg() -> None:
     assert metric.history == [0.0, 2.0, -0.5]
     assert metric.mean == [0.0, 1.0, 0.75]
     assert metric.stdev == [0.0, 1.0, 1.25]
-    assert metric.maximum == 1.0
+    assert metric.best == 1.0
