@@ -1,4 +1,4 @@
-""" Script to evaluate CLAW as an approximation to CLW (see meta/train/loss.py). """
+""" Script to evaluate SLAW as an approximation to SLW (see meta/train/loss.py). """
 
 import os
 import json
@@ -11,11 +11,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 
 
-BASE_CONFIG_PATH = "configs/mt_regression_claw.json"
-TRIAL_CONFIG_PATH = "configs/temp_claw_test.json"
-CLAW_DATA_PATH = "data/claw_test_data.npy"
-CLAW_LOG_PATH = "data/claw_log.txt"
-CLAW_PLOT_PATH = "data/claw_test_plot.png"
+BASE_CONFIG_PATH = "configs/mt_regression_slaw.json"
+TRIAL_CONFIG_PATH = "configs/temp_slaw_test.json"
+SLAW_DATA_PATH = "data/slaw_test_data.npy"
+SLAW_LOG_PATH = "data/slaw_log.txt"
+SLAW_PLOT_PATH = "data/slaw_test_plot.png"
 NUM_TASKS = 10
 NUM_TRIALS = 120
 NUM_STEPS = 1000
@@ -26,20 +26,20 @@ MARKER_SIZE = 12
 
 
 def collect_samples():
-    """ Run training with CLAW and collect estimated and true gradient norms. """
+    """ Run training with SLAW and collect estimated and true gradient norms. """
 
     # Load base config.
     with open(BASE_CONFIG_PATH, "r") as base_config_file:
         base_config = json.load(base_config_file)
 
-    # Modify base config to use `CLAWTester` loss weighter.
+    # Modify base config to use `SLAWTester` loss weighter.
     base_config["num_updates"] = NUM_STEPS
     base_config["loss_weighter"] = {
-        "type": "CLAWTester",
+        "type": "SLAWTester",
         "loss_weights": [1.0] * NUM_TASKS,
         "step_bounds": [START_STEP, END_STEP],
-        "claw_data_path": CLAW_DATA_PATH,
-        "claw_log_path": CLAW_LOG_PATH,
+        "slaw_data_path": SLAW_DATA_PATH,
+        "slaw_log_path": SLAW_LOG_PATH,
     }
 
     # Run trials.
@@ -60,22 +60,22 @@ def collect_samples():
 
 
 def main(reuse: bool = False):
-    """ Main function for claw_test.py. """
+    """ Main function for slaw_test.py. """
 
     # Make sure that data and log paths are clear, if necessary.
-    data_exists = os.path.isfile(CLAW_DATA_PATH)
-    log_exists = os.path.isfile(CLAW_LOG_PATH)
-    plot_exists = os.path.isfile(CLAW_PLOT_PATH)
+    data_exists = os.path.isfile(SLAW_DATA_PATH)
+    log_exists = os.path.isfile(SLAW_LOG_PATH)
+    plot_exists = os.path.isfile(SLAW_PLOT_PATH)
     if reuse:
         if not data_exists:
             collect_samples()
     else:
         if data_exists:
-            raise ValueError(f"File '{CLAW_DATA_PATH}' already exists.")
+            raise ValueError(f"File '{SLAW_DATA_PATH}' already exists.")
         if log_exists:
-            raise ValueError(f"File '{CLAW_LOG_PATH}' already exists.")
+            raise ValueError(f"File '{SLAW_LOG_PATH}' already exists.")
         if plot_exists:
-            raise ValueError(f"File '{CLAW_PLOT_PATH}' already exists.")
+            raise ValueError(f"File '{SLAW_PLOT_PATH}' already exists.")
 
         collect_samples()
 
@@ -85,7 +85,7 @@ def main(reuse: bool = False):
     plt.rcParams["figure.figsize"] = (3.2, 2.4)
 
     # Plot results.
-    weights = np.load(CLAW_DATA_PATH)
+    weights = np.load(SLAW_DATA_PATH)
     weights = np.transpose(weights, [2, 0, 1])
     num_tasks = weights.shape[0]
     num_samples = weights.shape[1]
@@ -120,7 +120,7 @@ def main(reuse: bool = False):
             ax.set_yticks(ticks)
 
     # Save plot.
-    plt.savefig(CLAW_PLOT_PATH, bbox_inches="tight")
+    plt.savefig(SLAW_PLOT_PATH, bbox_inches="tight")
 
 
 if __name__ == "__main__":

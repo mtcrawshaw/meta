@@ -1519,7 +1519,7 @@ class SLTrainer(Trainer):
         # parameters outside of `self.network`.
         criterion_kwargs = deepcopy(self.dataset_info["criterion_kwargs"])
         if "loss_weighter" in config:
-            if config["loss_weighter"]["type"] in ["GradNorm", "CLW", "CLAWTester"]:
+            if config["loss_weighter"]["type"] in ["GradNorm", "SLW", "SLAWTester"]:
                 criterion_kwargs["train"]["network"] = self.network
 
         # Determine whether or not to use PCGrad for training and check for appropriate

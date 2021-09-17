@@ -183,7 +183,7 @@ def test_train_NLW() -> None:
     train(config)
 
 
-def test_train_CLAW() -> None:
+def test_train_SLAW() -> None:
     """
     Runs multi-task training with Centered Loss Approximated Weighting on the toy
     MTRegression10 task and compares accuracy curve against saved baseline.
@@ -195,10 +195,10 @@ def test_train_CLAW() -> None:
 
     # Modify default training config.
     config["loss_weighter"] = {
-        "type": "CLAW",
+        "type": "SLAW",
         "loss_weights": [1.0] * 10,
     }
-    config["baseline_metrics_filename"] = "mt_regression_claw"
+    config["baseline_metrics_filename"] = "mt_regression_slaw"
 
     # Run training.
     train(config)

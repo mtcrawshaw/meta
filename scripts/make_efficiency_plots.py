@@ -15,16 +15,13 @@ import matplotlib.pyplot as plt
 
 NUM_TASKS = [32, 64, 96, 128]
 NUM_DATASETS = len(NUM_TASKS)
-METHODS = ["Constant", "GradNorm", "PCGrad", "CLAW"]
-METHOD_REPLACEMENTS = {
-    "CLAW": "SLAW",
-}
+METHODS = ["Constant", "GradNorm", "PCGrad", "SLAW"]
 NUM_METHODS = len(METHODS)
 SETTINGS = {
     "Constant": ("black", "."),
     "GradNorm": ("red", "+"),
     "PCGrad": ("gold", "v"),
-    "CLAW": ("blue", "x"),
+    "SLAW": ("blue", "x"),
 }
 
 def file_exists(path: str) -> bool:
@@ -45,9 +42,8 @@ def plot_train_time(training_time: Dict[str, List[float]], plot_path: str) -> No
     legend = []
     for method in METHODS:
         color, marker = SETTINGS[method]
-        label = METHOD_REPLACEMENTS[method] if method in METHOD_REPLACEMENTS else method
-        plt.plot(NUM_TASKS, training_time[method], color=color, marker=marker, label=label)
-        legend.append(label)
+        plt.plot(NUM_TASKS, training_time[method], color=color, marker=marker, label=method)
+        legend.append(method)
 
     # Title plot and axes, and create legend.
     plt.title("PCBA - Training Time")
@@ -71,9 +67,8 @@ def plot_average_precision(average_precision: Dict[str, List[float]], plot_path:
     legend = []
     for method in METHODS:
         color, marker = SETTINGS[method]
-        label = METHOD_REPLACEMENTS[method] if method in METHOD_REPLACEMENTS else method
-        plt.plot(NUM_TASKS, average_precision[method], color=color, marker=marker, label=label)
-        legend.append(label)
+        plt.plot(NUM_TASKS, average_precision[method], color=color, marker=marker, label=method)
+        legend.append(method)
 
     # Title plot and axes, and create legend.
     plt.title("PCBA - Average Precision (Test)")

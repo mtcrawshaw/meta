@@ -27,14 +27,13 @@ SCALES = {
 }
 METHOD_REPLACEMENTS = {
     "GradNormZero": "GN-Zero",
-    "CLAW": "SLAW",
 }
 SETTINGS = {
     "Constant": ("black", "."),
     "IdealConstant": ("magenta", "v"),
     "GradNorm": ("red", "+"),
     "DWA": ("green", "^"),
-    "CLAW": ("blue", "x"),
+    "SLAW": ("blue", "x"),
 }
 MARK_INTERVAL = 250
 
@@ -54,7 +53,7 @@ def plot_normalized_loss(metrics: Dict[str, Any], config: Dict[str, Any], plot_p
     Plot test normalized loss from `metrics` and `config`, saving result to `plot_path`.
     """
 
-    methods = ["Constant", "IdealConstant", "GradNorm", "DWA", "CLAW"]
+    methods = ["Constant", "IdealConstant", "GradNorm", "DWA", "SLAW"]
     for method in methods:
         assert method in config["methods"]
 
@@ -97,7 +96,7 @@ def plot_weight_quality(metrics: Dict[str, Any], config: Dict[str, Any], plot_pa
     Plot loss weight quality from `metrics` and `config`, saving result to `plot_path`.
     """
 
-    methods = ["GradNorm", "DWA", "CLAW"]
+    methods = ["GradNorm", "DWA", "SLAW"]
     for method in methods:
         assert method in config["methods"]
 

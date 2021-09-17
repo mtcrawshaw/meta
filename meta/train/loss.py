@@ -144,9 +144,9 @@ class MultiTaskLoss(nn.Module):
             "LBTW",
             "NLW",
             "RWLW",
-            "CLW",
-            "CLAW",
-            "CLAWTester",
+            "SLW",
+            "SLAW",
+            "SLAWTester",
         ]:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
@@ -156,7 +156,7 @@ class MultiTaskLoss(nn.Module):
 
         # Determine whether loss weights should be updated before or after task loss
         # computation.
-        pre_loss_weighters = [Uncertainty, GradNorm, CLW, CLAW, CLAWTester]
+        pre_loss_weighters = [Uncertainty, GradNorm, SLW, SLAW, SLAWTester]
         self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
     def forward(
@@ -261,8 +261,8 @@ class LossWeighter(nn.Module):
         self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
         if (
             isinstance(self, GradNorm)
-            or isinstance(self, CLW)
-            or isinstance(self, CLAWTester)
+            or isinstance(self, SLW)
+            or isinstance(self, SLAWTester)
         ):
             kwargs["loss_vals"] = loss_vals
         self._update_weights(**kwargs)
@@ -565,7 +565,7 @@ class RWLW(LossWeighter):
         self.loss_weights *= self.total_weight
 
 
-class CLW(LossWeighter):
+class SLW(LossWeighter):
     """
     Compute task loss weights with Centered Loss Weighting. At each step, we compute the
     gradient of each task's loss function, set each task's weight equal to the
@@ -573,15 +573,15 @@ class CLW(LossWeighter):
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
-        """ Init function for CLW. """
+        """ Init function for SLW. """
 
-        super(CLW, self).__init__(**kwargs)
+        super(SLW, self).__init__(**kwargs)
 
         # Save state.
         self.grad_len = None
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
-        """ Compute new loss weights with CLW. """
+        """ Compute new loss weights with SLW. """
 
         # Compute gradients of each task's loss. Note that `last_shared_params()` may
         # not be defined for any instance of `nn.Module`, so there will be compatibility
@@ -620,7 +620,7 @@ class CLW(LossWeighter):
         self.loss_weights *= self.total_weight
 
 
-class CLAW(LossWeighter):
+class SLAW(LossWeighter):
     """
     Compute task loss weights with Centered Loss Approximated Weighting. Here we keep a
     running std of each task's loss, and set each task's loss weight equal to the
@@ -628,8 +628,8 @@ class CLAW(LossWeighter):
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
-        """ Init function for CLAW. """
-        super(CLAW, self).__init__(**kwargs)
+        """ Init function for SLAW. """
+        super(SLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
             compute_stdev=True,
@@ -639,7 +639,7 @@ class CLAW(LossWeighter):
         )
 
     def _update_weights(self) -> None:
-        """ Compute new loss weights with CLAW. """
+        """ Compute new loss weights with SLAW. """
 
         # Update stats.
         self.loss_stats.update(self.loss_history[-1])
@@ -656,9 +656,9 @@ class CLAW(LossWeighter):
             self.loss_weights *= self.total_weight
 
 
-class CLAWTester(LossWeighter):
+class SLAWTester(LossWeighter):
     """
-    Utility class to evaluate CLAW as an approximation to CLW. This class shouldn't ever
+    Utility class to evaluate SLAW as an approximation to SLW. This class shouldn't ever
     be used for training because it will call `exit()` at a random step during the
     training process.
     """
@@ -666,21 +666,21 @@ class CLAWTester(LossWeighter):
     def __init__(
         self,
         step_bounds: Tuple[int, int],
-        claw_data_path: str,
-        claw_log_path: str,
+        slaw_data_path: str,
+        slaw_log_path: str,
         **kwargs: Dict[str, Any],
     ) -> None:
-        """ Init function for CLAWTester. """
+        """ Init function for SLAWTester. """
 
-        super(CLAWTester, self).__init__(**kwargs)
+        super(SLAWTester, self).__init__(**kwargs)
 
         # Save state.
         self.step_bounds = step_bounds
-        self.claw_data_path = claw_data_path
-        self.claw_log_path = claw_log_path
+        self.slaw_data_path = slaw_data_path
+        self.slaw_log_path = slaw_log_path
         self.grad_len = None
 
-        # Randomly generate the step index at which the CLAW vs. CLW comparison will be
+        # Randomly generate the step index at which the SLAW vs. SLW comparison will be
         # made.
         self.last_step = random.randrange(self.step_bounds[0], self.step_bounds[1])
 
@@ -692,7 +692,7 @@ class CLAWTester(LossWeighter):
         )
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
-        """ Compare CLW and CLAW weights. """
+        """ Compare SLW and SLAW weights. """
 
         # Update stats.
         self.loss_stats.update(self.loss_history[-1])
@@ -725,40 +725,40 @@ class CLAWTester(LossWeighter):
 
                 task_grads[task] = task_grad.detach()
 
-            # Compute CLW weights.
+            # Compute SLW weights.
             task_grad_norms = torch.sqrt(torch.sum(task_grads ** 2, dim=-1))
             norm_recip = 1.0 / task_grad_norms
-            clw_weights = self.num_tasks * norm_recip / torch.sum(norm_recip)
+            slw_weights = self.num_tasks * norm_recip / torch.sum(norm_recip)
 
-            # Compute CLAW weights.
+            # Compute SLAW weights.
             if self.steps > 0 and not any(torch.isnan(self.loss_stats.stdev)):
                 approx_norms = torch.max(
                     self.loss_stats.stdev,
                     EPSILON * torch.ones_like(self.loss_stats.stdev),
                 )
                 approx_norm_recip = 1.0 / approx_norms
-                claw_weights = (
+                slaw_weights = (
                     self.num_tasks * approx_norm_recip / torch.sum(approx_norm_recip)
                 )
             else:
-                claw_weights = None
+                slaw_weights = None
 
-            # Save and exit if CLAW weights are valid.
-            if claw_weights is not None:
+            # Save and exit if SLAW weights are valid.
+            if slaw_weights is not None:
 
-                clw_weights = clw_weights.cpu().numpy()
-                claw_weights = claw_weights.cpu().numpy()
-                current_entry = np.stack([clw_weights, claw_weights])
+                slw_weights = slw_weights.cpu().numpy()
+                slaw_weights = slaw_weights.cpu().numpy()
+                current_entry = np.stack([slw_weights, slaw_weights])
                 current_entry = np.expand_dims(current_entry, 0)
 
-                if os.path.isfile(self.claw_data_path):
-                    total_entries = np.load(self.claw_data_path)
+                if os.path.isfile(self.slaw_data_path):
+                    total_entries = np.load(self.slaw_data_path)
                     total_entries = np.concatenate([total_entries, current_entry])
                 else:
                     total_entries = current_entry
-                np.save(self.claw_data_path, total_entries)
+                np.save(self.slaw_data_path, total_entries)
 
-                with open(self.claw_log_path, "a+") as log_file:
+                with open(self.slaw_log_path, "a+") as log_file:
                     log_file.write(f"Exiting at step {self.steps}\n")
 
                 exit()
