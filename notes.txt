@@ -71,152 +71,26 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Implement loss weighting methods
     Toy multi-task problem
     Write tests
---> Loss weighting experiments
-    Refactoring
+    Loss weighting experiments
+--> Refactoring
+    Merge to master
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
 
 
-Current sprint (Loss weighting experiments):
-    GradNorm
-    Implement common metrics for NYUv2 tasks
-    Experiment command to run multiple configs
-    Statistical significance in experiment command
-    Shared plotting in experiment
-    CLW/CLAW
-    Scale invariant loss function for depth estimation
-    Fix sum/mean of NYUv2 task losses
-    Fix evaluation format
-    Evaluation
-    Measure accuracy of gradient norm estimate
-    PCBA Dataset
-    Training on PCBA
-    Metrics for PCBA
-    Tweak performance (pyramidal network, class weights for classification loss)
-    Remove dud data points for each task subset
-    PCBA experiments
-    PCGrad
-    PCGrad experiments
-    Data augmentation for NYUv2
---> Augmented NYUv2 experiments
+Current sprint (Refactoring):
+--> Get SL tests to pass
+    Move dataset info into Dataset objects
+    Fix hard-coded device for PCBA
+    Don't repeat output_slice and label_slice
+    Clean up PCGrad (separate into MTLTrainer?)
+    Rewrite NYUv2 wrapper from scratch (remove random dependence)
+    Write actual unit tests for loss weighters (remove training tests)
+    Clean up pre_loss_update
+    Convert BN layers to test mode when necessary
+    Fix memory issue with evaluate (compare to commit dcdee654)
 
-
-Refactoring:
-- Figure out if we need to do anything to convert BN layers to test mode.
-- Separate SLTrainer and multi-task functionality by creating MTLTrainer (general) or
-  MultiTaskSLTrainer (SL-specific).
-- Add multitask capability to ConvNetwork
-- Get rid of NYUv2 wrapper and write one from scratch (fix dependence on random +
-  setting random seeds!)
-- Move metrics into Trainer
-- Don't repeat output_slice and label_slice. Right now we have two instances of each,
-  one in DATASETS and one in the corresponding accuracy functions.
-- Add option to rescale task weights (None, "linear", or "softmax") for ALL weighters
-- Merge redundant networks (Trunk + Backbone? Conv + MLP?)
-- Replace training tests for loss weighters with actual unit tests that compute the
-  expected value of each weight.
-- De-modularize SLTrainer metric functionality. Combine all metric computation for a
-  single dataset into one function, then add that function as a class method of the
-  corresponding Dataset object. This will clean things up a lot.
-- Extend Metrics object to hold metrics from multiple runs, with multiple methods. This
-  will allow us to clean things up in places where we have a list of Metrics that all
-  have redundant information.
-- Add some constraints to `experiment()` so that some options must remain fixed between
-  different methods, such as trainer type and dataset.
-- Add tests for `experiment()` to check that results are consistent with `train()`.
-- Fix memory issue. For some reason, when we changed the evaluation format so that we
-  evaluate the network on the entire test set each time `evaluate()` is called, the GPU
-  memory usage increased by a factor of 1.5. This happened in commit dcdee654.
-- Print method name during experiment so that it's easier to tell how good each method
-  is doing during training.
-- Automatically bold results from best method when creating LaTeX table in `tabulate()`.
-- Use name_subs for plotting in `report()`.
-- Allow more flexibility in settings for `tabulate()`. Settings can include list of
-  methods to include, list of metrics to include, and settings or each method and
-  metric: decimal precision, whether to include CI radius, display names, etc. Also, we
-  can group the metrics and methods, then place table dividers accordingly.
-- Fix MultiTaskLoss specification in PCBA so that we don't have to hardcode a device.
-  Right now CPU training on PCBA just isn't supported because of this hacky workaround.
-  Fixing this will be a lot easier once we've refactored the info in DATASET_CONFIG so
-  that each dataset's information is in its own class.
-- Make `pre_loss_update` a property of each loss weighter subclass, instead of being
-  hardcoded in MultiTaskLoss
-- Generally clean up PCGrad in SLTrainer
-- Move data augmentation settings into config file
-
-Additions to make paper stronger:
-- Motivating experiment: For a multi-task training run, measure the average spread of
-  weighted gradient norms, then plot that against the training loss and/or evaluation
-  loss. This would bring a lot more evidence to the scale side of the noise/scale
-  hypothesis.
-- Strengthen the theorem so that K_1 and K_2 (and \delta ?) are equal for multiple loss
-  functions. This will allows us to conclude that the normalized variances are equal to
-  the normalized gradient norms.
-- Add something to verify the correctness of our implementations of the existing
-  methods. We could compare our results with theirs on reported benchmarks, and put this
-  comparison in the appendix. That would be a lot of work though.
-- Verify our claims about DWA using the author's own implementation.
-
-Experiments:
-- CLAW empirical justification:
-  - Purpose: Demonstrate that CLAW can accurately estimate the norm of task gradients.
-  - Methods: CLAW
-  - Metrics: Loss variance, task gradient norms
-  - Visual results: Plot of loss variance vs. gradient norm for MTRegression10
-- Loss weight quality
-  - Purpose: Demonstrate that learned loss weights converge to ideal weights for
-    MTRegression10.
-  - Methods: Constant, IdealConstant, GradNorm, DWA, CLAW
-  - Metrics: Train/eval loss, train/eval normal loss, cost per step, loss weights,
-    train/eval normal loss task variance, loss weight error
-  - Visual results: Table of all metrics for all methods, plots of some metrics for all
-    methods, plot of loss weight error for GradNorm, DWA, CLAW, and plot of loss
-    weights for IdealConstant, GradNorm, CLAW (for appendix)
-- Performance
-  - Purpose: Demonstrate performance of CLAW on a real dataset (NYUv2) compared to SOTA.
-  - Methods: Constant, Uncertainty, GradNorm, DWA, CLAW
-  - Metrics: All NYUv2 metrics, cost per step, loss weights, train/eval accuracy task
-    variance
-  - Visual results: Table of all metrics for all methods, plots of some metrics for all
-    methods, qualitative output for each method on each task
-- Efficiency
-  - Purpose: Demonstrate efficiency of CLAW as the number of tasks grows compared to
-    SOTA using PCBA dataset.
-  - Methods: GradNorm, CLAW, Constant
-  - Metrics: Train/eval loss, train/eval normal loss, cost per step, loss weights,
-    train/eval normal loss task variance, loss weight error
-  - Visual results: Table of all metrics for all methods (for appendix), plots of cost
-    per step against number of tasks
-
-To do:
-- DONE: Cost per step
-- DONE: Make GradNorm implementation efficient
-- DONE: MTRegressionX
-- DONE: Loss weight error (MTRegression)
-- DONE: Normal loss task variance (MTRegression)
-- DONE: Accuracy task variance (NYUv2)
-- DONE: Run experiments!
-- DONE: Visualization of cost per step vs. number of tasks (MTRegressionX)
-- DONE: Visualization of eval normal loss vs. number of tasks (MTRegressionX)
-- Qualitative output of each method on each task (NYUv2)
-- Visualization of learned loss weights throughout training
-- DONE: Visualization of loss variance vs. gradient norm
-- Implement PCBA experiments
-- Run experiments!
-- Implement IMTL
-- Implement PCGrad
-- Implement CLAW-GN
-- Run experiments!
-- Tuning (if time):
-    - Tune ema_alpha of CLAW
-    - Data augmentation, hyperparameter tuning, other tricks
-    - Evaluate squared loss for depth vs. scale invariant depth
-- Evaluate single-task models (if time)
-- Gradient normalization justification (if time)
-- Run experiments!
-
-Rename MultiTaskTrunkNetwork to TrunkNetwork.
 
 ----------------------------------------------------------------------------------------
 
@@ -321,6 +195,7 @@ Training infrastructure:
       create a single plot with a subplot for each individual task.
     - Saving/loading for meta-learning runs.
     - Add option to meta-test by loading a meta-trained model.
+    - Move data augmentation settings into config file
 - Nice to have:
     - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that
@@ -396,22 +271,20 @@ RL training:
 
 SL training:
 - Refactoring:
-  - Revise evaluation so that we are evaluating on more than just a single batch.
-  - Find nicer way to handle dataset input sizes than the hard-coded dictionary we have
-    now. Is it possible to get the size of inputs/outputs without having to store them
-    explicitly?
+    - Find nicer way to handle dataset input sizes than the hard-coded dictionary we
+      have now. Is it possible to get the size of inputs/outputs without having to store
+      them explicitly?
 - Additions:
-  - MLP support for supervised learning.
-  - In multi-task learning, option to enforce constant sum of loss weights (+ positive
-    loss weights)
+    - MLP support for supervised learning.
 - Nice to have:
 
 Network architectures:
 - Refactoring:
     - Remove redundant calls to "self.to(device)" in nested modules?
+    - Add multitask capability to ConvNetwork
+    - Merge redundant networks (Trunk + Backbone? Conv + MLP?)
 - Additions:
     - Architecture hyperparameters:
-        - Varying network size in hidden layers
         - Network initialization options
     - Convolutional network features:
         - Max pooling
@@ -472,6 +345,27 @@ Splitting networks:
       has a separate set of these parameters.
     - Allow weights/biases to be split independently
 
+Experiment:
+- Refactoring:
+    - Extend Metrics object to hold metrics from multiple runs, with multiple methods. This
+      will allow us to clean things up in places where we have a list of Metrics that all
+      have redundant information.
+    - Add some constraints to `experiment()` so that some options must remain fixed between
+      different methods, such as trainer type and dataset.
+- Additions:
+- Nice to have:
+
+Report:
+- Refactoring:
+    - Use name_subs for plotting in `report()`.
+- Additions:
+    - Automatically bold results from best method when creating LaTeX table in `tabulate()`.
+    - Allow more flexibility in settings for `tabulate()`. Settings can include list of
+      methods to include, list of metrics to include, and settings or each method and
+      metric: decimal precision, whether to include CI radius, display names, etc. Also, we
+      can group the metrics and methods, then place table dividers accordingly.
+- Nice to have:
+
 Hyperparameter search:
 - Refactoring:
     - Get rid of redundant settings inside and outside base_train_config for
@@ -522,18 +416,21 @@ Tests:
       environments (particularly MetaWorld) with simpler ones.
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
+    - Add tests for `experiment()` to check that results are consistent with `train()`.
 - Nice to have:
 
 Style:
 - Refactoring:
-  - Change keywords for string options to name of corresponding classes. Example,
-    architecture types can just be MLPNetwork, ConvNetwork, etc.
-  - Remove as many default arguments as possible.
-  - Clean up imports so that we import from a subpackage's __init__.py instead of from
-    each file in that subpackage.
-  - Convert config into an object or just store config values as members in the relevant
-    class, so that we can get rid of magic strings everywhere.
-  - Fix security issues with `eval()`. Anytime `eval()` is used, we need to check that
-    the input is a member of a fixed whitelist.
+    - Change keywords for string options to name of corresponding classes. Example,
+      architecture types can just be MLPNetwork, ConvNetwork, etc.
+    - Remove as many default arguments as possible.
+    - Clean up imports so that we import from a subpackage's __init__.py instead of from
+      each file in that subpackage.
+    - Convert config into an object or just store config values as members in the
+      relevant class, so that we can get rid of magic strings everywhere.
+    - Fix security issues with `eval()`. Anytime `eval()` is used, we need to check that
+      the input is a member of a fixed whitelist.
+    - Rename MultiTaskTrunkNetwork to TrunkNetwork, MultiTaskSplittingNetwork to
+      SplittingNetwork
 - Additions:
 - Nice to have:
