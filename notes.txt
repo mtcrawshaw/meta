@@ -81,19 +81,26 @@ so that we don't have an impossible merge to perform later on.
 
 Current sprint (Refactoring):
     Get SL tests to pass (that won't change significantly during refactoring)
---> Rename CLAW to SLAW and CLW to SLW
-    Move dataset info into Dataset objects
+    Rename CLAW to SLAW and CLW to SLW
+--> Move dataset info into Dataset objects
     Fix hard-coded device for PCBA
     Don't repeat output_slice and label_slice
     Replace most training tests with tests on easy benchmarks (CIFAR, MNIST) that only check for sufficiently high accuracy
     Write tests for metric computations in Dataset objects (use old version of test_loss.py for NYUv2)
     Write actual unit tests for loss weighters (remove training tests)
     Clean up PCGrad (separate into MTLTrainer?)
+    Get evaluation to happen once per epoch
     Rewrite NYUv2 wrapper from scratch (remove random dependence)
     Clean up pre_loss_update
     Convert BN layers to test mode when necessary
     Fix memory issue with evaluate (compare to commit dcdee654)
     Get all SL tests to pass
+
+Notes for current task:
+- Just get training to work on MNIST without dataset_info dict (DONE)
+- Clean up metrics computation for MNIST
+- Create BaseDataset object and subclass it with MNIST
+- Convert all other datasets
 
 
 ----------------------------------------------------------------------------------------
