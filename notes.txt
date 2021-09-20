@@ -98,9 +98,10 @@ Current sprint (Refactoring):
 
 Notes for current task:
 - Just get training to work on MNIST without dataset_info dict (DONE)
-- Clean up metrics computation for MNIST
+- Clean up metrics computation for MNIST (DONE)
+- Fix TRAIN_WINDOW and EVAL_WINDOW
 - Create BaseDataset object and subclass it with MNIST
-- Convert all other datasets
+- Convert all other datasets to subclasses of BaseDataset
 
 
 ----------------------------------------------------------------------------------------
@@ -184,6 +185,12 @@ Training infrastructure:
       also be specific to the Meta-World environments somehow.
     - Remove in-line imports for Meta-World and replace with try-catch imports at the
       top of each file.
+    - Refactor metrics functionality so that there is a consistent way to distinguish
+      between training metrics and evaluation metrics. At the moment there is so much
+      conversion back and forth between two formats: (1) storing one version of the
+      metric with flags that indicate whether that metric should be used for training
+      and/or evaluation (2) storing one version of the metric for training and one
+      version for evaluation. We should just make this consistent end-to-end.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters

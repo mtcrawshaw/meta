@@ -835,9 +835,7 @@ def save_batch(
     exit()
 
 
-def get_accuracy(
-    outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
-) -> float:
+def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     """
     Compute accuracy of classification prediction given outputs and labels.
     """

@@ -14,45 +14,12 @@ import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.datasets import *
-from meta.datasets.pcba import CLASS_WEIGHTS
-from meta.train.loss import (
-    CosineSimilarityLoss,
-    ScaleInvariantDepthLoss,
-    MultiTaskLoss,
-    Uncertainty,
-    get_accuracy,
-    NYUv2_seg_pixel_accuracy,
-    NYUv2_seg_class_accuracy,
-    NYUv2_seg_class_IOU,
-    get_NYUv2_sn_accuracy,
-    NYUv2_sn_angle,
-    get_NYUv2_depth_accuracy,
-    NYUv2_depth_RMSE,
-    NYUv2_depth_log_RMSE,
-    NYUv2_depth_invariant_RMSE,
-    NYUv2_multi_seg_pixel_accuracy,
-    NYUv2_multi_seg_class_accuracy,
-    NYUv2_multi_seg_class_IOU,
-    get_NYUv2_multi_sn_accuracy,
-    NYUv2_multi_sn_angle,
-    get_NYUv2_multi_depth_accuracy,
-    NYUv2_multi_depth_RMSE,
-    NYUv2_multi_depth_log_RMSE,
-    NYUv2_multi_depth_invariant_RMSE,
-    NYUv2_multi_avg_accuracy,
-    NYUv2_multi_var_accuracy,
-    get_MTRegression_normal_loss,
-    get_MTRegression_normal_loss_variance,
-    get_MTRegression_weight_error,
-    PCBA_avg_precision,
-    get_multitask_loss_weight,
-)
+from meta.train.loss import MultiTaskLoss, Uncertainty
 from meta.networks import (
     ConvNetwork,
     BackboneNetwork,
     MLPNetwork,
     MultiTaskTrunkNetwork,
-    PRETRAINED_MODELS,
 )
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
@@ -207,10 +174,10 @@ class SLTrainer(Trainer):
             "train_step_time": [train_step_time],
         }
         with torch.no_grad():
-            for metric_name, metric_info in self.dataset_cls.extra_metrics.items():
-                if metric_info["train"]:
-                    fn = metric_info["fn"]
-                    step_metrics[metric_name] = [fn(outputs, labels, self.criterion)]
+            extra_metrics = self.dataset_cls.compute_metrics(
+                outputs, labels, self.criterion, train=True
+            )
+            step_metrics.update({key: [val] for key, val in extra_metrics.items()})
 
         return step_metrics
 
@@ -292,9 +259,9 @@ class SLTrainer(Trainer):
         eval_step_metrics = {
             "eval_loss": [],
             **{
-                metric_name: []
+                f"eval_{metric_name}": []
                 for metric_name, metric_info in self.dataset_cls.extra_metrics.items()
-                if not metric_info["train"]
+                if metric_info["eval"]
             },
         }
         batch_sizes = []
@@ -313,11 +280,11 @@ class SLTrainer(Trainer):
 
             # Compute metrics from evaluation step.
             eval_step_metrics["eval_loss"].append(loss.item())
-            for metric_name, metric_info in self.dataset_cls.extra_metrics.items():
-                if not metric_info["train"]:
-                    fn = metric_info["fn"]
-                    metric_val = fn(outputs, labels, self.criterion)
-                    eval_step_metrics[metric_name].append(metric_val)
+            extra_metrics = self.dataset_cls.compute_metrics(
+                outputs, labels, self.criterion, train=False
+            )
+            for metric_name, metric_val in extra_metrics.items():
+                eval_step_metrics[metric_name].append(metric_val)
 
         # Average value of metrics over all batches.
         for metric_name in eval_step_metrics:
@@ -391,17 +358,18 @@ class SLTrainer(Trainer):
                 "show": False,
             },
         ]
-        metric_set += [
-            {
-                "name": metric_name,
-                "basename": metric_info["basename"],
-                "window": metric_info["window"],
-                "point_avg": False,
-                "maximize": metric_info["maximize"],
-                "show": metric_info["show"],
-            }
-            for metric_name, metric_info in self.dataset_cls.extra_metrics.items()
-        ]
+        for metric_name, metric_info in self.dataset_cls.extra_metrics.items():
+            for split in ["train", "eval"]:
+                if metric_info[split]:
+                    window = TRAIN_WINDOW if split == "train" else EVAL_WINDOW
+                    metric_set.append({
+                        "name": f"{split}_{metric_name}",
+                        "basename": metric_name,
+                        "window": window,
+                        "point_avg": False,
+                        "maximize": metric_info["maximize"],
+                        "show": metric_info["show"],
+                    })
         return metric_set
 
 

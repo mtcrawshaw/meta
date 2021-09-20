@@ -4,6 +4,9 @@ object, which additionally contains information about metrics to compute, data
 augmentation, loss function, etc.
 """
 
+from typing import Dict, List, Any
+
+import torch
 import torch.nn as nn
 from torchvision.datasets import MNIST as torch_MNIST
 
@@ -20,20 +23,10 @@ class MNIST(torch_MNIST):
     loss_kwargs = {}
     criterion_kwargs = {"train": {}, "eval": {}}
     extra_metrics = {
-        "train_accuracy": {
-            "fn": get_accuracy,
-            "basename": "accuracy",
-            "window": 50,
+        "accuracy": {
             "maximize": True,
             "train": True,
-            "show": True,
-        },
-        "eval_accuracy": {
-            "fn": get_accuracy,
-            "basename": "accuracy",
-            "window": 1,
-            "maximize": True,
-            "train": False,
+            "eval": True,
             "show": True,
         },
     }
@@ -42,9 +35,19 @@ class MNIST(torch_MNIST):
         "eval": {"download": True, "transform": GRAY_TRANSFORM},
     }
 
-    def __init__(self, root: str, train: bool = True):
+    def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for MNIST. """
 
         split = "train" if train else "eval"
         kwargs = MNIST.dataset_kwargs[split]
         super(MNIST, self).__init__(root=root, train=train, **kwargs)
+
+    @staticmethod
+    def compute_metrics(outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None, train: bool = True) -> Dict[str, float]:
+        """
+        Compute metrics from `outputs` and `labels`, returning a dictionary whose keys
+        are metric names and whose values are floats. Note that the returned metrics
+        should match those listed in `extra_metrics`.
+        """
+        split = "train" if train else "eval"
+        return {f"{split}_accuracy": get_accuracy(outputs, labels)}
