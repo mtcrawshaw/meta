@@ -11,24 +11,18 @@ import torch.nn as nn
 from torchvision.datasets import MNIST as torch_MNIST
 
 from meta.train.loss import get_accuracy
-from meta.datasets.utils import GRAY_TRANSFORM
+from meta.datasets import BaseDataset
+from meta.datasets.utils import GRAY_TRANSFORM, get_split
 
 
-class MNIST(torch_MNIST):
+class MNIST(torch_MNIST, BaseDataset):
     """ MNIST dataset wrapper. """
 
     input_size = (1, 28, 28)
     output_size = 10
     loss_cls = nn.CrossEntropyLoss
-    loss_kwargs = {}
-    criterion_kwargs = {"train": {}, "eval": {}}
     extra_metrics = {
-        "accuracy": {
-            "maximize": True,
-            "train": True,
-            "eval": True,
-            "show": True,
-        },
+        "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
     }
     dataset_kwargs = {
         "train": {"download": True, "transform": GRAY_TRANSFORM},
@@ -37,17 +31,17 @@ class MNIST(torch_MNIST):
 
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for MNIST. """
-
-        split = "train" if train else "eval"
+        split = get_split(train)
         kwargs = MNIST.dataset_kwargs[split]
         super(MNIST, self).__init__(root=root, train=train, **kwargs)
 
     @staticmethod
-    def compute_metrics(outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None, train: bool = True) -> Dict[str, float]:
-        """
-        Compute metrics from `outputs` and `labels`, returning a dictionary whose keys
-        are metric names and whose values are floats. Note that the returned metrics
-        should match those listed in `extra_metrics`.
-        """
-        split = "train" if train else "eval"
+    def compute_metrics(
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        criterion: nn.Module = None,
+        train: bool = True,
+    ) -> Dict[str, float]:
+        """ Compute classification accuracy from `outputs` and `labels`. """
+        split = get_split(train)
         return {f"{split}_accuracy": get_accuracy(outputs, labels)}

@@ -88,8 +88,9 @@ Current sprint (Refactoring):
     Replace most training tests with tests on easy benchmarks (CIFAR, MNIST) that only check for sufficiently high accuracy
     Write tests for metric computations in Dataset objects (use old version of test_loss.py for NYUv2)
     Write actual unit tests for loss weighters (remove training tests)
+    Clean up Uncertainty/GradNorm/SLW junk in SLTrainer's initialization
     Clean up PCGrad (separate into MTLTrainer?)
-    Get evaluation to happen once per epoch
+    Get evaluation to happen once per epoch automatically
     Rewrite NYUv2 wrapper from scratch (remove random dependence)
     Clean up pre_loss_update
     Convert BN layers to test mode when necessary
@@ -99,8 +100,8 @@ Current sprint (Refactoring):
 Notes for current task:
 - Just get training to work on MNIST without dataset_info dict (DONE)
 - Clean up metrics computation for MNIST (DONE)
-- Fix TRAIN_WINDOW and EVAL_WINDOW
-- Create BaseDataset object and subclass it with MNIST
+- Fix TRAIN_WINDOW and EVAL_WINDOW (DONE)
+- Create BaseDataset object and subclass it with MNIST (DONE)
 - Convert all other datasets to subclasses of BaseDataset
 
 
