@@ -4,6 +4,7 @@ import os
 import time
 from copy import deepcopy
 from itertools import chain
+from math import ceil
 from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
 
 import numpy as np
@@ -22,10 +23,6 @@ from meta.networks import (
     MultiTaskTrunkNetwork,
 )
 from meta.utils.utils import aligned_train_configs, DATA_DIR
-
-
-TRAIN_WINDOW = 9
-EVAL_WINDOW = 1
 
 
 class SLTrainer(Trainer):
@@ -59,19 +56,27 @@ class SLTrainer(Trainer):
         test_set = self.dataset_cls(root=root, train=False)
 
         # Construct data loaders.
+        self.batch_size = config["batch_size"]
         train_loader = torch.utils.data.DataLoader(
             train_set,
-            batch_size=config["batch_size"],
+            batch_size=self.batch_size,
             shuffle=True,
             num_workers=config["num_workers"],
         )
         self.test_loader = torch.utils.data.DataLoader(
             test_set,
-            batch_size=config["batch_size"],
+            batch_size=self.batch_size,
             shuffle=False,
             num_workers=config["num_workers"],
         )
         self.train_iter = iter(cycle(train_loader))
+
+        # Set length of window for moving average of metrics for training and
+        # evaluation. For both training and evaluation, we average over the last epoch.
+        # Since each evaluation step iterates over the entire epoch, we only need to
+        # look at the most recent metric values to get the metrics for the last epoch.
+        self.train_window = ceil(len(train_set) / self.batch_size)
+        self.eval_window = 1
 
         # Determine type of network to construct.
         input_size = self.dataset_cls.input_size
@@ -336,7 +341,7 @@ class SLTrainer(Trainer):
             {
                 "name": "train_loss",
                 "basename": "loss",
-                "window": TRAIN_WINDOW,
+                "window": self.train_window,
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
@@ -344,7 +349,7 @@ class SLTrainer(Trainer):
             {
                 "name": "eval_loss",
                 "basename": "loss",
-                "window": EVAL_WINDOW,
+                "window": self.eval_window,
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
@@ -361,7 +366,7 @@ class SLTrainer(Trainer):
         for metric_name, metric_info in self.dataset_cls.extra_metrics.items():
             for split in ["train", "eval"]:
                 if metric_info[split]:
-                    window = TRAIN_WINDOW if split == "train" else EVAL_WINDOW
+                    window = self.train_window if split == "train" else self.eval_window
                     metric_set.append({
                         "name": f"{split}_{metric_name}",
                         "basename": metric_name,
