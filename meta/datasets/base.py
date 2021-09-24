@@ -32,7 +32,6 @@ class BaseDataset:
     loss_kwargs = {}
     criterion_kwargs = {"train": {}, "eval": {}}
     extra_metrics = {}
-    dataset_kwargs = {"train": {}, "eval": {}}
 
     @staticmethod
     def compute_metrics(

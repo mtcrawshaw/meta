@@ -24,16 +24,12 @@ class MNIST(torch_MNIST, BaseDataset):
     extra_metrics = {
         "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
     }
-    dataset_kwargs = {
-        "train": {"download": True, "transform": GRAY_TRANSFORM},
-        "eval": {"download": True, "transform": GRAY_TRANSFORM},
-    }
 
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for MNIST. """
-        split = get_split(train)
-        kwargs = MNIST.dataset_kwargs[split]
-        super(MNIST, self).__init__(root=root, train=train, **kwargs)
+        super(MNIST, self).__init__(
+            root=root, train=train, download=True, transform=GRAY_TRANSFORM
+        )
 
     @staticmethod
     def compute_metrics(
