@@ -13,7 +13,7 @@ from meta.train.loss import (
     get_MTRegression_normal_loss,
     get_multitask_loss_weight,
 )
-from meta.datasets.mt_regression import SCALES
+from meta.datasets.mtregression import SCALES
 
 
 BATCH_SIZE = 17

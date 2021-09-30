@@ -4,10 +4,16 @@ in the GradNorm paper here: https://arxiv.org/abs/1711.02257.
 """
 
 import os
+from typing import Dict
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
+
+from meta.datasets import BaseDataset
+from meta.datasets.utils import get_split, slice_second_dim
+from meta.train.loss import MultiTaskLoss
 
 
 SCALES = {
@@ -23,7 +29,7 @@ BASE_STD = 10.0
 TASK_STD = 3.5
 
 
-class MTRegression(Dataset):
+class MTRegression(Dataset, BaseDataset):
     """ PyTorch wrapper for the multi-task regression toy dataset. """
 
     def __init__(self, root: str, num_tasks: int, train: bool = True):
@@ -43,12 +49,39 @@ class MTRegression(Dataset):
         # Check that `num_tasks` is valid.
         assert num_tasks in SCALES
 
-        # Save state.
-        super().__init__()
+        Dataset.__init__(self)
+        BaseDataset.__init__(self)
+
+        # Store data settings.
         self.num_tasks = num_tasks
         self.root = os.path.join(root, f"MTRegression{self.num_tasks}")
         self.train = train
         self.scales = SCALES[self.num_tasks]
+
+        # Set static dataset properties.
+        self.input_size = INPUT_DIM
+        self.output_size = OUTPUT_DIM
+        self.loss_cls = MultiTaskLoss
+        self.loss_kwargs = {
+            "task_losses": [
+                {
+                    "loss": nn.MSELoss(),
+                    "output_slice": slice_second_dim(t),
+                    "label_slice": slice_second_dim(t),
+                }
+                for t in range(self.num_tasks)
+            ]
+        }
+        self.criterion_kwargs = {"train": {"train": True}, "eval": {"train": False}}
+        self.extra_metrics = {
+            "normal_loss": {"maximize": False, "train": True, "eval": True, "show": True},
+            "var_normal_loss": {"maximize": None, "train": True, "eval": True, "show": False},
+            "loss_weight_error": {"maximize": False, "train": True, "eval": False, "show": False},
+            **{
+                f"loss_weight_{t}": {"maximize": None, "train": True, "eval": False, "show": False}
+                for t in range(self.num_tasks)
+            },
+        }
 
         # Load dataset files, or create them if they don't yet exist.
         self.load_or_create()
@@ -156,3 +189,58 @@ class MTRegression(Dataset):
         label_path = train_label_path if self.train else test_label_path
         self.inputs = np.load(input_path)
         self.labels = np.load(label_path)
+
+    def compute_metrics(
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        criterion: nn.Module = None,
+        train: bool = True,
+    ) -> Dict[str, float]:
+        """ Compute training/testing metrics from `outputs` and `labels`. """
+
+        split = get_split(train)
+
+        # Compute average and variance of normalized task losses.
+        normal_losses = self.get_normal_loss(outputs, labels)
+        metrics = {
+            f"{split}_normal_loss": np.mean(normal_losses),
+            f"{split}_var_normal_loss": np.var(normal_losses),
+        }
+
+        # Compute loss weight error and add loss weights, if this is a training step.
+        if train:
+            loss_weights = criterion.loss_weighter.loss_weights
+            metrics[f"{split}_loss_weight_error"] = self.get_loss_weight_error(loss_weights)
+            metrics.update(
+                {f"{split}_loss_weight_{t}": float(loss_weights[t]) for t in range(self.num_tasks)}
+            )
+
+        return metrics
+
+    def get_normal_loss(self, outputs: torch.Tensor, labels: torch.Tensor) -> np.ndarray:
+        """
+        Computes normalized multi-task losses for MTRegression task. Both `outputs` and
+        `labels` should have shape `(batch_size, num_tasks, output_dim)`. Returns a tensor
+        holding the normalized loss for each task.
+        """
+        scales = np.array(SCALES[self.num_tasks])
+        diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
+        diffs = torch.mean(diffs, dim=0)
+        diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
+        diffs = diffs.numpy()
+        weighted_diffs = diffs / (scales ** 2)
+        return weighted_diffs
+
+    def get_loss_weight_error(self, loss_weights: torch.Tensor) -> float:
+        """
+        Computes the mean square error between `loss_weights` and the ideal loss weights for
+        the MTRegression task.
+        """
+        scales = np.array(SCALES[self.num_tasks])
+        ideal_weights = 1.0 / (scales ** 2)
+        ideal_weights *= self.num_tasks / np.sum(ideal_weights)
+        current_weights = loss_weights.detach().cpu().numpy()
+        normalized_weights = self.num_tasks * current_weights / np.sum(current_weights)
+        error = np.mean((normalized_weights - ideal_weights) ** 2)
+        return error

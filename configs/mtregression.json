@@ -1,13 +1,14 @@
 {
     "trainer": "SLTrainer",
-    "dataset": "MTRegression2",
-    "num_updates": 1000,
-    "batch_size": 1024,
+    "dataset": "MTRegression",
+    "num_updates": 3300,
+    "batch_size": 303,
     "num_workers": 8,
 
+    "dataset_kwargs": {"num_tasks": 10},
     "loss_weighter": {
         "type": "Constant",
-        "loss_weights": [1.0, 1.0]
+        "loss_weights": null
     },
 
     "lr_schedule_type": null,
@@ -18,15 +19,15 @@
 
     "architecture_config": {
         "type": "trunk",
-        "num_tasks": 2,
+        "num_tasks": 10,
         "activation": "tanh",
-        "num_shared_layers": 4,
+        "num_shared_layers": 3,
         "num_task_layers": 1,
-        "hidden_size": 100,
+        "hidden_size": 50,
         "parallel_branches": true
     },
 
-    "evaluation_freq": 10,
+    "evaluation_freq": 33,
 
     "cuda": false,
     "seed": 1,

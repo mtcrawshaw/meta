@@ -13,7 +13,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from meta.networks import MultiTaskTrunkNetwork, BackboneNetwork
-from meta.datasets.mt_regression import SCALES
 from meta.utils.estimate import RunningStats
 
 
@@ -841,88 +840,6 @@ def get_accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     """
     accuracy = torch.sum(torch.argmax(outputs, dim=-1) == labels) / outputs.shape[0]
     return accuracy.item()
-
-
-def get_MTRegression_normal_loss(
-    num_tasks: int,
-) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
-    """
-    Constructs and returns a function which computes the MTRegression normalized
-    multi-task loss from a set of labels and the corresponding predictions.
-    """
-
-    scales = np.array(SCALES[num_tasks])
-
-    def normal_loss(
-        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
-    ) -> float:
-        """
-        Computes normalized multi-task loss for MTRegression task. Both `outputs` and
-        `labels` should have shape `(batch_size, num_tasks, output_dim)`.
-        """
-        diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
-        diffs = torch.mean(diffs, dim=0)
-        diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
-        diffs = diffs.numpy()
-        weighted_diffs = np.mean(diffs / (scales ** 2))
-        return float(weighted_diffs)
-
-    return normal_loss
-
-
-def get_MTRegression_normal_loss_variance(
-    num_tasks: int,
-) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
-    """
-    Constructs and returns a function which computes the variance of the MTRegression
-    normalized loss across tasks from a set of labels and the corresponding predictions.
-    """
-
-    scales = np.array(SCALES[num_tasks])
-
-    def normal_loss_variance(
-        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
-    ) -> float:
-        """
-        Computes variance of normalized loss across tasks for MTRegression task. Both
-        `outputs` and `labels` should have shape `(batch_size, num_tasks, output_dim)`.
-        """
-        diffs = torch.sum((outputs - labels) ** 2, dim=2).detach()
-        diffs = torch.mean(diffs, dim=0)
-        diffs = diffs if diffs.device == torch.device("cpu") else diffs.cpu()
-        diffs = diffs.numpy()
-        diffs = diffs / (scales ** 2)
-        return float(np.var(diffs))
-
-    return normal_loss_variance
-
-
-def get_MTRegression_weight_error(
-    num_tasks: int,
-) -> Callable[[torch.Tensor, torch.Tensor, nn.Module], float]:
-    """
-    Constructs and returns a function which computes the MSE from the current
-    (normalized) loss weights to the ideal loss weights for the MTRegression dataset.
-    """
-
-    scales = np.array(SCALES[num_tasks])
-    ideal_weights = 1.0 / (scales ** 2)
-    ideal_weights *= num_tasks / np.sum(ideal_weights)
-
-    def weight_error(
-        outputs: torch.Tensor, labels: torch.Tensor, criterion: nn.Module = None
-    ) -> float:
-        """
-        Computes MSE from the current (normalized) loss weights to the ideal loss
-        weights for the MTRegression dataset.
-        """
-        assert isinstance(criterion, MultiTaskLoss)
-        current_weights = criterion.loss_weighter.loss_weights.detach().cpu().numpy()
-        normalized_weights = num_tasks * current_weights / np.sum(current_weights)
-        error = np.mean((normalized_weights - ideal_weights) ** 2)
-        return error
-
-    return weight_error
 
 
 def PCBA_ROC_AUC(
