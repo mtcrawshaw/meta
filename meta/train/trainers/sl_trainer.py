@@ -50,10 +50,11 @@ class SLTrainer(Trainer):
         dataset_name = config["dataset"]
         if dataset_name not in DATASETS:
             raise ValueError(f"Unsupported dataset: {dataset_name}")
-        self.dataset_cls = eval(dataset_name)
+        dataset_cls = eval(dataset_name)
         root = os.path.join(DATA_DIR, dataset_name)
-        self.train_set = self.dataset_cls(root=root, train=True)
-        self.test_set = self.dataset_cls(root=root, train=False)
+        dataset_kwargs = config["dataset_kwargs"]
+        self.train_set = dataset_cls(root=root, train=True, **dataset_kwargs)
+        self.test_set = dataset_cls(root=root, train=False, **dataset_kwargs)
 
         # Construct data loaders.
         self.batch_size = config["batch_size"]
@@ -179,7 +180,7 @@ class SLTrainer(Trainer):
             "train_step_time": [train_step_time],
         }
         with torch.no_grad():
-            extra_metrics = self.dataset_cls.compute_metrics(
+            extra_metrics = self.train_set.compute_metrics(
                 outputs, labels, self.criterion, train=True
             )
             step_metrics.update({key: [val] for key, val in extra_metrics.items()})
@@ -285,7 +286,7 @@ class SLTrainer(Trainer):
 
             # Compute metrics from evaluation step.
             eval_step_metrics["eval_loss"].append(loss.item())
-            extra_metrics = self.dataset_cls.compute_metrics(
+            extra_metrics = self.train_set.compute_metrics(
                 outputs, labels, self.criterion, train=False
             )
             for metric_name, metric_val in extra_metrics.items():

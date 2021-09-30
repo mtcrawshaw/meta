@@ -5,6 +5,10 @@
     "batch_size": 2,
     "num_workers": 2,
 
+    "dataset_kwargs": {
+        "task_type": "multitask",
+        "scale": 0.25
+    },
     "loss_weighter": {
         "type": "Constant",
         "loss_weights": [1.0, 1.0, 1.0]

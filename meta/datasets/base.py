@@ -26,8 +26,8 @@ class BaseDataset:
         self.criterion_kwargs = {"train": {}, "eval": {}}
         self.extra_metrics = {}
 
-    @staticmethod
     def compute_metrics(
+        self,
         outputs: torch.Tensor,
         labels: torch.Tensor,
         criterion: nn.Module = None,

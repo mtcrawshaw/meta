@@ -1,9 +1,11 @@
 {
     "trainer": "SLTrainer",
     "dataset": "MNIST",
-    "num_updates": 30,
-    "batch_size": 16,
+    "num_updates": 1000,
+    "batch_size": 1024,
     "num_workers": 8,
+
+    "dataset_kwargs": {},
 
     "lr_schedule_type": null,
     "initial_lr": 7e-4,
@@ -20,7 +22,7 @@
         "activation": "tanh"
     },
 
-    "evaluation_freq": 5,
+    "evaluation_freq": 100,
 
     "cuda": false,
     "seed": 1,

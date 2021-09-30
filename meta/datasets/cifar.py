@@ -33,8 +33,8 @@ class CIFAR10(torch_CIFAR10, BaseDataset):
             "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
         }
 
-    @staticmethod
     def compute_metrics(
+        self,
         outputs: torch.Tensor,
         labels: torch.Tensor,
         criterion: nn.Module = None,
@@ -63,8 +63,8 @@ class CIFAR100(torch_CIFAR100, BaseDataset):
             "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
         }
 
-    @staticmethod
     def compute_metrics(
+        self,
         outputs: torch.Tensor,
         labels: torch.Tensor,
         criterion: nn.Module = None,

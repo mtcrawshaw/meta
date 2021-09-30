@@ -31,8 +31,8 @@ class MNIST(torch_MNIST, BaseDataset):
             "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
         }
 
-    @staticmethod
     def compute_metrics(
+        self,
         outputs: torch.Tensor,
         labels: torch.Tensor,
         criterion: nn.Module = None,
