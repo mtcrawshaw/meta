@@ -1,0 +1,43 @@
+{
+    "trainer": "SLTrainer",
+    "dataset": "PCBA",
+    "num_updates": 90,
+    "batch_size": 40000,
+    "num_workers": 0,
+
+    "dataset_kwargs": {
+        "num_tasks": 32,
+        "data_tasks": 32
+    },
+    "loss_weighter": {
+        "type": "Constant",
+        "loss_weights": null
+    },
+
+    "lr_schedule_type": null,
+    "initial_lr": 0.0003,
+    "final_lr": 0.0003,
+    "max_grad_norm": 0.5,
+    "eps": 1e-05,
+
+    "architecture_config": {
+        "type": "trunk",
+        "num_tasks": 32,
+        "activation": "relu",
+        "num_shared_layers": 2,
+        "num_task_layers": 1,
+        "hidden_size": [2000, 100],
+        "parallel_branches": true
+    },
+
+    "evaluation_freq": 9,
+
+    "cuda": false,
+    "seed": 0,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

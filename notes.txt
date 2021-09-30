@@ -82,9 +82,9 @@ so that we don't have an impossible merge to perform later on.
 Current sprint (Refactoring):
     Get SL tests to pass (that won't change significantly during refactoring)
     Rename CLAW to SLAW and CLW to SLW
---> Move dataset info into Dataset objects
-    Fix hard-coded device for PCBA
+    Move dataset info into Dataset objects
     Don't repeat output_slice and label_slice
+--> Fix hard-coded device for PCBA
     Replace most training tests with tests on easy benchmarks (CIFAR, MNIST) that only check for sufficiently high accuracy
     Write tests for metric computations in Dataset objects (use old version of test_loss.py for NYUv2)
     Write actual unit tests for loss weighters (remove training tests)
@@ -97,12 +97,8 @@ Current sprint (Refactoring):
     Fix memory issue with evaluate (compare to commit dcdee654)
     Get all SL tests to pass
 
-Notes for current task:
-- Just get training to work on MNIST without dataset_info dict (DONE)
-- Clean up metrics computation for MNIST (DONE)
-- Fix TRAIN_WINDOW and EVAL_WINDOW (DONE)
-- Create BaseDataset object and subclass it with MNIST (DONE)
-- Convert all other datasets to subclasses of BaseDataset
+Iron out inconsistency in the specification of task output sizes. Is the output size
+per-task or total? This seems to be inconsistent between PCBA, MTRegression, and NYUv2.
 
 
 ----------------------------------------------------------------------------------------

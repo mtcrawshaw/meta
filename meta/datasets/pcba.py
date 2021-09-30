@@ -8,13 +8,20 @@ import os
 import random
 import json
 import gzip
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 
 import numpy as np
 import pandas
+from sklearn.metrics import roc_auc_score, average_precision_score
 import torch
-import deepchem as dc
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset
+import deepchem as dc
+
+from meta.datasets import BaseDataset
+from meta.datasets.utils import get_split, slice_second_dim
+from meta.train.loss import MultiTaskLoss
 
 
 TOTAL_TASKS = 128
@@ -29,7 +36,7 @@ CLASS_SAMPLES = np.array([30269634, 427685])
 CLASS_WEIGHTS = 1.0 - CLASS_SAMPLES / np.sum(CLASS_SAMPLES)
 
 
-class PCBA(Dataset):
+class PCBA(Dataset, BaseDataset):
     """ PyTorch wrapper for the PCBA dataset. """
 
     def __init__(
@@ -63,15 +70,47 @@ class PCBA(Dataset):
         assert 1 <= num_tasks <= TOTAL_TASKS
         assert data_tasks is None or 1 <= data_tasks <= TOTAL_TASKS
 
-        # Save state.
-        super().__init__()
+        Dataset.__init__(self)
+        BaseDataset.__init__(self)
+
+        # Store data settings.
         self.num_tasks = num_tasks
         self.data_tasks = data_tasks if data_tasks is not None else self.num_tasks
         self.root = root
         self.raw_data_path = os.path.join(os.path.dirname(root), RAW_DATA_FNAME)
         self.train = train
         self.split = "train" if self.train else "test"
-        self.feature_size = DATASET_CONFIG["feature_size"]
+
+        # Set static dataset properties.
+        self.input_size = DATASET_CONFIG["feature_size"]
+        self.output_size = 2
+        self.loss_cls = MultiTaskLoss
+        self.loss_kwargs = {
+            "task_losses": [
+                {
+                    "loss": nn.CrossEntropyLoss(
+                        weight=torch.as_tensor(
+                            CLASS_WEIGHTS,
+                            dtype=torch.float32,
+                            device=torch.device("cuda:0"),
+                        ),
+                        ignore_index=-1,
+                        reduction="mean",
+                    ),
+                    "output_slice": slice_second_dim(t),
+                    "label_slice": slice_second_dim(t, to_long=True),
+                }
+                for t in range(self.num_tasks)
+            ],
+        }
+        self.criterion_kwargs = {"train": {"train": True}, "eval": {"train": False}}
+        self.extra_metrics = {
+            "AP": {"maximize": True, "train": True, "eval": True, "show": True},
+            **{
+                f"loss_weight_{t}": {"maximize": None, "train": True, "eval": False, "show": False}
+                for t in range(self.num_tasks)
+            }
+        }
 
         # Preprocess data if necessary.
         if not os.path.isdir(self.root):
@@ -155,7 +194,7 @@ class PCBA(Dataset):
 
         # Featurize input molecules and check that they were computed without errors.
         featurizer = dc.feat.CircularFingerprint(
-            size=self.feature_size, radius=DATASET_CONFIG["ecfp_radius"]
+            size=self.input_size, radius=DATASET_CONFIG["ecfp_radius"]
         )
         features = featurizer.featurize(dataframe["smiles"])
         assert np.logical_or(features == 0, features == 1).all()
@@ -199,3 +238,54 @@ class PCBA(Dataset):
 
     def config_path(self) -> str:
         return os.path.join(self.root, "dataset_config.json")
+
+    def compute_metrics(
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        criterion: nn.Module = None,
+        train: bool = True,
+    ) -> Dict[str, float]:
+        """ Compute training/testing metrics from `outputs` and `labels`. """
+
+        split = get_split(train)
+
+        # Compute average precision.
+        metrics = {f"{split}_AP": PCBA_avg_precision(outputs, labels)}
+
+        # Add loss weights to metrics, if this is a training step.
+        if train:
+            loss_weights = criterion.loss_weighter.loss_weights
+            metrics.update(
+                {f"{split}_loss_weight_{t}": float(loss_weights[t]) for t in range(self.num_tasks)}
+            )
+
+        return metrics
+
+
+def PCBA_ROC_AUC(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Computes the area under the ROC curve for the PCBA binary classification task.
+    """
+    softmax_outputs = F.softmax(outputs, dim=2)
+    flat_outputs = softmax_outputs[:, :, 1].reshape(-1)
+    flat_labels = labels.reshape(-1)
+    valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
+    valid_outputs = flat_outputs[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().long().numpy()
+    score = roc_auc_score(valid_labels, valid_outputs, average="samples")
+    return score
+
+
+def PCBA_avg_precision(outputs: torch.Tensor, labels: torch.Tensor) -> float:
+    """
+    Computes the average precision (AP) for the PCBA binary classification task.
+    """
+    softmax_outputs = F.softmax(outputs, dim=2)
+    flat_outputs = softmax_outputs[:, :, 1].reshape(-1)
+    flat_labels = labels.reshape(-1)
+    valid = torch.logical_or(flat_labels == 0, flat_labels == 1)
+    valid_outputs = flat_outputs[valid].detach().cpu().numpy()
+    valid_labels = flat_labels[valid].detach().cpu().long().numpy()
+    score = average_precision_score(valid_labels, valid_outputs, average="samples")
+    return score
