@@ -4,7 +4,7 @@ object, which additionally contains information about metrics, loss function, in
 output size, etc.
 """
 
-from typing import Dict, List, Any
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -21,7 +21,9 @@ class MNIST(torch_MNIST, BaseDataset):
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for MNIST. """
 
-        torch_MNIST.__init__(self, root=root, train=train, download=True, transform=GRAY_TRANSFORM)
+        torch_MNIST.__init__(
+            self, root=root, train=train, download=True, transform=GRAY_TRANSFORM
+        )
         BaseDataset.__init__(self)
 
         self.input_size = (1, 28, 28)

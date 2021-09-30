@@ -2,17 +2,14 @@
 
 import os
 import random
-import math
-from PIL import Image
-from typing import List, Dict, Any, Optional, Callable, Iterator, Tuple
+from typing import List, Dict, Any, Tuple
 
+from PIL import Image
 import numpy as np
-from sklearn.metrics import roc_auc_score, average_precision_score
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.networks import MultiTaskTrunkNetwork, BackboneNetwork
 from meta.utils.estimate import RunningStats
 
 
@@ -196,7 +193,7 @@ class MultiTaskLoss(nn.Module):
 
         # Compute task losses.
         task_loss_vals = []
-        for i, task_loss in enumerate(self.task_losses):
+        for task_loss in self.task_losses:
             task_output = task_loss["output_slice"](outputs)
             task_label = task_loss["label_slice"](labels)
             task_loss_val = task_loss["loss"](task_output, task_label)
@@ -764,7 +761,10 @@ class SLAWTester(LossWeighter):
 
 
 def save_batch(
-    task_losses: Dict[str, Any], inputs: torch.Tensor, outputs: torch.Tensor, labels: torch.Tensor
+    task_losses: Dict[str, Any],
+    inputs: torch.Tensor,
+    outputs: torch.Tensor,
+    labels: torch.Tensor,
 ) -> None:
     """
     Debug function to save out batch of NYUv2 labels as images and exit. Should be

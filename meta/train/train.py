@@ -5,10 +5,7 @@ import pickle
 import json
 from typing import Any, Dict
 
-import gym
-import torch
-
-from meta.train.trainers import RLTrainer, SLTrainer, SUPPORTED_TRAINERS
+from meta.train.trainers import SUPPORTED_TRAINERS, RLTrainer, SLTrainer
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.report.plot import plot
@@ -17,10 +14,6 @@ from meta.utils.utils import (
     save_dir_from_name,
     METRICS_DIR,
 )
-
-
-# Suppress gym warnings.
-gym.logger.set_level(40)
 
 
 def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -32,8 +25,8 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     Parameters
     ----------
     trainer : str
-        Which type of trainer to use. Either "RLTrainer" or "SLTrainer", for
-        reinforcement learning and supervised learning, respectively.
+        Which type of trainer to use. Must be the name of an entry in
+        `SUPPORTED_TRAINERS`.
     trainer_config : Dict[str, Any]
         Config dictionary holding settings for trainer. The values in this dict are
         specific to the trainer type (i.e. RLTrainer or SLTrainer) and are documented in

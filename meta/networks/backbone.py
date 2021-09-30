@@ -199,9 +199,12 @@ class BackboneNetwork(nn.Module):
             self.head = Parallel(heads, combine_dim=1)
 
             # Save number of shared and task-specific parameters.
-            self.num_shared_params = sum([p.numel() for p in self.backbone.parameters()])
+            self.num_shared_params = sum(
+                [p.numel() for p in self.backbone.parameters()]
+            )
             self.num_specific_params = {
-                task: sum([p.numel() for p in self.head[task].parameters()]) for task in range(self.num_tasks)
+                task: sum([p.numel() for p in self.head[task].parameters()])
+                for task in range(self.num_tasks)
             }
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:

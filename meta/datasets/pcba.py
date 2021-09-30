@@ -107,9 +107,14 @@ class PCBA(Dataset, BaseDataset):
         self.extra_metrics = {
             "AP": {"maximize": True, "train": True, "eval": True, "show": True},
             **{
-                f"loss_weight_{t}": {"maximize": None, "train": True, "eval": False, "show": False}
+                f"loss_weight_{t}": {
+                    "maximize": None,
+                    "train": True,
+                    "eval": False,
+                    "show": False,
+                }
                 for t in range(self.num_tasks)
-            }
+            },
         }
 
         # Preprocess data if necessary.
@@ -257,7 +262,10 @@ class PCBA(Dataset, BaseDataset):
         if train:
             loss_weights = criterion.loss_weighter.loss_weights
             metrics.update(
-                {f"{split}_loss_weight_{t}": float(loss_weights[t]) for t in range(self.num_tasks)}
+                {
+                    f"{split}_loss_weight_{t}": float(loss_weights[t])
+                    for t in range(self.num_tasks)
+                }
             )
 
         return metrics

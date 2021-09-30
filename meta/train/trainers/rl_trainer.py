@@ -4,12 +4,17 @@ from typing import List, Tuple, Dict, Any, Iterator
 
 import torch
 import torch.nn as nn
+import gym
 
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env, get_num_tasks
 from meta.train.trainers.base_trainer import Trainer
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import aligned_train_configs
+
+
+# Suppress gym warnings.
+gym.logger.set_level(40)
 
 
 class RLTrainer(Trainer):

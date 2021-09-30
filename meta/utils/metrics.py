@@ -2,7 +2,7 @@
 Object definition for Metrics class, which stores and updates training performance metrics.
 """
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Any
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class Metrics:
 
         message = ""
         printed_vars = 0
-        for i, state_var in enumerate(self.state_vars):
+        for state_var in self.state_vars:
             metric = getattr(self, state_var)
             if not metric.show:
                 continue

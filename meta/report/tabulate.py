@@ -1,6 +1,5 @@
 """ Create LaTeX tables of results from training. """
 
-from math import sqrt
 from typing import Union, Dict, List
 
 from meta.utils.metrics import Metrics
@@ -40,7 +39,9 @@ def tabulate(
 
         # Column names.
         for metric_name in metric_names:
-            display_name = name_subs[metric_name] if metric_name in name_subs else metric_name
+            display_name = (
+                name_subs[metric_name] if metric_name in name_subs else metric_name
+            )
             table_str += f" & {display_name}"
         table_str += " \\\\\n"
         table_str += "\\hline\\hline\n"

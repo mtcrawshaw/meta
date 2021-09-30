@@ -74,11 +74,31 @@ class MTRegression(Dataset, BaseDataset):
         }
         self.criterion_kwargs = {"train": {"train": True}, "eval": {"train": False}}
         self.extra_metrics = {
-            "normal_loss": {"maximize": False, "train": True, "eval": True, "show": True},
-            "var_normal_loss": {"maximize": None, "train": True, "eval": True, "show": False},
-            "loss_weight_error": {"maximize": False, "train": True, "eval": False, "show": False},
+            "normal_loss": {
+                "maximize": False,
+                "train": True,
+                "eval": True,
+                "show": True,
+            },
+            "var_normal_loss": {
+                "maximize": None,
+                "train": True,
+                "eval": True,
+                "show": False,
+            },
+            "loss_weight_error": {
+                "maximize": False,
+                "train": True,
+                "eval": False,
+                "show": False,
+            },
             **{
-                f"loss_weight_{t}": {"maximize": None, "train": True, "eval": False, "show": False}
+                f"loss_weight_{t}": {
+                    "maximize": None,
+                    "train": True,
+                    "eval": False,
+                    "show": False,
+                }
                 for t in range(self.num_tasks)
             },
         }
@@ -105,7 +125,7 @@ class MTRegression(Dataset, BaseDataset):
         rep += "    Number of data points: %d\n" % self.dataset_size
         rep += f"    Split: %s\n" % "train" if self.train else "test"
         rep += f"    Root Location: %s\n"
-        return fmt_str
+        return rep
 
     def load_or_create(self) -> None:
         """ Load dataset from files if they exist, otherwise generate dataset. """
@@ -211,14 +231,21 @@ class MTRegression(Dataset, BaseDataset):
         # Compute loss weight error and add loss weights, if this is a training step.
         if train:
             loss_weights = criterion.loss_weighter.loss_weights
-            metrics[f"{split}_loss_weight_error"] = self.get_loss_weight_error(loss_weights)
+            metrics[f"{split}_loss_weight_error"] = self.get_loss_weight_error(
+                loss_weights
+            )
             metrics.update(
-                {f"{split}_loss_weight_{t}": float(loss_weights[t]) for t in range(self.num_tasks)}
+                {
+                    f"{split}_loss_weight_{t}": float(loss_weights[t])
+                    for t in range(self.num_tasks)
+                }
             )
 
         return metrics
 
-    def get_normal_loss(self, outputs: torch.Tensor, labels: torch.Tensor) -> np.ndarray:
+    def get_normal_loss(
+        self, outputs: torch.Tensor, labels: torch.Tensor
+    ) -> np.ndarray:
         """
         Computes normalized multi-task losses for MTRegression task. Both `outputs` and
         `labels` should have shape `(batch_size, num_tasks, output_dim)`. Returns a tensor

@@ -8,7 +8,6 @@ from typing import Dict, Any
 from meta.report.plot import plot
 from meta.report.tabulate import tabulate
 from meta.utils.utils import save_dir_from_name
-from meta.utils.metrics import Metrics
 
 
 def report(config: Dict[str, Any]) -> None:

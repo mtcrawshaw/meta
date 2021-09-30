@@ -1,3 +1,5 @@
+""" Dataset objects. """
+
 from meta.datasets.base import BaseDataset
 from meta.datasets.mnist import MNIST
 from meta.datasets.cifar import CIFAR10, CIFAR100

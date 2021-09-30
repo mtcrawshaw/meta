@@ -5,13 +5,11 @@ import time
 from copy import deepcopy
 from itertools import chain
 from math import ceil
-from typing import Dict, Iterator, Iterable, Any, List, Tuple, Callable
+from typing import Dict, Iterator, Iterable, Any, List, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.datasets import *
@@ -136,7 +134,7 @@ class SLTrainer(Trainer):
         if "PCGrad" in config:
             self.pcgrad = bool(config["PCGrad"])
             if self.pcgrad:
-                mt_loss = (loss_cls == MultiTaskLoss)
+                mt_loss = loss_cls == MultiTaskLoss
                 if not mt_loss:
                     raise ValueError(
                         "If using PCGrad, loss function must be MultiTaskLoss."
@@ -203,15 +201,21 @@ class SLTrainer(Trainer):
 
             # Compute and store gradients of each task loss.
             num_tasks = self.criterion.num_tasks
-            shared_grads = torch.zeros(num_tasks, self.network.num_shared_params, device=self.device)
+            shared_grads = torch.zeros(
+                num_tasks, self.network.num_shared_params, device=self.device
+            )
             specific_grads = [
                 torch.zeros(self.network.num_specific_params[task], device=self.device)
                 for task in range(num_tasks)
             ]
             for task in range(num_tasks):
                 loss[task].backward(retain_graph=True)
-                shared_grads[task] = torch.cat([p.grad.view(-1) for p in self.network.shared_params()])
-                specific_grads[task] = torch.cat([p.grad.view(-1) for p in self.network.specific_params(task)])
+                shared_grads[task] = torch.cat(
+                    [p.grad.view(-1) for p in self.network.shared_params()]
+                )
+                specific_grads[task] = torch.cat(
+                    [p.grad.view(-1) for p in self.network.specific_params(task)]
+                )
                 self.network.zero_grad()
 
             # Project the gradients of shared parameters to avoid pairwise conflicts.
@@ -240,7 +244,7 @@ class SLTrainer(Trainer):
             idx = 0
             for p in self.network.shared_params():
                 grad_len = p.numel()
-                flattened_grad = combined_shared_grads[idx: idx+grad_len]
+                flattened_grad = combined_shared_grads[idx : idx + grad_len]
                 reshaped_grad = flattened_grad.reshape(p.shape)
                 p.grad = reshaped_grad
                 idx += grad_len
@@ -249,7 +253,7 @@ class SLTrainer(Trainer):
                 idx = 0
                 for p in self.network.specific_params(task):
                     grad_len = p.numel()
-                    flattened_grad = specific_grads[task][idx: idx+grad_len]
+                    flattened_grad = specific_grads[task][idx : idx + grad_len]
                     reshaped_grad = flattened_grad.reshape(p.shape)
                     p.grad = reshaped_grad
                     idx += grad_len
@@ -368,14 +372,16 @@ class SLTrainer(Trainer):
             for split in ["train", "eval"]:
                 if metric_info[split]:
                     window = self.train_window if split == "train" else self.eval_window
-                    metric_set.append({
-                        "name": f"{split}_{metric_name}",
-                        "basename": metric_name,
-                        "window": window,
-                        "point_avg": False,
-                        "maximize": metric_info["maximize"],
-                        "show": metric_info["show"],
-                    })
+                    metric_set.append(
+                        {
+                            "name": f"{split}_{metric_name}",
+                            "basename": metric_name,
+                            "window": window,
+                            "point_avg": False,
+                            "maximize": metric_info["maximize"],
+                            "show": metric_info["show"],
+                        }
+                    )
         return metric_set
 
 

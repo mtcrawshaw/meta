@@ -1,7 +1,6 @@
 """ NYUv2 dataset object. """
 
 import os
-import sys
 import h5py
 import math
 import shutil
@@ -81,7 +80,10 @@ class NYUv2(Dataset, BaseDataset):
         self._split = "train" if train else "test"
         self.task_type = task_type
         self.scale = scale
-        self.spatial_size = (round(IMG_SIZE[1] * self.scale), round(IMG_SIZE[2] * self.scale))
+        self.spatial_size = (
+            round(IMG_SIZE[1] * self.scale),
+            round(IMG_SIZE[2] * self.scale),
+        )
         self.min_crop_ratio = min_crop_ratio
         self.random_crop = self.min_crop_ratio != 1.0
         self.jitter_factor = jitter_factor
@@ -105,7 +107,9 @@ class NYUv2(Dataset, BaseDataset):
         if self.task_type in ["seg", "multitask"]:
             self.seg_transform = SEG_TRANSFORM
             if self.scale != 1.0:
-                self.seg_scale = transforms.Resize(self.spatial_size, interpolation=InterpolationMode.NEAREST)
+                self.seg_scale = transforms.Resize(
+                    self.spatial_size, interpolation=InterpolationMode.NEAREST
+                )
 
         if self.task_type in ["sn", "multitask"]:
             self.sn_transform = SN_TRANSFORM
@@ -119,15 +123,17 @@ class NYUv2(Dataset, BaseDataset):
 
         # Add jitter to transforms, if necessary.
         if self.jitter:
-            self.rgb_transform = transforms.Compose([
-                transforms.ColorJitter(
-                    brightness=self.jitter_factor,
-                    contrast=self.jitter_factor,
-                    saturation=self.jitter_factor,
-                    hue=self.jitter_factor / 2.0,
-                ),
-                self.rgb_transform,
-            ])
+            self.rgb_transform = transforms.Compose(
+                [
+                    transforms.ColorJitter(
+                        brightness=self.jitter_factor,
+                        contrast=self.jitter_factor,
+                        saturation=self.jitter_factor,
+                        hue=self.jitter_factor / 2.0,
+                    ),
+                    self.rgb_transform,
+                ]
+            )
 
         # Set static dataset properties.
         if self.task_type == "seg":
@@ -135,22 +141,42 @@ class NYUv2(Dataset, BaseDataset):
             self.loss_cls = nn.CrossEntropyLoss
             self.loss_kwargs = {"ignore_index": -1, "reduction": "mean"}
             self.extra_metrics = {
-                "pixel_accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
+                "pixel_accuracy": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": True,
+                },
             }
         elif self.task_type == "sn":
             out_channels = 3
             self.loss_cls = CosineSimilarityLoss
             self.loss_kwargs = {"reduction": "mean"}
             self.extra_metrics = {
-                "accuracy@11.25": {"maximize": True, "train": True, "eval": True, "show": True},
-                "angle": {"maximize": False, "train": True, "eval": True, "show": False},
+                "accuracy@11.25": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": True,
+                },
+                "angle": {
+                    "maximize": False,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
             }
         elif self.task_type == "depth":
             out_channels = 1
             self.loss_cls = ScaleInvariantDepthLoss
             self.loss_kwargs = {"alpha": 0.5, "reduction": "mean"}
             self.extra_metrics = {
-                "accuracy@1.25": {"maximize": True, "train": True, "eval": True, "show": True},
+                "accuracy@1.25": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": True,
+                },
                 "RMSE": {"maximize": False, "train": True, "eval": True, "show": False},
             }
         elif self.task_type == "multitask":
@@ -177,19 +203,66 @@ class NYUv2(Dataset, BaseDataset):
             }
             self.criterion_kwargs = {"train": {"train": True}, "eval": {"train": False}}
             self.extra_metrics = {
-                "seg_pixel_accuracy": {"maximize": True, "train": True, "eval": True, "show": False},
-                "sn_accuracy@11.25": {"maximize": True, "train": True, "eval": True, "show": False},
-                "sn_angle": {"maximize": False, "train": True, "eval": True, "show": False},
-                "depth_accuracy@1.25": {"maximize": True, "train": True, "eval": True, "show": False},
-                "depth_RMSE": {"maximize": False, "train": True, "eval": True, "show": False},
-                "avg_accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
-                "var_accuracy": {"maximize": None, "train": True, "eval": True, "show": False},
-                **{f"loss_weight_{t}": {"maximize": None, "train": True, "eval": False, "show": False} for t in range(NUM_TASKS)},
+                "seg_pixel_accuracy": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                "sn_accuracy@11.25": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                "sn_angle": {
+                    "maximize": False,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                "depth_accuracy@1.25": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                "depth_RMSE": {
+                    "maximize": False,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                "avg_accuracy": {
+                    "maximize": True,
+                    "train": True,
+                    "eval": True,
+                    "show": True,
+                },
+                "var_accuracy": {
+                    "maximize": None,
+                    "train": True,
+                    "eval": True,
+                    "show": False,
+                },
+                **{
+                    f"loss_weight_{t}": {
+                        "maximize": None,
+                        "train": True,
+                        "eval": False,
+                        "show": False,
+                    }
+                    for t in range(NUM_TASKS)
+                },
             }
         else:
             assert False
 
-        self.input_size = (IMG_SIZE[0], round(IMG_SIZE[1] * self.scale), round(IMG_SIZE[2] * self.scale))
+        self.input_size = (
+            IMG_SIZE[0],
+            round(IMG_SIZE[1] * self.scale),
+            round(IMG_SIZE[2] * self.scale),
+        )
         self.output_size = (out_channels, self.input_size[1], self.input_size[2])
 
         # Download dataset if necessary, and check whether it exists.
@@ -211,7 +284,9 @@ class NYUv2(Dataset, BaseDataset):
         labels = []
 
         if self.random_crop:
-            crop_ratio = self.min_crop_ratio + random.random() * (1 - self.min_crop_ratio)
+            crop_ratio = self.min_crop_ratio + random.random() * (
+                1 - self.min_crop_ratio
+            )
             crop_height = round(IMG_SIZE[1] * crop_ratio)
             crop_width = round(IMG_SIZE[2] * crop_ratio)
             crop_top = random.randrange(IMG_SIZE[1] - crop_height + 1)
@@ -315,7 +390,7 @@ class NYUv2(Dataset, BaseDataset):
                     path = os.path.join(self.root, f"{split}_{type_}")
                     if not os.path.exists(path):
                         raise FileNotFoundError("Missing Folder")
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             return False
         return True
 
@@ -339,17 +414,23 @@ class NYUv2(Dataset, BaseDataset):
 
         split = get_split(train)
         if self.task_type == "seg":
-            return {f"{split}_pixel_accuracy": NYUv2_seg_pixel_accuracy(outputs, labels)}
+            return {
+                f"{split}_pixel_accuracy": NYUv2_seg_pixel_accuracy(outputs, labels)
+            }
 
         elif self.task_type == "sn":
             return {
-                f"{split}_accuracy@11.25": NYUv2_sn_accuracy(outputs, labels, thresh=11.25),
+                f"{split}_accuracy@11.25": NYUv2_sn_accuracy(
+                    outputs, labels, thresh=11.25
+                ),
                 f"{split}_angle": NYUv2_sn_angle(outputs, labels),
             }
 
         elif self.task_type == "depth":
             return {
-                f"{split}_accuracy@1.25": NYUv2_depth_accuracy(outputs, labels, thresh=1.25),
+                f"{split}_accuracy@1.25": NYUv2_depth_accuracy(
+                    outputs, labels, thresh=1.25
+                ),
                 f"{split}_RMSE": NYUv2_depth_RMSE(outputs, labels),
             }
 
@@ -611,7 +692,9 @@ def NYUv2_seg_class_IOU(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return class_IOUs.mean().item()
 
 
-def NYUv2_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor, thresh=11.25) -> float:
+def NYUv2_sn_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, thresh=11.25
+) -> float:
     """
     Compute accuracy of surface normal estimation on the NYUv2 dataset. We define this
     as the number of pixels for which the angle between the true normal and the
@@ -620,9 +703,7 @@ def NYUv2_sn_accuracy(outputs: torch.Tensor, labels: torch.Tensor, thresh=11.25)
     """
     similarity_threshold = math.cos(thresh / 180 * math.pi)
     similarity = F.cosine_similarity(outputs, labels, dim=1)
-    accuracy = torch.sum(similarity > similarity_threshold) / torch.numel(
-        similarity
-    )
+    accuracy = torch.sum(similarity > similarity_threshold) / torch.numel(similarity)
     return accuracy.item()
 
 
@@ -637,7 +718,9 @@ def NYUv2_sn_angle(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     return torch.mean(angle).item()
 
 
-def NYUv2_depth_accuracy(outputs: torch.Tensor, labels: torch.Tensor, thresh=1.25) -> float:
+def NYUv2_depth_accuracy(
+    outputs: torch.Tensor, labels: torch.Tensor, thresh=1.25
+) -> float:
     """
     Compute accuracy of depth prediction on the NYUv2 dataset. We define this as the
     number of pixels for which the ratio between the predicted depth and the true depth

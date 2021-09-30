@@ -4,7 +4,7 @@ CIFAR100 Datasets, which additionally contain information about metrics, loss fu
 input and output size, etc.
 """
 
-from typing import Dict, List, Any
+from typing import Dict
 
 import torch
 import torch.nn as nn

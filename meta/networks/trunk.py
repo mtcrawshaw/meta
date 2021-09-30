@@ -197,7 +197,8 @@ class MultiTaskTrunkNetwork(nn.Module):
         # Save number of shared and task-specific parameters.
         self.num_shared_params = sum([p.numel() for p in self.trunk.parameters()])
         self.num_specific_params = {
-            task: sum([p.numel() for p in self.output_heads[task].parameters()]) for task in range(self.num_tasks)
+            task: sum([p.numel() for p in self.output_heads[task].parameters()])
+            for task in range(self.num_tasks)
         }
 
     def forward(
