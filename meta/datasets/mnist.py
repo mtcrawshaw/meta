@@ -1,7 +1,7 @@
 """
 Dataset object for MNIST dataset. This is a wrapper around the PyTorch MNIST Dataset
-object, which additionally contains information about metrics to compute, data
-augmentation, loss function, etc.
+object, which additionally contains information about metrics, loss function, input and
+output size, etc.
 """
 
 from typing import Dict, List, Any
@@ -18,18 +18,18 @@ from meta.datasets.utils import GRAY_TRANSFORM, get_split
 class MNIST(torch_MNIST, BaseDataset):
     """ MNIST dataset wrapper. """
 
-    input_size = (1, 28, 28)
-    output_size = 10
-    loss_cls = nn.CrossEntropyLoss
-    extra_metrics = {
-        "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
-    }
-
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for MNIST. """
-        super(MNIST, self).__init__(
-            root=root, train=train, download=True, transform=GRAY_TRANSFORM
-        )
+
+        torch_MNIST.__init__(self, root=root, train=train, download=True, transform=GRAY_TRANSFORM)
+        BaseDataset.__init__(self)
+
+        self.input_size = (1, 28, 28)
+        self.output_size = 10
+        self.loss_cls = nn.CrossEntropyLoss
+        self.extra_metrics = {
+            "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
+        }
 
     @staticmethod
     def compute_metrics(

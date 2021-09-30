@@ -1,7 +1,7 @@
 """
 Dataset object for CIFAR datasets. These are wrappers around the PyTorch CIFAR10 and
-CIFAR100 Datasets, which additionally contain information about metrics to compute, data
-augmentation, loss function, etc.
+CIFAR100 Datasets, which additionally contain information about metrics, loss function,
+input and output size, etc.
 """
 
 from typing import Dict, List, Any
@@ -18,18 +18,20 @@ from meta.datasets.utils import RGB_TRANSFORM, get_split
 class CIFAR10(torch_CIFAR10, BaseDataset):
     """ CIFAR10 dataset wrapper. """
 
-    input_size = (3, 32, 32)
-    output_size = 10
-    loss_cls = nn.CrossEntropyLoss
-    extra_metrics = {
-        "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
-    }
-
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for CIFAR10. """
-        super(CIFAR10, self).__init__(
-            root=root, train=train, download=True, transform=RGB_TRANSFORM
+
+        torch_CIFAR10.__init__(
+            self, root=root, train=train, download=True, transform=RGB_TRANSFORM
         )
+        BaseDataset.__init__(self)
+
+        self.input_size = (3, 32, 32)
+        self.output_size = 10
+        self.loss_cls = nn.CrossEntropyLoss
+        self.extra_metrics = {
+            "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
+        }
 
     @staticmethod
     def compute_metrics(
@@ -46,18 +48,20 @@ class CIFAR10(torch_CIFAR10, BaseDataset):
 class CIFAR100(torch_CIFAR100, BaseDataset):
     """ CIFAR100 dataset wrapper. """
 
-    input_size = (3, 32, 32)
-    output_size = 100
-    loss_cls = nn.CrossEntropyLoss
-    extra_metrics = {
-        "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
-    }
-
     def __init__(self, root: str, train: bool = True) -> None:
         """ Init function for CIFAR100. """
-        super(CIFAR100, self).__init__(
-            root=root, train=train, download=True, transform=RGB_TRANSFORM
+
+        torch_CIFAR100.__init__(
+            self, root=root, train=train, download=True, transform=RGB_TRANSFORM
         )
+        BaseDataset.__init__(self)
+
+        self.input_size = (3, 32, 32)
+        self.output_size = 100
+        self.loss_cls = nn.CrossEntropyLoss
+        self.extra_metrics = {
+            "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
+        }
 
     @staticmethod
     def compute_metrics(

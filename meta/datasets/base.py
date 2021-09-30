@@ -1,20 +1,6 @@
 """
 Abstract class for datasets. Defines attributes and functions that any dataset used for
-supervised learning should have. Note: When implementing a subclass of this class that
-also inherits from another object, you'll have a much easier time by including this
-object second in the method resolution order. For example, a subclass defined like so:
-
-    class Child(Parent, BaseDataset)
-
-will be a lot easier to work with than:
-
-    class Child(BaseDataset, Parent)
-
-Since this class doesn't have an __init__ function, you can simple call
-
-    super(Child, self).__init__()
-
-in the __init__ function of Child, and it will run the __init__ function from Parent.
+supervised learning should have.
 """
 
 from typing import Dict
@@ -26,12 +12,19 @@ import torch.nn as nn
 class BaseDataset:
     """ Abstract class for datasets. """
 
-    input_size = None
-    output_size = None
-    loss_cls = None
-    loss_kwargs = {}
-    criterion_kwargs = {"train": {}, "eval": {}}
-    extra_metrics = {}
+    def __init__(self) -> None:
+        """
+        Init function for BaseDatset. Initializes all required members, but to null
+        values. Any subclass of BaseDataset should initialize these values AFTER calling
+        BaseDataset.__init__(). This function mostly just exists to document the
+        required members that must be populated by any subclass.
+        """
+        self.input_size = None
+        self.output_size = None
+        self.loss_cls = None
+        self.loss_kwargs = {}
+        self.criterion_kwargs = {"train": {}, "eval": {}}
+        self.extra_metrics = {}
 
     @staticmethod
     def compute_metrics(

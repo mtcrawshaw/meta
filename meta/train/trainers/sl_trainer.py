@@ -52,19 +52,19 @@ class SLTrainer(Trainer):
             raise ValueError(f"Unsupported dataset: {dataset_name}")
         self.dataset_cls = eval(dataset_name)
         root = os.path.join(DATA_DIR, dataset_name)
-        train_set = self.dataset_cls(root=root, train=True)
-        test_set = self.dataset_cls(root=root, train=False)
+        self.train_set = self.dataset_cls(root=root, train=True)
+        self.test_set = self.dataset_cls(root=root, train=False)
 
         # Construct data loaders.
         self.batch_size = config["batch_size"]
         train_loader = torch.utils.data.DataLoader(
-            train_set,
+            self.train_set,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=config["num_workers"],
         )
         self.test_loader = torch.utils.data.DataLoader(
-            test_set,
+            self.test_set,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=config["num_workers"],
@@ -75,12 +75,12 @@ class SLTrainer(Trainer):
         # evaluation. For both training and evaluation, we average over the last epoch.
         # Since each evaluation step iterates over the entire epoch, we only need to
         # look at the most recent metric values to get the metrics for the last epoch.
-        self.train_window = ceil(len(train_set) / self.batch_size)
+        self.train_window = ceil(len(self.train_set) / self.batch_size)
         self.eval_window = 1
 
         # Determine type of network to construct.
-        input_size = self.dataset_cls.input_size
-        output_size = self.dataset_cls.output_size
+        input_size = self.train_set.input_size
+        output_size = self.train_set.output_size
         network_kwargs = dict(config["architecture_config"])
         if config["architecture_config"]["type"] == "backbone":
             network_cls = BackboneNetwork
@@ -104,8 +104,8 @@ class SLTrainer(Trainer):
         self.network = network_cls(**network_kwargs)
 
         # Set up case for loss function.
-        loss_cls = self.dataset_cls.loss_cls
-        loss_kwargs = dict(self.dataset_cls.loss_kwargs)
+        loss_cls = self.train_set.loss_cls
+        loss_kwargs = dict(self.train_set.loss_kwargs)
 
         # Add arguments to `self.criterion` in case we are multi-task training. These
         # are passed as arguments to the constructor of `self.criterion`.
@@ -125,7 +125,7 @@ class SLTrainer(Trainer):
         # in the case that GradNorm is operating over parameters outside of
         # `self.network`, or if the task-specific loss functions are dependent on
         # parameters outside of `self.network`.
-        criterion_kwargs = deepcopy(self.dataset_cls.criterion_kwargs)
+        criterion_kwargs = deepcopy(self.train_set.criterion_kwargs)
         if "loss_weighter" in config:
             if config["loss_weighter"]["type"] in ["GradNorm", "SLW", "SLAWTester"]:
                 criterion_kwargs["train"]["network"] = self.network
@@ -265,7 +265,7 @@ class SLTrainer(Trainer):
             "eval_loss": [],
             **{
                 f"eval_{metric_name}": []
-                for metric_name, metric_info in self.dataset_cls.extra_metrics.items()
+                for metric_name, metric_info in self.train_set.extra_metrics.items()
                 if metric_info["eval"]
             },
         }
@@ -363,7 +363,7 @@ class SLTrainer(Trainer):
                 "show": False,
             },
         ]
-        for metric_name, metric_info in self.dataset_cls.extra_metrics.items():
+        for metric_name, metric_info in self.train_set.extra_metrics.items():
             for split in ["train", "eval"]:
                 if metric_info[split]:
                     window = self.train_window if split == "train" else self.eval_window
