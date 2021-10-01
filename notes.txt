@@ -84,21 +84,8 @@ Current sprint (Refactoring):
     Rename CLAW to SLAW and CLW to SLW
     Move dataset info into Dataset objects
     Don't repeat output_slice and label_slice
---> Fix hard-coded device for PCBA
-    Replace most training tests with tests on easy benchmarks (CIFAR, MNIST) that only check for sufficiently high accuracy
-    Write tests for metric computations in Dataset objects (use old version of test_loss.py for NYUv2)
-    Write actual unit tests for loss weighters (remove training tests)
-    Clean up Uncertainty/GradNorm/SLW junk in SLTrainer's initialization
-    Clean up PCGrad (separate into MTLTrainer?)
-    Get evaluation to happen once per epoch automatically
-    Rewrite NYUv2 wrapper from scratch (remove random dependence)
-    Clean up pre_loss_update
-    Convert BN layers to test mode when necessary
-    Fix memory issue with evaluate (compare to commit dcdee654)
-    Get all SL tests to pass
-
-Iron out inconsistency in the specification of task output sizes. Is the output size
-per-task or total? This seems to be inconsistent between PCBA, MTRegression, and NYUv2.
+    Fix hard-coded device for PCBA
+--> Rewrite NYUv2 wrapper from scratch (remove random dependence)
 
 
 ----------------------------------------------------------------------------------------
@@ -120,6 +107,8 @@ Issues
   given a different random seed. One way to fix this is to give each process the same np
   seed (which can do by setting `same_np_seed` to True in the config file), but this may
   cause other unwanted consequences. Resolve this before running experiments on MLX.
+- A bunch of SL training tests are currently failing, because the baselines were never
+  updated.
 
 
 ----------------------------------------------------------------------------------------
@@ -286,9 +275,20 @@ RL training:
 
 SL training:
 - Refactoring:
-    - Find nicer way to handle dataset input sizes than the hard-coded dictionary we
-      have now. Is it possible to get the size of inputs/outputs without having to store
-      them explicitly?
+    - Clean up Uncertainty/GradNorm/SLW junk in SLTrainer's initialization
+    - Clean up PCGrad. Could separate into MTL trainer, or we could try implement this
+      as a loss weighter, since PCGrad can technically be formulated as a loss weighting
+      method.
+    - Get evaluation to happen once per epoch automatically instead of requiring manual
+      entry of evaluation_freq.
+    - Clean up pre_loss_update. Just have a property within each loss weighter that
+      determines whether weights are updated before or after loss computation.
+    - Convert BN layers to test mode?
+    - Fix memory usage issue. Commit dcdee654 was the last commit before we changed the
+      evaluation format so that every evaluation step goes over the entire dataset. When
+      we did that, the memory usage increased dramatically, requiring us to cut our
+      batch size nearly in half. I still don't know what caused this, but fixing it
+      would give us a ton of memory back.
 - Additions:
     - MLP support for supervised learning.
 - Nice to have:
@@ -298,6 +298,9 @@ Network architectures:
     - Remove redundant calls to "self.to(device)" in nested modules?
     - Add multitask capability to ConvNetwork
     - Merge redundant networks (Trunk + Backbone? Conv + MLP?)
+    - Iron out inconsistency with specification of task output sizes for multi-task
+      learning. Is the output size per-task or total? Seems to be inconsistent in our
+      configuration for PCBA, MTRegression, and NYUv2.
 - Additions:
     - Architecture hyperparameters:
         - Network initialization options
@@ -435,9 +438,12 @@ Tests:
       doesn't randomly break if seed or something else changes.
     - Make tests faster by decreasing training lengths and replacing complex
       environments (particularly MetaWorld) with simpler ones.
+    - Replace unnecessary training tests with tests on easy benchmarks (CIFAR, MNIST)
+      that only check for sufficiently high accuracy.
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
     - Add tests for `experiment()` to check that results are consistent with `train()`.
+    - Tests for loss weighters (remove training tests).
 - Nice to have:
 
 Style:
