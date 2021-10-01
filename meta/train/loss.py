@@ -99,7 +99,6 @@ class MultiTaskLoss(nn.Module):
         self,
         task_losses: List[Dict[str, Any]],
         loss_weighter_kwargs: Dict[str, Any],
-        device: torch.device = None,
     ) -> None:
         """
         Init function for MultiTaskLoss.
@@ -115,18 +114,17 @@ class MultiTaskLoss(nn.Module):
             label. The key for "loss" is the task loss function.
         loss_weighter_kwargs : Dict[str, Any]
             Keyword arguments to be passed to LossWeighter instance.
-        device : torch.device
-            What device to store Tensors on. If None (default), defaults to CPU.
         """
 
         super(MultiTaskLoss, self).__init__()
 
-        # Set device.
-        self.device = device if device is not None else torch.device("cpu")
-
         # Set task losses.
-        self.task_losses = task_losses
-        self.num_tasks = len(self.task_losses)
+        self.task_loss_fns = nn.ModuleList([x["loss"] for x in task_losses])
+        self.task_slice_fns = [
+            {"output_slice": x["output_slice"], "label_slice": x["label_slice"]}
+            for x in task_losses
+        ]
+        self.num_tasks = len(self.task_loss_fns)
 
         # Set task weighting strategy.
         loss_weighter = loss_weighter_kwargs["type"]
@@ -147,7 +145,6 @@ class MultiTaskLoss(nn.Module):
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
         loss_weighter_kwargs["num_tasks"] = self.num_tasks
-        loss_weighter_kwargs["device"] = self.device
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
 
         # Determine whether loss weights should be updated before or after task loss
@@ -179,7 +176,7 @@ class MultiTaskLoss(nn.Module):
         combine_losses : bool
             Whether or not to combine task losses into a single scalar value. Defaults
             to `True`, which will almost always be used. When `False`, returns a tensor
-            of shape `(len(task_losses),)` (the number of tasks), which holds the
+            of shape `(self.num_tasks,)` (the number of tasks), which holds the
             individual values of each task's loss function. In this case, no loss
             weighter is used.  Be careful using this option: it can easily break
             training. The task losses do have to be reduced into a single scalar
@@ -193,10 +190,13 @@ class MultiTaskLoss(nn.Module):
 
         # Compute task losses.
         task_loss_vals = []
-        for task_loss in self.task_losses:
-            task_output = task_loss["output_slice"](outputs)
-            task_label = task_loss["label_slice"](labels)
-            task_loss_val = task_loss["loss"](task_output, task_label)
+        for i in range(self.num_tasks):
+            task_loss_fn = self.task_loss_fns[i]
+            output_slice = self.task_slice_fns[i]["output_slice"]
+            label_slice = self.task_slice_fns[i]["label_slice"]
+            task_output = output_slice(outputs)
+            task_label = label_slice(labels)
+            task_loss_val = task_loss_fn(task_output, task_label)
             task_loss_vals.append(task_loss_val)
         task_loss_vals = torch.stack(task_loss_vals)
 
@@ -225,25 +225,21 @@ class MultiTaskLoss(nn.Module):
 class LossWeighter(nn.Module):
     """ Compute task loss weights for multi-task learning. """
 
-    def __init__(
-        self, num_tasks: int, loss_weights: List[float], device: torch.device = None
-    ) -> None:
+    def __init__(self, num_tasks: int, loss_weights: List[float]) -> None:
         """ Init function for LossWeighter. """
 
         super(LossWeighter, self).__init__()
-
-        self.device = device if device is not None else torch.device("cpu")
 
         # Set state.
         self.num_tasks = num_tasks
         if loss_weights is not None:
             assert len(loss_weights) == self.num_tasks
-            self.loss_weights = torch.Tensor(loss_weights)
+            loss_weights = torch.Tensor(loss_weights)
         else:
-            self.loss_weights = torch.ones((self.num_tasks,))
-        self.loss_weights = self.loss_weights.to(self.device)
-        self.initial_loss_weights = torch.clone(self.loss_weights)
-        self.total_weight = torch.sum(self.loss_weights)
+            loss_weights = torch.ones((self.num_tasks,))
+        self.register_buffer("loss_weights", loss_weights)
+        self.register_buffer("initial_loss_weights", torch.clone(self.loss_weights))
+        self.total_weight = float(torch.sum(self.loss_weights))
         self.loss_history = []
         self.steps = 0
         self.MAX_HISTORY_LEN = 2
@@ -345,7 +341,7 @@ class GradNorm(LossWeighter):
             task_grads = None
         else:
             task_grads = torch.zeros(
-                (self.num_tasks, self.grad_len), device=self.device
+                (self.num_tasks, self.grad_len), device=self.loss_weights.device
             )
         for task in range(self.num_tasks):
             task_grad = torch.autograd.grad(
@@ -356,7 +352,7 @@ class GradNorm(LossWeighter):
             if self.grad_len is None:
                 self.grad_len = int(task_grad.shape[0])
                 task_grads = torch.zeros(
-                    (self.num_tasks, self.grad_len), device=self.device
+                    (self.num_tasks, self.grad_len), device=self.loss_weights.device
                 )
 
             task_grads[task] = task_grad.detach()
@@ -524,7 +520,7 @@ class NLW(LossWeighter):
         # Add noise to weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
-        noise = torch.normal(mean, std).to(self.device)
+        noise = torch.normal(mean, std).to(self.loss_weights.device)
         self.loss_weights = self.initial_loss_weights + noise
 
         # Normalize weights to ensure positivity.
@@ -553,7 +549,7 @@ class RWLW(LossWeighter):
         # Add noise to weights.
         mean = torch.zeros(self.num_tasks)
         std = torch.ones(self.num_tasks) * self.sigma
-        noise = torch.normal(mean, std).to(self.device)
+        noise = torch.normal(mean, std).to(self.loss_weights.device)
         self.loss_weights = self.loss_weights + noise
 
         # Normalize weights to ensure positivity.
@@ -586,7 +582,7 @@ class SLW(LossWeighter):
             task_grads = None
         else:
             task_grads = torch.zeros(
-                (self.num_tasks, self.grad_len), device=self.device
+                (self.num_tasks, self.grad_len), device=self.loss_weights.device
             )
 
         for task in range(self.num_tasks):
@@ -598,7 +594,7 @@ class SLW(LossWeighter):
             if self.grad_len is None:
                 self.grad_len = int(task_grad.shape[0])
                 task_grads = torch.zeros(
-                    (self.num_tasks, self.grad_len), device=self.device
+                    (self.num_tasks, self.grad_len), device=self.loss_weights.device
                 )
 
             task_grads[task] = task_grad.detach()
@@ -631,7 +627,7 @@ class SLAW(LossWeighter):
             compute_stdev=True,
             shape=(self.num_tasks,),
             ema_alpha=0.99,
-            device=self.device,
+            device=self.loss_weights.device,
         )
 
     def _update_weights(self) -> None:
@@ -684,7 +680,7 @@ class SLAWTester(LossWeighter):
             compute_stdev=True,
             shape=(self.num_tasks,),
             ema_alpha=0.99,
-            device=self.device,
+            device=self.loss_weights.device,
         )
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
@@ -704,7 +700,7 @@ class SLAWTester(LossWeighter):
                 task_grads = None
             else:
                 task_grads = torch.zeros(
-                    (self.num_tasks, self.grad_len), device=self.device
+                    (self.num_tasks, self.grad_len), device=self.loss_weights.device
                 )
 
             for task in range(self.num_tasks):
@@ -716,7 +712,7 @@ class SLAWTester(LossWeighter):
                 if self.grad_len is None:
                     self.grad_len = int(task_grad.shape[0])
                     task_grads = torch.zeros(
-                        (self.num_tasks, self.grad_len), device=self.device
+                        (self.num_tasks, self.grad_len), device=self.loss_weights.device
                     )
 
                 task_grads[task] = task_grad.detach()

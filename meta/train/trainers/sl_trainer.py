@@ -102,19 +102,13 @@ class SLTrainer(Trainer):
         network_kwargs["device"] = self.device
         self.network = network_cls(**network_kwargs)
 
-        # Set up case for loss function.
+        # Construct loss function.
         loss_cls = self.train_set.loss_cls
         loss_kwargs = dict(self.train_set.loss_kwargs)
-
-        # Add arguments to `self.criterion` in case we are multi-task training. These
-        # are passed as arguments to the constructor of `self.criterion`.
         if "loss_weighter" in config:
             loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
-        if loss_cls == MultiTaskLoss:
-            loss_kwargs["device"] = self.device
-
-        # Construct loss function.
         self.criterion = loss_cls(**loss_kwargs)
+        self.criterion = self.criterion.to(self.device)
 
         # Construct arguments to `self.criterion`. These are passed as arguments to the
         # forward pass through `self.criterion`. Here we include the network itself as

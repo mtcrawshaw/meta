@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 
 
-BASE_CONFIG_PATH = "configs/mt_regression_slaw.json"
+BASE_CONFIG_PATH = "configs/mtregression_slaw.json"
 TRIAL_CONFIG_PATH = "configs/temp_slaw_test.json"
 SLAW_DATA_PATH = "data/slaw_test_data.npy"
 SLAW_LOG_PATH = "data/slaw_log.txt"

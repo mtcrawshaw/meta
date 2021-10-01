@@ -92,7 +92,6 @@ class PCBA(Dataset, BaseDataset):
                         weight=torch.as_tensor(
                             CLASS_WEIGHTS,
                             dtype=torch.float32,
-                            device=torch.device("cuda:0"),
                         ),
                         ignore_index=-1,
                         reduction="mean",
