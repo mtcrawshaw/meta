@@ -3,9 +3,9 @@
 
     "base_train_config": {
         "trainer": "SLTrainer",
-        "dataset": "NYUv2",
-        "num_updates": 660,
-        "batch_size": 36,
+        "dataset": "MTRegression10",
+        "num_updates": 9900,
+        "batch_size": 304,
         "num_workers": 8,
 
         "loss_weighter": {
@@ -20,18 +20,19 @@
         "eps": 1e-5,
 
         "architecture_config": {
-            "type": "backbone",
-            "arch_type": "resnet",
-            "num_backbone_layers": 50,
-            "num_head_layers": 3,
-            "head_channels": 256,
-            "pretrained": true
+            "type": "trunk",
+            "num_tasks": 10,
+            "activation": "tanh",
+            "num_shared_layers": 4,
+            "num_task_layers": 1,
+            "hidden_size": 100,
+            "parallel_branches": true
         },
 
         "evaluation_freq": 33,
 
         "cuda": true,
-        "print_freq": 1,
+        "print_freq": 10,
         "save_freq": null,
         "load_from": null,
         "metrics_filename": null,
@@ -40,13 +41,14 @@
 
     "methods": {
         "Constant": {"loss_weighter": {"type": "Constant"}},
+        "IdealConstant": {"loss_weighter": {"type": "Constant", "loss_weights": [6.453, 1.613, 0.717, 0.403, 0.258, 0.179, 0.132, 0.101, 0.0797, 0.0645]}},
         "Uncertainty": {"loss_weighter": {"type": "Uncertainty"}},
-        "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 1.5, "weight_lr": 0.025}},
+        "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 0.12, "weight_lr": 0.025}},
         "DWA": {"loss_weighter": {"type": "DWA", "ema_alpha": 0.9, "temp": 2.0}},
         "PCGrad": {"PCGrad": "true"},
         "CLAW": {"loss_weighter": {"type": "CLAW"}}
     },
 
     "seed": 0,
-    "save_name": "NYUv2"
+    "save_name": "MTRegression"
 }

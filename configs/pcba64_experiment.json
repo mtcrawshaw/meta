@@ -1,0 +1,51 @@
+{
+    "trials_per_method": 5,
+
+    "base_train_config": {
+        "trainer": "SLTrainer",
+        "dataset": "PCBA64",
+        "num_updates": 900,
+        "batch_size": 40000,
+        "num_workers": 0,
+
+        "loss_weighter": {
+            "type": "Constant",
+            "loss_weights": null
+        },
+
+        "lr_schedule_type": null,
+        "initial_lr": 3e-4,
+        "final_lr": 3e-4,
+        "max_grad_norm": 0.5,
+        "eps": 1e-5,
+
+        "architecture_config": {
+            "type": "trunk",
+            "num_tasks": 64,
+            "activation": "relu",
+            "num_shared_layers": 2,
+            "num_task_layers": 1,
+            "hidden_size": [2000, 100],
+            "parallel_branches": true
+        },
+
+        "evaluation_freq": 9,
+
+        "cuda": true,
+        "print_freq": 1,
+        "save_freq": null,
+        "load_from": null,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
+    },
+
+    "methods": {
+        "Constant": {"loss_weighter": {"type": "Constant"}},
+        "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 0.12, "weight_lr": 0.025}},
+        "PCGrad": {"PCGrad": "true"},
+        "CLAW": {"loss_weighter": {"type": "CLAW"}}
+    },
+
+    "seed": 0,
+    "save_name": "PCBA64"
+}
