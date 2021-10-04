@@ -72,8 +72,8 @@ implement the random multi-task loss weighting idea. Here's the roadmap:
     Toy multi-task problem
     Write tests
     Loss weighting experiments
---> Refactoring
-    Merge to master
+    Refactoring
+--> Merge to master
 
 Try to merge this branch with develop as often as possible (while maintaining stability)
 so that we don't have an impossible merge to perform later on.
@@ -85,7 +85,7 @@ Current sprint (Refactoring):
     Move dataset info into Dataset objects
     Don't repeat output_slice and label_slice
     Fix hard-coded device for PCBA
---> Rewrite NYUv2 wrapper from scratch (remove random dependence)
+    Rewrite NYUv2 wrapper from scratch
 
 
 ----------------------------------------------------------------------------------------

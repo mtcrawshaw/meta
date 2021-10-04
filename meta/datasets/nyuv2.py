@@ -1,10 +1,13 @@
-""" NYUv2 dataset object. """
+"""
+Dataset object for NYUv2 depth dataset for multi-task computer vision with semantic
+segmentation, surface normal estimation, and depth prediction. Information on the
+dataset can be found here: https://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html.
+"""
 
 import os
 import h5py
 import math
 import shutil
-import random
 import tarfile
 import zipfile
 from PIL import Image
@@ -26,7 +29,6 @@ from meta.train.loss import CosineSimilarityLoss, MultiTaskLoss, ScaleInvariantD
 
 # This is HxW, as is expected by transforms.Resize.
 IMG_SIZE = (3, 480, 640)
-SEED = 1
 EPSILON = 1e-5
 
 DEPTH_TRANSFORM = transforms.ToTensor()
@@ -37,10 +39,7 @@ NUM_TASKS = 3
 
 
 class NYUv2(Dataset, BaseDataset):
-    """
-    Wrapper for the NYUv2 dataset. Data sources available: RGB, Semantic Segmentation,
-    Surface Normals, Depth Images.
-    """
+    """ Dataset object for NYUv2 dataset. """
 
     def __init__(
         self,
@@ -48,23 +47,35 @@ class NYUv2(Dataset, BaseDataset):
         task_type: str,
         train: bool = True,
         download: bool = False,
+        scale: float = 1,
         min_crop_ratio: float = 1.0,
         jitter_factor: float = 0.0,
-        scale: float = 1,
-    ):
+    ) -> None:
         """
-        Will return tuples based on what data source has been enabled (rgb, seg etc).
+        Init function for NYUv2.
 
-        :param root: path to root folder (eg /data/NYUv2)
-        :param task_type: what type of task, one of: ["seg", "sn", "depth", "multitask"]
-        :param train: whether to load the train or test set
-        :param download: whether to download and process data if missing
-        :param min_crop_ratio: minimum of ratio of size of randomly cropped image to
-        original image.  Should be between 0 and 1. If 1, no cropping is performed.
-        :param jitter_factor: Factor by which to jitter brightness, constrast,
-        saturation, and hue. Should be between 0 and 1. If 0,
-        :param scale: how to scale images/labels. If 1 image sizes will not be changed,
-        if 0.5 each dimension will be reduced by a factor of 2, etc.
+        Parameters
+        ----------
+        root : str
+            Path to folder containing NYUv2 dataset files.
+        task_type : str
+            String specifying type of task(s). Should be one of ["seg", "sn", "depth",
+            "multitask"]. Note that this means you can only do single-task training or
+            multi-task training on all tasks, but not multi-task training on two of
+            three tasks.
+        train : bool
+            Whether to use training or testing set.
+        download : bool
+            Whether to download data if it doesn't already exist.
+        scale : float
+            How to scale images. If 1 image sizes will not be changed, if 0.5 each
+            dimension will be reduced by a factor of 2, etc.
+        min_crop_ratio : float
+            Minimum of ratio to size of randomly cropped image to original image. This
+            should be between 0 and 1. If 1, no cropping is performed.
+        jitter_factor : float
+            Factor by which to jitter brightness, contrast, saturation, and hue. Should
+            be between 0 and 1. If 0, no jitter is added. If 1, maximum jitter is added.
         """
 
         assert task_type in ["seg", "sn", "depth", "multitask"]
@@ -76,9 +87,9 @@ class NYUv2(Dataset, BaseDataset):
 
         # Store data settings.
         self.root = root
+        self.task_type = task_type
         self.train = train
         self._split = "train" if train else "test"
-        self.task_type = task_type
         self.scale = scale
         self.spatial_size = (
             round(IMG_SIZE[1] * self.scale),
@@ -90,7 +101,6 @@ class NYUv2(Dataset, BaseDataset):
         self.jitter = self.jitter_factor != 0.0
 
         # Store which tasks are being used.
-        self.rgb = True
         self.seg = self.task_type in ["seg", "multitask"]
         self.sn = self.task_type in ["sn", "multitask"]
         self.depth = self.task_type in ["depth", "multitask"]
@@ -136,8 +146,18 @@ class NYUv2(Dataset, BaseDataset):
             )
 
         # Set static dataset properties.
+        self.input_size = (
+            IMG_SIZE[0],
+            round(IMG_SIZE[1] * self.scale),
+            round(IMG_SIZE[2] * self.scale),
+        )
+        out_channels = {
+            "seg": 13,
+            "sn": 3,
+            "depth": 1,
+        }
+
         if self.task_type == "seg":
-            out_channels = 13
             self.loss_cls = nn.CrossEntropyLoss
             self.loss_kwargs = {"ignore_index": -1, "reduction": "mean"}
             self.extra_metrics = {
@@ -148,8 +168,10 @@ class NYUv2(Dataset, BaseDataset):
                     "show": True,
                 },
             }
+            out = out_channels[self.task_type]
+            self.output_size = (out, self.input_size[1], self.input_size[2])
+
         elif self.task_type == "sn":
-            out_channels = 3
             self.loss_cls = CosineSimilarityLoss
             self.loss_kwargs = {"reduction": "mean"}
             self.extra_metrics = {
@@ -166,8 +188,10 @@ class NYUv2(Dataset, BaseDataset):
                     "show": False,
                 },
             }
+            out = out_channels[self.task_type]
+            self.output_size = (out, self.input_size[1], self.input_size[2])
+
         elif self.task_type == "depth":
-            out_channels = 1
             self.loss_cls = ScaleInvariantDepthLoss
             self.loss_kwargs = {"alpha": 0.5, "reduction": "mean"}
             self.extra_metrics = {
@@ -179,8 +203,10 @@ class NYUv2(Dataset, BaseDataset):
                 },
                 "RMSE": {"maximize": False, "train": True, "eval": True, "show": False},
             }
+            out = out_channels[self.task_type]
+            self.output_size = (out, self.input_size[1], self.input_size[2])
+
         elif self.task_type == "multitask":
-            out_channels = 17
             self.loss_cls = MultiTaskLoss
             self.loss_kwargs = {
                 "task_losses": [
@@ -255,15 +281,14 @@ class NYUv2(Dataset, BaseDataset):
                     for t in range(NUM_TASKS)
                 },
             }
+
+            self.output_size = [
+                (out_channels[task_type], self.input_size[1], self.input_size[2])
+                for task_type in out_channels
+            ]
+
         else:
             assert False
-
-        self.input_size = (
-            IMG_SIZE[0],
-            round(IMG_SIZE[1] * self.scale),
-            round(IMG_SIZE[2] * self.scale),
-        )
-        self.output_size = (out_channels, self.input_size[1], self.input_size[2])
 
         # Download dataset if necessary, and check whether it exists.
         if download:
@@ -276,33 +301,33 @@ class NYUv2(Dataset, BaseDataset):
         # rgb folder as ground truth
         self._files = os.listdir(os.path.join(root, f"{self._split}_rgb"))
 
-        random.seed(SEED)
-
     def __getitem__(self, index: int):
         folder = lambda name: os.path.join(self.root, f"{self._split}_{name}")
-        input_img = None
-        labels = []
 
+        # Generate a random crop for this item.
         if self.random_crop:
-            crop_ratio = self.min_crop_ratio + random.random() * (
+            crop_ratio = self.min_crop_ratio + np.random.rand() * (
                 1 - self.min_crop_ratio
             )
             crop_height = round(IMG_SIZE[1] * crop_ratio)
             crop_width = round(IMG_SIZE[2] * crop_ratio)
-            crop_top = random.randrange(IMG_SIZE[1] - crop_height + 1)
-            crop_left = random.randrange(IMG_SIZE[2] - crop_width + 1)
+            crop_top = np.random.randrange(0, IMG_SIZE[1] - crop_height + 1)
+            crop_left = np.random.randrange(0, IMG_SIZE[2] - crop_width + 1)
             crop_bottom = crop_top + crop_height
             crop_right = crop_left + crop_width
 
-        if self.rgb:
-            img = Image.open(os.path.join(folder("rgb"), self._files[index]))
-            img = self.rgb_transform(img)
-            if self.random_crop:
-                img = img[:, crop_top:crop_bottom, crop_left:crop_right]
-            if self.scale != 1.0:
-                img = self.rgb_scale(img)
+        # Get input image.
+        img = Image.open(os.path.join(folder("rgb"), self._files[index]))
+        img = self.rgb_transform(img)
+        if self.random_crop:
+            img = img[:, crop_top:crop_bottom, crop_left:crop_right]
+        if self.scale != 1.0:
+            img = self.rgb_scale(img)
 
-            input_img = img
+        input_img = img
+
+        # Get labels for relevant tasks.
+        labels = []
 
         if self.seg:
             img = Image.open(os.path.join(folder("seg13"), self._files[index]))
@@ -347,7 +372,7 @@ class NYUv2(Dataset, BaseDataset):
         else:
             labels = torch.cat(labels, dim=0)
 
-        # Unsqueeze class dimension of semantic segmentation label if it is the only one
+        # Squeeze class dimension of semantic segmentation label if it is the only one
         # being loaded.
         if self.task_type == "seg":
             labels = labels.squeeze(0)
@@ -357,42 +382,20 @@ class NYUv2(Dataset, BaseDataset):
     def __len__(self):
         return len(self._files)
 
-    def __repr__(self):
-        fmt_str = f"Dataset {self.__class__.__name__}\n"
-        fmt_str += f"    Number of data points: {self.__len__()}\n"
-        fmt_str += f"    Split: {self._split}\n"
-        fmt_str += f"    Root Location: {self.root}\n"
-        tmp = "    RGB Transforms: "
-        fmt_str += "{0}{1}\n".format(
-            tmp, self.rgb_transform.__repr__().replace("\n", "\n" + " " * len(tmp))
-        )
-        tmp = "    Seg Transforms: "
-        fmt_str += "{0}{1}\n".format(
-            tmp, self.seg_transform.__repr__().replace("\n", "\n" + " " * len(tmp))
-        )
-        tmp = "    SN Transforms: "
-        fmt_str += "{0}{1}\n".format(
-            tmp, self.sn_transform.__repr__().replace("\n", "\n" + " " * len(tmp))
-        )
-        tmp = "    Depth Transforms: "
-        fmt_str += "{0}{1}\n".format(
-            tmp, self.depth_transform.__repr__().replace("\n", "\n" + " " * len(tmp))
-        )
-        return fmt_str
-
     def _check_exists(self) -> bool:
-        """
-        Only checking for folder existence
-        """
-        try:
-            for split in ["train", "test"]:
-                for type_ in ["rgb", "seg13", "sn", "depth"]:
-                    path = os.path.join(self.root, f"{split}_{type_}")
-                    if not os.path.exists(path):
-                        raise FileNotFoundError("Missing Folder")
-        except FileNotFoundError:
-            return False
-        return True
+        """ Utility function to check that dataset folders exist. """
+
+        exists = True
+        for split in ["train", "test"]:
+            for type_ in ["rgb", "seg13", "sn", "depth"]:
+                path = os.path.join(self.root, f"{split}_{type_}")
+                if not os.path.exists(path):
+                    exists = False
+                    break
+            if not exists:
+                break
+
+        return exists
 
     def download(self):
         if self._check_exists():
@@ -401,7 +404,6 @@ class NYUv2(Dataset, BaseDataset):
         download_seg(self.root)
         download_sn(self.root)
         download_depth(self.root)
-        print("Done!")
 
     def compute_metrics(
         self,
