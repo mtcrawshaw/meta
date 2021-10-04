@@ -1,53 +1,25 @@
 
 
-Splitting Networks
+Road Map
 
 
-Road map:
-    Shared trunk architecture
-    FC splitting networks (regions = layers)
-    Meta splitting networks
---> Evaluation + baselines (
-        PCGrad,
-        Branched MT networks,
-        soft layer ordering,
-        modular meta learning (code available),
-        AdaShare,
-        Piggyback (code available),
-        sparse sharing (code available),
-        routing networks (code available),
-    )
-    Refactoring
+Objective: Measure the normalized covariance of each pair of task losses throughout
+training, and see whether this gives a similar signal of task similarity as the cosine
+similarity between task gradients.
 
-Current sprint (Evaluation + baselines):
-    Update Meta-World
-    Benchmark performance for single-task learning
---> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
-    Benchmark performance for meta-learning with splitting networks
-    Improve performance for single-task learning
-    Improve performance for multi-task learning with splitting networks
-    Improve performance for meta-learning with splitting networks
-    Baselines?
+Sprints:
+--> Task loss covariance measurement
+    Covariance comparison with gradient cosine similarity
+    Loss weighting scheme with covariance?
+    Task grouping scheme with covariance?
 
-Splitting network improvements:
-- Use cosine distance to split instead of Euclidean distance
-- Try retraining an already split architecture from scratch (keep initialization?)
+Current sprint (Task loss covariance measurement):
+--> Covariance option in RunningStats
+    Normalized covariance property in RunningStats
+    CoSLAW loss weighter (measures loss covariance + grad cosine similarity)
 
-Overall performance improvements:
-- Use SAC instead of PPO
-- Hyperparameter tuning
-- Combine splitting networks with PCGrad
-
-Notes for current task:
-- Implement splitting by cosine distance instead of Euclidean distance (DONE)
-- Test cosine distance splitting networks (DONE)
-- Make cosine distance computation more efficient (DONE)
-- Run evaluations with cosine distance
-- Implement training on pre-split architecture
-
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Change max_grad_norm to None for all configs (update baselines accordingly)
-
+May want to also add option to RunningStats that allow for the use of bias-corrected EMA
+only.
 
 ----------------------------------------------------------------------------------------
 
