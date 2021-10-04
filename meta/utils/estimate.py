@@ -5,6 +5,7 @@ Utility classes to compute running mean and standard deviation of torch.Tensors.
 from typing import Tuple
 
 import torch
+from torch import nn
 
 
 alpha_to_threshold = (
@@ -12,7 +13,7 @@ alpha_to_threshold = (
 )
 
 
-class RunningStats:
+class RunningStats(nn.Module):
     """
     Utility class to compute running estimates of mean/stdev of torch.Tensor.
     """
@@ -24,7 +25,6 @@ class RunningStats:
         condense_dims: Tuple[int, ...] = (),
         cap_sample_size: bool = False,
         ema_alpha: float = 0.999,
-        device: torch.device = None,
     ) -> None:
         """
         Init function for RunningStats. The running mean will always be computed, and a
@@ -52,27 +52,28 @@ class RunningStats:
             then switch to EMA. If `ema_alpha == 1.0`, then we will never switch to EMA.
         """
 
+        super(RunningStats, self).__init__()
+
         self.compute_stdev = compute_stdev
         self.condense_dims = condense_dims
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
         self.ema_threshold = alpha_to_threshold(ema_alpha)
-        self.device = device if device is not None else torch.device("cpu")
 
         self.shape = shape
         self.condensed_shape = tuple(
             [shape[i] for i in range(len(shape)) if i not in condense_dims]
         )
-        self.mean = torch.zeros(self.condensed_shape, device=self.device)
+        self.register_buffer("mean", torch.zeros(self.condensed_shape))
         if self.compute_stdev:
-            self.square_mean = torch.zeros(self.condensed_shape, device=self.device)
-            self.var = torch.zeros(self.condensed_shape, device=self.device)
-            self.stdev = torch.zeros(self.condensed_shape, device=self.device)
+            self.register_buffer("square_mean", torch.zeros(self.condensed_shape))
+            self.register_buffer("var", torch.zeros(self.condensed_shape))
+            self.register_buffer("stdev", torch.zeros(self.condensed_shape))
 
         # Used to keep track of number of updates and effective sample size, which may
         # stop decreasing when we switch to using exponential moving averages.
-        self.num_steps = torch.zeros(self.condensed_shape, device=self.device)
-        self.sample_size = torch.zeros(self.condensed_shape, device=self.device)
+        self.register_buffer("num_steps", torch.zeros(self.condensed_shape))
+        self.register_buffer("sample_size", torch.zeros(self.condensed_shape))
 
     def update(self, val: torch.Tensor, flags: torch.Tensor = None) -> None:
         """
@@ -92,7 +93,7 @@ class RunningStats:
         """
 
         if flags is None:
-            flags = torch.ones(self.condensed_shape, device=self.device)
+            flags = torch.ones(self.condensed_shape, device=self.sample_size.device)
 
         # Update `self.num_steps` and `self.sample_size`.
         self.num_steps += flags
@@ -150,3 +151,12 @@ class RunningStats:
             new_m[nan_indices] = 0
 
         return new_m * flags + m * torch.logical_not(flags)
+
+    def forward(self, x: torch.Tensor) -> None:
+        """
+        Forward function for RunningStats. This should never be used. It's super hacky,
+        but we made RunningStats a subclass of Module so that we could enjoy the
+        benefits like having the device set automatically when RunningStats is a member
+        of a Module for which to() is called.
+        """
+        raise NotImplementedError

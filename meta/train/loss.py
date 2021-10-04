@@ -625,7 +625,6 @@ class SLAW(LossWeighter):
             compute_stdev=True,
             shape=(self.num_tasks,),
             ema_alpha=0.99,
-            device=self.loss_weights.device,
         )
 
     def _update_weights(self) -> None:
@@ -678,7 +677,6 @@ class SLAWTester(LossWeighter):
             compute_stdev=True,
             shape=(self.num_tasks,),
             ema_alpha=0.99,
-            device=self.loss_weights.device,
         )
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
