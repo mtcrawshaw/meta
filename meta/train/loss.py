@@ -96,9 +96,7 @@ class MultiTaskLoss(nn.Module):
     """ Computes the weighted sum of multiple loss functions. """
 
     def __init__(
-        self,
-        task_losses: List[Dict[str, Any]],
-        loss_weighter_kwargs: Dict[str, Any],
+        self, task_losses: List[Dict[str, Any]], loss_weighter_kwargs: Dict[str, Any]
     ) -> None:
         """
         Init function for MultiTaskLoss.

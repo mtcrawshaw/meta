@@ -1,16 +1,9 @@
-Road Map
 
 
-Major versions:
-    PPO for single task
-    Multi-task/MetaWorld support
-    Training tools
---> Splitting networks for RL
-    Computer vision support
-    Sparse splitting networks
-    NLP support
+Splitting Networks
 
-Minor versions (MT10/MT50 baselines):
+
+Road map:
     Shared trunk architecture
     FC splitting networks (regions = layers)
     Meta splitting networks
@@ -54,38 +47,6 @@ Notes for current task:
 
 Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
 Change max_grad_norm to None for all configs (update baselines accordingly)
-
-----------------------------------------------------------------------------------------
-
-
-supervised_learning branch:
-
-
-The goal of this branch is to convert the trainer into a more modular system that can
-perform training for both RL settings and supervised learning settings, in order to
-implement the random multi-task loss weighting idea. Here's the roadmap:
-    Create Trainer and RLTrainer class with RL specific functionality
-    Create SLTrainer class with supervised learning functionality (toy dataset, single task)
-    Add tests for single task supervised learning
-    Add multi-task functionality + dataset
-    Implement loss weighting methods
-    Toy multi-task problem
-    Write tests
-    Loss weighting experiments
-    Refactoring
---> Merge to master
-
-Try to merge this branch with develop as often as possible (while maintaining stability)
-so that we don't have an impossible merge to perform later on.
-
-
-Current sprint (Refactoring):
-    Get SL tests to pass (that won't change significantly during refactoring)
-    Rename CLAW to SLAW and CLW to SLW
-    Move dataset info into Dataset objects
-    Don't repeat output_slice and label_slice
-    Fix hard-coded device for PCBA
-    Rewrite NYUv2 wrapper from scratch
 
 
 ----------------------------------------------------------------------------------------

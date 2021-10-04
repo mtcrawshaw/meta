@@ -89,10 +89,7 @@ class PCBA(Dataset, BaseDataset):
             "task_losses": [
                 {
                     "loss": nn.CrossEntropyLoss(
-                        weight=torch.as_tensor(
-                            CLASS_WEIGHTS,
-                            dtype=torch.float32,
-                        ),
+                        weight=torch.as_tensor(CLASS_WEIGHTS, dtype=torch.float32),
                         ignore_index=-1,
                         reduction="mean",
                     ),
