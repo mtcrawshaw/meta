@@ -52,6 +52,11 @@ Normalize grad_diff_stats by region size during grad_diff calculation instead of
 split time?
 
 
+BEFORE DOING ANYTHING ELSE: Merge from master. It may not be super clean or easy (the
+branches have diverged quite a bit), but importing those changes will allow us to run
+splitting networks for supervised learning.
+
+
 ----------------------------------------------------------------------------------------
 
 
