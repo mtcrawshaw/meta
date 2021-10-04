@@ -3,11 +3,12 @@
 
     "base_train_config": {
         "trainer": "SLTrainer",
-        "dataset": "MTRegression10",
+        "dataset": "MTRegression",
         "num_updates": 9900,
         "batch_size": 304,
         "num_workers": 8,
 
+        "dataset_kwargs": {"num_tasks": 10},
         "loss_weighter": {
             "type": "Constant",
             "loss_weights": null
@@ -46,7 +47,7 @@
         "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 0.12, "weight_lr": 0.025}},
         "DWA": {"loss_weighter": {"type": "DWA", "ema_alpha": 0.9, "temp": 2.0}},
         "PCGrad": {"PCGrad": "true"},
-        "CLAW": {"loss_weighter": {"type": "CLAW"}}
+        "SLAW": {"loss_weighter": {"type": "SLAW"}}
     },
 
     "seed": 0,

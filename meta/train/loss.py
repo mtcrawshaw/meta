@@ -622,9 +622,7 @@ class SLAW(LossWeighter):
         super(SLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
-            compute_stdev=True,
-            shape=(self.num_tasks,),
-            ema_alpha=0.99,
+            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=0.99
         )
 
     def _update_weights(self) -> None:
@@ -674,9 +672,7 @@ class SLAWTester(LossWeighter):
         self.last_step = random.randrange(self.step_bounds[0], self.step_bounds[1])
 
         self.loss_stats = RunningStats(
-            compute_stdev=True,
-            shape=(self.num_tasks,),
-            ema_alpha=0.99,
+            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=0.99
         )
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:

@@ -8,6 +8,10 @@
         "batch_size": 36,
         "num_workers": 8,
 
+        "dataset_kwargs": {
+            "task_type": "multitask",
+            "scale": 0.25
+        },
         "loss_weighter": {
             "type": "Constant",
             "loss_weights": null
@@ -44,7 +48,7 @@
         "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 1.5, "weight_lr": 0.025}},
         "DWA": {"loss_weighter": {"type": "DWA", "ema_alpha": 0.9, "temp": 2.0}},
         "PCGrad": {"PCGrad": "true"},
-        "CLAW": {"loss_weighter": {"type": "CLAW"}}
+        "SLAW": {"loss_weighter": {"type": "SLAW"}}
     },
 
     "seed": 0,

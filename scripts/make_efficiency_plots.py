@@ -127,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "results_path",
         type=str,
-        help="Path to CSV file containing results that will be plotted.",
+        help="Path to CSV file containing results that will be plotted. This CSV file has to be created manually.",
     )
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing plot file, if necessary.")
     args = parser.parse_args()

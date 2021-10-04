@@ -3,11 +3,15 @@
 
     "base_train_config": {
         "trainer": "SLTrainer",
-        "dataset": "PCBA32",
+        "dataset": "PCBA",
         "num_updates": 900,
         "batch_size": 40000,
         "num_workers": 0,
 
+        "dataset_kwargs": {
+            "num_tasks": 32,
+            "data_tasks": 32
+        },
         "loss_weighter": {
             "type": "Constant",
             "loss_weights": null
@@ -43,7 +47,7 @@
         "Constant": {"loss_weighter": {"type": "Constant"}},
         "GradNorm": {"loss_weighter": {"type": "GradNorm", "asymmetry": 0.12, "weight_lr": 0.025}},
         "PCGrad": {"PCGrad": "true"},
-        "CLAW": {"loss_weighter": {"type": "CLAW"}}
+        "SLAW": {"loss_weighter": {"type": "SLAW"}}
     },
 
     "seed": 0,
