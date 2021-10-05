@@ -14,6 +14,19 @@ from meta.utils.estimate import RunningStats
 
 
 EPSILON = 1e-5
+SUPPORTED_WEIGHTERS = [
+    "Constant",
+    "Uncertainty",
+    "GradNorm",
+    "DWA",
+    "MLDW",
+    "LBTW",
+    "NLW",
+    "RWLW",
+    "SLW",
+    "SLAW",
+    "SLAWTester",
+]
 
 
 class CosineSimilarityLoss(nn.Module):
@@ -127,28 +140,11 @@ class MultiTaskLoss(nn.Module):
         # Set task weighting strategy.
         loss_weighter = loss_weighter_kwargs["type"]
         del loss_weighter_kwargs["type"]
-        if loss_weighter not in [
-            "Constant",
-            "Uncertainty",
-            "GradNorm",
-            "DWA",
-            "MLDW",
-            "LBTW",
-            "NLW",
-            "RWLW",
-            "SLW",
-            "SLAW",
-            "SLAWTester",
-        ]:
+        if loss_weighter not in SUPPORTED_WEIGHTERS:
             raise NotImplementedError
         loss_weighter_cls = eval(loss_weighter)
         loss_weighter_kwargs["num_tasks"] = self.num_tasks
         self.loss_weighter = loss_weighter_cls(**loss_weighter_kwargs)
-
-        # Determine whether loss weights should be updated before or after task loss
-        # computation.
-        pre_loss_weighters = [Uncertainty, GradNorm, SLW, SLAW, SLAWTester]
-        self.pre_loss_update = loss_weighter_cls in pre_loss_weighters
 
     def forward(
         self,
@@ -203,7 +199,7 @@ class MultiTaskLoss(nn.Module):
             return task_loss_vals
 
         # Update loss weighter before loss computation, if necessary.
-        if train and self.pre_loss_update:
+        if train and self.loss_weighter.pre_loss_update:
             self.loss_weighter.update(task_loss_vals, **kwargs)
 
         # Compute total loss as weighted sum of task losses.
@@ -214,7 +210,7 @@ class MultiTaskLoss(nn.Module):
             total_loss += self.loss_weighter.regularization()
 
         # Update loss weighter after loss computation, if necessary.
-        if train and not self.pre_loss_update:
+        if train and not self.loss_weighter.pre_loss_update:
             self.loss_weighter.update(task_loss_vals, **kwargs)
 
         return total_loss
@@ -242,6 +238,18 @@ class LossWeighter(nn.Module):
         self.steps = 0
         self.MAX_HISTORY_LEN = 2
 
+        # Flag that determines whether weights are updated before loss computation or
+        # after loss computation.
+        self.pre_loss_update = False
+
+        # Flag that determines whether the loss values for the current step are passed
+        # to the `update_weights` function.
+        self.include_loss_vals = False
+
+        # Flag that determines whether the network is passed to the `update_weights`
+        # function.
+        self.include_network = False
+
     def update(self, loss_vals: torch.Tensor, **kwargs: Dict[str, Any]) -> None:
         """
         Compute new loss weights using most recent values of task losses. Extra
@@ -249,12 +257,9 @@ class LossWeighter(nn.Module):
         """
         self.loss_history.append(loss_vals.detach())
         self.loss_history = self.loss_history[-self.MAX_HISTORY_LEN :]
-        if (
-            isinstance(self, GradNorm)
-            or isinstance(self, SLW)
-            or isinstance(self, SLAWTester)
-        ):
+        if self.include_loss_vals:
             kwargs["loss_vals"] = loss_vals
+
         self._update_weights(**kwargs)
         self.steps += 1
 
@@ -293,6 +298,8 @@ class Uncertainty(LossWeighter):
             log_variance_t = -torch.log(2.0 * self.loss_weights)
         self.log_variance = nn.Parameter(log_variance_t)
 
+        self.pre_loss_update = True
+
     def regularization(self) -> torch.Tensor:
         """ Compute regularization term on loss weights. """
         return torch.sum(self.log_variance / 2.0)
@@ -324,6 +331,10 @@ class GradNorm(LossWeighter):
         # Create parameter for loss weights and the corresponding optimizer.
         self.loss_weight_p = nn.Parameter(self.loss_weights.clone().detach())
         self.loss_weight_optim = torch.optim.Adam(self.parameters(), lr=self.weight_lr)
+
+        self.pre_loss_update = True
+        self.include_loss_vals = True
+        self.include_network = True
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compute new loss weights. """
@@ -570,6 +581,10 @@ class SLW(LossWeighter):
         # Save state.
         self.grad_len = None
 
+        self.pre_loss_update = True
+        self.include_loss_vals = True
+        self.include_network = True
+
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compute new loss weights with SLW. """
 
@@ -627,6 +642,8 @@ class SLAW(LossWeighter):
             ema_alpha=0.99,
         )
 
+        self.pre_loss_update = True
+
     def _update_weights(self) -> None:
         """ Compute new loss weights with SLAW. """
 
@@ -668,6 +685,10 @@ class SLAWTester(LossWeighter):
         self.slaw_data_path = slaw_data_path
         self.slaw_log_path = slaw_log_path
         self.grad_len = None
+
+        self.pre_loss_update = True
+        self.include_loss_vals = True
+        self.include_network = True
 
         # Randomly generate the step index at which the SLAW vs. SLW comparison will be
         # made.
@@ -750,6 +771,65 @@ class SLAWTester(LossWeighter):
                     log_file.write(f"Exiting at step {self.steps}\n")
 
                 exit()
+
+
+class CoLossTester(LossWeighter):
+    """
+    Utility class to test whether the covariation in task losses is a useful signal of
+    task similarity.
+    """
+
+    def __init__(
+        self,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        """ Init function for CoLossTester. """
+
+        super(CoLossTester, self).__init__(**kwargs)
+
+        self.pre_loss_update = True
+        self.include_loss_vals = True
+        self.include_network = True
+
+        # Statistics for differences in task gradients.
+        self.grad_len = None
+        self.grad_diff_stats = RunningStats(
+            shape=(self.num_tasks, self.num_tasks),
+            ema_alpha=0.99,
+        )
+
+    def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
+        """ Compare SLW and SLAW weights. """
+
+        # Compute gradient of each task's loss on shared parameters.
+        task_grad_list = []
+        for task in range(self.num_tasks):
+            task_grad = torch.autograd.grad(
+                loss_vals[task], network.shared_params(), retain_graph=True
+            )
+            task_grad = torch.cat([grad.view(-1) for grad in task_grad])
+            task_grad_list.append(task_grad.detach())
+        task_grads = torch.stack(task_grad_list)
+
+        # Compute cosine similarity between each pair of task gradients. This is slow,
+        # so speed this up if we put it into production.
+        task_grad_diffs = torch.zeros(
+            self.num_tasks,
+            self.num_tasks,
+            device=task_grads.device
+        )
+        for t1 in range(self.num_tasks):
+            for t2 in range(t1 + 1, self.num_tasks):
+                g1 = task_grads[t1]
+                g1 = g1 / torch.sqrt(torch.sum(g1 ** 2))
+                g2 = task_grads[t2]
+                g2 = g2 / torch.sqrt(torch.sum(g2 ** 2))
+                cosine = torch.sum(g1 * g2)
+                task_grad_diffs[t1, t2] = cosine
+                task_grad_diffs[t2, t1] = cosine
+
+        # Update running stats for gradient diffs.
+        self.grad_diff_stats.update(task_grad_diffs)
 
 
 def save_batch(

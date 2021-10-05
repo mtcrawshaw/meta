@@ -111,16 +111,10 @@ class SLTrainer(Trainer):
         self.criterion = self.criterion.to(self.device)
 
         # Construct arguments to `self.criterion`. These are passed as arguments to the
-        # forward pass through `self.criterion`. Here we include the network itself as
-        # an argument to the loss function, since computing the task-specific gradients
-        # requires zero-ing out gradients between tasks, and this requires access to the
-        # Module containing the relevant parameters. Note that this will need to change
-        # in the case that GradNorm is operating over parameters outside of
-        # `self.network`, or if the task-specific loss functions are dependent on
-        # parameters outside of `self.network`.
+        # forward pass through `self.criterion`.
         criterion_kwargs = deepcopy(self.train_set.criterion_kwargs)
-        if "loss_weighter" in config:
-            if config["loss_weighter"]["type"] in ["GradNorm", "SLW", "SLAWTester"]:
+        if isinstance(self.criterion, MultiTaskLoss):
+            if self.criterion.loss_weighter.include_network:
                 criterion_kwargs["train"]["network"] = self.network
 
         # Determine whether or not to use PCGrad for training and check for appropriate
