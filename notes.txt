@@ -15,9 +15,10 @@ Sprints:
 
 Current sprint (Task loss covariance measurement):
     Measure cosine similarity between task gradients
---> Measure loss covariation
-    Compare cosine similarity with loss covariation
+    Measure loss covariation
+--> Compare cosine similarity with loss covariation
     Loss covariation variants
+    Measure transference?
 
 Loss covariation formula(s): At each step, we want to compute a value for each task that
 is representative of the task loss decrease at that step. Then, we want to compute the
@@ -33,7 +34,8 @@ functions. I'm not sure about the centering. If we do add the centering, then wh
 get is like a running correlation coefficient of the differences is loss values, which
 might be what we want. However, I am hesitant to do that because centering by the mean
 erases the information of whether or not the task loss increased or decreased, which
-might be important when comparing the loss changes in two tasks.
+might be important when comparing the loss changes in two tasks. Still, the first
+variation I'll probably try is with centering and dividing.
 
 
 ----------------------------------------------------------------------------------------

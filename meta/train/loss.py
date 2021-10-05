@@ -798,6 +798,16 @@ class CoLossTester(LossWeighter):
             ema_alpha=0.99,
         )
 
+        # Statistics for task loss covariation.
+        self.loss_diff_stats = RunningStats(
+            compute_stdev=True,
+            shape=(self.num_tasks,),
+        )
+        self.loss_covar_stats = RunningStats(
+            shape=(self.num_tasks, self.num_tasks),
+            ema_alpha=0.99,
+        )
+
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compare SLW and SLAW weights. """
 
@@ -816,7 +826,7 @@ class CoLossTester(LossWeighter):
         task_grad_diffs = torch.zeros(
             self.num_tasks,
             self.num_tasks,
-            device=task_grads.device
+            device=loss_vals.device
         )
         for t1 in range(self.num_tasks):
             for t2 in range(t1 + 1, self.num_tasks):
@@ -830,6 +840,19 @@ class CoLossTester(LossWeighter):
 
         # Update running stats for gradient diffs.
         self.grad_diff_stats.update(task_grad_diffs)
+
+        # Compute stats for difference in task loss over the last training step.
+        loss_diffs = self.loss_history[-1] - self.loss_history[-2]
+        self.loss_diff_stats.update(loss_diffs)
+        mean = self.loss_diff_stats.mean
+        stdev = self.loss_diff_stats.stdev
+        normal_loss_diffs = (loss_diffs - mean) / stdev
+
+        # Compute product of task loss differences for each pair of tasks.
+        loss_covar = normal_loss_diffs.unsqueeze(0) * normal_loss_diffs.unsqueeze(1)
+
+        # Update running stats for task loss covariation.
+        self.loss_covar_stats.update(loss_covar)
 
 
 def save_batch(
