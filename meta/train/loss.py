@@ -781,11 +781,18 @@ class CoLossTester(LossWeighter):
 
     def __init__(
         self,
+        save_steps: List[int],
+        save_name: str,
         **kwargs: Dict[str, Any],
     ) -> None:
         """ Init function for CoLossTester. """
 
         super(CoLossTester, self).__init__(**kwargs)
+
+        # Save state.
+        self.save_steps = sorted(save_steps)
+        self.save_name = save_name
+        self.snapshots = []
 
         self.pre_loss_update = True
         self.include_loss_vals = True
@@ -853,6 +860,17 @@ class CoLossTester(LossWeighter):
 
         # Update running stats for task loss covariation.
         self.loss_covar_stats.update(loss_covar)
+
+        # Save current statistics, if necessary.
+        if self.steps in self.save_steps:
+            grad_stats_arr = self.grad_diff_stats.mean.cpu().numpy()
+            loss_stats_arr = self.loss_covar_stats.mean.cpu().numpy()
+            combined_stats = np.stack([grad_stats_arr, loss_stats_arr])
+            self.snapshots.append(combined_stats)
+
+        if self.steps == self.save_steps[-1]:
+            snapshots_arr = np.stack(self.snapshots)
+            np.save(self.save_name, snapshots_arr)
 
 
 def save_batch(
