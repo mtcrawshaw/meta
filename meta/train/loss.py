@@ -26,6 +26,7 @@ SUPPORTED_WEIGHTERS = [
     "SLW",
     "SLAW",
     "SLAWTester",
+    "CoLossTester",
 ]
 
 
@@ -868,9 +869,10 @@ class CoLossTester(LossWeighter):
             combined_stats = np.stack([grad_stats_arr, loss_stats_arr])
             self.snapshots.append(combined_stats)
 
+        # Save final statistics if this is the last save step.
         if self.steps == self.save_steps[-1]:
             snapshots_arr = np.stack(self.snapshots)
-            np.save(self.save_name, snapshots_arr)
+            np.save(f"{self.save_name}.npy", snapshots_arr)
 
 
 def save_batch(
