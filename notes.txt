@@ -1,64 +1,6 @@
+
+
 Road Map
-
-
-Major versions:
-    PPO for single task
-    Multi-task/MetaWorld support
-    Training tools
---> Splitting networks for RL
-    Computer vision support
-    Sparse splitting networks
-    NLP support
-
-Minor versions (MT10/MT50 baselines):
-    Shared trunk architecture
-    FC splitting networks (regions = layers)
-    Meta splitting networks
---> Evaluation + baselines (
-        PCGrad,
-        Branched MT networks,
-        soft layer ordering,
-        modular meta learning (code available),
-        AdaShare,
-        Piggyback (code available),
-        sparse sharing (code available),
-        routing networks (code available),
-    )
-    Refactoring
-
-Current sprint (Evaluation + baselines):
-    Update Meta-World
-    Benchmark performance for single-task learning
---> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
-    Benchmark performance for meta-learning with splitting networks
-    Improve performance for single-task learning
-    Improve performance for multi-task learning with splitting networks
-    Improve performance for meta-learning with splitting networks
-    Baselines?
-
-Splitting network improvements:
-- Use cosine distance to split instead of Euclidean distance
-- Try retraining an already split architecture from scratch (keep initialization?)
-
-Overall performance improvements:
-- Use SAC instead of PPO
-- Hyperparameter tuning
-- Combine splitting networks with PCGrad
-
-Notes for current task:
-- Implement splitting by cosine distance instead of Euclidean distance (DONE)
-- Test cosine distance splitting networks (DONE)
-- Make cosine distance computation more efficient (DONE)
-- Run evaluations with cosine distance
-- Implement training on pre-split architecture
-
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Change max_grad_norm to None for all configs (update baselines accordingly)
-
-----------------------------------------------------------------------------------------
-
-
-complete_knowledge_distillation branch:
 
 
 The goal of this branch is to implement Complete Knowledge Distillation within our
@@ -98,6 +40,13 @@ parallelization on the GPU, so this might kill the GPU idea. For now, just try t
 the current script to handle the student/teacher setup and perform training. If this
 works okay, we should think seriously about increasing efficiency and possibly bring it
 to Jana.
+
+Tasks:
+    Approximate output of a single network with a symbolic polynomial
+--> Approximate difference between two networks (on sampled data)
+    Approximate difference between two networks over entire data distribution
+    Train student network to match teacher with supervised learning
+    Train student network to match teacher with complete knowledge distillation
 
 
 ----------------------------------------------------------------------------------------
