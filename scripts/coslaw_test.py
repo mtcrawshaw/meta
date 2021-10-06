@@ -6,21 +6,38 @@ similarity in multi-task learning.
 import os
 import json
 import argparse
-import random
-from math import sqrt, floor, ceil
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker
+from matplotlib.pyplot import cm
 
 
-BASE_CONFIG_PATH = "configs/pcba_coslaw.json"
+BASE_CONFIG_PATH = "configs/pcba.json"
 TRIAL_CONFIG_PATH = "configs/temp_coslaw_test.json"
+NUM_TRIALS = 10
+NUM_TASKS = 32
+NUM_STEPS = 10
+NUM_SAVES = 2
 DATA_PATH = "data/coloss_test_data.npy"
 PLOT_PATH = "data/coloss_test_plot.png"
-MARKERS = [".", "v", "^", "s", "+", "x", "|", "_", "P", "1"]
-NUM_TRIALS = 10
 MARKER_SIZE = 12
+SUBPLOT_SIZE = (4, 4)
+
+
+def upper_triangle(arr: np.ndarray) -> np.ndarray:
+    """ Return the flattened upper triangle of a 2-D square numpy array. """
+
+    assert len(arr.shape) == 2
+    m, n = arr.shape
+    assert m == n
+    flattened = np.zeros((n * (n - 1)) // 2)
+    count = 0
+    for i in range(n-1):
+        k = n - i - 1
+        flattened[count: count+k] = arr[i, i+1:]
+        count += k
+
+    return flattened
 
 
 def collect_samples():
@@ -33,13 +50,24 @@ def collect_samples():
     with open(BASE_CONFIG_PATH, "r") as base_config_file:
         base_config = json.load(base_config_file)
 
+    # Modify base config for our case.
+    save_steps = [((i+1) * NUM_STEPS) // NUM_SAVES - 1 for i in range(NUM_SAVES)]
+    base_config["num_updates"] = NUM_STEPS
+    base_config["loss_weighter"] = {
+        "type": "CoLossTester",
+        "loss_weights": None,
+        "save_steps": save_steps,
+        "data_path": DATA_PATH,
+    }
+    base_config["evaluation_freq"] = NUM_STEPS
+    base_config["cuda"] = True
+
     # Run trials.
     for trial in range(NUM_TRIALS):
 
         # Write out trial config.
         trial_config = dict(base_config)
         trial_config["seed"] = trial
-        trial_config["loss_weighter"]["save_name"] = f"coloss_test_{trial}"
         with open(TRIAL_CONFIG_PATH, "w") as f:
             json.dump(trial_config, f, indent=4)
 
@@ -54,7 +82,7 @@ def collect_samples():
 def main(reuse: bool = False):
     """ Main function for slaw_test.py. """
 
-    # Make sure that data and log paths are clear, if necessary.
+    # Make sure that data path is clear, if we aren't reusing old data.
     data_exists = os.path.isfile(DATA_PATH)
     plot_exists = os.path.isfile(PLOT_PATH)
     if reuse:
@@ -65,54 +93,33 @@ def main(reuse: bool = False):
             raise ValueError(f"File '{DATA_PATH}' already exists.")
         if plot_exists:
             raise ValueError(f"File '{PLOT_PATH}' already exists.")
-
         collect_samples()
-
-    # TEMP
-    exit()
 
     # Set plot font and figure size.
     plt.rcParams["font.family"] = "Times New Roman"
     plt.rcParams["font.size"] = 9
-    plt.rcParams["figure.figsize"] = (3.2, 2.4)
+    plt.rcParams["figure.figsize"] = (SUBPLOT_SIZE[0] * NUM_TRIALS, SUBPLOT_SIZE[1] * NUM_SAVES)
 
-    # Plot results.
-    weights = np.load(SLAW_DATA_PATH)
-    weights = np.transpose(weights, [2, 0, 1])
-    num_tasks = weights.shape[0]
-    num_samples = weights.shape[1]
-    cmap = plt.get_cmap("tab10")
-    for sample in range(num_samples):
-        task = random.randrange(num_tasks)
-        color = cmap(task)
-        marker = MARKERS[task]
-        plt.scatter(weights[task, sample, 0], weights[task, sample, 1], c=color, marker=marker, s=MARKER_SIZE)
+    # Read in collective data.
+    task_similarity = np.load(DATA_PATH)
+    assert task_similarity.shape[0] == NUM_TRIALS
+    assert task_similarity.shape[1] == NUM_SAVES
 
-    # Title plot and axes.
-    plt.title("Loss Weight Estimation by SLAW")
-    plt.xlabel(r"$w_i$ (Equation 4)", usetex=True)
-    plt.ylabel(r"$w_i$ (SLAW, Equation 9)", usetex=True)
-
-    # Transform axis scales.
-    ax = plt.gca()
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-    x_vals = weights[:, :, 0].flatten()
-    y_vals = weights[:, :, 1].flatten()
-    for axis, vals in zip(["x", "y"], [x_vals, y_vals]):
-        logs = np.log(vals) / np.log(2)
-        low = floor(float(logs.min()))
-        high = ceil(float(logs.max()))
-        ticks = [2 ** p for p in range(low, high + 1)]
-        if axis == "x":
-            ax.set_xticks(ticks)
-        else:
-            ax.set_yticks(ticks)
+    # Plot predicted task similarities.
+    fig, ax = plt.subplots(NUM_TRIALS, NUM_SAVES)
+    num_points = (NUM_TASKS * (NUM_TASKS - 1)) // 2
+    for trial in range(NUM_TRIALS):
+        for save in range(NUM_SAVES):
+            cosine_similarity = upper_triangle(task_similarity[trial, save, 0])
+            loss_covar = upper_triangle(task_similarity[trial, save, 1])
+            assert cosine_similarity.shape == (num_points,)
+            assert loss_covar.shape == (num_points,)
+            c_iter = iter(cm.rainbow(np.linspace(0, 1, num_points)))
+            c = [next(c_iter) for _ in range(num_points)]
+            ax[trial, save].scatter(cosine_similarity, loss_covar, c=c, s=MARKER_SIZE)
 
     # Save plot.
-    plt.savefig(SLAW_PLOT_PATH, bbox_inches="tight")
+    plt.savefig(PLOT_PATH, bbox_inches="tight")
 
 
 if __name__ == "__main__":

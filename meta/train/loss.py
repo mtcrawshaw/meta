@@ -783,7 +783,7 @@ class CoLossTester(LossWeighter):
     def __init__(
         self,
         save_steps: List[int],
-        save_name: str,
+        data_path: str,
         **kwargs: Dict[str, Any],
     ) -> None:
         """ Init function for CoLossTester. """
@@ -792,7 +792,7 @@ class CoLossTester(LossWeighter):
 
         # Save state.
         self.save_steps = sorted(save_steps)
-        self.save_name = save_name
+        self.data_path = data_path
         self.snapshots = []
 
         self.pre_loss_update = True
@@ -818,6 +818,13 @@ class CoLossTester(LossWeighter):
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:
         """ Compare SLW and SLAW weights. """
+
+        # Continue if this is the first optimization step, since there is no previous
+        # step to compare current loss against. We also don't start updating the running
+        # statistics until after the second step, since the normalized loss differences
+        # require division by a standard deviation.
+        if self.steps == 0:
+            return
 
         # Compute gradient of each task's loss on shared parameters.
         task_grad_list = []
@@ -846,8 +853,10 @@ class CoLossTester(LossWeighter):
                 task_grad_diffs[t1, t2] = cosine
                 task_grad_diffs[t2, t1] = cosine
 
-        # Update running stats for gradient diffs.
-        self.grad_diff_stats.update(task_grad_diffs)
+        # Update running stats for gradient diffs, if this isn't the first or second
+        # step.
+        if self.steps > 1:
+            self.grad_diff_stats.update(task_grad_diffs)
 
         # Compute stats for difference in task loss over the last training step.
         loss_diffs = self.loss_history[-1] - self.loss_history[-2]
@@ -859,8 +868,10 @@ class CoLossTester(LossWeighter):
         # Compute product of task loss differences for each pair of tasks.
         loss_covar = normal_loss_diffs.unsqueeze(0) * normal_loss_diffs.unsqueeze(1)
 
-        # Update running stats for task loss covariation.
-        self.loss_covar_stats.update(loss_covar)
+        # Update running stats for task loss covariation, if this isn't the first or
+        # second step.
+        if self.steps > 1:
+            self.loss_covar_stats.update(loss_covar)
 
         # Save current statistics, if necessary.
         if self.steps in self.save_steps:
@@ -872,7 +883,16 @@ class CoLossTester(LossWeighter):
         # Save final statistics if this is the last save step.
         if self.steps == self.save_steps[-1]:
             snapshots_arr = np.stack(self.snapshots)
-            np.save(f"{self.save_name}.npy", snapshots_arr)
+            snapshots_arr = np.expand_dims(snapshots_arr, axis=0)
+
+            # Combine existing history with current snapshots.
+            if os.path.isfile(self.data_path):
+                snapshot_history = np.load(self.data_path)
+                snapshot_history = np.concatenate([snapshot_history, snapshots_arr])
+            else:
+                snapshot_history = snapshots_arr
+
+            np.save(self.data_path, snapshot_history)
 
 
 def save_batch(
