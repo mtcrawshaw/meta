@@ -5,8 +5,9 @@ Current state of the script: Approximate the difference between the outputs of t
 neural networks with a single power series.
 """
 
-from math import factorial
-from typing import List, Tuple
+import random
+from math import factorial, pi
+from typing import List, Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -14,15 +15,15 @@ import sympy
 from sympy import expand, Symbol, Expr, Number, Add, Mul, Pow
 
 
-INPUT_SIZE = 10
-OUTPUT_SIZE = 10
-NUM_TEACHER_LAYERS = 2
-TEACHER_HIDDEN_SIZE = 15
-NUM_STUDENT_LAYERS = 2
-STUDENT_HIDDEN_SIZE = 5
+INPUT_SIZE = 2
+OUTPUT_SIZE = 2
+NUM_TEACHER_LAYERS = 1
+TEACHER_HIDDEN_SIZE = 1
+NUM_STUDENT_LAYERS = 1
+STUDENT_HIDDEN_SIZE = 1
 
-MAX_PS_DEGREE = 5
-BATCH_SIZE = 100
+MAX_PS_DEGREE = 3
+BATCH_SIZE = 5
 
 SEED = 0
 
@@ -33,6 +34,15 @@ class ExpActivation(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """ Forward function for ExpActivation. """
         return torch.exp(inputs)
+
+
+def double_factorial(i: int) -> int:
+    """ Compute double factorial of i. """
+    p = 1
+    while i > 0:
+        p *= i
+        i -= 2
+    return p
 
 
 def network_to_expr(
@@ -130,6 +140,20 @@ def is_monomial(expr: Expr) -> bool:
         monomial = False
 
     return monomial
+
+
+def get_monomial_terms(expr: Expr) -> List[Expr]:
+    """
+    Return a list of terms from a monomial. Example: x*y**2 -> [x, y**2]. Note that it
+    is assumed that `is_monomial(expr)` would return True.
+    """
+    if is_constant(expr) or expr.func == Pow:
+        return [expr]
+    elif expr.func == Mul:
+        return list(expr.args)
+    else:
+        # This should never happen.
+        assert False
 
 
 def evaluate_symbol(
@@ -240,6 +264,74 @@ def estimate_output(
     return estimated_output
 
 
+def is_input_symbol(sym: Symbol) -> bool:
+    """ Whether `sym` is an input symbol. """
+    return isinstance(sym, Symbol) and sym.name.startswith("x")
+
+
+def gaussian_integral(expr: Expr, d: int) -> Expr:
+    """
+    Symbolically computes the definite integral of `expr` as the input symbols xi vary
+    according to the spherical unit Gaussian distribution over R^d. Note that `expr`
+    must be a sum of monomials.
+    """
+
+    integral = 0
+
+    # Check that `network_expr` is a sum of monomials.
+    assert expr.func == Add
+    for monomial in expr.args:
+        assert is_monomial(monomial)
+
+        # Compute integral iteratively over each term. Constants and weight/bias symbols
+        # just get pulled out, input symbols with even power are integrated over. If
+        # there are any input symbols with odd power, the integral of the entire
+        # monomial is zero.
+        current_integral = 1
+        terms = get_monomial_terms(monomial)
+        nonzero = True
+        for term in terms:
+
+            if term.func == Pow:
+                base, power = term.args
+                if is_input_symbol(base):
+                    if power % 2 == 0:
+                        j = power // 2
+                        current_integral *= double_factorial(2*j - 1) / 2 ** j
+                    else:
+                        nonzero = False
+                        break
+                else:
+                    current_integral *= term
+
+            elif is_constant(term):
+                if is_input_symbol(term):
+                    nonzero = False
+                    break
+                else:
+                    current_integral *= term
+
+            else:
+                # This should never happen.
+                assert False
+
+        if nonzero:
+            current_integral *= pi ** (d / 2)
+            integral += current_integral
+
+    return integral
+
+
+def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> float:
+    """
+    Evaluate `error_expr`. This expression should depend only on constants and symbols
+    with names of the form `wi_j_k_<name>`, `bi_j_<name>`, which correspond to weights
+    and biases from networks in `networks`. The name at the end of each symbol name
+    should be a key in `networks`.
+    """
+    raise NotImplementedError
+
+
 def get_network(
     input_size: int, output_size: int, hidden_size: int, num_layers: int
 ) -> nn.Module:
@@ -316,39 +408,31 @@ def main():
         student, input_symbols, student_weight_symbols, student_bias_symbols
     )
     assert len(teacher_expr) == len(student_expr)
-    error_expr = sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr))
+    error_expr = expand(sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr)))
 
     # Generate input data to test difference approximation.
     mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
     std = torch.ones((BATCH_SIZE, INPUT_SIZE))
     input_data = torch.normal(mean, std)
 
-    # Get actual student error.
+    # Get actual student error on batch.
     teacher_out = teacher(input_data)
     student_out = student(input_data)
     student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
 
-    # Get estimated student error.
-    estimated_teacher_out = torch.zeros_like(teacher_out)
-    for i in range(input_data.shape[0]):
-        estimated_teacher_out[i] = estimate_output(input_data[i], teacher, teacher_expr)
-    estimated_student_out = torch.zeros_like(student_out)
-    for i in range(input_data.shape[0]):
-        estimated_student_out[i] = estimate_output(input_data[i], student, student_expr)
-    estimated_student_error = torch.sum(
-        (estimated_teacher_out - estimated_student_out) ** 2,
-        dim=1
-    )
+    # Get estimated student error over entire data distribution.
+    networks = {"teacher": teacher, "student": student}
+    complete_error_expr = gaussian_integral(error_expr, INPUT_SIZE)
+    print(complete_error_expr)
+    complete_error = evaluate_error(complete_error_expr, networks)
 
     # Compare errors.
     avg_student_error = torch.mean(student_error).item()
-    avg_estimated_student_error = torch.mean(estimated_student_error).item()
-    avg_error = torch.mean((student_error - estimated_student_error) ** 2)
+    avg_error = (avg_student_error - complete_error) ** 2
     print(f"Actual student errors: {student_error}")
-    print(f"Estimated student errors: {estimated_student_error}")
     print(f"Avg student error: {avg_student_error}")
-    print(f"Avg estimated student error: {avg_estimated_student_error}")
-    print(f"Mean error: {avg_error}")
+    print(f"Complete error: {complete_error}")
+    print(f"Diff: {avg_error}")
 
 
 if __name__ == "__main__":
