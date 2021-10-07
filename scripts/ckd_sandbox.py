@@ -1,12 +1,12 @@
 """
 Playing around with Complete Knowledge Distillation.
 
-Current state of the script: See how well we can approximate the output of a fully
-connected neural network by a power series.
+Current state of the script: Approximate the difference between the outputs of two
+neural networks with a single power series.
 """
 
 from math import factorial
-from typing import List
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -14,12 +14,17 @@ import sympy
 from sympy import expand, Symbol, Expr, Number, Add, Mul, Pow
 
 
-INPUT_SIZE = 2
-OUTPUT_SIZE = 2
-NUM_LAYERS = 3
-HIDDEN_SIZE = 2
-MAX_PS_DEGREE = 4
-BATCH_SIZE = 5
+INPUT_SIZE = 10
+OUTPUT_SIZE = 10
+NUM_TEACHER_LAYERS = 2
+TEACHER_HIDDEN_SIZE = 15
+NUM_STUDENT_LAYERS = 2
+STUDENT_HIDDEN_SIZE = 5
+
+MAX_PS_DEGREE = 5
+BATCH_SIZE = 100
+
+SEED = 0
 
 
 class ExpActivation(nn.Module):
@@ -142,15 +147,17 @@ def evaluate_symbol(
     elif symbol.name.startswith("w"):
         first_pos = symbol.name.find("_")
         second_pos = symbol.name.find("_", first_pos + 1)
+        last_pos = symbol.name.find("_", second_pos + 1)
         layer = int(symbol.name[1:first_pos])
         out_unit = int(symbol.name[first_pos + 1 : second_pos])
-        in_unit = int(symbol.name[second_pos + 1 :])
+        in_unit = int(symbol.name[second_pos + 1 : last_pos])
         val = network[layer][0].weight[out_unit, in_unit]
 
     elif symbol.name.startswith("b"):
-        pos = symbol.name.find("_")
-        layer = int(symbol.name[1:pos])
-        out_unit = int(symbol.name[pos + 1 :])
+        first_pos = symbol.name.find("_")
+        second_pos = symbol.name.find("_", first_pos + 1)
+        layer = int(symbol.name[1:first_pos])
+        out_unit = int(symbol.name[first_pos + 1 : second_pos])
         val = network[layer][0].bias[out_unit]
 
     else:
@@ -233,54 +240,115 @@ def estimate_output(
     return estimated_output
 
 
-def main():
-    """ Main function for ckd_sandbox.py. """
+def get_network(
+    input_size: int, output_size: int, hidden_size: int, num_layers: int
+) -> nn.Module:
+    """
+    Construct an MLP with the given parameters and exponential activation units.
+    """
 
-    # Construct network.
     layers = []
-    for i in range(NUM_LAYERS):
-
-        # Construct linear layer, adding activation if necessary.
+    for i in range(num_layers):
         layer = []
-        layer_in = INPUT_SIZE if i == 0 else HIDDEN_SIZE
-        layer_out = OUTPUT_SIZE if i == NUM_LAYERS - 1 else HIDDEN_SIZE
+        layer_in = input_size if i == 0 else hidden_size
+        layer_out = output_size if i == num_layers - 1 else hidden_size
         layer.append(nn.Linear(layer_in, layer_out))
-        if i < NUM_LAYERS - 1:
+        if i < num_layers - 1:
             layer.append(ExpActivation())
         layers.append(nn.Sequential(*layer))
+    return nn.Sequential(*layers)
 
-    network = nn.Sequential(*layers)
+def get_network_symbols(
+    input_size: int, output_size: int, hidden_size: int, num_layers: int, name: str,
+) -> Tuple[List[List[List[Symbol]]], List[List[Symbol]]]:
+    """
+    Construct SymPy symbols for network weights and biases. Returns nested lists of
+    SymPy symbols representing weights and biases.
+    """
 
-    # Construct SymPy symbols for network inputs, weights, and biases.
-    input_symbols = [Symbol(f"x{i}") for i in range(INPUT_SIZE)]
     weight_symbols = []
     bias_symbols = []
-    for i in range(NUM_LAYERS):
-        layer_in = INPUT_SIZE if i == 0 else HIDDEN_SIZE
-        layer_out = OUTPUT_SIZE if i == NUM_LAYERS - 1 else HIDDEN_SIZE
+    for i in range(num_layers):
+        layer_in = input_size if i == 0 else hidden_size
+        layer_out = output_size if i == num_layers - 1 else hidden_size
         weight_symbols.append([])
         bias_symbols.append([])
         for j in range(layer_out):
             weight_symbols[i].append([])
             for k in range(layer_in):
-                weight_symbols[i][j].append(Symbol(f"w{i}_{j}_{k}"))
-            bias_symbols[i].append(Symbol(f"b{i}_{j}"))
+                weight_symbols[i][j].append(Symbol(f"w{i}_{j}_{k}_{name}"))
+            bias_symbols[i].append(Symbol(f"b{i}_{j}_{name}"))
 
-    # Get power series representation of output.
-    network_expr = network_to_expr(network, input_symbols, weight_symbols, bias_symbols)
+    return weight_symbols, bias_symbols
 
-    # Generate input data to test network approximation.
+def main():
+    """ Main function for ckd_sandbox.py. """
+
+    # Set random seed.
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+
+    # Construct teacher and student network.
+    teacher = get_network(
+        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS
+    )
+    student = get_network(
+        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS
+    )
+
+    # Construct SymPy symbols for network inputs.
+    input_symbols = [Symbol(f"x{i}") for i in range(INPUT_SIZE)]
+
+    # Construct SymPy symbols for network inputs, weights, and biases.
+    teacher_weight_symbols, teacher_bias_symbols = get_network_symbols(
+        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS, name="teacher"
+    )
+    student_weight_symbols, student_bias_symbols = get_network_symbols(
+        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, name="student"
+    )
+
+    # Get power series representation of output for teacher and student, and their
+    # difference.
+    teacher_expr = network_to_expr(
+        teacher, input_symbols, teacher_weight_symbols, teacher_bias_symbols
+    )
+    student_expr = network_to_expr(
+        student, input_symbols, student_weight_symbols, student_bias_symbols
+    )
+    assert len(teacher_expr) == len(student_expr)
+    error_expr = sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr))
+
+    # Generate input data to test difference approximation.
     mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
     std = torch.ones((BATCH_SIZE, INPUT_SIZE))
     input_data = torch.normal(mean, std)
 
-    # Get actual network output, estimated output, and compare.
-    actual_output = network(input_data)
-    estimated_output = torch.zeros_like(actual_output)
+    # Get actual student error.
+    teacher_out = teacher(input_data)
+    student_out = student(input_data)
+    student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
+
+    # Get estimated student error.
+    estimated_teacher_out = torch.zeros_like(teacher_out)
     for i in range(input_data.shape[0]):
-        estimated_output[i] = estimate_output(input_data[i], network, network_expr)
-    error = torch.mean((actual_output - estimated_output) ** 2).item()
-    print(f"Mean error: {error}")
+        estimated_teacher_out[i] = estimate_output(input_data[i], teacher, teacher_expr)
+    estimated_student_out = torch.zeros_like(student_out)
+    for i in range(input_data.shape[0]):
+        estimated_student_out[i] = estimate_output(input_data[i], student, student_expr)
+    estimated_student_error = torch.sum(
+        (estimated_teacher_out - estimated_student_out) ** 2,
+        dim=1
+    )
+
+    # Compare errors.
+    avg_student_error = torch.mean(student_error).item()
+    avg_estimated_student_error = torch.mean(estimated_student_error).item()
+    avg_error = torch.mean((student_error - estimated_student_error) ** 2)
+    print(f"Actual student errors: {student_error}")
+    print(f"Estimated student errors: {estimated_student_error}")
+    print(f"Avg student error: {avg_student_error}")
+    print(f"Avg estimated student error: {avg_estimated_student_error}")
+    print(f"Mean error: {avg_error}")
 
 
 if __name__ == "__main__":

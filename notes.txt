@@ -43,8 +43,8 @@ to Jana.
 
 Tasks:
     Approximate output of a single network with a symbolic polynomial
---> Approximate difference between two networks (on sampled data)
-    Approximate difference between two networks over entire data distribution
+    Approximate difference between two networks (on sampled data)
+--> Approximate difference between two networks over entire data distribution
     Train student network to match teacher with supervised learning
     Train student network to match teacher with complete knowledge distillation
 
