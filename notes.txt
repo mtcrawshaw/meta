@@ -44,10 +44,17 @@ to Jana.
 Tasks:
     Approximate output of a single network with a symbolic polynomial
     Approximate difference between two networks (on sampled data)
---> Approximate difference between two networks over entire data distribution
-    Train student network to match teacher with supervised learning
+    Approximate difference between two networks over entire data distribution
+--> Train student network to match teacher with supervised learning (move to CKDTrainer?)
     Train student network to match teacher with complete knowledge distillation
 
+Other directions worth exploring:
+- Implement CKD for convolutional networks
+- Compute the number of terms in the final expression as a function of the number of
+  layers, the hidden size, input size, output size, and the power series truncation
+  constant. Do the same thing for convolutional networks, which will likely have a much
+  shorter error expression.
+ 
 
 ----------------------------------------------------------------------------------------
 
