@@ -5,7 +5,11 @@ Current state of the script: Approximate the difference between the outputs of t
 neural networks with a single power series.
 """
 
+import os
 import random
+import time
+import pickle
+import argparse
 from math import factorial, pi
 from typing import List, Tuple, Dict
 
@@ -15,17 +19,22 @@ import sympy
 from sympy import expand, Symbol, Expr, Number, Add, Mul, Pow
 
 
-INPUT_SIZE = 2
-OUTPUT_SIZE = 2
-NUM_TEACHER_LAYERS = 1
-TEACHER_HIDDEN_SIZE = 1
-NUM_STUDENT_LAYERS = 1
-STUDENT_HIDDEN_SIZE = 1
+INPUT_SIZE = 3
+OUTPUT_SIZE = 3
+NUM_TEACHER_LAYERS = 2
+TEACHER_HIDDEN_SIZE = 5
+NUM_STUDENT_LAYERS = 2
+STUDENT_HIDDEN_SIZE = 3
 
-MAX_PS_DEGREE = 3
-BATCH_SIZE = 5
+MAX_PS_DEGREE = 4
 
+NUM_UPDATES = 10000
+BATCH_SIZE = 100000
+LR = 3e-4
+MOMENTUM = 0.9
 SEED = 0
+
+LOSS_EXPR_PATH = "./data/ckd_loss_expr.pkl"
 
 
 class ExpActivation(nn.Module):
@@ -156,45 +165,40 @@ def get_monomial_terms(expr: Expr) -> List[Expr]:
         assert False
 
 
-def evaluate_symbol(
-    input_data: torch.Tensor, network: nn.Module, symbol: Symbol
-) -> torch.Tensor:
+def evaluate_symbol(symbol: Symbol, networks: Dict[str, nn.Module]) -> torch.Tensor:
     """
-    Evaluate a symbol representing an input element or a network parameter, and return
-    the corresponding torch Tensor.
+    Evaluate a symbol representing a network parameter and return the corresponding
+    torch Tensor. `symbol.name` should be of the form `wi_j_k_<name>` or `bi_j_<name>`,
+    where <name> is a key in `networks`.
     """
 
-    if symbol.name.startswith("x"):
-        idx = int(symbol.name[1:])
-        val = input_data[idx]
-
-    elif symbol.name.startswith("w"):
+    if symbol.name.startswith("w"):
         first_pos = symbol.name.find("_")
         second_pos = symbol.name.find("_", first_pos + 1)
         last_pos = symbol.name.find("_", second_pos + 1)
         layer = int(symbol.name[1:first_pos])
         out_unit = int(symbol.name[first_pos + 1 : second_pos])
         in_unit = int(symbol.name[second_pos + 1 : last_pos])
-        val = network[layer][0].weight[out_unit, in_unit]
+        name = symbol.name[last_pos + 1:]
+        val = networks[name][layer][0].weight[out_unit, in_unit]
 
     elif symbol.name.startswith("b"):
         first_pos = symbol.name.find("_")
         second_pos = symbol.name.find("_", first_pos + 1)
         layer = int(symbol.name[1:first_pos])
         out_unit = int(symbol.name[first_pos + 1 : second_pos])
-        val = network[layer][0].bias[out_unit]
+        name = symbol.name[second_pos + 1:]
+        val = networks[name][layer][0].bias[out_unit]
 
     else:
         raise ValueError(
-            "Can only handle symbols with names starting with 'x', 'w', or 'b'."
+            "Can only handle symbols with names starting with 'w' or 'b'."
         )
 
     return val
 
 
-def evaluate_monomial(
-    input_data: torch.Tensor, network: nn.Module, monomial: Expr
-) -> torch.Tensor:
+def evaluate_monomial(monomial: Expr, networks: Dict[str, nn.Module]) -> torch.Tensor:
     """
     Numberically evaluate a monomial expression by substituting torch tensors in for the
     symbols, returning a torch Tensor.
@@ -204,64 +208,26 @@ def evaluate_monomial(
         val = torch.Tensor([float(monomial)])
 
     elif monomial.func == Symbol:
-        val = evaluate_symbol(input_data, network, monomial)
+        val = evaluate_symbol(monomial, networks)
 
     elif monomial.func == Pow:
         base, exp = monomial.args
         if issubclass(base.func, Number):
             base_val = torch.Tensor([float(base)])
         else:
-            base_val = evaluate_symbol(input_data, network, base)
+            base_val = evaluate_symbol(base, networks)
         exp_val = torch.Tensor([float(exp)])
         val = torch.pow(base_val, exp_val)
 
     elif monomial.func == Mul:
         val = torch.Tensor([1])
         for subexpr in monomial.args:
-            if issubclass(subexpr.func, Number):
-                val *= torch.Tensor([float(subexpr)])
-            elif subexpr.func == Symbol:
-                val *= evaluate_symbol(input_data, network, subexpr)
-            elif subexpr.func == Pow:
-                base, exp = subexpr.args
-                if issubclass(base.func, Number):
-                    base_val = torch.Tensor([float(base)])
-                else:
-                    base_val = evaluate_symbol(input_data, network, base)
-                exp_val = torch.Tensor([float(exp)])
-                val *= torch.pow(base_val, exp_val)
-            else:
-                assert False
+            val *= evaluate_monomial(subexpr, networks)
+
     else:
         assert False
 
     return val
-
-
-def estimate_output(
-    input_data: torch.Tensor, network: nn.Module, network_expr: List[Expr]
-) -> torch.Tensor:
-    """
-    Estimate the output of the neural network whose approximate expression is
-    `network_expr` by evaluating the expression on input `input_data`. Input data should
-    have shape `(INPUT_SIZE,)`.
-    """
-
-    # Check that `network_expr` is a sum of monomials.
-    for expr in network_expr:
-        assert expr.func == Add
-        for subexpr in expr.args:
-            assert is_monomial(subexpr)
-
-    # Construct output from network expression.
-    estimated_output = torch.zeros(len(network_expr))
-    for i, expr in enumerate(network_expr):
-        for subexpr in expr.args:
-            estimated_output[i] += evaluate_monomial(
-                input_data, network, subexpr
-            ).squeeze()
-
-    return estimated_output
 
 
 def is_input_symbol(sym: Symbol) -> bool:
@@ -297,7 +263,7 @@ def gaussian_integral(expr: Expr, d: int) -> Expr:
                 if is_input_symbol(base):
                     if power % 2 == 0:
                         j = power // 2
-                        current_integral *= double_factorial(2*j - 1) / 2 ** j
+                        current_integral *= double_factorial(2*j - 1)
                     else:
                         nonzero = False
                         break
@@ -316,20 +282,30 @@ def gaussian_integral(expr: Expr, d: int) -> Expr:
                 assert False
 
         if nonzero:
-            current_integral *= pi ** (d / 2)
+            # current_integral *= pi ** (d / 2)
             integral += current_integral
 
     return integral
 
 
-def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> float:
+def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> torch.Tensor:
     """
-    Evaluate `error_expr`. This expression should depend only on constants and symbols
-    with names of the form `wi_j_k_<name>`, `bi_j_<name>`, which correspond to weights
-    and biases from networks in `networks`. The name at the end of each symbol name
-    should be a key in `networks`.
+    Evaluate `error_expr` by substituting Symbols with the corresponding torch Tensors.
+    This expression should depend only on constants and symbols with names of the form
+    `wi_j_k_<name>`, `bi_j_<name>`, which correspond to weights and biases from networks
+    in `networks`. The name at the end of each symbol name should be a key in
+    `networks`.
     """
-    raise NotImplementedError
+
+    # Check that `error_expr` is a sum of monomials, and sum evaluations of each
+    # monomial.
+    assert error_expr.func == Add
+    error = 0
+    for monomial in error_expr.args:
+        assert is_monomial(monomial)
+        error += evaluate_monomial(monomial, networks)
+
+    return error
 
 
 def get_network(
@@ -373,7 +349,88 @@ def get_network_symbols(
 
     return weight_symbols, bias_symbols
 
-def main():
+
+def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer):
+    """
+    Runs knowledge distillation on a student and teacher network with supervised
+    learning.
+    """
+
+    for update in range(NUM_UPDATES):
+
+        # Generate input data.
+        mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
+        std = torch.ones((BATCH_SIZE, INPUT_SIZE))
+        input_data = torch.normal(mean, std)
+
+        # Get student error on batch.
+        teacher_out = teacher(input_data)
+        student_out = student(input_data)
+        student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
+        loss = torch.mean(student_error)
+
+        # Backwards pass to update student network.
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        print(f"Update {update} loss: {loss.item()}", end="\r")
+
+    print("")
+
+
+def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer):
+    """ Runs complete knowledge distillation on a student and teacher network. """
+
+    # Construct SymPy symbols for network inputs.
+    input_symbols = [Symbol(f"x{i}") for i in range(INPUT_SIZE)]
+
+    # Construct SymPy symbols for network inputs, weights, and biases.
+    teacher_weight_symbols, teacher_bias_symbols = get_network_symbols(
+        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS, name="teacher"
+    )
+    student_weight_symbols, student_bias_symbols = get_network_symbols(
+        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, name="student"
+    )
+
+    # Symbolically compute the student error over the entire input distribution as a
+    # function of network parameters.
+    networks = {"teacher": teacher, "student": student}
+    if os.path.isfile(LOSS_EXPR_PATH):
+        with open(LOSS_EXPR_PATH, "rb") as f:
+            complete_error_expr = pickle.load(f)
+        symbolic_time = None
+    else:
+        teacher_expr = network_to_expr(
+            teacher, input_symbols, teacher_weight_symbols, teacher_bias_symbols
+        )
+        student_expr = network_to_expr(
+            student, input_symbols, student_weight_symbols, student_bias_symbols
+        )
+        assert len(teacher_expr) == len(student_expr)
+        error_expr = expand(sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr)))
+        complete_error_expr = gaussian_integral(error_expr, INPUT_SIZE)
+
+        # Cache expression.
+        with open(LOSS_EXPR_PATH, "wb") as f:
+            pickle.dump(complete_error_expr, f)
+
+    for update in range(NUM_UPDATES):
+
+        # Evaluate the complete student loss.
+        loss = evaluate_error(complete_error_expr, networks)
+
+        # Backwards pass to update student network.
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        print(f"Update {update} loss: {loss.item()}", end="\r")
+
+    print("")
+
+
+def main(complete=False):
     """ Main function for ckd_sandbox.py. """
 
     # Set random seed.
@@ -388,52 +445,25 @@ def main():
         INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS
     )
 
-    # Construct SymPy symbols for network inputs.
-    input_symbols = [Symbol(f"x{i}") for i in range(INPUT_SIZE)]
+    # Construct optimizer.
+    optimizer = torch.optim.SGD(student.parameters(), lr=LR, momentum=MOMENTUM)
 
-    # Construct SymPy symbols for network inputs, weights, and biases.
-    teacher_weight_symbols, teacher_bias_symbols = get_network_symbols(
-        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS, name="teacher"
-    )
-    student_weight_symbols, student_bias_symbols = get_network_symbols(
-        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, name="student"
-    )
-
-    # Get power series representation of output for teacher and student, and their
-    # difference.
-    teacher_expr = network_to_expr(
-        teacher, input_symbols, teacher_weight_symbols, teacher_bias_symbols
-    )
-    student_expr = network_to_expr(
-        student, input_symbols, student_weight_symbols, student_bias_symbols
-    )
-    assert len(teacher_expr) == len(student_expr)
-    error_expr = expand(sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr)))
-
-    # Generate input data to test difference approximation.
-    mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
-    std = torch.ones((BATCH_SIZE, INPUT_SIZE))
-    input_data = torch.normal(mean, std)
-
-    # Get actual student error on batch.
-    teacher_out = teacher(input_data)
-    student_out = student(input_data)
-    student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
-
-    # Get estimated student error over entire data distribution.
-    networks = {"teacher": teacher, "student": student}
-    complete_error_expr = gaussian_integral(error_expr, INPUT_SIZE)
-    print(complete_error_expr)
-    complete_error = evaluate_error(complete_error_expr, networks)
-
-    # Compare errors.
-    avg_student_error = torch.mean(student_error).item()
-    avg_error = (avg_student_error - complete_error) ** 2
-    print(f"Actual student errors: {student_error}")
-    print(f"Avg student error: {avg_student_error}")
-    print(f"Complete error: {complete_error}")
-    print(f"Diff: {avg_error}")
+    # Call training function.
+    if complete:
+        run_complete_kd(teacher, student, optimizer)
+    else:
+        run_kd(teacher, student, optimizer)
 
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--complete",
+        default=False,
+        action="store_true",
+        help="Use Complete Knowledge Distillation instead of distillation with supervised learning."
+    )
+    args = parser.parse_args()
+
+    main(complete=args.complete)

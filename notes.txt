@@ -45,8 +45,11 @@ Tasks:
     Approximate output of a single network with a symbolic polynomial
     Approximate difference between two networks (on sampled data)
     Approximate difference between two networks over entire data distribution
---> Train student network to match teacher with supervised learning (move to CKDTrainer?)
+    Train student network to match teacher with supervised learning
     Train student network to match teacher with complete knowledge distillation
+--> Convert supervised learning to use a fixed dataset with train/test evaluation
+    Implement CKD loss evaluation as sparse matrix vector operation
+    Move to CKDTrainer?
 
 Other directions worth exploring:
 - Implement CKD for convolutional networks
