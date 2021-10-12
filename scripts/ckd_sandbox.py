@@ -10,15 +10,17 @@ import random
 import time
 import pickle
 import argparse
-from math import factorial, pi
+from math import factorial, pi, ceil
 from typing import List, Tuple, Dict
 
+import numpy as np
 import torch
 import torch.nn as nn
 import sympy
 from sympy import expand, Symbol, Expr, Number, Add, Mul, Pow
 
 
+# Network parameters.
 INPUT_SIZE = 3
 OUTPUT_SIZE = 3
 NUM_TEACHER_LAYERS = 2
@@ -26,15 +28,21 @@ TEACHER_HIDDEN_SIZE = 5
 NUM_STUDENT_LAYERS = 2
 STUDENT_HIDDEN_SIZE = 3
 
-MAX_PS_DEGREE = 4
-
+# Supervised KD parameters.
+DATASET_SIZE = 1000
+TRAIN_SPLIT = 0.9
 NUM_UPDATES = 10000
-BATCH_SIZE = 100000
-LR = 3e-4
+BATCH_SIZE = 100
+
+# Complete KD parameters.
+MAX_PS_DEGREE = 4
+LOSS_EXPR_PATH = "./data/ckd_loss_expr.pkl"
+
+# General training parameters.
+LR = 3e-6
 MOMENTUM = 0.9
 SEED = 0
 
-LOSS_EXPR_PATH = "./data/ckd_loss_expr.pkl"
 
 
 class ExpActivation(nn.Module):
@@ -356,27 +364,69 @@ def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimi
     learning.
     """
 
-    for update in range(NUM_UPDATES):
+    # Construct training data.
+    train_size = round(DATASET_SIZE * TRAIN_SPLIT)
+    test_size = DATASET_SIZE - train_size
+    assert 0 < train_size < DATASET_SIZE
+    train_data = torch.normal(
+        torch.zeros(train_size, INPUT_SIZE),
+        torch.ones(train_size, INPUT_SIZE),
+    )
+    test_data = torch.normal(
+        torch.zeros(test_size, INPUT_SIZE),
+        torch.ones(test_size, INPUT_SIZE),
+    )
 
-        # Generate input data.
-        mean = torch.zeros((BATCH_SIZE, INPUT_SIZE))
-        std = torch.ones((BATCH_SIZE, INPUT_SIZE))
-        input_data = torch.normal(mean, std)
+    # Construct data loaders.
+    train_loader = torch.utils.data.DataLoader(
+        train_data,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_data,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+    )
 
-        # Get student error on batch.
-        teacher_out = teacher(input_data)
-        student_out = student(input_data)
-        student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
-        loss = torch.mean(student_error)
+    # Training loop.
+    updates_per_epoch = ceil(train_size / BATCH_SIZE)
+    num_epochs = ceil(NUM_UPDATES / updates_per_epoch)
+    for epoch in range(num_epochs):
 
-        # Backwards pass to update student network.
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        # Run one training epoch.
+        for step, batch in enumerate(iter(train_loader)):
 
-        print(f"Update {update} loss: {loss.item()}", end="\r")
+            # Get student error on batch.
+            teacher_out = teacher(batch)
+            student_out = student(batch)
+            student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
+            loss = torch.mean(student_error)
 
-    print("")
+            # Backwards pass to update student network.
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            print(f"Epoch {epoch}, Step {step} loss: {loss.item()}", end="\r")
+
+        print("")
+
+        # Evaluate on test set.
+        batch_sizes = []
+        test_losses = []
+        for batch in iter(test_loader):
+
+            # Get student error on batch.
+            teacher_out = teacher(batch)
+            student_out = student(batch)
+            student_error = torch.sum((teacher_out - student_out) ** 2, dim=1)
+            loss = torch.mean(student_error)
+            test_losses.append(loss.item())
+            batch_sizes.append(len(batch))
+
+        test_loss = np.average(test_losses, weights=batch_sizes)
+        print(f"Epoch {epoch} test loss: {test_loss}\n")
 
 
 def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer):
@@ -415,6 +465,7 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
         with open(LOSS_EXPR_PATH, "wb") as f:
             pickle.dump(complete_error_expr, f)
 
+    # Training loop.
     for update in range(NUM_UPDATES):
 
         # Evaluate the complete student loss.
@@ -430,8 +481,16 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
     print("")
 
 
-def main(complete=False):
-    """ Main function for ckd_sandbox.py. """
+def main(complete=False) -> None:
+    """
+    Main function for ckd_sandbox.py.
+
+    Parameters
+    ----------
+    complete : bool
+        Whether to use Complete KD. Otherwise, student network is trained with
+        supervised learning.
+    """
 
     # Set random seed.
     torch.manual_seed(SEED)

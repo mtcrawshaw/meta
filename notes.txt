@@ -47,8 +47,8 @@ Tasks:
     Approximate difference between two networks over entire data distribution
     Train student network to match teacher with supervised learning
     Train student network to match teacher with complete knowledge distillation
---> Convert supervised learning to use a fixed dataset with train/test evaluation
-    Implement CKD loss evaluation as sparse matrix vector operation
+    Convert supervised learning to use a fixed dataset with train/test evaluation
+--> Implement CKD loss evaluation as sparse matrix vector operation
     Move to CKDTrainer?
 
 Other directions worth exploring:
@@ -57,6 +57,21 @@ Other directions worth exploring:
   layers, the hidden size, input size, output size, and the power series truncation
   constant. Do the same thing for convolutional networks, which will likely have a much
   shorter error expression.
+- Replace large sums with SymbolicSum during computation of loss function. Some of the
+  sums that we have to work with during the loss function computation (such as those
+  resulting from applying an activation function's power series to an input) are such
+  that the i-th term of the sum is easily expressed as a closed form function of i. This
+  means, instead of representing a sum as a list over all of the summands, it can simply
+  be represented with the function mapping i to the i-th term. The main advantage of
+  this is memory and time savings. The memory savings are clear. Time can be saved by
+  replacing a procedure that performs the same operation on each of the summands with
+  another procedure that only performs that operation a single time. This also has the
+  advantage that this doesn't require us to prematurely truncate any power series, so we
+  can compute and cache the final polynomial, then quickly try a varying number of power
+  series truncation constants. The only downside is I'm not sure how significant the
+  memory/time savings will be, since the sums with the largest number of terms will be
+  result from the matrix-vector operations, and these sums cannot be made symbolic.
+  Still, it's an option.
  
 
 ----------------------------------------------------------------------------------------
