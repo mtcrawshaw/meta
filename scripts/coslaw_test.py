@@ -19,8 +19,8 @@ NUM_SAVES = 10
 
 BASE_CONFIG_PATH = "configs/pcba.json"
 TRIAL_CONFIG_PATH = "configs/temp_coslaw_test.json"
-DATA_PATH = "data/coloss_test_data.npy"
-PLOT_PATH = "data/coloss_test_plot.png"
+DATA_PATH = "data/coloss_results/coloss_test_data.npy"
+PLOT_PATH = "data/coloss_results/coloss_test_plot.png"
 
 MARKER_SIZE = 12
 SUBPLOT_SIZE = (4, 4)
