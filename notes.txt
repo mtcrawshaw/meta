@@ -37,6 +37,18 @@ erases the information of whether or not the task loss increased or decreased, w
 might be important when comparing the loss changes in two tasks. Still, the first
 variation I'll probably try is with centering and dividing.
 
+Try repeating the experiments with tiny learning rate and SGD w/o momentum. Tiny
+learning rate increases the accuracy of the first order approximation to the loss
+landscape, and SGD w/o momentum creates a more direct relationship between the exhibited
+decrease in loss and the gradient from the current timestep.
+
+New direction: Instead of training the network on the multi-task loss, adapt the
+training strategy of older multi-task NLP and sample data for each batch from only one
+task at a time. This way, we get to see how the loss for one task changes when we train
+on another task, which gives a much better picture of the relationship between tasks
+than trying to compare how two task losses each change whhen we train on the total MTL
+loss.
+
 
 ----------------------------------------------------------------------------------------
 

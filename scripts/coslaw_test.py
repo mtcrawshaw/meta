@@ -12,14 +12,16 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 
 
-BASE_CONFIG_PATH = "configs/pcba.json"
-TRIAL_CONFIG_PATH = "configs/temp_coslaw_test.json"
 NUM_TRIALS = 10
 NUM_TASKS = 32
-NUM_STEPS = 10
-NUM_SAVES = 2
+NUM_STEPS = 900
+NUM_SAVES = 10
+
+BASE_CONFIG_PATH = "configs/pcba.json"
+TRIAL_CONFIG_PATH = "configs/temp_coslaw_test.json"
 DATA_PATH = "data/coloss_test_data.npy"
 PLOT_PATH = "data/coloss_test_plot.png"
+
 MARKER_SIZE = 12
 SUBPLOT_SIZE = (4, 4)
 
@@ -40,7 +42,7 @@ def upper_triangle(arr: np.ndarray) -> np.ndarray:
     return flattened
 
 
-def collect_samples():
+def collect_samples(lr: float = 3e-4):
     """
     Run training with CoLossWeighter and collect comparison of loss co-variation against
     gradient cosine similarity.
@@ -59,8 +61,8 @@ def collect_samples():
         "save_steps": save_steps,
         "data_path": DATA_PATH,
     }
-    base_config["evaluation_freq"] = NUM_STEPS
     base_config["cuda"] = True
+    base_config["lr"] = lr
 
     # Run trials.
     for trial in range(NUM_TRIALS):
@@ -79,7 +81,7 @@ def collect_samples():
     os.remove(TRIAL_CONFIG_PATH)
 
 
-def main(reuse: bool = False):
+def main(reuse: bool = False, lr: float = 3e-4):
     """ Main function for slaw_test.py. """
 
     # Make sure that data path is clear, if we aren't reusing old data.
@@ -87,13 +89,13 @@ def main(reuse: bool = False):
     plot_exists = os.path.isfile(PLOT_PATH)
     if reuse:
         if not data_exists:
-            collect_samples()
+            collect_samples(lr=lr)
     else:
         if data_exists:
             raise ValueError(f"File '{DATA_PATH}' already exists.")
         if plot_exists:
             raise ValueError(f"File '{PLOT_PATH}' already exists.")
-        collect_samples()
+        collect_samples(lr=lr)
 
     # Set plot font and figure size.
     plt.rcParams["font.family"] = "Times New Roman"
@@ -126,6 +128,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--reuse", action="store_true", help="Plot existing samples instead of creating new ones.")
+    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate.")
     args = parser.parse_args()
 
     main(reuse=args.reuse)
