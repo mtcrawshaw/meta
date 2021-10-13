@@ -2,53 +2,24 @@
 
 Road Map
 
+Current objective: Measure the gradient similarity of various tasks for CelebA.
 
-Sprints:
-    Shared trunk architecture
-    FC splitting networks (regions = layers)
-    Meta splitting networks
---> Evaluation + baselines (
-        PCGrad,
-        Branched MT networks,
-        soft layer ordering,
-        modular meta learning (code available),
-        AdaShare,
-        Piggyback (code available),
-        sparse sharing (code available),
-        routing networks (code available),
-    )
-    Refactoring
+Tasks:
+--> CelebA dataset wrapper
+    Training on CelebA with SLTrainer
+    Splitting networks in SLTrainer
+    Gradient similarity evaluation
 
-Current sprint (Improve splitting networks on multi-task RL):
-    Option for uniform task data distribution
-    Fix training tests
-    Tests for uniform task data distribution
-    Tests for saving/loading splitting network architecture/initialization
-    Merge visualize_grad_diffs into develop (keep visualization functionality)
-    Add GPU tests for saving/loading architecture + initialization
-    Visualize gradient diffs with larger batch size + uniform data distribution
---> Run evaluations with larger batch size/more processes per task and check
-        visualization for gradient consistency
-    Run evaluations of all networks (mlp, trunk of varying size, Euclidean splitting
-        networks, cosine splitting networks, retrained splitting networks) to
-        statistical significance
-
-Overall performance improvements:
+Overall performance improvements for splitting networks:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
 
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Normalize grad_diff_stats by region size during grad_diff calculation instead of at
-split time?
-
-
-BEFORE DOING ANYTHING ELSE: Merge from master. It may not be super clean or easy (the
-branches have diverged quite a bit), but importing those changes will allow us to run
-splitting networks for supervised learning.
-
-Change max_grad_norm to None for all configs (update baselines accordingly)
-
+Small changes:
+- Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
+- Normalize grad_diff_stats by region size during grad_diff calculation instead of at
+  split time?
+- Change max_grad_norm to None for all configs (update baselines accordingly)
 
 
 ----------------------------------------------------------------------------------------
