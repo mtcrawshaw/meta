@@ -1,9 +1,11 @@
 {
     "trainer": "SLTrainer",
     "dataset": "MNIST",
-    "num_updates": 100,
-    "batch_size": 64,
-    "num_workers": 2,
+    "num_updates": 1000,
+    "batch_size": 1024,
+    "num_workers": 8,
+
+    "dataset_kwargs": {},
 
     "lr_schedule_type": null,
     "initial_lr": 7e-4,
@@ -13,14 +15,14 @@
 
     "architecture_config": {
         "type": "conv",
-        "num_conv_layers": 5,
+        "num_conv_layers": 2,
         "initial_channels": 32,
-        "num_fc_layers": 2,
-        "fc_hidden_size": 64,
+        "num_fc_layers": 1,
+        "fc_hidden_size": 32,
         "activation": "tanh"
     },
 
-    "evaluation_freq": 10,
+    "evaluation_freq": 100,
 
     "cuda": false,
     "seed": 1,

@@ -1,0 +1,35 @@
+{
+    "trainer": "SLTrainer",
+    "dataset": "CIFAR10",
+    "num_updates": 100,
+    "batch_size": 256,
+    "num_workers": 8,
+
+    "dataset_kwargs": {},
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "max_grad_norm": 0.5,
+    "eps": 1e-5,
+
+    "architecture_config": {
+        "type": "conv",
+        "num_conv_layers": 3,
+        "initial_channels": 32,
+        "num_fc_layers": 1,
+        "fc_hidden_size": 32,
+        "activation": "tanh"
+    },
+
+    "evaluation_freq": 20,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

@@ -1,9 +1,4 @@
 # meta
 A library for multi-task learning and meta-learning.
 
-__Dependencies__
-- [OpenAI Gym](https://gym.openai.com)
-- [Mujoco](http://www.mujoco.org)
-- [Meta-World](https://meta-world.github.io)
-- [Numpy](https://numpy.org)
-- [PyTorch](https://pytorch.org)
+Code for the paper [SLAW: Scaled Loss Approximate Weighting for Efficient Multi-Task Learning](https://arxiv.org/abs/2109.08218) is packaged under the tag "SLAW".

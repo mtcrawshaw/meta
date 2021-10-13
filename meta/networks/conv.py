@@ -1,8 +1,9 @@
 """
-Definition of ConvNetwork, a module of convolutional layers.
+Definition of ConvNetwork, a module consisting of a series of convolutional layers
+followed by a series of fully connected layers.
 """
 
-from typing import Tuple
+from typing import Tuple, Union, List
 
 import torch
 import torch.nn as nn
@@ -20,7 +21,7 @@ class ConvNetwork(nn.Module):
         initial_channels: int,
         num_fc_layers: int,
         fc_hidden_size: int,
-        output_size: int,
+        output_size: Union[int, List[int]],
         activation: str,
         device: torch.device = None,
     ) -> None:
@@ -33,6 +34,10 @@ class ConvNetwork(nn.Module):
                 "Number of conv/fc layers in network should each be at least 1."
                 " Given values are: %d conv, %d fc." % (num_conv_layers, num_fc_layers)
             )
+
+        # Check for multitask status.
+        if isinstance(output_size, list):
+            raise NotImplementedError
 
         # Set state.
         self.input_size = input_size
@@ -57,7 +62,7 @@ class ConvNetwork(nn.Module):
 
         # Initialize convolutional layers.
         conv_layers = []
-        in_channels = self.input_size[-1]
+        in_channels = self.input_size[0]
         out_channels = self.initial_channels
         for i in range(self.num_conv_layers):
 
@@ -80,7 +85,7 @@ class ConvNetwork(nn.Module):
         # Initialize fully connected layers.
         fc_layers = []
         self.feature_size = (
-            self.input_size[0] * self.input_size[1] * self.initial_channels
+            self.input_size[1] * self.input_size[2] * self.initial_channels
         )
         for i in range(self.num_fc_layers):
 

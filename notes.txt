@@ -3,16 +3,7 @@
 Road Map
 
 
-Major versions:
-    PPO for single task
-    Multi-task/MetaWorld support
-    Training tools
---> Splitting networks for RL
-    Computer vision support
-    Sparse splitting networks
-    NLP support
-
-Minor versions (MT10/MT50 baselines):
+Sprints:
     Shared trunk architecture
     FC splitting networks (regions = layers)
     Meta splitting networks
@@ -56,25 +47,8 @@ BEFORE DOING ANYTHING ELSE: Merge from master. It may not be super clean or easy
 branches have diverged quite a bit), but importing those changes will allow us to run
 splitting networks for supervised learning.
 
+Change max_grad_norm to None for all configs (update baselines accordingly)
 
-----------------------------------------------------------------------------------------
-
-
-supervised_learning branch:
-
-
-The goal of this branch is to convert the trainer into a more modular system that can
-perform training for both RL settings and supervised learning settings, in order to
-implement the random multi-task loss weighting idea. Here's the roadmap:
-    Create Trainer and RLTrainer class with RL specific functionality
-    Create SLTrainer class with supervised learning functionality (toy dataset, single task)
---> Add tests for single task supervised learning
-    Add multi-task functionality + dataset
-    Implement loss weighting baselines
-    Implement random loss weighting
-
-Try to merge this branch with develop as often as possible (while maintaining stability)
-so that we don't have an impossible merge to perform later on.
 
 
 ----------------------------------------------------------------------------------------
@@ -96,6 +70,8 @@ Issues
   given a different random seed. One way to fix this is to give each process the same np
   seed (which can do by setting `same_np_seed` to True in the config file), but this may
   cause other unwanted consequences. Resolve this before running experiments on MLX.
+- A bunch of SL training tests are currently failing, because the baselines were never
+  updated.
 
 
 ----------------------------------------------------------------------------------------
@@ -124,7 +100,6 @@ DevOps:
 Training infrastructure:
 - Refactoring:
     - Optimize data transfer to GPU
-    - Use Metrics objects outside of train() instead of state dictionary.
     - Get rid of redundant functionality for saving metrics
     - Move metric comparison outside of train() and hyperparameter_search(). We wouldn't
       have to do so much bullshit to save/load/compare metrics if the functionality was
@@ -164,6 +139,12 @@ Training infrastructure:
       reproduce the results of a paused run is to pause and resume at the exact same
       place as the original. It may just be better to not include this functionality at
       all, and it would certainly be easier to implement.
+    - Refactor metrics functionality so that there is a consistent way to distinguish
+      between training metrics and evaluation metrics. At the moment there is so much
+      conversion back and forth between two formats: (1) storing one version of the
+      metric with flags that indicate whether that metric should be used for training
+      and/or evaluation (2) storing one version of the metric for training and one
+      version for evaluation. We should just make this consistent end-to-end.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
@@ -186,6 +167,7 @@ Training infrastructure:
       create a single plot with a subplot for each individual task.
     - Saving/loading for meta-learning runs.
     - Add option to meta-test by loading a meta-trained model.
+    - Move data augmentation settings into config file
 - Nice to have:
     - Compute standard deviation for success rate so that mean + stdev < 1 i.e. makes
       sense for a variable in the range [0, 1]. Easy way to do this is to assume that
@@ -261,20 +243,34 @@ RL training:
 
 SL training:
 - Refactoring:
-  - Revise evaluation so that we are evaluating on more than just a single batch.
-  - Find nicer way to handle dataset input sizes than the hard-coded dictionary we have
-    now. Is it possible to get the size of inputs/outputs without having to store them
-    explicitly?
+    - Clean up Uncertainty/GradNorm/SLW junk in SLTrainer's initialization
+    - Clean up PCGrad. Could separate into MTL trainer, or we could try implement this
+      as a loss weighter, since PCGrad can technically be formulated as a loss weighting
+      method.
+    - Get evaluation to happen once per epoch automatically instead of requiring manual
+      entry of evaluation_freq.
+    - Clean up pre_loss_update. Just have a property within each loss weighter that
+      determines whether weights are updated before or after loss computation.
+    - Convert BN layers to test mode?
+    - Fix memory usage issue. Commit dcdee654 was the last commit before we changed the
+      evaluation format so that every evaluation step goes over the entire dataset. When
+      we did that, the memory usage increased dramatically, requiring us to cut our
+      batch size nearly in half. I still don't know what caused this, but fixing it
+      would give us a ton of memory back.
 - Additions:
-  - MLP support for supervised learning.
+    - MLP support for supervised learning.
 - Nice to have:
 
 Network architectures:
 - Refactoring:
     - Remove redundant calls to "self.to(device)" in nested modules?
+    - Add multitask capability to ConvNetwork
+    - Merge redundant networks (Trunk + Backbone? Conv + MLP?)
+    - Iron out inconsistency with specification of task output sizes for multi-task
+      learning. Is the output size per-task or total? Seems to be inconsistent in our
+      configuration for PCBA, MTRegression, and NYUv2.
 - Additions:
     - Architecture hyperparameters:
-        - Varying network size in hidden layers
         - Network initialization options
     - Convolutional network features:
         - Max pooling
@@ -338,6 +334,30 @@ Splitting networks:
       has a separate set of these parameters.
     - Allow weights/biases to be split independently
 
+Experiment:
+- Refactoring:
+    - Extend Metrics object to hold metrics from multiple runs, with multiple methods. This
+      will allow us to clean things up in places where we have a list of Metrics that all
+      have redundant information.
+    - Add some constraints to `experiment()` so that some options must remain fixed between
+      different methods, such as trainer type and dataset.
+- Additions:
+    - Option to resume a previous experiment that only ran partially.
+    - Option to add to an existing experiment. This way we could run an experiment with
+      some baselines, then implement other baselines and just add in the results.
+- Nice to have:
+
+Report:
+- Refactoring:
+    - Use name_subs for plotting in `report()`.
+- Additions:
+    - Automatically bold results from best method when creating LaTeX table in `tabulate()`.
+    - Allow more flexibility in settings for `tabulate()`. Settings can include list of
+      methods to include, list of metrics to include, and settings or each method and
+      metric: decimal precision, whether to include CI radius, display names, etc. Also, we
+      can group the metrics and methods, then place table dividers accordingly.
+- Nice to have:
+
 Hyperparameter search:
 - Refactoring:
     - Get rid of redundant settings inside and outside base_train_config for
@@ -353,8 +373,9 @@ Hyperparameter search:
       unique names, but what we really need is for each search space to be tied to the
       path through the config tree to the corresponding leaf. To do this, we should just
       specify the search spaces within the base train config dictionary. Instead of
-      having individual values within this config, we just have a list of values, or
-      another dict which describes the search space.
+      having individual values within this config, we just have a dict of values that
+      works the same way as the dictionaries to modify configs in `experiment` config
+      files.
 - Additions:
     - An actual good random search: Check Bengio et al. (2014ish) for a competitive
       random hyperparameter search technique
@@ -369,6 +390,8 @@ Hyperparameter search:
       (arithmetic, geometric).  Not sure how this will work with discrete variables but
       we can at least use this for continuous parameters.
     - Add option to use meta_train() instead of train().
+    - Support for new Metric format. We should be using Metric.best instead of
+      Metric.maximum, since some metrics should be minimized instead of maximized.
 - Nice to have:
     - Plots to show progression of various hyperparameters during hyperparameter search
     - Include name of search parameter in name of results file for IC grid search
@@ -386,18 +409,26 @@ Tests:
       doesn't randomly break if seed or something else changes.
     - Make tests faster by decreasing training lengths and replacing complex
       environments (particularly MetaWorld) with simpler ones.
+    - Replace unnecessary training tests with tests on easy benchmarks (CIFAR, MNIST)
+      that only check for sufficiently high accuracy.
 - Additions:
     - Tests for solving simple openai gym environments in a small amount of time
+    - Add tests for `experiment()` to check that results are consistent with `train()`.
+    - Tests for loss weighters (remove training tests).
 - Nice to have:
 
 Style:
 - Refactoring:
-  - Change keywords for string options to name of corresponding classes. Example,
-    architecture types can just be MLPNetwork, ConvNetwork, etc.
-  - Remove as many default arguments as possible.
-  - Clean up imports so that we import from a subpackage's __init__.py instead of from
-    each file in that subpackage.
-  - Convert config into an object or just store config values as members in the relevant
-    class, so that we can get rid of magic strings everywhere.
+    - Change keywords for string options to name of corresponding classes. Example,
+      architecture types can just be MLPNetwork, ConvNetwork, etc.
+    - Remove as many default arguments as possible.
+    - Clean up imports so that we import from a subpackage's __init__.py instead of from
+      each file in that subpackage.
+    - Convert config into an object or just store config values as members in the
+      relevant class, so that we can get rid of magic strings everywhere.
+    - Fix security issues with `eval()`. Anytime `eval()` is used, we need to check that
+      the input is a member of a fixed whitelist.
+    - Rename MultiTaskTrunkNetwork to TrunkNetwork, MultiTaskSplittingNetwork to
+      SplittingNetwork
 - Additions:
 - Nice to have:

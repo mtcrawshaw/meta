@@ -1,0 +1,48 @@
+{
+    "trials_per_method": 3,
+
+    "base_train_config": {
+        "trainer": "SLTrainer",
+        "dataset": "NYUv2",
+        "num_updates": 100,
+        "batch_size": 64,
+        "num_workers": 8,
+
+        "loss_weighter": {
+            "type": "Constant",
+            "loss_weights": [1.0, 1.0, 1.0]
+        },
+
+        "lr_schedule_type": null,
+        "initial_lr": 7e-4,
+        "final_lr": 7e-4,
+        "max_grad_norm": 0.5,
+        "eps": 1e-5,
+
+        "architecture_config": {
+            "type": "backbone",
+            "arch_type": "resnet",
+            "num_backbone_layers": 50,
+            "num_head_layers": 3,
+            "head_channels": 256
+        },
+
+        "evaluation_freq": 5,
+
+        "cuda": true,
+        "print_freq": 1,
+        "save_freq": null,
+        "load_from": null,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
+    },
+
+    "methods": {
+        "lr_3e-3": {"initial_lr": 3e-3},
+        "lr_3e-4": {"initial_lr": 3e-4},
+        "lr_3e-5": {"initial_lr": 3e-5}
+    },
+
+    "seed": 0,
+    "save_name": "nyuv2_experiment_test"
+}

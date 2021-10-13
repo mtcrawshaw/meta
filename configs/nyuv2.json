@@ -1,0 +1,42 @@
+{
+    "trainer": "SLTrainer",
+    "dataset": "NYUv2",
+    "num_updates": 5,
+    "batch_size": 2,
+    "num_workers": 2,
+
+    "dataset_kwargs": {
+        "task_type": "multitask",
+        "scale": 0.25
+    },
+    "loss_weighter": {
+        "type": "Constant",
+        "loss_weights": [1.0, 1.0, 1.0]
+    },
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "max_grad_norm": 0.5,
+    "eps": 1e-5,
+
+    "architecture_config": {
+        "type": "backbone",
+        "arch_type": "conv",
+        "num_backbone_layers": 4,
+        "num_head_layers": 2,
+        "initial_channels": 32,
+        "head_channels": 32
+    },
+
+    "evaluation_freq": 1,
+
+    "cuda": false,
+    "seed": 1,
+    "print_freq": 1,
+    "save_freq": null,
+    "load_from": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

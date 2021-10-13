@@ -49,7 +49,6 @@ class Trainer:
         np.random.seed(config["seed"])
         torch.manual_seed(config["seed"])
         torch.cuda.manual_seed_all(config["seed"])
-        torch.set_num_threads(1)
         if config["cuda"]:
             if torch.cuda.is_available():
                 self.device = torch.device("cuda:0")
@@ -152,3 +151,8 @@ class Trainer:
             torch.nn.utils.clip_grad_norm_(
                 self.parameters(), self.config["max_grad_norm"],
             )
+
+    @property
+    def metric_set(self) -> None:
+        """ Set of metrics for this trainer. """
+        raise NotImplementedError

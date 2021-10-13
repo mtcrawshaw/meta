@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, Any, Iterator
 
 import torch
 import torch.nn as nn
+import gym
 
 from meta.train.ppo import PPOPolicy
 from meta.train.env import get_env, get_num_tasks
@@ -12,6 +13,10 @@ from meta.train.trainers.base_trainer import Trainer
 from meta.utils.storage import RolloutStorage
 from meta.utils.utils import aligned_train_configs
 from meta.utils.grad_monitor import GradMonitor
+
+
+# Suppress gym warnings.
+gym.logger.set_level(40)
 
 
 class RLTrainer(Trainer):
@@ -287,6 +292,48 @@ class RLTrainer(Trainer):
     def parameters(self) -> Iterator[torch.nn.parameter.Parameter]:
         """ Return parameters of model. """
         return self.policy.policy_network.parameters()
+
+    @property
+    def metric_set(self) -> List[Tuple]:
+        """ Set of metrics for this trainer. """
+
+        train_window = 500
+        test_window = round(train_window / self.config["evaluation_episodes"])
+        metric_set = [
+            {
+                "name": "train_reward",
+                "basename": "reward",
+                "window": train_window,
+                "point_avg": False,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "train_success",
+                "basename": "success",
+                "window": train_window,
+                "point_avg": False,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "eval_reward",
+                "basename": "reward",
+                "window": test_window,
+                "point_avg": True,
+                "maximize": True,
+                "show": True,
+            },
+            {
+                "name": "eval_success",
+                "basename": "success",
+                "window": test_window,
+                "point_avg": True,
+                "maximize": True,
+                "show": True,
+            },
+        ]
+        return metric_set
 
     def collect_rollout(self) -> Tuple[List[float], List[float]]:
         """

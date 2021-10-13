@@ -13,7 +13,7 @@ def test_update_single() -> None:
     """ Test Metric.update() when adding a single data point per update call. """
 
     # Set up case.
-    metric = Metric(window_len=2)
+    metric = Metric(basename="test", window=2)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.
@@ -31,7 +31,7 @@ def test_update_multi() -> None:
     """ Test Metric.update()  when adding multiple data points per update call. """
 
     # Set up case.
-    metric = Metric(window_len=2)
+    metric = Metric(basename="test", window=2)
     data = [1.0, -1.0, 3.0, 1.0]
 
     # Call update.
@@ -52,7 +52,7 @@ def test_update_point_avg() -> None:
     """
 
     # Set up case.
-    metric = Metric(point_avg=True, window_len=2)
+    metric = Metric(basename="test", window=2, point_avg=True)
     data = [1.0, -1.0, 3.0, 1.0, 0.0, -1.0]
 
     # Call update.
