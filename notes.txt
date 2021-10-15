@@ -48,10 +48,19 @@ Tasks:
     Train student network to match teacher with supervised learning
     Train student network to match teacher with complete knowledge distillation
     Convert supervised learning to use a fixed dataset with train/test evaluation
---> Implement CKD loss evaluation as sparse matrix vector operation
+--> Extend to ReLU activation
+    Extend to sigmoid activation
+    Convert loss computation/expression to work with sparse matrices
+    Loss expression computation with GPU
+    Loss expression evaluation with GPU
+    Implement CKD loss evaluation as sparse matrix vector operation
     Move to CKDTrainer?
 
 Other directions worth exploring:
+- Extend to common activation functions (ReLU, sigmoid) with polynomial approximations.
+  The approximations can be computed by minimizing the L2 distance between the desired
+  activation function and a polynomial of given degree either over a fixed neighborhood
+  of the origin or over a normally distributed real random variable.
 - Implement CKD for convolutional networks
 - Compute the number of terms in the final expression as a function of the number of
   layers, the hidden size, input size, output size, and the power series truncation
