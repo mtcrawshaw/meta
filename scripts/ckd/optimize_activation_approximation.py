@@ -64,7 +64,7 @@ def get_data_sampler(batch_size: int) -> Callable[[], torch.Tensor]:
     return sampler
 
 def main(degree: int):
-    """ Main function for approximate_activations.py. """
+    """ Main function for optimize_activation_approximation.py. """
 
     # Set random seed.
     torch.manual_seed(SEED)
