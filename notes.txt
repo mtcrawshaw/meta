@@ -49,11 +49,8 @@ Tasks:
     Train student network to match teacher with complete knowledge distillation
     Convert supervised learning to use a fixed dataset with train/test evaluation
 --> Extend to ReLU activation
-    Extend to sigmoid activation
-    Convert loss computation/expression to work with sparse matrices
+    Convert loss expression computation/evaluation to work with sparse matrices
     Loss expression computation with GPU
-    Loss expression evaluation with GPU
-    Implement CKD loss evaluation as sparse matrix vector operation
     Move to CKDTrainer?
 
 Other directions worth exploring:
