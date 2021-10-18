@@ -8,34 +8,9 @@ BOUND].
 import argparse
 
 import numpy as np
-import torch
-from torch import nn
 
 
 BOUND = 4
-
-
-class Polynomial(nn.Module):
-    """ Module parameterizing a polynomial function. """
-
-    def __init__(self, degree: int, coeffs: torch.Tensor = None) -> None:
-        """ Init function for Polynomial. """
-        super(Polynomial, self).__init__()
-        self.degree = degree
-        if coeffs is None:
-            self.coeffs = nn.Parameter(2 * torch.rand(self.degree + 1) - 1)
-        else:
-            assert coeffs.shape == (self.degree + 1,)
-            self.coeffs = nn.Parameter(coeffs)
-        self.register_buffer("powers", torch.Tensor(list(range(self.degree + 1))))
-
-    def __repr__(self) -> str:
-        """ String representation of `self`. """
-        return str(self.coeffs)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """ Forward function for Polynomial. """
-        return torch.sum(self.coeffs * x ** self.powers, dim=-1, keepdim=True)
 
 
 def main(degree: int):

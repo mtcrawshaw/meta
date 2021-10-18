@@ -27,6 +27,7 @@ NUM_TEACHER_LAYERS = 2
 TEACHER_HIDDEN_SIZE = 5
 NUM_STUDENT_LAYERS = 2
 STUDENT_HIDDEN_SIZE = 3
+ACTIVATION = "exp"
 
 # Supervised KD parameters.
 DATASET_SIZE = 1000
@@ -43,6 +44,12 @@ LR = 3e-6
 MOMENTUM = 0.9
 SEED = 0
 
+# Cached polynomial approximations.
+RELU_POLY = {
+    4: [0.234375, 0.5, 0.205078, 0.0, -0.00640869],
+    5: [0.234375, 0.5, 0.205078, 0.0, -0.00640869, 0.0],
+    6: [0.170898, 0.5, 0.28839111, 0.0, -0.0220298767, 0.0, 0.000715970993],
+}
 
 
 class ExpActivation(nn.Module):
@@ -104,13 +111,18 @@ def network_to_expr(
             activation = layer[1]
             assert isinstance(activation, ExpActivation)
 
-            # Compute activation for each output unit. Each output is the exponential of
-            # the corresponding sum, though this is approximated using the power-series
-            # representation of the exponential function.
+            # Compute activation for each output unit, approximated with a power-series.
             for i in range(len(outputs)):
-                outputs[i] = sum(
-                    outputs[i] ** m / factorial(m) for m in range(MAX_PS_DEGREE)
-                )
+                if isinstance(activation, ExpActivation):
+                    outputs[i] = sum(
+                        outputs[i] ** m / factorial(m) for m in range(MAX_PS_DEGREE + 1)
+                    )
+                elif isinstance(activation, nn.ReLU):
+                    outputs[i] = sum(
+                        RELU_POLY[MAX_PS_DEGREE][m] * outputs[i] ** m for m in range(MAX_PS_DEGREE + 1)
+                    )
+                else:
+                    raise NotImplementedError
 
         inputs = outputs
 
@@ -317,11 +329,9 @@ def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> torch.Te
 
 
 def get_network(
-    input_size: int, output_size: int, hidden_size: int, num_layers: int
+    input_size: int, output_size: int, hidden_size: int, num_layers: int, activation: str,
 ) -> nn.Module:
-    """
-    Construct an MLP with the given parameters and exponential activation units.
-    """
+    """ Construct an MLP with the given parameters. """
 
     layers = []
     for i in range(num_layers):
@@ -330,7 +340,12 @@ def get_network(
         layer_out = output_size if i == num_layers - 1 else hidden_size
         layer.append(nn.Linear(layer_in, layer_out))
         if i < num_layers - 1:
-            layer.append(ExpActivation())
+            if activation == "exp":
+                layer.append(ExpActivation())
+            elif activation == "relu":
+                layer.append(nn.ReLU())
+            else:
+                raise NotImplementedError
         layers.append(nn.Sequential(*layer))
     return nn.Sequential(*layers)
 
@@ -498,10 +513,10 @@ def main(complete=False) -> None:
 
     # Construct teacher and student network.
     teacher = get_network(
-        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS
+        INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS, ACTIVATION
     )
     student = get_network(
-        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS
+        INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, ACTIVATION
     )
 
     # Construct optimizer.
