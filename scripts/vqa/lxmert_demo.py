@@ -1,17 +1,68 @@
-""" Demo script to run LXMERT on image/question pairs. """
+"""
+Demo script to run LXMERT on image/question pairs.
+
+Note: This script should be run from `scripts/vqa`.
+"""
 
 
-import torch
 from transformers import LxmertTokenizer, LxmertForQuestionAnswering
 
+from modeling_frcnn import GeneralizedRCNN
+from processing_image import Preprocess
+from utils import Config, get_data
 
+
+IMG_PATH = "./vqa_example.jpg"
+VQA_URL = "https://raw.githubusercontent.com/airsplay/lxmert/master/data/vqa/trainval_label2ans.json"
+QUESTIONS = [
+    "what food is on the plate?",
+    "what color is the wall?",
+    "what is on the tray?",
+    "what is next to the tea pot?",
+    "are there any people here?",
+]
+
+
+# Load model.
+frcnn_cfg = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnn_cfg)
+image_preprocess = Preprocess(frcnn_cfg)
 tokenizer = LxmertTokenizer.from_pretrained("unc-nlp/lxmert-base-uncased")
-model = LxmertForQuestionAnswering.from_pretrained("unc-nlp/lxmert-base-uncased")
+lxmert = LxmertForQuestionAnswering.from_pretrained("unc-nlp/lxmert-vqa-uncased")
+vqa_answers = get_data(VQA_URL)
 
-question, text = "Who was Jim Henson", "Jim Henson was a nice puppet"
-inputs = tokenizer(question, text, return_tensors="pt")
+# Run Faster-RCNN.
+images, sizes, scales_yx = image_preprocess(IMG_PATH)
+output_dict = frcnn(
+    images,
+    sizes,
+    scales_yx=scales_yx,
+    padding="max_detections",
+    max_detections=frcnn_cfg.max_detections,
+    return_tensors="pt",
+)
+normalized_boxes = output_dict.get("normalized_boxes")
+features = output_dict.get("roi_features")
 
-outputs = model(**inputs)
-loss = outputs.loss
-start_scores = outputs.start_logits
-end_scores = outputs.end_logits
+# Run inference on questions.
+for question in QUESTIONS:
+    
+    inputs = tokenizer(
+        [question],
+        padding="max_length",
+        max_length=20,
+        truncation=True,
+        return_tensors="pt",
+    )
+    output = lxmert(
+        input_ids=inputs.input_ids,
+        attention_mask=inputs.attention_mask,
+        visual_feats=features,
+        visual_pos=normalized_boxes,
+        token_type_ids=inputs.token_type_ids,
+        output_attentions=False,
+    )
+    prediction = vqa_answers[output["question_answering_score"].argmax(-1)]
+    print(f"Question: {question}")
+    print(f"Predicted Answer: {prediction}")
+    print("")

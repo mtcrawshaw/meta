@@ -7,9 +7,10 @@ Sprints:
 --> Get LXMERT running on VQA dataset
 
 Current sprint:
---> Get HuggingFace LXMERT demo running locally
-    Evaluate LXMERT on VQA dataset
+    Get HuggingFace LXMERT demo running locally
+--> Evaluate LXMERT on VQA dataset
 
+Add GPU functionality?
 
 ----------------------------------------------------------------------------------------
 
