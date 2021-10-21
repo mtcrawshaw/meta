@@ -21,13 +21,13 @@ from sympy import expand, Symbol, Expr, Number, Add, Mul, Pow
 
 
 # Network parameters.
-INPUT_SIZE = 3
-OUTPUT_SIZE = 3
+INPUT_SIZE = 1
+OUTPUT_SIZE = 1
 NUM_TEACHER_LAYERS = 2
-TEACHER_HIDDEN_SIZE = 5
+TEACHER_HIDDEN_SIZE = 2
 NUM_STUDENT_LAYERS = 2
-STUDENT_HIDDEN_SIZE = 3
-ACTIVATION = "exp"
+STUDENT_HIDDEN_SIZE = 1
+ACTIVATION = "relu"
 
 # Supervised KD parameters.
 DATASET_SIZE = 1000
@@ -46,6 +46,8 @@ SEED = 0
 
 # Cached polynomial approximations.
 RELU_POLY = {
+    2: [0.375, 0.5, 0.1171875],
+    3: [0.375, 0.5, 0.1171875, 0.0],
     4: [0.234375, 0.5, 0.205078, 0.0, -0.00640869],
     5: [0.234375, 0.5, 0.205078, 0.0, -0.00640869, 0.0],
     6: [0.170898, 0.5, 0.28839111, 0.0, -0.0220298767, 0.0, 0.000715970993],
@@ -109,7 +111,6 @@ def network_to_expr(
         if len(layer) == 2:
 
             activation = layer[1]
-            assert isinstance(activation, ExpActivation)
 
             # Compute activation for each output unit, approximated with a power-series.
             for i in range(len(outputs)):
@@ -444,7 +445,7 @@ def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimi
         print(f"Epoch {epoch} test loss: {test_loss}\n")
 
 
-def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer):
+def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer, use_cache: bool = False):
     """ Runs complete knowledge distillation on a student and teacher network. """
 
     # Construct SymPy symbols for network inputs.
@@ -461,7 +462,8 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
     # Symbolically compute the student error over the entire input distribution as a
     # function of network parameters.
     networks = {"teacher": teacher, "student": student}
-    if os.path.isfile(LOSS_EXPR_PATH):
+    if use_cache:
+        raise ValueError("Cached expression doesn't exist, but `use_cache` is True.")
         with open(LOSS_EXPR_PATH, "rb") as f:
             complete_error_expr = pickle.load(f)
         symbolic_time = None
@@ -496,7 +498,7 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
     print("")
 
 
-def main(complete=False) -> None:
+def main(complete=False, use_cache=False) -> None:
     """
     Main function for ckd_sandbox.py.
 
@@ -524,8 +526,10 @@ def main(complete=False) -> None:
 
     # Call training function.
     if complete:
-        run_complete_kd(teacher, student, optimizer)
+        run_complete_kd(teacher, student, optimizer, use_cache=use_cache)
     else:
+        if use_cache:
+            raise ValueError("The `use_cache` option is only valid for complete KD.")
         run_kd(teacher, student, optimizer)
 
 
@@ -538,6 +542,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Use Complete Knowledge Distillation instead of distillation with supervised learning."
     )
+    parser.add_argument(
+        "--use_cache",
+        default=False,
+        action="store_true",
+        help="Use the cached expression for the complete KD loss."
+    )
     args = parser.parse_args()
 
-    main(complete=args.complete)
+    main(complete=args.complete, use_cache=args.use_cache)
