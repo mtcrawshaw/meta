@@ -498,7 +498,7 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
     print("")
 
 
-def main(complete=False, use_cache=False) -> None:
+def main(complete: bool = False, use_cache: bool = False) -> None:
     """
     Main function for ckd_sandbox.py.
 
@@ -507,6 +507,10 @@ def main(complete=False, use_cache=False) -> None:
     complete : bool
         Whether to use Complete KD. Otherwise, student network is trained with
         supervised learning.
+    use_cache : bool
+        Whether to load the cached loss expression at `LOSS_EXPR_PATH`. Use this option
+        with caution: you might accidentally load an expression that was generated with
+        hyperparameters which don't match the current values.
     """
 
     # Set random seed.

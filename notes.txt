@@ -48,9 +48,10 @@ Tasks:
     Train student network to match teacher with supervised learning
     Train student network to match teacher with complete knowledge distillation
     Convert supervised learning to use a fixed dataset with train/test evaluation
---> Extend to ReLU activation
-    Convert loss expression computation/evaluation to work with sparse matrices
+    Extend to ReLU activation
+--> Convert loss expression computation/evaluation to work with sparse matrices
     Loss expression computation with GPU
+    Add option to measure accuracy of polynomial approximation to each network
     Move to CKDTrainer?
 
 Other directions worth exploring:
