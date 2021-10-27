@@ -1,4 +1,4 @@
-""" Definition of SLTrainer class for supervised learning. """
+""" Definition of ContinualTrainer class for continual learning. """
 
 import os
 import time
@@ -14,29 +14,30 @@ import torch.nn as nn
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
 from meta.datasets import *
-from meta.train.loss import MultiTaskLoss, Uncertainty
 from meta.networks import (
     ConvNetwork,
     BackboneNetwork,
     MLPNetwork,
     MultiTaskTrunkNetwork,
 )
-from meta.utils.utils import aligned_train_configs, DATA_DIR
+from meta.utils.utils import DATA_DIR
 
 
-class SLTrainer(Trainer):
-    """ Trainer class for supervised learning. """
+class ContinualTrainer(Trainer):
+    """ Trainer class for continual learning. """
 
     def init_model(self, config: Dict[str, Any]) -> None:
         """
         Initialize model and corresponding objects. The expected entries of `config` are
         listed below. `config` should contain all entries listed in the docstring of
-        Trainer, as well as the settings specific to SLTrainer, which are listed below.
+        Trainer, as well as the settings specific to ContinualTrainer, which are listed
+        below.
 
         Parameters
         ----------
         dataset : str
-            Name of dataset to train on.
+            Name of dataset to train on. The corresponding dataset should be a subclass
+            of ContinualDataset.
         dataset_kwargs : Dict[str, Any]
             Keyword arguments to be passed to Dataset upon construction.
         batch_size : int
@@ -45,15 +46,27 @@ class SLTrainer(Trainer):
             Number of worker processes to load data.
         """
 
-        # Construct dataset.
+        # Make sure that no learning rate schedule is used. This is currently not
+        # supported, since the current version of learning rate scheduling uses the
+        # entire period of `num_updates` to compute the learning rate.
+        assert config["lr_schedule_type"] is None
+
+        # Check dataset for validity.
         dataset_name = config["dataset"]
         if dataset_name not in DATASETS:
             raise ValueError(f"Unsupported dataset: {dataset_name}")
         dataset_cls = eval(dataset_name)
+        if not issubclass(dataset_cls, ContinualDataset)
+            raise ValueError(
+                f"Dataset {dataset_name} is not a subclass of ContinualDataset."
+            )
+
+        # Construct train and test datasets and set current task to 0.
         root = os.path.join(DATA_DIR, dataset_name)
         dataset_kwargs = config["dataset_kwargs"]
         self.train_set = dataset_cls(root=root, train=True, **dataset_kwargs)
         self.test_set = dataset_cls(root=root, train=False, **dataset_kwargs)
+        self.current_task = 0
 
         # Construct data loaders.
         self.batch_size = config["batch_size"]
@@ -69,12 +82,14 @@ class SLTrainer(Trainer):
             shuffle=False,
             num_workers=config["num_workers"],
         )
+        # TODO: Reset train_iter between training of each task?
         self.train_iter = iter(cycle(train_loader))
 
         # Set length of window for moving average of metrics for training and
         # evaluation. For both training and evaluation, we average over the last epoch.
         # Since each evaluation step iterates over the entire epoch, we only need to
         # look at the most recent metric values to get the metrics for the last epoch.
+        # TODO: Make sure we aren't mixing metrics between training of different tasks.
         self.train_window = ceil(len(self.train_set) / self.batch_size)
         self.eval_window = 1
 
@@ -106,45 +121,23 @@ class SLTrainer(Trainer):
         # Construct loss function.
         loss_cls = self.train_set.loss_cls
         loss_kwargs = dict(self.train_set.loss_kwargs)
-        if "loss_weighter" in config:
-            loss_kwargs["loss_weighter_kwargs"] = dict(config["loss_weighter"])
         self.criterion = loss_cls(**loss_kwargs)
         self.criterion = self.criterion.to(self.device)
+        self.criterion_kwargs = dict(self.train_set.criterion_kwargs)
 
-        # Construct arguments to `self.criterion`. These are passed as arguments to the
-        # forward pass through `self.criterion`. Here we include the network itself as
-        # an argument to the loss function, since computing the task-specific gradients
-        # requires zero-ing out gradients between tasks, and this requires access to the
-        # Module containing the relevant parameters. Note that this will need to change
-        # in the case that GradNorm is operating over parameters outside of
-        # `self.network`, or if the task-specific loss functions are dependent on
-        # parameters outside of `self.network`.
-        criterion_kwargs = deepcopy(self.train_set.criterion_kwargs)
-        if "loss_weighter" in config:
-            if config["loss_weighter"]["type"] in ["GradNorm", "SLW", "SLAWTester"]:
-                criterion_kwargs["train"]["network"] = self.network
-
-        # Determine whether or not to use PCGrad for training and check for appropriate
-        # settings.
-        if "PCGrad" in config:
-            self.pcgrad = bool(config["PCGrad"])
-            if self.pcgrad:
-                mt_loss = loss_cls == MultiTaskLoss
-                if not mt_loss:
-                    raise ValueError(
-                        "If using PCGrad, loss function must be MultiTaskLoss."
-                    )
-                criterion_kwargs["train"]["combine_losses"] = False
-        else:
-            self.pcgrad = False
-
-        self.criterion_kwargs = dict(criterion_kwargs)
+        # Increase self.num_updates by a factor of dataset.num_tasks, so that each task
+        # is trained for `self.num_updates` steps.
+        self.updates_per_task = int(self.num_updates)
+        self.num_updates *= self.train_set.num_tasks
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
-        # Start timer for current step.
-        start_time = time.time()
+        # Check if task index needs to be switched.
+        if (self.step % self.updates_per_task) == 0:
+            self.current_task = self.updates_per_task // self.step
+            self.train_set.current_task = self.current_task
+            self.test_set.current_task = self.current_task
 
         # Sample a batch and move it to device.
         inputs, labels = next(self.train_iter)
@@ -159,18 +152,13 @@ class SLTrainer(Trainer):
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # Perform backward pass, clip gradient, and take optimizer step.
-        self._compute_grad(loss)
+        loss.backward()
         self.clip_grads()
         self.optimizer.step()
-
-        # Stop timer for current step.
-        end_time = time.time()
-        train_step_time = end_time - start_time
 
         # Compute metrics from training step.
         step_metrics = {
             "train_loss": [torch.sum(loss).item()],
-            "train_step_time": [train_step_time],
         }
         with torch.no_grad():
             extra_metrics = self.train_set.compute_metrics(
@@ -179,83 +167,6 @@ class SLTrainer(Trainer):
             step_metrics.update({key: [val] for key, val in extra_metrics.items()})
 
         return step_metrics
-
-    def _compute_grad(self, loss: torch.Tensor) -> None:
-        """
-        Compute gradient of task parameters with respect to `loss`. This may be as
-        simple as calling `backward()`, but for edge cases (such as PCGrad) we have to
-        do some funky stuff.
-        """
-
-        # Use PCGrad. Compute the gradient of each task's loss individually, and use the
-        # PCGrad projection rule to modify the gradients for each parameter which is
-        # shared between all tasks. Note that this implementation assumes that each
-        # parameter of the network is either shared between all tasks or specific to a
-        # single task.
-        if self.pcgrad:
-
-            # Compute and store gradients of each task loss.
-            num_tasks = self.criterion.num_tasks
-            shared_grads = torch.zeros(
-                num_tasks, self.network.num_shared_params, device=self.device
-            )
-            specific_grads = [
-                torch.zeros(self.network.num_specific_params[task], device=self.device)
-                for task in range(num_tasks)
-            ]
-            for task in range(num_tasks):
-                loss[task].backward(retain_graph=True)
-                shared_grads[task] = torch.cat(
-                    [p.grad.view(-1) for p in self.network.shared_params()]
-                )
-                specific_grads[task] = torch.cat(
-                    [p.grad.view(-1) for p in self.network.specific_params(task)]
-                )
-                self.network.zero_grad()
-
-            # Project the gradients of shared parameters to avoid pairwise conflicts.
-            with torch.no_grad():
-                new_shared_grads = torch.clone(shared_grads)
-
-                for i in range(num_tasks):
-                    other_tasks = list(range(num_tasks))
-                    other_tasks.remove(i)
-                    other_tasks = np.array(other_tasks)
-                    np.random.shuffle(other_tasks)
-
-                    for j in other_tasks:
-
-                        # Project a single gradient if the current pair is conflicting.
-                        gi = new_shared_grads[i]
-                        gj = shared_grads[j]
-                        dot = torch.sum(gi * gj)
-                        if dot < 0:
-                            sq_j = torch.sum(gj ** 2)
-                            new_shared_grads[i] = gi - gj * dot / sq_j
-
-                combined_shared_grads = torch.sum(new_shared_grads, dim=0)
-
-            # Set the gradients of shared and task-specific parameters.
-            idx = 0
-            for p in self.network.shared_params():
-                grad_len = p.numel()
-                flattened_grad = combined_shared_grads[idx : idx + grad_len]
-                reshaped_grad = flattened_grad.reshape(p.shape)
-                p.grad = reshaped_grad
-                idx += grad_len
-
-            for task in range(num_tasks):
-                idx = 0
-                for p in self.network.specific_params(task):
-                    grad_len = p.numel()
-                    flattened_grad = specific_grads[task][idx : idx + grad_len]
-                    reshaped_grad = flattened_grad.reshape(p.shape)
-                    p.grad = reshaped_grad
-                    idx += grad_len
-
-        # Regular case, just perform backwards pass.
-        else:
-            loss.backward()
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
@@ -301,10 +212,7 @@ class SLTrainer(Trainer):
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         """ Load trainer state from checkpoint. """
-
-        # Make sure current config and previous config line up, then load policy.
-        assert aligned_train_configs(self.config, checkpoint["config"])
-        self.network = checkpoint["network"]
+        raise NotImplementedError
 
     def get_checkpoint(self) -> None:
         """ Return trainer state as checkpoint. """
@@ -320,18 +228,7 @@ class SLTrainer(Trainer):
 
     def parameters(self) -> Iterator[nn.parameter.Parameter]:
         """ Return parameters of model. """
-
-        # Check whether we need to add extra parameters in the case that we are
-        # multi-task training with "Weighting by Uncertainty".
-        if isinstance(self.criterion, MultiTaskLoss) and isinstance(
-            self.criterion.loss_weighter, Uncertainty
-        ):
-            param_iterator = chain(
-                self.network.parameters(), self.criterion.loss_weighter.parameters()
-            )
-        else:
-            param_iterator = self.network.parameters()
-        return param_iterator
+        return self.network.parameters()
 
     @property
     def metric_set(self) -> List[Tuple]:
@@ -353,14 +250,6 @@ class SLTrainer(Trainer):
                 "point_avg": False,
                 "maximize": False,
                 "show": True,
-            },
-            {
-                "name": "train_step_time",
-                "basename": "train_step_time",
-                "window": None,
-                "point_avg": False,
-                "maximize": None,
-                "show": False,
             },
         ]
         for metric_name, metric_info in self.train_set.extra_metrics.items():

@@ -18,6 +18,8 @@ class Trainer:
 
         Parameters
         ----------
+        num_updates : int
+            Number of training steps.
         lr_schedule_type : str
             Either None, "exponential", "cosine", or "linear". If None is given, the
             learning rate will stay at initial_lr for the duration of training.
@@ -62,6 +64,7 @@ class Trainer:
             self.device = torch.device("cpu")
 
         # Initialize model.
+        self.num_updates = config["num_updates"]
         self.init_model(config, **kwargs)
 
         # Initialize optimizer.
@@ -72,7 +75,7 @@ class Trainer:
         # Initialize learning rate schedule.
         if config["lr_schedule_type"] == "exponential":
             total_lr_decay = config["final_lr"] / config["initial_lr"]
-            decay_per_epoch = math.pow(total_lr_decay, 1.0 / config["num_updates"])
+            decay_per_epoch = math.pow(total_lr_decay, 1.0 / self.num_updates)
             self.lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
                 optimizer=self.optimizer, gamma=decay_per_epoch,
             )
@@ -80,7 +83,7 @@ class Trainer:
         elif config["lr_schedule_type"] == "cosine":
             self.lr_schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer=self.optimizer,
-                T_max=config["num_updates"],
+                T_max=self.num_updates,
                 eta_min=config["final_lr"],
             )
 
@@ -89,7 +92,7 @@ class Trainer:
             def factor(step: int) -> float:
                 lr_shift = config["final_lr"] - config["initial_lr"]
                 desired_lr = config["initial_lr"] + lr_shift * float(step) / (
-                    config["num_updates"] - 1
+                    self.num_updates - 1
                 )
                 return desired_lr / config["initial_lr"]
 
@@ -105,6 +108,8 @@ class Trainer:
                 "Unrecognized lr scheduler type: %s" % config["lr_schedule_type"]
             )
 
+        self.step = 0
+
     def init_model(self) -> None:
         """ Initialize model and corresponding objects. """
         raise NotImplementedError
@@ -118,6 +123,9 @@ class Trainer:
         # Step learning rate schedule, if necessary.
         if self.lr_schedule is not None:
             self.lr_schedule.step()
+
+        # Increment index of training step.
+        self.step += 1
 
         return step_metrics
 

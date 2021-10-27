@@ -113,7 +113,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         trainer.load_checkpoint(checkpoint)
 
     # Training loop.
-    while update_iteration < config["num_updates"]:
+    while update_iteration < trainer.num_updates:
 
         # Perform training step.
         step_metrics = trainer.step()
@@ -121,7 +121,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         # Run evaluation, if necessary.
         if (
             update_iteration % config["evaluation_freq"] == 0
-            or update_iteration == config["num_updates"] - 1
+            or update_iteration == trainer.num_updates - 1
         ):
             eval_step_metrics = trainer.evaluate()
             step_metrics.update(eval_step_metrics)
@@ -130,7 +130,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         metrics.update(step_metrics)
         if (
             update_iteration % config["print_freq"] == 0
-            or update_iteration == config["num_updates"] - 1
+            or update_iteration == trainer.num_updates - 1
         ):
             message = "Update %d | " % update_iteration
             message += str(metrics)
@@ -139,14 +139,14 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         # This is to ensure that printed out values don't get overwritten after we
         # finish.
-        if update_iteration == config["num_updates"] - 1:
+        if update_iteration == trainer.num_updates - 1:
             print("")
 
         # Save intermediate training progress, if necessary. Note that we save an
         # incremented version of update_iteration so that the loaded version will take
         # on the subsequent value of update_iteration on the first step.
         if config["save_name"] is not None and (
-            update_iteration == config["num_updates"] - 1
+            update_iteration == trainer.num_updates - 1
             or (
                 config["save_freq"] is not None
                 and update_iteration % config["save_freq"] == 0

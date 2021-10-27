@@ -1,53 +1,37 @@
 
 
-Splitting Networks
+Continual Batch Normalization
 
 
-Road map:
-    Shared trunk architecture
-    FC splitting networks (regions = layers)
-    Meta splitting networks
---> Evaluation + baselines (
-        PCGrad,
-        Branched MT networks,
-        soft layer ordering,
-        modular meta learning (code available),
-        AdaShare,
-        Piggyback (code available),
-        sparse sharing (code available),
-        routing networks (code available),
-    )
-    Refactoring
+Experiments investigating the drawbacks of batch normalization in the continual learning
+setting.
 
-Current sprint (Evaluation + baselines):
-    Update Meta-World
-    Benchmark performance for single-task learning
---> Benchmark performance for multi-task learning with splitting networks and multi-task PPO
-    Benchmark performance for meta-learning with splitting networks
-    Improve performance for single-task learning
-    Improve performance for multi-task learning with splitting networks
-    Improve performance for meta-learning with splitting networks
-    Baselines?
 
-Splitting network improvements:
-- Use cosine distance to split instead of Euclidean distance
-- Try retraining an already split architecture from scratch (keep initialization?)
+Sprints:
+--> Naive continual learning on split MNIST
+    Continual batch normalization protocols + experiments
 
-Overall performance improvements:
-- Use SAC instead of PPO
-- Hyperparameter tuning
-- Combine splitting networks with PCGrad
+Current sprint (Continual learning on split MNIST):
+    ContinualTrainer skeleton
+    ContinualDataset object
+--> SplitMNIST object
+    Full ContinualTrainer implementation
 
-Notes for current task:
-- Implement splitting by cosine distance instead of Euclidean distance (DONE)
-- Test cosine distance splitting networks (DONE)
-- Make cosine distance computation more efficient (DONE)
-- Run evaluations with cosine distance
-- Implement training on pre-split architecture
+Full implementation:
+- ContinualDataset requirements:
+  - num_tasks member
+  - current_task member
+- Evaluation on old tasks after training on new tasks
 
-Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
-Change max_grad_norm to None for all configs (update baselines accordingly)
+Refactoring/additions:
+- Support for learning rate schedules in ContinualTrainer
 
+Generally, there should be less shared functionality between trainers. Right now,
+train.py runs a single training loop over which metrics are aggregated. This is specific
+to the case of training a single model, and isn't applicable to continual learning or
+meta learning. We sort of got around that with the meta_train function, but this is
+really just a temporary workaround. Each trainer should run its own training loop. This
+is a big refactor, though.
 
 ----------------------------------------------------------------------------------------
 

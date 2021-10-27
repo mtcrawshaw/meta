@@ -31,8 +31,6 @@ class RLTrainer(Trainer):
         ----------
         env_name : str
             Environment to train on.
-        num_updates : int
-            Number of update steps.
         rollout_length : int
             Number of environment steps per rollout.
         num_ppo_epochs : int
