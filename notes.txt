@@ -20,6 +20,7 @@ Small changes:
 - Normalize grad_diff_stats by region size during grad_diff calculation instead of at
   split time?
 - Change max_grad_norm to None for all configs (update baselines accordingly)
+- Get actual mean/std of pixel values to normalize things correctly
 
 
 ----------------------------------------------------------------------------------------
