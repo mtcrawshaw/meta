@@ -1,7 +1,7 @@
 """
 Demo script to run LXMERT on image/question pairs.
 
-Note: This script should be run from `scripts/vqa`.
+Note: This script should be run from the root of this repository.
 """
 
 
@@ -12,7 +12,7 @@ from processing_image import Preprocess
 from utils import Config, get_data
 
 
-IMG_PATH = "./vqa_example.jpg"
+IMG_PATH = "./scripts/vqa/vqa_example.jpg"
 VQA_URL = "https://raw.githubusercontent.com/airsplay/lxmert/master/data/vqa/trainval_label2ans.json"
 QUESTIONS = [
     "what food is on the plate?",

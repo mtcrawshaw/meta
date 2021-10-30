@@ -1,11 +1,19 @@
-""" Dataset object for VQAv2 dataset. """
+"""
+Dataset object for VQAv2 dataset. The raw and processed data can be downloaded with
+scripts from the following repository: https://github.com/Cyanogenoid/vqa-counting
+"""
 
+import os
 import json
 import re
 
 import h5py
 import torch
 from torch.utils.data import Dataset
+
+
+TASK = "OpenEnded"
+DATASET = "mscoco"
 
 
 SPECIAL_CHARS = re.compile("[^a-z0-9 ]*")
@@ -18,31 +26,57 @@ PUNCTUATION_WITH_A_SPACE = re.compile(
 )
 
 
-class VQA(Dataset):
+class VQAv2(Dataset):
     """ VQAv2 dataset. """
 
     def __init__(
         self,
-        questions_path: str,
-        answers_path: str,
-        image_features_path: str,
-        vocab_path: str,
+        root: str,
+        split: str = "train",
         answerable_only: bool = False,
         dummy_answers: bool = False,
     ):
-        """ Init function for VQA. """
+        """ Init function for VQAv2. """
 
-        super(VQA, self).__init__()
+        super(VQAv2, self).__init__()
+
+        # Construct paths to data. Note that the test answers are not available, so we
+        # load the validation answers in their place in this case. This makes no
+        # difference, since the answers in the test case are ignored anyway.
+        if split == "train":
+            self.split = "train2014"
+        elif split == "val":
+            self.split = "val2014"
+        elif split == "test":
+            self.split = "test2015"
+        else:
+            raise ValueError(f"Unrecognized split for VQAv2: {split}")
+        self.root = root
+        questions_path = os.path.join(
+            self.root, f"v2_{TASK}_{DATASET}_{self.split}_questions.json"
+        )
+        answers_split = self.split if not split == "test" else "val2014"
+        answers_path = os.path.join(
+            self.root, f"v2_{DATASET}_{answers_split}_annotations.json"
+        )
+        vocab_path = os.path.join(self.root, "vocab.json")
+        features_split = "test" if split == "test" else "trainval"
+        image_features_path = os.path.join(self.root, f"genome-{features_split}.h5")
 
         # Read in questions, answers, and vocab.
         with open(questions_path, "r") as fd:
             questions_json = json.load(fd)
         with open(answers_path, "r") as fd:
             answers_json = json.load(fd)
-        with open(vocabulary_path, "r") as fd:
+        with open(vocab_path, "r") as fd:
             vocab_json = json.load(fd)
 
         self.question_ids = [q["question_id"] for q in questions_json["questions"]]
+
+        # Process vocab.
+        self.vocab = vocab_json
+        self.token_to_index = self.vocab["question"]
+        self.answer_to_index = self.vocab["answer"]
 
         # Process questions and answers.
         self.questions = list(prepare_questions(questions_json))
@@ -54,11 +88,6 @@ class VQA(Dataset):
         self.image_features_path = image_features_path
         self.coco_id_to_index = self._create_coco_id_to_index()
         self.coco_ids = [q["image_id"] for q in questions_json["questions"]]
-
-        # Process vocab.
-        self.vocab = vocab_json
-        self.token_to_index = self.vocab["question"]
-        self.answer_to_index = self.vocab["answer"]
 
         # Handle using answerable questions only or using dummy answers.
         self.answerable_only = answerable_only

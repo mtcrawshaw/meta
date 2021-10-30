@@ -6,3 +6,4 @@ __pycache__/
 results/
 data/datasets/*
 !data/datasets/pcba.csv.gz
+scripts/vqa/data/*
