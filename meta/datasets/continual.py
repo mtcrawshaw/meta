@@ -3,6 +3,9 @@ Abstract class for datasets for continual learning. Defines attributes and funct
 that any dataset used for continual learning should have.
 """
 
+from meta.datasets.base import BaseDataset
+
+
 class ContinualDataset(BaseDataset):
     """ Abstract class for continual learning datasets. """
 
@@ -14,7 +17,7 @@ class ContinualDataset(BaseDataset):
         document the required members that must be populated by any subclass.
         """
 
-        super(ContinualDataset, self).__init__()
+        super().__init__()
 
         self.num_tasks = None
         self.current_task = None

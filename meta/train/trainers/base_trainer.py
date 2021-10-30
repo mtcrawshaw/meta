@@ -108,7 +108,7 @@ class Trainer:
                 "Unrecognized lr scheduler type: %s" % config["lr_schedule_type"]
             )
 
-        self.step = 0
+        self.steps = 0
 
     def init_model(self) -> None:
         """ Initialize model and corresponding objects. """
@@ -125,7 +125,7 @@ class Trainer:
             self.lr_schedule.step()
 
         # Increment index of training step.
-        self.step += 1
+        self.steps += 1
 
         return step_metrics
 

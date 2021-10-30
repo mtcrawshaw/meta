@@ -56,7 +56,7 @@ class ContinualTrainer(Trainer):
         if dataset_name not in DATASETS:
             raise ValueError(f"Unsupported dataset: {dataset_name}")
         dataset_cls = eval(dataset_name)
-        if not issubclass(dataset_cls, ContinualDataset)
+        if not issubclass(dataset_cls, ContinualDataset):
             raise ValueError(
                 f"Dataset {dataset_name} is not a subclass of ContinualDataset."
             )
@@ -134,8 +134,8 @@ class ContinualTrainer(Trainer):
         """ Perform one training step. """
 
         # Check if task index needs to be switched.
-        if (self.step % self.updates_per_task) == 0:
-            self.current_task = self.updates_per_task // self.step
+        if (self.steps % self.updates_per_task) == 0:
+            self.current_task = self.updates_per_task // self.steps
             self.train_set.current_task = self.current_task
             self.test_set.current_task = self.current_task
 
