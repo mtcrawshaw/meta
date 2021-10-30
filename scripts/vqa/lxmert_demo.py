@@ -45,24 +45,28 @@ normalized_boxes = output_dict.get("normalized_boxes")
 features = output_dict.get("roi_features")
 
 # Run inference on questions.
-for question in QUESTIONS:
-    
-    inputs = tokenizer(
-        [question],
-        padding="max_length",
-        max_length=20,
-        truncation=True,
-        return_tensors="pt",
-    )
-    output = lxmert(
-        input_ids=inputs.input_ids,
-        attention_mask=inputs.attention_mask,
-        visual_feats=features,
-        visual_pos=normalized_boxes,
-        token_type_ids=inputs.token_type_ids,
-        output_attentions=False,
-    )
-    prediction = vqa_answers[output["question_answering_score"].argmax(-1)]
-    print(f"Question: {question}")
-    print(f"Predicted Answer: {prediction}")
+inputs = tokenizer(
+    QUESTIONS,
+    padding="max_length",
+    max_length=20,
+    truncation=True,
+    return_tensors="pt",
+)
+print(f"input_ids: {inputs.input_ids}")
+print(f"attention_mask: {inputs.attention_mask}")
+print(f"visual_feats: {features.shape}")
+print(f"visual_pos: {normalized_boxes.shape}")
+print(f"token_type_ids: {inputs.token_type_ids}")
+output = lxmert(
+    input_ids=inputs.input_ids,
+    attention_mask=inputs.attention_mask,
+    visual_feats=features,
+    visual_pos=normalized_boxes,
+    token_type_ids=inputs.token_type_ids,
+    output_attentions=False,
+)
+for i in range(len(QUESTIONS)):
+    prediction = vqa_answers[output["question_answering_score"][i].argmax(-1)]
+    print(f"Question: {QUESTIONS[i]}")
+    print(f"Predicted Answers: {prediction}")
     print("")

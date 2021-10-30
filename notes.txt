@@ -101,6 +101,9 @@ Training infrastructure:
       metric with flags that indicate whether that metric should be used for training
       and/or evaluation (2) storing one version of the metric for training and one
       version for evaluation. We should just make this consistent end-to-end.
+    - Change data path to "~/.meta/datasets". This will make it so that we don't have to
+      download duplicates of the same dataset for multiple copies of the repo on the
+      same machine.
 - Additions:
     - Training options:
         - Choice of optimizer and optimizer hyperparameters
