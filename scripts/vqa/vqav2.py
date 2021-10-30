@@ -6,6 +6,7 @@ scripts from the following repository: https://github.com/Cyanogenoid/vqa-counti
 import os
 import json
 import re
+from typing import List
 
 import h5py
 import torch
@@ -77,6 +78,8 @@ class VQAv2(Dataset):
         self.vocab = vocab_json
         self.token_to_index = self.vocab["question"]
         self.answer_to_index = self.vocab["answer"]
+        self.index_to_token = {v: k for k, v in self.token_to_index.items()}
+        self.index_to_answer = {v: k for k, v in self.answer_to_index.items()}
 
         # Process questions and answers.
         self.questions = list(prepare_questions(questions_json))
@@ -105,6 +108,41 @@ class VQAv2(Dataset):
     def num_tokens(self):
         # The extra 1 here is for the <unknown> token at index 0.
         return len(self.token_to_index) + 1
+
+    def decode_questions(
+        self, questions: torch.Tensor, q_lengths: torch.Tensor
+    ) -> List[str]:
+        """
+        Recover natural language question from encoded version. `questions` should have
+        shape `(batch_size, MAX_QUESTION_LENGTH)` and `question_lengths` should have
+        shape `(batch_size,)`. Note that this function is not parallelized and is
+        therefore slow.
+        """
+
+        assert questions.shape[0] == q_lengths.shape[0]
+        batch_size = questions.shape[0]
+
+        natural_questions = []
+        for i in range(batch_size):
+            current_question = ""
+            for pos in range(int(q_lengths[i])):
+                index = int(questions[i, pos])
+                word = self.index_to_token[index]
+                current_question += f"{word} "
+            natural_questions.append(current_question[:-1])
+
+        return natural_questions
+
+    def decode_answers(self, answers: torch.Tensor) -> List[str]:
+        """
+        Recover natural language answer from encoded version. `answers` should have
+        shape `(batch_size, NUM_ANSWERS)` and contain a score for each candidate answer.
+        Note that this function is not parallelized and is therefore slow.
+        """
+        batch_size = answers.shape[0]
+        predictions = answers.argmax(dim=-1)
+        natural_answers = [self.index_to_answer(int(predictions[i]))]
+        return natural_answers
 
     def _create_coco_id_to_index(self):
         """
@@ -212,7 +250,9 @@ class VQAv2(Dataset):
 
 
 def prepare_questions(questions_json):
-    """ Tokenize and normalize questions from a given question json in the usual VQA format. """
+    """
+    Tokenize and normalize questions from a given question json in the usual VQA format.
+    """
     questions = [q["question"] for q in questions_json["questions"]]
     for question in questions:
         question = question.lower()[:-1]
