@@ -23,6 +23,83 @@ Additions:
 - Change data preprocessing and/or loading in VQAv2 so that we don't have to reshape
   things after sampling each batch
 
+Spatial reasoning augmentation for spatial prepositions:
+- above: change to below/beneath, flip y-coordinates of all bounding boxes
+- below: change to above, flip y-coordinates of all bounding boxes
+- beneath: change to above, flip y-coordinates of all bounding boxes
+- left: change to right, flip x-coordinates of all bounding boxes
+- right: change to left: flip x-coordinates of all bounding boxes
+- over: change to under/underneath, flip y-coordinates of all bounding boxes
+- under/underneath: change to over, flip y-coordinates of all bounding boxes
+
+Possible preposition augmentations:
+- close, far, near: change near/close to far and far to near/close, and
+  increase/decrease distance between objects. This is hard because we need to move only
+  the bounding boxes of the objects which are described as close/far/near.
+- any proximity-based prepositions: keep question, flip both coordinates of all bounding
+  boxes
+- behind/in front of: change behind to in front of, in front of to behind, and negate
+  answer
+
+General spatial reasoning augmentation:
+- Only augment questions asking what/where/who. This will not work for questions asking
+  how/why or certain what/where/who questions that are using spatial words to refer to
+  objects, then asking more complex questions about those objects. Example: "what does
+  the p above the machine mean". How about which?
+- What about is/are questions? Example: "is there a cabinet above the toilet".
+- There are some how questions that could work, but many are complex. In particular,
+  some questions involve adjectives that go along with the preposition. Example: "how
+  much taller above the woman is the hedge".
+- Should we even try to deal with questions that have more than one spatial preposition?
+  Example: "are the elephants trunks above or below the water". There are several cases
+  asking "above or below", "left or right", etc and these might be augmentable. Others
+  will be harder.
+- Many augmentations will result in a combination of image features that doesn't really
+  make sense. Example: "what is above the toilet on wall?" The above gets changed to
+  below, and now the question is asking about something being both on a wall and below a
+  toilet, which doesn't make sense. Another example: "is this man dropping cigarette
+  butts on the cars below". Flipping the bounding boxes shouldn't affect the
+  ground-truth answer to this question, since you can't drop things up!
+- Sometimes above is referring to perspective, instead of a relationship between
+  objects. Example: "is the image taken from above the kitten". In this case, flipping
+  object positions vertically doesn't correspond to negating the preposition. Similarly,
+  spatial prepositions can describe a relationship between aspects of the same object.
+  Example: "what color is below the blue part of the kites wings".
+- It might be easiest to only augment pairs with questions that fit specific templates.
+  This will decrease the number of generated pairs, but it will also ensure that we
+  aren't training the model on garbage augmentations. Examples: "what is below the X"
+  "is the X above the Y".
+- Some prepositions can be augmented even if we don't have a good way to change the
+  image features. Example: "is there a big tree behind the clock". If the answer is yes,
+  then the answer to "is there a clock in front of the big tree" is also yes. If we knew
+  that there was only a single clock and big tree in the picture, then we would also
+  know that the answer to "is there a big tree in front of the clock" is no. Another
+  example: "what is behind the bus" can be augmented to "what is the bus in front of".
+- Sometimes below is just referring to the picture. Example: "what is below"
+- Should we augment the data by just substituting synonyms like below/under?
+- We probably want to create some sort of balance in the distribution of prepositions.
+  If we augment above questions with below/under/beneath questions, we are skewing the
+  distribution much more towards below-like questions than above-like questions.
+- I'm not sure whether this kind of data augmentation will actually help the root issue
+  for many types of questions. Mainly, if the question is asking about objects while
+  using a spatial preposition to refer to those objects, I don't think that this
+  augmentation will matter much. Example: "what is the piece of furniture beneath the
+  window called". Answering this question doesn't actually require paying any attention
+  to the spatial preposition, it only requires finding the furniture and giving its
+  name. Other types of questions are still okay, particularly questions that ask about
+  the spatial relationship between objects. Example: "are there leaves beneath the
+  bench". I do think that the majority of questions are still okay, but this is
+  important to keep in mind. This issue could be fixed by balancing the other question
+  by introducing "distractor" objects with the same cateogry as the referred object:
+  finding the right object would then require using the spatial preposition.
+- Add "in front of" as a spatial preposition?
+- Should we horizontally flip ROI features when we horizontally flip bounding box
+  positions?
+- We need to put some conditions on when left/right is augmented. Since these words both
+  have homonyms, we need to make sure that these words are being used to describe a
+  spatial relationship before we use them for augmentation.
+
+
 ----------------------------------------------------------------------------------------
 
 
