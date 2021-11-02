@@ -162,6 +162,13 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         update_iteration += 1
 
+    # TEMP: If we are training with continual learning, evaluate on all tasks.
+    if isinstance(trainer, ContinualTrainer):
+        for task in range(trainer.train_set.num_tasks):
+            trainer.test_set.set_current_task(task)
+            final_metrics = trainer.evaluate()
+            print(f"Task {task} final metrics: {final_metrics}")
+
     # Close trainer.
     trainer.close()
 

@@ -15,10 +15,8 @@ Current sprint (Continual learning on split MNIST):
     ContinualTrainer skeleton
     ContinualDataset object
     RotatedMNIST object
---> Full ContinualTrainer implementation
-
-Full implementation:
-- Evaluation on old tasks after training on new tasks
+    Full ContinualTrainer implementation
+--> RotatedCIFAR object
 
 Refactoring/additions:
 - Support for learning rate schedules in ContinualTrainer
