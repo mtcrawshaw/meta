@@ -1,12 +1,13 @@
 """ Dataset object for continual learning on Rotated MNIST. """
 
+import os
 from typing import Dict
 
 import torch
 import torch.nn as nn
 from torchvision import transforms
 import torchvision.transforms.functional as TF
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, CIFAR10, CIFAR100
 
 
 from meta.train.loss import get_accuracy
@@ -14,12 +15,12 @@ from meta.datasets import ContinualDataset
 from meta.datasets.utils import GRAY_TRANSFORM, get_split
 
 
-class RotatedMNIST(ContinualDataset):
+class Rotated(ContinualDataset):
     """
-    Rotated MNIST dataset. This is a continual learning dataset made from MNIST data.
-    Each of the tasks a classification task over the 10 digits, but the data from task i
-    is rotated by an angle of i * alpha degrees, where alpha is a parameter of the
-    dataset.
+    Rotated MNIST/CIFAR dataset. This is a continual learning dataset made from
+    MNIST/CIFAR data. Each of the tasks is a classification task over all classes of the
+    original dataset, but the data from task i is rotated by an angle of i * alpha
+    degrees, where alpha is a parameter of the dataset.
     """
 
     def __init__(
@@ -27,25 +28,39 @@ class RotatedMNIST(ContinualDataset):
         root: str,
         train: bool = True,
         download: bool = False,
+        dataset: str = "MNIST",
         num_tasks: int = 10,
         alpha: float = 18.0,
     ) -> None:
-        """ Init function for MNIST. """
+        """ Init function for Rotated. """
 
         super().__init__()
 
         # Check for valid arguments.
+        assert dataset in ["MNIST", "CIFAR10", "CIFAR100"]
         assert alpha >= 0
         assert alpha * (num_tasks - 1) <= 180
 
-        self.input_size = (1, 28, 28)
-        self.output_size = 10
+        if dataset == "MNIST":
+            self.input_size = (1, 28, 28)
+            self.output_size = 10
+            self.dataset_cls = MNIST
+        elif dataset == "CIFAR10":
+            self.input_size = (3, 32, 32)
+            self.output_size = 10
+            self.dataset_cls = CIFAR10
+        elif dataset == "CIFAR100":
+            self.input_size = (3, 32, 32)
+            self.output_size = 100
+            self.dataset_cls = CIFAR100
+        else:
+            assert False
         self.loss_cls = nn.CrossEntropyLoss
         self.extra_metrics = {
             "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
         }
 
-        self.root = root
+        self.root = os.path.join(os.path.dirname(root), dataset)
         self.train = train
         self.download = download
         self.num_tasks = num_tasks
@@ -56,11 +71,11 @@ class RotatedMNIST(ContinualDataset):
 
     def __len__(self):
         """ Length of dataset. Overridden from parent class. """
-        return len(self.current_mnist)
+        return len(self.current_dataset)
 
     def __getitem__(self, idx: int):
         """ Get item `idx` from dataset. Overridden from parent class. """
-        return self.current_mnist[idx]
+        return self.current_dataset[idx]
 
     def set_current_task(self, new_task: int) -> None:
         """ Set the current training task to `new_task`. """
@@ -74,7 +89,7 @@ class RotatedMNIST(ContinualDataset):
             RotationTransform(angle),
             GRAY_TRANSFORM,
         ])
-        self.current_mnist = MNIST(
+        self.current_dataset = self.dataset_cls(
             root=self.root,
             train=self.train,
             transform=task_transform,

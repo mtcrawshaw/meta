@@ -1,12 +1,13 @@
 {
     "trainer": "ContinualTrainer",
-    "dataset": "RotatedMNIST",
+    "dataset": "Rotated",
     "num_updates": 10,
     "batch_size": 1024,
     "num_workers": 8,
 
     "dataset_kwargs": {
         "download": true,
+        "dataset": "MNIST",
         "num_tasks": 10,
         "alpha": 18.0
     },
