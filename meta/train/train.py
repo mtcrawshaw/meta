@@ -5,7 +5,7 @@ import pickle
 import json
 from typing import Any, Dict
 
-from meta.train.trainers import SUPPORTED_TRAINERS, RLTrainer, SLTrainer
+from meta.train.trainers import SUPPORTED_TRAINERS, RLTrainer, SLTrainer, ContinualTrainer
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.report.plot import plot

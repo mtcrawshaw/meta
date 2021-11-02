@@ -14,13 +14,10 @@ Sprints:
 Current sprint (Continual learning on split MNIST):
     ContinualTrainer skeleton
     ContinualDataset object
---> SplitMNIST object
-    Full ContinualTrainer implementation
+    RotatedMNIST object
+--> Full ContinualTrainer implementation
 
 Full implementation:
-- ContinualDataset requirements:
-  - num_tasks member
-  - current_task member
 - Evaluation on old tasks after training on new tasks
 
 Refactoring/additions:

@@ -3,6 +3,8 @@ Abstract class for datasets for continual learning. Defines attributes and funct
 that any dataset used for continual learning should have.
 """
 
+import torch
+
 from meta.datasets.base import BaseDataset
 
 
@@ -19,13 +21,20 @@ class ContinualDataset(BaseDataset):
 
         super().__init__()
 
+        self._current_task = None
         self.num_tasks = None
-        self.current_task = None
-        self.task_datasets = []
 
-    def __len__(self):
-        return len(self.task_datasets[self.current_task])
+    def __len__(self) -> int:
+        raise NotImplementedError
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> torch.Tensor:
         """ Return the item with index `idx` from the dataset for the current task. """
-        return self.task_datasets[self.current_task][idx]
+        raise NotImplementedError
+
+    def set_current_task(self, new_task: int) -> None:
+        """ Set the current training task to `new_task`. """
+        self._current_task = new_task
+
+    def advance_task(self) -> None:
+        """ Wrapper for convenience. """
+        self.set_current_task(self._current_task + 1)

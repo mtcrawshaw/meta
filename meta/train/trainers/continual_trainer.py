@@ -10,6 +10,7 @@ from typing import Dict, Iterator, Any, List, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+from torchvision.utils import save_image
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
@@ -66,11 +67,10 @@ class ContinualTrainer(Trainer):
         dataset_kwargs = config["dataset_kwargs"]
         self.train_set = dataset_cls(root=root, train=True, **dataset_kwargs)
         self.test_set = dataset_cls(root=root, train=False, **dataset_kwargs)
-        self.current_task = 0
 
         # Construct data loaders.
         self.batch_size = config["batch_size"]
-        train_loader = torch.utils.data.DataLoader(
+        self.train_loader = torch.utils.data.DataLoader(
             self.train_set,
             batch_size=self.batch_size,
             shuffle=True,
@@ -82,8 +82,7 @@ class ContinualTrainer(Trainer):
             shuffle=False,
             num_workers=config["num_workers"],
         )
-        # TODO: Reset train_iter between training of each task?
-        self.train_iter = iter(cycle(train_loader))
+        self.train_iter = iter(cycle(self.train_loader))
 
         # Set length of window for moving average of metrics for training and
         # evaluation. For both training and evaluation, we average over the last epoch.
@@ -135,9 +134,9 @@ class ContinualTrainer(Trainer):
 
         # Check if task index needs to be switched.
         if (self.steps % self.updates_per_task) == 0:
-            self.current_task = self.updates_per_task // self.steps
-            self.train_set.current_task = self.current_task
-            self.test_set.current_task = self.current_task
+            self.train_set.advance_task()
+            self.test_set.advance_task()
+            self.train_iter = iter(cycle(self.train_loader))
 
         # Sample a batch and move it to device.
         inputs, labels = next(self.train_iter)
