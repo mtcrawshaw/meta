@@ -8,15 +8,13 @@ setting.
 
 
 Sprints:
---> Naive continual learning on split MNIST
-    Continual batch normalization protocols + experiments
+    Naive continual learning on split MNIST
+--> Continual batch normalization protocols + experiments
 
 Current sprint (Continual learning on split MNIST):
-    ContinualTrainer skeleton
-    ContinualDataset object
-    RotatedMNIST object
-    Full ContinualTrainer implementation
---> RotatedCIFAR object
+--> BatchNorm architectures (turn option on, set to eval for testing)
+    Different BatchNorm parameters for different tasks
+    Experiments (vary BN protocol, vary dataset, vary angle)
 
 Refactoring/additions:
 - Support for learning rate schedules in ContinualTrainer
