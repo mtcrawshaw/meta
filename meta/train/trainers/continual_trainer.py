@@ -129,6 +129,11 @@ class ContinualTrainer(Trainer):
         self.updates_per_task = int(self.num_updates)
         self.num_updates *= self.train_set.num_tasks
 
+        # Storage for BatchNorm parameters after training on each task. This is
+        # temporary, in order to test out the limitations of batch normalization in
+        # continual learning.
+        self.task_bn_params = []
+
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
@@ -136,6 +141,7 @@ class ContinualTrainer(Trainer):
 
         # Check if task index needs to be switched.
         if (self.steps % self.updates_per_task) == 0:
+            current_task = int(self.steps // self.updates_per_task)
             self.train_set.advance_task()
             self.test_set.advance_task()
             self.train_iter = iter(cycle(self.train_loader))
@@ -166,6 +172,16 @@ class ContinualTrainer(Trainer):
                 outputs, labels, self.criterion, train=True
             )
             step_metrics.update({key: [val] for key, val in extra_metrics.items()})
+
+        # Check if BN parameters should be saved (if we're on last step of the current
+        # task).
+        if ((self.steps + 1) % self.updates_per_task) == 0:
+            self.task_bn_params.append({})
+            for m_name, m in self.network.named_modules():
+                if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
+                    for p_name, p in m.state_dict().items():
+                        full_name = f"{m_name}.{p_name}"
+                        self.task_bn_params[-1][full_name] = p.clone().detach()
 
         return step_metrics
 
@@ -270,3 +286,7 @@ class ContinualTrainer(Trainer):
                         }
                     )
         return metric_set
+
+    def load_bn_params(self, task: int) -> None:
+        """ Load stored BN params for task `task`. """
+        self.network.load_state_dict(self.task_bn_params[task], strict=False)

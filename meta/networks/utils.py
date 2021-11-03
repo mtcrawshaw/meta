@@ -42,7 +42,7 @@ def get_fc_layer(
     layer = []
     layer.append(layer_init(nn.Linear(in_size, out_size)))
     if batch_norm:
-        bn = nn.BatchNorm2d(out_channels)
+        bn = nn.BatchNorm1d(out_size)
         nn.init.constant_(bn.weight, 1)
         nn.init.constant_(bn.bias, 0)
         layer.append(bn)

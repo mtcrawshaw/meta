@@ -166,6 +166,8 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(trainer, ContinualTrainer):
         for task in range(trainer.train_set.num_tasks):
             trainer.test_set.set_current_task(task)
+            if config["separate_bn_params"]:
+                trainer.load_bn_params(task)
             final_metrics = trainer.evaluate()
             print(f"Task {task} final metrics: {final_metrics}")
 

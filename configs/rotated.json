@@ -1,13 +1,13 @@
 {
     "trainer": "ContinualTrainer",
     "dataset": "Rotated",
-    "num_updates": 10,
+    "num_updates": 250,
     "batch_size": 1024,
     "num_workers": 8,
 
     "dataset_kwargs": {
         "download": true,
-        "dataset": "MNIST",
+        "dataset": "CIFAR10",
         "num_tasks": 10,
         "alpha": 18.0
     },
@@ -20,15 +20,16 @@
 
     "architecture_config": {
         "type": "conv",
-        "num_conv_layers": 2,
+        "num_conv_layers": 7,
         "initial_channels": 32,
-        "num_fc_layers": 1,
-        "fc_hidden_size": 32,
+        "num_fc_layers": 2,
+        "fc_hidden_size": 64,
         "activation": "relu",
-        "batch_norm": false
+        "batch_norm": true
     },
 
     "evaluation_freq": 10,
+    "separate_bn_params": true,
 
     "cuda": true,
     "seed": 1,
