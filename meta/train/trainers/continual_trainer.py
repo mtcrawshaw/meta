@@ -132,6 +132,8 @@ class ContinualTrainer(Trainer):
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
+        self.network.train()
+
         # Check if task index needs to be switched.
         if (self.steps % self.updates_per_task) == 0:
             self.train_set.advance_task()
@@ -169,6 +171,8 @@ class ContinualTrainer(Trainer):
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
+
+        self.network.eval()
 
         # Initialize metrics.
         eval_step_metrics = {

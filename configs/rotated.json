@@ -24,7 +24,8 @@
         "initial_channels": 32,
         "num_fc_layers": 1,
         "fc_hidden_size": 32,
-        "activation": "relu"
+        "activation": "relu",
+        "batch_norm": false
     },
 
     "evaluation_freq": 10,

@@ -12,9 +12,10 @@ Sprints:
 --> Continual batch normalization protocols + experiments
 
 Current sprint (Continual learning on split MNIST):
---> BatchNorm architectures (turn option on, set to eval for testing)
-    Different BatchNorm parameters for different tasks
+    BatchNorm architectures (turn option on, set to eval for testing)
+--> Different BatchNorm parameters for different tasks
     Experiments (vary BN protocol, vary dataset, vary angle)
+    A-GEM?
 
 Refactoring/additions:
 - Support for learning rate schedules in ContinualTrainer

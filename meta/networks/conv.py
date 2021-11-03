@@ -23,6 +23,7 @@ class ConvNetwork(nn.Module):
         fc_hidden_size: int,
         output_size: Union[int, List[int]],
         activation: str,
+        batch_norm: False,
         device: torch.device = None,
     ) -> None:
 
@@ -47,6 +48,7 @@ class ConvNetwork(nn.Module):
         self.fc_hidden_size = fc_hidden_size
         self.output_size = output_size
         self.activation = activation
+        self.batch_norm = batch_norm
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -73,6 +75,7 @@ class ConvNetwork(nn.Module):
                     out_channels=out_channels,
                     activation=self.activation,
                     layer_init=init_base,
+                    batch_norm=self.batch_norm,
                 )
             )
 
@@ -96,12 +99,14 @@ class ConvNetwork(nn.Module):
             )
 
             # Initialize_layer.
+            last_layer = i != self.num_fc_layers - 1
             fc_layers.append(
                 get_fc_layer(
                     in_size=in_size,
                     out_size=out_size,
-                    activation=self.activation if i != self.num_fc_layers - 1 else None,
+                    activation=self.activation if last_layer else None,
                     layer_init=init_base,
+                    batch_norm=self.batch_norm if last_layer else False,
                 )
             )
 
