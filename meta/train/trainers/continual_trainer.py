@@ -132,7 +132,7 @@ class ContinualTrainer(Trainer):
         # Storage for BatchNorm parameters after training on each task. This is
         # temporary, in order to test out the limitations of batch normalization in
         # continual learning.
-        self.task_bn_params = []
+        self.task_bn_moments = []
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -173,15 +173,17 @@ class ContinualTrainer(Trainer):
             )
             step_metrics.update({key: [val] for key, val in extra_metrics.items()})
 
-        # Check if BN parameters should be saved (if we're on last step of the current
-        # task).
+        # Check if BN moments should be saved (only on last step of the current task).
         if ((self.steps + 1) % self.updates_per_task) == 0:
-            self.task_bn_params.append({})
+            self.task_bn_moments.append({})
             for m_name, m in self.network.named_modules():
                 if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
-                    for p_name, p in m.state_dict().items():
-                        full_name = f"{m_name}.{p_name}"
-                        self.task_bn_params[-1][full_name] = p.clone().detach()
+                    buffer_names = ["running_mean", "running_var"]
+                    for b_name, b in m.named_buffers():
+                        if b_name not in buffer_names:
+                            continue
+                        full_name = f"{m_name}.{b_name}"
+                        self.task_bn_moments[-1][full_name] = b.clone().detach()
 
         return step_metrics
 
@@ -289,4 +291,28 @@ class ContinualTrainer(Trainer):
 
     def load_bn_params(self, task: int) -> None:
         """ Load stored BN params for task `task`. """
-        self.network.load_state_dict(self.task_bn_params[task], strict=False)
+        self.network.load_state_dict(self.task_bn_moments[task], strict=False)
+
+    def compute_global_bn_moments(self) -> None:
+        """
+        Reproduces experiments from https://openreview.net/forum?id=vwLLQ-HwqhZ. We
+        compute the batch normalization moments across the data from all tasks, to
+        minimize the so-called cross-task normalization effect.
+        """
+
+        # Re-initialize the running parameters of all BatchNorm layers and convert
+        # running stats to cumulative average instead of exponential moving average.
+        for m in self.network.modules():
+            if isinstance(m, torch.nn.BatchNorm1d) or isinstance(m, torch.nn.BatchNorm2d):
+                m.reset_running_stats()
+                m.momentum = None
+        self.network.train()
+
+        # Forward pass all of the data from all tasks through the network, so that
+        # all BN layers can cumulatively track the moments for all tasks.
+        for task in range(self.train_set.num_tasks):
+            self.train_set.set_current_task(task)
+            for inputs, labels in iter(self.train_loader):
+                inputs = inputs.to(self.device)
+                labels = labels.to(self.device)
+                outputs = self.network(inputs)

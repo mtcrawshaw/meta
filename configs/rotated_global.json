@@ -29,7 +29,7 @@
     },
 
     "evaluation_freq": 50,
-    "continual_bn": "none",
+    "continual_bn": "global",
 
     "cuda": true,
     "seed": 1,

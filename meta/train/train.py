@@ -5,6 +5,9 @@ import pickle
 import json
 from typing import Any, Dict
 
+import numpy as np
+import torch
+
 from meta.train.trainers import SUPPORTED_TRAINERS, RLTrainer, SLTrainer, ContinualTrainer
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
@@ -164,12 +167,33 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
     # TEMP: If we are training with continual learning, evaluate on all tasks.
     if isinstance(trainer, ContinualTrainer):
+
+        assert config["continual_bn"] in ["none", "global", "separate"]
+
+        # Reproduce experiments from https://openreview.net/forum?id=vwLLQ-HwqhZ.
+        if config["continual_bn"] == "global":
+            trainer.compute_global_bn_moments()
+        trainer.network.eval()
+
+        final_metrics = {}
         for task in range(trainer.train_set.num_tasks):
             trainer.test_set.set_current_task(task)
-            if config["separate_bn_params"]:
+
+            if config["continual_bn"] == "separate":
                 trainer.load_bn_params(task)
-            final_metrics = trainer.evaluate()
-            print(f"Task {task} final metrics: {final_metrics}")
+
+            task_metrics = trainer.evaluate()
+            for metric_name, metric_val in task_metrics.items():
+                if metric_name in final_metrics:
+                    final_metrics[metric_name].append(metric_val)
+                else:
+                    final_metrics[metric_name] = [metric_val]
+
+            print(f"Task {task} final metrics: {task_metrics}")
+
+        for metric_name, metric_vals in final_metrics.items():
+            final_metrics[metric_name] = np.mean(metric_vals)
+        print(f"Average final metrics: {final_metrics}")
 
     # Close trainer.
     trainer.close()
