@@ -79,6 +79,51 @@ def test_forward_shared() -> None:
     assert torch.allclose(output, expected_output)
 
 
+def test_forward_shared_all_tasks() -> None:
+    """
+    Test forward() when all regions of the splitting network are fully shared, and a
+    prediction for each task is made for all inputs. The function computed by the
+    network should be f(x) = 3 * tanh(2 * tanh(x + 1) + 2) + 3.
+    """
+
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"]
+    hidden_size = dim
+
+    # Construct network.
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        num_tasks=BASE_SETTINGS["num_tasks"],
+        num_layers=BASE_SETTINGS["num_layers"],
+        hidden_size=hidden_size,
+        device=BASE_SETTINGS["device"],
+    )
+
+    # Set network weights.
+    state_dict = network.state_dict()
+    for i in range(BASE_SETTINGS["num_layers"]):
+        weight_name = "regions.%d.0.0.weight" % i
+        bias_name = "regions.%d.0.0.bias" % i
+        state_dict[weight_name] = torch.Tensor((i + 1) * np.identity(dim))
+        state_dict[bias_name] = torch.Tensor((i + 1) * np.ones(dim))
+    network.load_state_dict(state_dict)
+
+    # Construct batch of inputs.
+    batch_size = BASE_SETTINGS["batch_size"]
+    inputs = torch.rand((batch_size, dim))
+
+    # Get output of network.
+    output = network(inputs)
+
+    # Computed expected output of network.
+    expected_output = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
+    expected_output = torch.stack([expected_output] * BASE_SETTINGS["num_tasks"], dim=0)
+
+    # Test output of network.
+    assert torch.allclose(output, expected_output)
+
+
 def test_forward_single() -> None:
     """
     Test forward() when all regions of the splitting network are fully shared except
@@ -139,6 +184,66 @@ def test_forward_single() -> None:
             expected_output[i] = 3 * torch.tanh(2 * torch.tanh(ob + 1) + 2) + 3
         elif task in [2, 3]:
             expected_output[i] = 3 * torch.tanh(-2 * torch.tanh(ob + 1) - 2) + 3
+        else:
+            raise NotImplementedError
+
+    # Test output of network.
+    assert torch.allclose(output, expected_output)
+
+
+def test_forward_single_all_tasks() -> None:
+    """
+    Test forward() when all regions of the splitting network are fully shared except
+    one, and when all inputs get a prediction for all tasks. The function computed by
+    the network should be f(x) = 3 * tanh(2 * tanh(x + 1) + 2) + 3 for tasks 0 and 1 and
+    f(x) = 3 * tanh(-2 * tanh(x + 1) - 2) + 3 for tasks 2 and 3.
+    """
+
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"]
+    hidden_size = dim
+
+    # Construct network.
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        num_tasks=BASE_SETTINGS["num_tasks"],
+        num_layers=BASE_SETTINGS["num_layers"],
+        hidden_size=hidden_size,
+        device=BASE_SETTINGS["device"],
+    )
+
+    # Split the network at the second layer. Tasks 0 and 1 stay assigned to the original
+    # copy and tasks 2 and 3 are assigned to the new copy.
+    network.split(1, 0, [0, 1], [2, 3])
+
+    # Set network weights.
+    state_dict = network.state_dict()
+    for i in range(BASE_SETTINGS["num_layers"]):
+        weight_name = "regions.%d.0.0.weight" % i
+        bias_name = "regions.%d.0.0.bias" % i
+        state_dict[weight_name] = torch.Tensor((i + 1) * np.identity(dim))
+        state_dict[bias_name] = torch.Tensor((i + 1) * np.ones(dim))
+    weight_name = "regions.1.1.0.weight"
+    bias_name = "regions.1.1.0.bias"
+    state_dict[weight_name] = torch.Tensor(-2 * np.identity(dim))
+    state_dict[bias_name] = torch.Tensor(-2 * np.ones(dim))
+    network.load_state_dict(state_dict)
+
+    # Construct batch of inputs.
+    batch_size = BASE_SETTINGS["batch_size"]
+    inputs = torch.rand((batch_size, dim))
+
+    # Get output of network.
+    output = network(inputs)
+
+    # Computed expected output of network.
+    expected_output = torch.zeros(BASE_SETTINGS["num_tasks"], *inputs.shape)
+    for task in range(BASE_SETTINGS["num_tasks"]):
+        if task in [0, 1]:
+            expected_output[task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
+        elif task in [2, 3]:
+            expected_output[task] = 3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) + 3
         else:
             raise NotImplementedError
 
@@ -231,6 +336,89 @@ def test_forward_multiple() -> None:
             raise NotImplementedError
 
     # Test output of network.
+    assert torch.allclose(output, expected_output)
+
+
+def test_forward_multiple_all_tasks() -> None:
+    """
+    Test forward() when none of the layers are fully shared, and when all inputs receive
+    a prediction for all tasks. The function computed by the network should be:
+    - f(x) = 3 * tanh(2 * tanh(x + 1) + 2) + 3 for task 0
+    - f(x) = -3 * tanh(-2 * tanh(x + 1) - 2) - 3 for task 1
+    - f(x) = -3 * tanh(1/2 * tanh(-x - 1) + 1/2) - 3 for task 2
+    - f(x) = 3 * tanh(-2 * tanh(-x - 1) - 2) + 3 for task 3
+    """
+
+    # Set up case.
+    dim = BASE_SETTINGS["obs_dim"]
+    hidden_size = dim
+
+    # Construct network.
+    network = BaseMultiTaskSplittingNetwork(
+        input_size=dim,
+        output_size=dim,
+        num_tasks=BASE_SETTINGS["num_tasks"],
+        num_layers=BASE_SETTINGS["num_layers"],
+        hidden_size=hidden_size,
+        device=BASE_SETTINGS["device"],
+    )
+
+    # Split the network at the second layer. Tasks 0 and 1 stay assigned to the original
+    # copy and tasks 2 and 3 are assigned to the new copy.
+    network.split(0, 0, [0, 1], [2, 3])
+    network.split(1, 0, [0, 2], [1, 3])
+    network.split(1, 0, [0], [2])
+    network.split(2, 0, [0, 3], [1, 2])
+
+    # Set network weights.
+    state_dict = network.state_dict()
+    for i in range(BASE_SETTINGS["num_layers"]):
+        for j in range(3):
+            weight_name = "regions.%d.%d.0.weight" % (i, j)
+            bias_name = "regions.%d.%d.0.bias" % (i, j)
+            if weight_name not in state_dict:
+                continue
+
+            if j == 0:
+                state_dict[weight_name] = torch.Tensor((i + 1) * np.identity(dim))
+                state_dict[bias_name] = torch.Tensor((i + 1) * np.ones(dim))
+            elif j == 1:
+                state_dict[weight_name] = torch.Tensor(-(i + 1) * np.identity(dim))
+                state_dict[bias_name] = torch.Tensor(-(i + 1) * np.ones(dim))
+            elif j == 2:
+                state_dict[weight_name] = torch.Tensor(1 / (i + 1) * np.identity(dim))
+                state_dict[bias_name] = torch.Tensor(1 / (i + 1) * np.ones(dim))
+            else:
+                raise NotImplementedError
+
+    network.load_state_dict(state_dict)
+
+    # Construct batch of inputs.
+    batch_size = BASE_SETTINGS["batch_size"]
+    inputs = torch.rand((batch_size, dim))
+
+    # Get output of network.
+    output = network(inputs)
+
+    # Computed expected output of network.
+    expected_output = torch.zeros(BASE_SETTINGS["num_tasks"], *inputs.shape)
+    for task in range(BASE_SETTINGS["num_tasks"]):
+        if task == 0:
+            expected_output[task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
+        elif task == 1:
+            expected_output[task] = -3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) - 3
+        elif task == 2:
+            expected_output[task] = (
+                -3 * torch.tanh(1 / 2 * torch.tanh(-inputs - 1) + 1 / 2) - 3
+            )
+        elif task == 3:
+            expected_output[task] = 3 * torch.tanh(-2 * torch.tanh(-inputs - 1) - 2) + 3
+        else:
+            raise NotImplementedError
+
+    # Test output of network.
+    print(output.shape)
+    print(expected_output.shape)
     assert torch.allclose(output, expected_output)
 
 

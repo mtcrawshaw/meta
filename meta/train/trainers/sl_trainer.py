@@ -19,6 +19,8 @@ from meta.networks import (
     BackboneNetwork,
     MLPNetwork,
     MultiTaskTrunkNetwork,
+    MultiTaskSplittingNetworkV1,
+    MultiTaskSplittingNetworkV2,
 )
 from meta.utils.utils import aligned_train_configs, DATA_DIR
 
@@ -92,6 +94,10 @@ class SLTrainer(Trainer):
         elif config["architecture_config"]["type"] == "trunk":
             assert isinstance(input_size, int)
             network_cls = MultiTaskTrunkNetwork
+        elif config["architecture_config"]["type"] == "splitting_v1":
+            network_cls = MultiTaskSplittingNetworkV1
+        elif config["architecture_config"]["type"] == "splitting_v2":
+            network_cls = MultiTaskSplittingNetworkV2
         else:
             raise NotImplementedError
 

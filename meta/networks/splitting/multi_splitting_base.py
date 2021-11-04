@@ -133,7 +133,6 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             shape=(self.num_tasks, self.num_tasks, self.num_regions),
             cap_sample_size=self.cap_sample_size,
             ema_alpha=self.ema_alpha,
-            device=self.device,
         )
 
         # Move model to device.
@@ -249,25 +248,32 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         for key, val in self.state_dict().items():
             self.initial_state_dict[key] = np.copy(val.numpy())
 
-    def forward(self, inputs: torch.Tensor, task_indices: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, task_indices: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Forward pass definition for BaseMultiTaskSplittingNetwork. For each layer of the
         network, we aggregate the inputs by their assigned copy of each region, and pass
-        the inputs through the corresponding copy.
+        the inputs through the corresponding copy. When `task_indices` is given, the
+        model produces (for each input) a prediction for only a single task (as in
+        multi-task reinforcement learning). Otherwise, the model produces (for each
+        input) a prediction for all tasks (as is common in multi-task supervised
+        learning).
 
         Implementation note: As I see it, there are two ways that we can reasonably
-        implement this function. The first is, at each region, sorting the inputs by
-        copy index, batching the inputs by copy, performing one forward pass per copy,
-        and restoring the original order of the inputs. The second is by, just once at
-        the beginning of the forward pass, sorting the inputs by task, then performing
-        one forward pass per task at each region, then restoring the original order of
-        the inputs just once at the end of the forward pass. The trade off between them
-        is that the first involves sorting/unsorting at each region but only uses one
-        forward pass per copy per region, while the second only sorts/unsorts once but
-        performs one forward pass per task per region. We have used the first method
-        here, in the name of minimizing the number of forward passes (which are likely
-        going to add more computational burden than sorting), but I could see an
-        argument for the second implementation.
+        implement this function in the case that `task_indices` is not None. The first
+        is, at each region, sorting the inputs by copy index, batching the inputs by
+        copy, performing one forward pass per copy, and restoring the original order of
+        the inputs. The second is by, just once at the beginning of the forward pass,
+        sorting the inputs by task, then performing one forward pass per task at each
+        region, then restoring the original order of the inputs just once at the end of
+        the forward pass. The trade off between them is that the first involves
+        sorting/unsorting at each region but only uses one forward pass per copy per
+        region, while the second only sorts/unsorts once but performs one forward pass
+        per task per region. We have used the first method here, in the name of
+        minimizing the number of forward passes (which are likely going to add more
+        computational burden than sorting), but I could see an argument for the second
+        implementation.
 
         Arguments
         ---------
@@ -282,31 +288,62 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             Output of splitting MLP network when given `inputs` as input.
         """
 
-        assert len(inputs) == len(task_indices)
+        if task_indices is not None:
+            assert len(inputs) == len(task_indices)
 
-        # Pass through each splitting layer.
-        x = inputs
-        for layer in range(self.num_layers):
+            # Pass through each splitting layer.
+            x = inputs
+            for layer in range(self.num_layers):
 
-            # Sort the inputs by copy index and construct reverse permutation to later
-            # restore the original order.
-            copy_indices = self.splitting_map.copy[layer, task_indices]
-            sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
-            _, copy_reverse = torch.sort(copy_permutation)
-            x = x[copy_permutation]
+                # Sort the inputs by copy index and construct reverse permutation to later
+                # restore the original order.
+                copy_indices = self.splitting_map.copy[layer, task_indices]
+                sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
+                _, copy_reverse = torch.sort(copy_permutation)
+                x = x[copy_permutation]
 
-            # Pass through each copy of the region and stack outputs.
-            copy_outputs = []
-            for copy in range(int(self.splitting_map.num_copies[layer])):
-                batch_indices = (sorted_copy_indices == copy).nonzero().squeeze(-1)
-                batch = x[batch_indices]
-                copy_outputs.append(self.regions[layer][copy](batch))
-            x = torch.cat(copy_outputs)
+                # Pass through each copy of the region and stack outputs.
+                copy_outputs = []
+                for copy in range(int(self.splitting_map.num_copies[layer])):
+                    batch_indices = (sorted_copy_indices == copy).nonzero().squeeze(-1)
+                    batch = x[batch_indices]
+                    copy_outputs.append(self.regions[layer][copy](batch))
+                x = torch.cat(copy_outputs)
 
-            # Restore original order of inputs.
-            x = x[copy_reverse]
+                # Restore original order of inputs.
+                x = x[copy_reverse]
 
-        return x
+            return x
+
+        else:
+
+            # Pass through each splitting layer.
+            task_activations = torch.stack(
+                [inputs.clone() for _ in range(self.num_tasks)], dim=0
+            )
+            for layer in range(self.num_layers):
+                for copy in range(int(self.splitting_map.num_copies[layer])):
+
+                    # Get tasks which are routed through the current copy, and aggregate
+                    # the activations for those tasks.
+                    copy_tasks = (
+                        (self.splitting_map.copy[layer] == copy).nonzero().squeeze(-1)
+                    )
+                    inputs = task_activations[copy_tasks]
+
+                    # Flatten task dimension of inputs, feed through copy, then
+                    # un-flatten task dimension.
+                    num_tasks, num_inputs = inputs.shape[:2]
+                    batch = inputs.view(num_tasks * num_inputs, *inputs.shape[2:])
+                    copy_outputs = self.regions[layer][copy](batch)
+                    task_outputs = copy_outputs.view(
+                        num_tasks, num_inputs, *copy_outputs.shape[1:]
+                    )
+
+                    # Store task activations.
+                    task_activations[copy_tasks] = task_outputs
+
+            return task_activations
 
     def check_for_split(self, task_losses: torch.Tensor) -> bool:
         """

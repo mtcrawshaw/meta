@@ -4,6 +4,7 @@ import torch
 BASE_SETTINGS = {
     "obs_dim": 8,
     "num_processes": 8,
+    "batch_size": 8,
     "num_tasks": 4,
     "num_layers": 3,
     "split_step_threshold": 30,
