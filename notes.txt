@@ -5,9 +5,10 @@ Road Map
 Current objective: Measure the gradient similarity of various tasks for CelebA.
 
 Tasks:
---> CelebA dataset wrapper
+--> Splitting networks in SLTrainer (fully connected, MTRegression)
+    CelebA dataset wrapper
     Training on CelebA with SLTrainer
-    Splitting networks in SLTrainer
+    Convolutional splitting networks
     Gradient similarity evaluation
 
 Overall performance improvements for splitting networks:
