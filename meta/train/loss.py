@@ -617,12 +617,12 @@ class SLAW(LossWeighter):
     inverse of the std of the task loss.
     """
 
-    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, ema_alpha: float = 0.99, **kwargs: Dict[str, Any]) -> None:
         """ Init function for SLAW. """
         super(SLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
-            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=0.99
+            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=ema_alpha,
         )
 
     def _update_weights(self) -> None:
