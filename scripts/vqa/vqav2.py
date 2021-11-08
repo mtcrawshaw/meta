@@ -41,6 +41,7 @@ class VQAv2(Dataset):
         split: str = "train",
         answerable_only: bool = False,
         dummy_answers: bool = False,
+        limit_size: int = None,
     ):
         """ Init function for VQAv2. """
 
@@ -94,14 +95,18 @@ class VQAv2(Dataset):
         self.index_to_answer = {v: k for k, v in self.answer_to_index.items()}
 
         # Process questions and answers.
-        self.questions = list(prepare_questions(questions_json))
-        self.answers = list(prepare_answers(answers_json))
+        self.limit_size = limit_size
+        self.questions = list(self.prepare_questions(questions_json))
+        self.answers = list(self.prepare_answers(answers_json))
         self.questions = [self._encode_question(q) for q in self.questions]
         self.answers = [self._encode_answers(a) for a in self.answers]
 
         # Process image features.
         self.image_features_path = image_features_path
         self.coco_id_to_index = self._create_coco_id_to_index()
+        q_list = questions_json["questions"]
+        if self.limit_size is not None:
+            q_list = q_list[:self.limit_size]
         self.coco_ids = [q["image_id"] for q in questions_json["questions"]]
 
         # Handle using answerable questions only or using dummy answers.
@@ -265,44 +270,47 @@ class VQAv2(Dataset):
         else:
             return len(self.questions)
 
+    def prepare_questions(self, questions_json):
+        """ Get a list of questions from `questions_json`. """
 
-def prepare_questions(questions_json):
-    """ Get a list of questions from `questions_json`. """
-    return [q["question"] for q in questions_json["questions"]]
+        q_list = questions_json["questions"]
+        if self.limit_size is not None:
+            q_list = q_list[:self.limit_size]
+        return [q["question"] for q in q_list]
 
+    def prepare_answers(self, answers_json):
+        """
+        Normalize answers from a given answer json in the usual VQA format. The only
+        normalization that is applied to both machine generated answers as well as ground
+        truth answers is replacing most punctuation with space (see [0] and [1]). Since
+        potential machine generated answers are just taken from most common answers,
+        applying the other normalizations is not needed, assuming that the human answers are
+        already normalized.
 
-def prepare_answers(answers_json):
-    """
-    Normalize answers from a given answer json in the usual VQA format. The only
-    normalization that is applied to both machine generated answers as well as ground
-    truth answers is replacing most punctuation with space (see [0] and [1]). Since
-    potential machine generated answers are just taken from most common answers,
-    applying the other normalizations is not needed, assuming that the human answers are
-    already normalized.
+        [0]: http://visualqa.org/evaluation.html
+        [1]: https://github.com/VT-vision-lab/VQA/blob/3849b1eae04a0ffd83f56ad6f70ebd0767e09e0f/PythonEvaluationTools/vqaEvaluation/vqaEval.py#L96
+        """
+        answers = [
+            [a["answer"] for a in ans_dict["answers"]]
+            for ans_dict in answers_json["annotations"]
+        ]
+        if self.limit_size is not None:
+            answers = answers[:self.limit_size]
 
-    [0]: http://visualqa.org/evaluation.html
-    [1]: https://github.com/VT-vision-lab/VQA/blob/3849b1eae04a0ffd83f56ad6f70ebd0767e09e0f/PythonEvaluationTools/vqaEvaluation/vqaEval.py#L96
-    """
-    answers = [
-        [a["answer"] for a in ans_dict["answers"]]
-        for ans_dict in answers_json["annotations"]
-    ]
+        # The original is somewhat broken, so things that look odd here might just be to
+        # mimic that behaviour. This version should be faster since we use re instead of
+        # repeated operations on strings.
+        def process_punctuation(s):
+            if PUNCTUATION.search(s) is None:
+                return s
+            s = PUNCTUATION_WITH_A_SPACE.sub("", s)
+            if re.search(COMMA_STRIP, s) is not None:
+                s = s.replace(",", "")
+            s = PUNCTUATION.sub(" ", s)
+            s = PERIOD_STRIP.sub("", s)
+            return s.strip()
 
-    # The original is somewhat broken, so things that look odd here might just be to
-    # mimic that behaviour. This version should be faster since we use re instead of
-    # repeated operations on strings.
-    def process_punctuation(s):
-        if PUNCTUATION.search(s) is None:
-            return s
-        s = PUNCTUATION_WITH_A_SPACE.sub("", s)
-        if re.search(COMMA_STRIP, s) is not None:
-            s = s.replace(",", "")
-        s = PUNCTUATION.sub(" ", s)
-        s = PERIOD_STRIP.sub("", s)
-        return s.strip()
-
-    for answer_list in answers:
-        yield list(map(process_punctuation, answer_list))
+        return [list(map(process_punctuation, answer_list)) for answer_list in answers]
 
 
 def construct_vocab(vocab_path: str) -> None:
