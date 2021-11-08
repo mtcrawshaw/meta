@@ -17,21 +17,25 @@ from vqav2 import VQAv2
 
 BATCH_SIZE = 4
 NUM_WORKERS = 4
+SEED = 0
 
 EXAMPLE_IMG_PATH = "./scripts/vqa/vqa_example.jpg"
 VQAV2_PATH = "./scripts/vqa/data"
 VQA_ANSWERS_URL = "https://raw.githubusercontent.com/airsplay/lxmert/master/data/vqa/trainval_label2ans.json"
 EXAMPLE_QUESTIONS = [
-    "what food is on the plate?",
-    "what color is the wall?",
-    "what is on the tray?",
-    "what is next to the tea pot?",
-    "are there any people here?",
+    "what is this photo taken looking through?",
+    "what position is this man playing?",
+    "what color is the players shirt?",
+    "is this man a professional baseball player?",
 ]
 
 
 def main(example=False) -> None:
     """ Main function to run LXMERT demo. """
+
+    # Set random seed.
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
 
     # Load LXMERT model and dictionary to interpret LXMERT outputs.
     lxmert = LxmertForQuestionAnswering.from_pretrained("unc-nlp/lxmert-vqa-uncased")
@@ -113,7 +117,7 @@ def main(example=False) -> None:
         natural_questions = dataset.decode_questions(questions, q_lengths)
 
     # Run inference on questions.
-    output = lxmert(output_attentions=False, **lxmert_kwargs,)
+    output = lxmert(output_attentions=False, **lxmert_kwargs)
 
     # Show questions and answers.
     for i in range(batch_size):

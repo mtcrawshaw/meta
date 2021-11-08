@@ -6,17 +6,15 @@ Road Map
 Sprints:
 --> Get LXMERT running on VQAv2 dataset
     Scrutinize VQAv2 for questions related to spatial reasoning
+    Swapped bounding box experiments
 
 Current sprint:
     Get HuggingFace LXMERT demo running locally
 --> Evaluate LXMERT on VQAv2 dataset
 
 Stitching VQAv2 and LXMERT:
-- Inputs to model need to be aligned:
-    - Use LXMERT pretrained vocab to convert token to index (and answers to index?)
-    - Keep punctuation?
-    - Add start and end tokens
-    - Are the visual features from VQAv2 of the format expected by LXMERT?
+- Use LXMERT tokenizer to encode questions (DONE)
+- Are the visual features from VQAv2 of the format expected by LXMERT?
 
 Additions:
 - Add GPU functionality

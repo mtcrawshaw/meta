@@ -11,11 +11,16 @@ from typing import List
 import h5py
 import torch
 from torch.utils.data import Dataset
+from transformers import LxmertTokenizer
+
+from utils import get_data
 
 
 TASK = "OpenEnded"
 DATASET = "mscoco"
 
+LXMERT_TOKENIZER_PATH = "unc-nlp/lxmert-base-uncased"
+VQA_ANSWERS_URL = "https://raw.githubusercontent.com/airsplay/lxmert/master/data/vqa/trainval_label2ans.json"
 
 SPECIAL_CHARS = re.compile("[^a-z0-9 ]*")
 PERIOD_STRIP = re.compile(r"(?!<=\d)(\.)(?!\d)")
@@ -63,6 +68,13 @@ class VQAv2(Dataset):
         vocab_path = os.path.join(self.root, "vocab.json")
         features_split = "test" if split == "test" else "trainval"
         image_features_path = os.path.join(self.root, f"genome-{features_split}.h5")
+
+        # Construct tokenizer.
+        self.tokenizer = LxmertTokenizer.from_pretrained(LXMERT_TOKENIZER_PATH)
+
+        # Construct vocab if it doesn't exist.
+        if not os.path.isfile(vocab_path):
+            construct_vocab(vocab_path)
 
         # Read in questions, answers, and vocab.
         with open(questions_path, "r") as fd:
@@ -189,11 +201,16 @@ class VQAv2(Dataset):
 
     def _encode_question(self, question):
         """ Encode a question as a vector of indices and a question length. """
-        vec = torch.zeros(self.max_question_length).long()
-        for i, token in enumerate(question):
-            index = self.token_to_index.get(token, 0)
-            vec[i] = index
-        return vec, len(question)
+        inputs = self.tokenizer(
+            question,
+            padding="max_length",
+            max_length=20,
+            truncation=True,
+            return_tensors="pt",
+            return_length=True,
+        )
+        lengths = torch.sum(inputs.input_ids != 0, dim=-1)
+        return inputs.input_ids[0], int(lengths[0])
 
     def _encode_answers(self, answers):
         """
@@ -250,14 +267,8 @@ class VQAv2(Dataset):
 
 
 def prepare_questions(questions_json):
-    """
-    Tokenize and normalize questions from a given question json in the usual VQA format.
-    """
-    questions = [q["question"] for q in questions_json["questions"]]
-    for question in questions:
-        question = question.lower()[:-1]
-        question = SPECIAL_CHARS.sub("", question)
-        yield question.split(" ")
+    """ Get a list of questions from `questions_json`. """
+    return [q["question"] for q in questions_json["questions"]]
 
 
 def prepare_answers(answers_json):
@@ -292,3 +303,20 @@ def prepare_answers(answers_json):
 
     for answer_list in answers:
         yield list(map(process_punctuation, answer_list))
+
+
+def construct_vocab(vocab_path: str) -> None:
+    """
+    Make VQAv2 vocab from HuggingFace's LXMERT tokenizer and the VQAv2 answer set.
+    """
+
+    vocab = {}
+
+    # Store vocab for questions, download and store VQA vocab for answers.
+    vqa_answers = get_data(VQA_ANSWERS_URL)
+    vocab["question"] = dict(self.tokenizer.vocab)
+    vocab["answer"] = {a: i for i, a in enumerate(vqa_answers)}
+
+    # Save vocab to file.
+    with open(vocab_path, "w") as vocab_file:
+        json.dump(vocab, vocab_file)
