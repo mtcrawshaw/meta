@@ -587,6 +587,16 @@ def test_task_grads_shared() -> None:
     gradients_template(BASE_SETTINGS, splits_args)
 
 
+def test_task_grads_shared_all_tasks() -> None:
+    """
+    Test that `get_task_grads()` correctly computes task-specific gradients at each
+    region of the network in the case of a fully shared network, when inference for each
+    input is run for all tasks.
+    """
+    splits_args = []
+    gradients_template(BASE_SETTINGS, splits_args, all_tasks=True)
+
+
 def test_task_grads_single() -> None:
     """
     Test that `get_task_grads()` correctly computes task-specific gradients at each
@@ -596,6 +606,18 @@ def test_task_grads_single() -> None:
         {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     gradients_template(BASE_SETTINGS, splits_args)
+
+
+def test_task_grads_single_all_tasks() -> None:
+    """
+    Test that `get_task_grads()` correctly computes task-specific gradients at each
+    region of the network in the case of a single split network, when inference is run
+    for all tasks.
+    """
+    splits_args = [
+        {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+    gradients_template(BASE_SETTINGS, splits_args, all_tasks=True)
 
 
 def test_task_grads_multiple() -> None:
@@ -610,6 +632,21 @@ def test_task_grads_multiple() -> None:
         {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     gradients_template(BASE_SETTINGS, splits_args)
+
+
+def test_task_grads_multiple_all_tasks() -> None:
+    """
+    Test that `get_task_grads()` correctly computes task-specific gradients at each
+    region of the network in the case of a multiple split network, when inference is run
+    for all tasks.
+    """
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 0, "group1": [0], "group2": [2]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+    gradients_template(BASE_SETTINGS, splits_args, all_tasks=True)
 
 
 def test_task_grad_diffs_zero_euclidean() -> None:

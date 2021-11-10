@@ -29,7 +29,7 @@ TOL = 2e-3
 
 
 def gradients_template(
-    settings: Dict[str, Any], splits_args: List[Dict[str, Any]]
+    settings: Dict[str, Any], splits_args: List[Dict[str, Any]], all_tasks: bool = False
 ) -> None:
     """
     Template to test that `get_task_grads()` correctly computes task-specific gradients
@@ -40,7 +40,9 @@ def gradients_template(
     """
 
     # Set up case.
-    dim = settings["obs_dim"] + settings["num_tasks"]
+    dim = settings["obs_dim"]
+    if not all_tasks:
+        dim += settings["num_tasks"]
     observation_subspace = Box(low=-np.inf, high=np.inf, shape=(settings["obs_dim"],))
     observation_subspace.seed(DEFAULT_SETTINGS["seed"])
     hidden_size = dim
@@ -89,29 +91,44 @@ def gradients_template(
         batch_size=settings["num_processes"],
         obs_space=observation_subspace,
         num_tasks=settings["num_tasks"],
+        all_tasks=all_tasks,
     )
 
     # Get output of network and compute task gradients.
     output = network(obs, task_indices)
     task_losses = torch.zeros(settings["num_tasks"])
     for task in range(settings["num_tasks"]):
-        for current_out, current_task in zip(output, task_indices):
-            if current_task == task:
-                task_losses[task] += 0.5 * torch.sum(current_out ** 2)
+        if all_tasks:
+            task_losses[task] = 0.5 * torch.sum(output[task] ** 2)
+        else:
+            for current_out, current_task in zip(output, task_indices):
+                if current_task == task:
+                    task_losses[task] += 0.5 * torch.sum(current_out ** 2)
 
     task_grads = network.get_task_grads(task_losses)
 
-    def get_task_activations(r, t, tasks):
+    def get_task_activations(r, t, tasks, all_tasks=False):
         """ Helper function to get activations from specific regions. """
 
         c = network.splitting_map.copy[r, t]
-        copy_indices = network.splitting_map.copy[r, tasks]
-        sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
-        sorted_tasks = tasks[copy_permutation]
-        batch_indices = (sorted_copy_indices == c).nonzero().squeeze(-1)
-        task_batch_indices = sorted_tasks[batch_indices]
-        current_task_indices = (task_batch_indices == t).nonzero().squeeze(-1)
-        activations = activation["regions.%d.%d" % (r, c)][current_task_indices]
+
+        if all_tasks:
+            copy_tasks = (network.splitting_map.copy[r] == c).nonzero().squeeze(-1)
+            copy_tasks = copy_tasks.tolist()
+            copy_activations = activation["regions.%d.%d" % (r, c)]
+            task_activations = copy_activations.view(
+                len(copy_tasks), -1, *copy_activations.shape[1:]
+            )
+            sub_t = copy_tasks.index(t)
+            activations = task_activations[sub_t]
+        else:
+            copy_indices = network.splitting_map.copy[r, tasks]
+            sorted_copy_indices, copy_permutation = torch.sort(copy_indices)
+            sorted_tasks = tasks[copy_permutation]
+            batch_indices = (sorted_copy_indices == c).nonzero().squeeze(-1)
+            task_batch_indices = sorted_tasks[batch_indices]
+            current_task_indices = (task_batch_indices == t).nonzero().squeeze(-1)
+            activations = activation["regions.%d.%d" % (r, c)][current_task_indices]
 
         return activations
 
@@ -123,8 +140,12 @@ def gradients_template(
     for task in range(settings["num_tasks"]):
 
         # Get output from current task.
-        task_input_indices = (task_indices == task).nonzero().squeeze(-1)
-        task_output = output[task_input_indices]
+        if all_tasks:
+            task_input_indices = torch.arange(output.shape[1])
+            task_output = output[task]
+        else:
+            task_input_indices = (task_indices == task).nonzero().squeeze(-1)
+            task_output = output[task_input_indices]
 
         # Clear local gradients.
         local_grad = {}
@@ -134,7 +155,9 @@ def gradients_template(
             # Get copy index and layer input.
             copy = network.splitting_map.copy[region, task]
             if region > 0:
-                layer_input = get_task_activations(region - 1, task, task_indices)
+                layer_input = get_task_activations(
+                    region - 1, task, task_indices, all_tasks=all_tasks
+                )
             else:
                 layer_input = obs[task_input_indices]
 
@@ -142,7 +165,9 @@ def gradients_template(
             if region == network.num_regions - 1:
                 local_grad[region] = -task_output
             else:
-                layer_output = get_task_activations(region, task, task_indices)
+                layer_output = get_task_activations(
+                    region, task, task_indices, all_tasks=all_tasks
+                )
                 local_grad[region] = torch.zeros(len(layer_output), dim)
                 next_copy = network.splitting_map.copy[region + 1, task]
                 weights = state_dict["regions.%d.%d.0.weight" % (region + 1, next_copy)]
