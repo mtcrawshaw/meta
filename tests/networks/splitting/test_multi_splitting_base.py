@@ -515,9 +515,17 @@ def test_backward_shared() -> None:
     Test that the backward() function correctly computes gradients in the case of a
     fully shared network.
     """
-
     splits_args = []
     backward_template(BASE_SETTINGS, splits_args)
+
+
+def test_backward_shared_all_tasks() -> None:
+    """
+    Test that the backward() function correctly computes gradients in the case of a
+    fully shared network, when inference on each input is run for all tasks.
+    """
+    splits_args = []
+    backward_template(BASE_SETTINGS, splits_args, all_tasks=True)
 
 
 def test_backward_single() -> None:
@@ -525,11 +533,21 @@ def test_backward_single() -> None:
     Test that the backward() function correctly computes gradients in the case of a
     single split.
     """
-
     splits_args = [
         {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
     backward_template(BASE_SETTINGS, splits_args)
+
+
+def test_backward_single_all_tasks() -> None:
+    """
+    Test that the backward() function correctly computes gradients in the case of a
+    single split, when inference on each input is run for all tasks.
+    """
+    splits_args = [
+        {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+    backward_template(BASE_SETTINGS, splits_args, all_tasks=True)
 
 
 def test_backward_multiple() -> None:
@@ -537,7 +555,6 @@ def test_backward_multiple() -> None:
     Test that the backward() function correctly computes gradients in the case of
     multiple splits.
     """
-
     splits_args = [
         {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
         {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
@@ -547,12 +564,25 @@ def test_backward_multiple() -> None:
     backward_template(BASE_SETTINGS, splits_args)
 
 
+def test_backward_multiple_all_tasks() -> None:
+    """
+    Test that the backward() function correctly computes gradients in the case of
+    multiple splits, when inference on each input is run for all tasks.
+    """
+    splits_args = [
+        {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
+        {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
+        {"region": 1, "copy": 0, "group1": [0], "group2": [2]},
+        {"region": 2, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
+    ]
+    backward_template(BASE_SETTINGS, splits_args, all_tasks=True)
+
+
 def test_task_grads_shared() -> None:
     """
     Test that `get_task_grads()` correctly computes task-specific gradients at each
     region of the network in the case of a fully shared network.
     """
-
     splits_args = []
     gradients_template(BASE_SETTINGS, splits_args)
 
@@ -562,7 +592,6 @@ def test_task_grads_single() -> None:
     Test that `get_task_grads()` correctly computes task-specific gradients at each
     region of the network in the case of a single split network.
     """
-
     splits_args = [
         {"region": 1, "copy": 0, "group1": [0, 3], "group2": [1, 2]},
     ]
@@ -574,7 +603,6 @@ def test_task_grads_multiple() -> None:
     Test that `get_task_grads()` correctly computes task-specific gradients at each
     region of the network in the case of a multiple split network.
     """
-
     splits_args = [
         {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
         {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
@@ -590,7 +618,6 @@ def test_task_grad_diffs_zero_euclidean() -> None:
     between task-specific gradients at each region when these gradients are hard-coded
     to zero.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
     grad_diffs_template(settings, "zero")
@@ -602,7 +629,6 @@ def test_task_grad_diffs_rand_identical_euclidean() -> None:
     between task-specific gradients at each region when these gradients are random, but
     identical across tasks.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
     grad_diffs_template(settings, "rand_identical")
@@ -613,7 +639,6 @@ def test_task_grad_diffs_rand_euclidean() -> None:
     Test that `get_task_grad_diffs()` correctly computes the pairwise Euclidean distance
     between task-specific gradients at each region when these gradients are random.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
     grad_diffs_template(settings, "rand")
@@ -625,7 +650,6 @@ def test_task_grad_diffs_zero_cosine() -> None:
     between task-specific gradients at each region when these gradients are hard-coded
     to zero.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
     grad_diffs_template(settings, "zero")
@@ -637,7 +661,6 @@ def test_task_grad_diffs_rand_identical_cosine() -> None:
     between task-specific gradients at each region when these gradients are random, but
     identical across tasks.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
     grad_diffs_template(settings, "rand_identical")
@@ -648,7 +671,6 @@ def test_task_grad_diffs_rand_cosine() -> None:
     Test that `get_task_grad_diffs()` correctly computes the pairwise cosine distance
     between task-specific gradients at each region when these gradients are random.
     """
-
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
     grad_diffs_template(settings, "rand")

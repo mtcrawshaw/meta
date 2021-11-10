@@ -23,6 +23,10 @@ Small changes:
 - Change max_grad_norm to None for all configs (update baselines accordingly)
 - Get actual mean/std of pixel values to normalize things correctly
 
+New splitting networks tests:
+- test_forward_*_all_tasks (DONE)
+- test_backward_*_all_tasks (DONE)
+- test_task_grads_*_all_tasks
 
 ----------------------------------------------------------------------------------------
 

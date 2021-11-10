@@ -239,11 +239,12 @@ def get_task_rollouts(
 
 
 def get_obs_batch(
-    batch_size: int, obs_space: Space, num_tasks: int
+    batch_size: int, obs_space: Space, num_tasks: int, all_tasks: bool = False
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Sample a batch of (multi-task) observations and task indices. Note that `obs_space`
-    must be one-dimensional.
+    must be one-dimensional. If `all_tasks` is True, then no task indices are generated,
+    since inference will be performed for every task on each input.
     """
 
     obs_shape = obs_space.sample().shape
@@ -256,9 +257,14 @@ def get_obs_batch(
         task_vector = one_hot_tensor(num_tasks)
         obs_list.append(torch.cat([ob, task_vector]))
     obs = torch.stack(obs_list)
-    nonzero_pos = obs[:, obs_len:].nonzero()
-    assert nonzero_pos[:, 0].tolist() == list(range(batch_size))
-    task_indices = nonzero_pos[:, 1]
+
+    if all_tasks:
+        obs = obs[:, :obs_len]
+        task_indices = None
+    else:
+        nonzero_pos = obs[:, obs_len:].nonzero()
+        assert nonzero_pos[:, 0].tolist() == list(range(batch_size))
+        task_indices = nonzero_pos[:, 1]
 
     return obs, task_indices
 

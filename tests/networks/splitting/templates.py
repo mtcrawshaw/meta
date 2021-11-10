@@ -173,7 +173,7 @@ def gradients_template(
 
 
 def backward_template(
-    settings: Dict[str, Any], splits_args: List[Dict[str, Any]]
+    settings: Dict[str, Any], splits_args: List[Dict[str, Any]], all_tasks: bool = False
 ) -> None:
     """
     Template to test that the backward() function correctly computes gradients. We don't
@@ -185,7 +185,9 @@ def backward_template(
     """
 
     # Set up case.
-    dim = settings["obs_dim"] + settings["num_tasks"]
+    dim = settings["obs_dim"]
+    if not all_tasks:
+        dim += settings["num_tasks"]
     observation_subspace = Box(low=-np.inf, high=np.inf, shape=(settings["obs_dim"],))
     observation_subspace.seed(DEFAULT_SETTINGS["seed"])
     hidden_size = dim
@@ -215,23 +217,29 @@ def backward_template(
             state_dict[bias_name] = torch.rand(state_dict[bias_name].shape)
     network.load_state_dict(state_dict)
 
-    # Construct batch of observations concatenated with one-hot task vectors.
+    # Construct batch of observations. If `all_tasks` is True, then inference for every
+    # task is performed for every input. Otherwise, each input is concatenated with a
+    # one-hot task vector.
     obs, task_indices = get_obs_batch(
         batch_size=settings["num_processes"],
         obs_space=observation_subspace,
         num_tasks=settings["num_tasks"],
+        all_tasks=all_tasks,
     )
+
+    add_to_none = lambda sums, x: sums + x if sums is not None else x
 
     # Get output of network and compute task losses.
     output = network(obs, task_indices)
     task_losses = {i: None for i in range(settings["num_tasks"])}
     for task in range(settings["num_tasks"]):
-        for current_out, current_task in zip(output, task_indices):
-            if current_task == task:
-                if task_losses[task] is not None:
-                    task_losses[task] += torch.sum(current_out ** 2)
-                else:
-                    task_losses[task] = torch.sum(current_out ** 2)
+        if all_tasks:
+            task_losses[task] = torch.sum(output[task] ** 2)
+        else:
+            for current_out, current_task in zip(output, task_indices):
+                if current_task == task:
+                    loss = torch.sum(current_out ** 2)
+                    task_losses[task] = add_to_none(task_losses[task], loss)
 
     # Test gradients.
     for task in range(settings["num_tasks"]):
