@@ -15,6 +15,8 @@ Overall performance improvements for splitting networks:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
+- Add BatchNorm layers. Empirical evidence shows that this stabilizes distribution of
+  gradients.
 
 Small changes:
 - Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
@@ -23,6 +25,9 @@ Small changes:
 - Change max_grad_norm to None for all configs (update baselines accordingly)
 - Get actual mean/std of pixel values to normalize things correctly
 
+Something to investigate: When we perform a split and new parameters are added to the
+module, are those parameters also added to the optimizer? My guess is yes, but we should
+check on this.
 
 ----------------------------------------------------------------------------------------
 

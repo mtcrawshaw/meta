@@ -18,18 +18,13 @@
     "eps": 1e-5,
 
     "architecture_config": {
-        "type": "splitting_v2",
+        "type": "trunk",
         "num_tasks": 10,
         "activation": "tanh",
-        "num_layers": 5,
+        "num_shared_layers": 4,
+        "num_task_layers": 1,
         "hidden_size": 100,
-        "split_step_threshold": 100,
-        "sharing_threshold": 0.5,
-        "metric": "cosine",
-        "cap_sample_size": false,
-        "ema_alpha": 0.99,
-        "split_freq": 30,
-        "splits_per_step": 1
+        "parallel_branches": true
     },
 
     "evaluation_freq": 30,
@@ -41,5 +36,5 @@
     "load_from": null,
     "metrics_filename": null,
     "baseline_metrics_filename": null,
-    "save_name": "test_splitting_mtr"
+    "save_name": null
 }

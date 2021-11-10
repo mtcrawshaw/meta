@@ -9,6 +9,7 @@ from meta.networks.mlp import MLPNetwork
 from meta.networks.recurrent import RecurrentBlock
 from meta.networks.trunk import MultiTaskTrunkNetwork
 from meta.networks.splitting import (
+    BaseMultiTaskSplittingNetwork,
     MultiTaskSplittingNetworkV1,
     MultiTaskSplittingNetworkV2,
     MetaSplittingNetwork,

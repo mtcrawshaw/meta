@@ -118,7 +118,7 @@ def test_forward_shared_all_tasks() -> None:
 
     # Computed expected output of network.
     expected_output = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
-    expected_output = torch.stack([expected_output] * BASE_SETTINGS["num_tasks"], dim=0)
+    expected_output = torch.stack([expected_output] * BASE_SETTINGS["num_tasks"], dim=1)
 
     # Test output of network.
     assert torch.allclose(output, expected_output)
@@ -238,12 +238,12 @@ def test_forward_single_all_tasks() -> None:
     output = network(inputs)
 
     # Computed expected output of network.
-    expected_output = torch.zeros(BASE_SETTINGS["num_tasks"], *inputs.shape)
+    expected_output = torch.zeros(batch_size, BASE_SETTINGS["num_tasks"], *inputs.shape[1:])
     for task in range(BASE_SETTINGS["num_tasks"]):
         if task in [0, 1]:
-            expected_output[task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
+            expected_output[:, task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
         elif task in [2, 3]:
-            expected_output[task] = 3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) + 3
+            expected_output[:, task] = 3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) + 3
         else:
             raise NotImplementedError
 
@@ -401,24 +401,22 @@ def test_forward_multiple_all_tasks() -> None:
     output = network(inputs)
 
     # Computed expected output of network.
-    expected_output = torch.zeros(BASE_SETTINGS["num_tasks"], *inputs.shape)
+    expected_output = torch.zeros(batch_size, BASE_SETTINGS["num_tasks"], *inputs.shape[1:])
     for task in range(BASE_SETTINGS["num_tasks"]):
         if task == 0:
-            expected_output[task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
+            expected_output[:, task] = 3 * torch.tanh(2 * torch.tanh(inputs + 1) + 2) + 3
         elif task == 1:
-            expected_output[task] = -3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) - 3
+            expected_output[:, task] = -3 * torch.tanh(-2 * torch.tanh(inputs + 1) - 2) - 3
         elif task == 2:
-            expected_output[task] = (
+            expected_output[:, task] = (
                 -3 * torch.tanh(1 / 2 * torch.tanh(-inputs - 1) + 1 / 2) - 3
             )
         elif task == 3:
-            expected_output[task] = 3 * torch.tanh(-2 * torch.tanh(-inputs - 1) - 2) + 3
+            expected_output[:, task] = 3 * torch.tanh(-2 * torch.tanh(-inputs - 1) - 2) + 3
         else:
             raise NotImplementedError
 
     # Test output of network.
-    print(output.shape)
-    print(expected_output.shape)
     assert torch.allclose(output, expected_output)
 
 

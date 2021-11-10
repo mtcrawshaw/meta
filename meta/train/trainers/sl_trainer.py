@@ -19,6 +19,7 @@ from meta.networks import (
     BackboneNetwork,
     MLPNetwork,
     MultiTaskTrunkNetwork,
+    BaseMultiTaskSplittingNetwork,
     MultiTaskSplittingNetworkV1,
     MultiTaskSplittingNetworkV2,
 )
@@ -143,6 +144,11 @@ class SLTrainer(Trainer):
         else:
             self.pcgrad = False
 
+        # Set loss function to return task-specific losses instead of the combined
+        # weighted loss.
+        if isinstance(self.network, BaseMultiTaskSplittingNetwork):
+            criterion_kwargs["train"]["combine_losses"] = False
+
         self.criterion_kwargs = dict(criterion_kwargs)
 
     def _step(self) -> Dict[str, Any]:
@@ -162,6 +168,12 @@ class SLTrainer(Trainer):
         # Perform forward pass and compute loss.
         outputs = self.network(inputs)
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
+
+        # If we are training a splitting network, check for splits. After this, reduce
+        # task losses into a single loss.
+        if isinstance(self.network, BaseMultiTaskSplittingNetwork):
+            self.network.check_for_split(loss)
+            loss = torch.sum(loss)
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self._compute_grad(loss)

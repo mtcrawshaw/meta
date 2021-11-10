@@ -99,7 +99,7 @@ def gradients_template(
     task_losses = torch.zeros(settings["num_tasks"])
     for task in range(settings["num_tasks"]):
         if all_tasks:
-            task_losses[task] = 0.5 * torch.sum(output[task] ** 2)
+            task_losses[task] = 0.5 * torch.sum(output[:, task] ** 2)
         else:
             for current_out, current_task in zip(output, task_indices):
                 if current_task == task:
@@ -141,8 +141,8 @@ def gradients_template(
 
         # Get output from current task.
         if all_tasks:
-            task_input_indices = torch.arange(output.shape[1])
-            task_output = output[task]
+            task_input_indices = torch.arange(output.shape[0])
+            task_output = output[:, task]
         else:
             task_input_indices = (task_indices == task).nonzero().squeeze(-1)
             task_output = output[task_input_indices]
@@ -259,7 +259,7 @@ def backward_template(
     task_losses = {i: None for i in range(settings["num_tasks"])}
     for task in range(settings["num_tasks"]):
         if all_tasks:
-            task_losses[task] = torch.sum(output[task] ** 2)
+            task_losses[task] = torch.sum(output[:, task] ** 2)
         else:
             for current_out, current_task in zip(output, task_indices):
                 if current_task == task:
