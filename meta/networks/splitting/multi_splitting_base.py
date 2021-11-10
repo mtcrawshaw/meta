@@ -37,6 +37,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         metric: str = "sqeuclidean",
         cap_sample_size: bool = True,
         ema_alpha: float = 0.999,
+        task_specific_layers: int = 0,
         downscale_last_layer: bool = False,
         network_load: Dict[str, Any] = None,
         device: torch.device = None,
@@ -69,6 +70,12 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             Whether or not to stop increasing the sample size when we switch to EMA.
         ema_alpha : float
             Coefficient used to compute exponential moving averages.
+        task_specific_layers : int
+            Number of layers at the end of the network that are task-specific. Note: if
+            this value is non-zero, the network will not add any layers after the
+            `num_layers` splitting layers. Instead, the last `task_specific_layers` of
+            the splitting layers will be set to task-specific. Note that this argument
+            is overriden if a network architecture is loaded with `network_load`.
         network_load : Dict[str, Any]
             Dictionary holding instructions about loading a pre-split architecture in.
             If no loading should be done (as is the case for the traditional algorithm
@@ -106,6 +113,11 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                 "Number of layers in network should be at least 1. Given value is: %d"
                 % num_layers
             )
+        if task_specific_layers > num_layers:
+            raise ValueError(
+                f"There must be at least as many total layers ({num_layers}) as"
+                f" task-specific layers ({task_specific_layers})."
+            )
 
         # Set state.
         self.input_size = input_size
@@ -119,6 +131,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.metric = metric
         self.cap_sample_size = cap_sample_size
         self.ema_alpha = ema_alpha
+        self.task_specific_layers = task_specific_layers
         self.network_load = network_load
         self.downscale_last_layer = downscale_last_layer
 
@@ -150,6 +163,14 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             self.num_tasks, self.num_regions, device=self.device
         )
         self.splitting_enabled = True
+
+        # Make the output heads task-specific, if necessary.
+        if self.task_specific_layers > 0:
+            for i in range(self.task_specific_layers):
+                layer = self.num_layers - self.task_specific_layers + i
+                self.splitting_map.num_copies[layer] = self.num_tasks
+                for t in range(self.num_tasks):
+                    self.splitting_map.copy[layer, t] = t
 
         # Load splitting map, if necessary. If so, we disable splitting.
         initial_state_dict = None

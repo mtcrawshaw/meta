@@ -22,6 +22,7 @@
         "num_tasks": 10,
         "activation": "tanh",
         "num_layers": 5,
+        "task_specific_layers": 1,
         "hidden_size": 100,
         "split_step_threshold": 100,
         "sharing_threshold": 0.5,

@@ -1,0 +1,105 @@
+{
+    "trials_per_method": 1,
+
+    "base_train_config": {
+        "trainer": "SLTrainer",
+        "dataset": "MTRegression",
+        "num_updates": 3000,
+        "batch_size": 300,
+        "num_workers": 8,
+
+        "dataset_kwargs": {"num_tasks": 10},
+        "loss_weighter": {
+            "type": "Constant",
+            "loss_weights": [6.4526, 1.6131, 0.71695, 0.40329, 0.25810, 0.17924, 0.13169, 0.10082, 0.079661, 0.064526]
+        },
+
+        "lr_schedule_type": null,
+        "initial_lr": 7e-4,
+        "final_lr": 7e-4,
+        "max_grad_norm": 0.5,
+        "eps": 1e-5,
+
+        "architecture_config": {
+            "type": "trunk",
+            "num_tasks": 10,
+            "activation": "tanh",
+            "num_shared_layers": 4,
+            "num_task_layers": 1,
+            "hidden_size": 100,
+            "parallel_branches": true
+        },
+
+        "evaluation_freq": 10,
+
+        "cuda": true,
+        "print_freq": 10,
+        "save_freq": null,
+        "load_from": null,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
+    },
+
+    "methods": {
+        "base": {},
+        "splitting_1.0": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "split_step_threshold": 100,
+                "sharing_threshold": 1.0,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        },
+        "splitting_0.75": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "split_step_threshold": 100,
+                "sharing_threshold": 0.75,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        },
+        "splitting_0.5": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "split_step_threshold": 100,
+                "sharing_threshold": 0.5,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        },
+        "splitting_0.25": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "split_step_threshold": 100,
+                "sharing_threshold": 0.25,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        }
+    },
+
+    "seed": 0,
+    "save_name": "mtr_splitting_experiment"
+}
