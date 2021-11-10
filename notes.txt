@@ -27,7 +27,10 @@ Small changes:
 
 Something to investigate: When we perform a split and new parameters are added to the
 module, are those parameters also added to the optimizer? My guess is yes, but we should
-check on this.
+check on this. Answer: New parameters aren't automatically added to the optimzer! See
+scripts/optimizer_test.py. This is a HUGE bug in the training of splitting networks. FIX
+THIS!!!!!!!!
+
 
 ----------------------------------------------------------------------------------------
 
