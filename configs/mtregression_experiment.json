@@ -1,5 +1,5 @@
 {
-    "trials_per_method": 1,
+    "trials_per_method": 3,
 
     "base_train_config": {
         "trainer": "SLTrainer",
@@ -30,7 +30,7 @@
             "parallel_branches": true
         },
 
-        "evaluation_freq": 10,
+        "evaluation_freq": 30,
 
         "cuda": true,
         "print_freq": 10,
@@ -45,8 +45,11 @@
         "splitting_1.0": {
             "architecture_config": {
                 "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
                 "num_layers": 5,
                 "task_specific_layers": 1,
+                "hidden_size": 100,
                 "split_step_threshold": 100,
                 "sharing_threshold": 1.0,
                 "metric": "cosine",
@@ -59,8 +62,11 @@
         "splitting_0.75": {
             "architecture_config": {
                 "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
                 "num_layers": 5,
                 "task_specific_layers": 1,
+                "hidden_size": 100,
                 "split_step_threshold": 100,
                 "sharing_threshold": 0.75,
                 "metric": "cosine",
@@ -73,8 +79,11 @@
         "splitting_0.5": {
             "architecture_config": {
                 "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
                 "num_layers": 5,
                 "task_specific_layers": 1,
+                "hidden_size": 100,
                 "split_step_threshold": 100,
                 "sharing_threshold": 0.5,
                 "metric": "cosine",
@@ -87,8 +96,11 @@
         "splitting_0.25": {
             "architecture_config": {
                 "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
                 "num_layers": 5,
                 "task_specific_layers": 1,
+                "hidden_size": 100,
                 "split_step_threshold": 100,
                 "sharing_threshold": 0.25,
                 "metric": "cosine",
@@ -101,5 +113,5 @@
     },
 
     "seed": 0,
-    "save_name": "mtr_splitting_experiment"
+    "save_name": "211110_mtr"
 }

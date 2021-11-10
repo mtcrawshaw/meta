@@ -170,10 +170,10 @@ class SLTrainer(Trainer):
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # If we are training a splitting network, check for splits. After this, reduce
-        # task losses into a single loss.
+        # task losses into a single loss with a weighted sum.
         if isinstance(self.network, BaseMultiTaskSplittingNetwork):
             self.network.check_for_split(loss)
-            loss = torch.sum(loss)
+            loss = torch.sum(loss * self.criterion.loss_weighter.loss_weights)
 
         # Perform backward pass, clip gradient, and take optimizer step.
         self._compute_grad(loss)

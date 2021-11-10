@@ -101,7 +101,8 @@ def experiment(config: Dict[str, Any]) -> Dict[str, Any]:
 
             # Construct training config from base training config.
             train_config = dict(config["base_train_config"])
-            train_config = add_settings(train_config, method_settings)
+            #train_config = add_settings(train_config, method_settings)
+            train_config.update(method_settings)
             train_config["seed"] = config["seed"] + trial
             if config["save_name"] is not None:
                 train_config["save_name"] = f"{config['save_name']}_{method}_{trial}"
