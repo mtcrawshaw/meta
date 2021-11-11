@@ -16,19 +16,22 @@ Current sprint (Continual learning on split MNIST):
     Different BatchNorm parameters for different tasks
     Unified BN parameters computed over all training data
     Store + re-initialize BN parameters for each task
---> Adversarial dataset for continual learning
-    A-GEM
+    Adversarial dataset for continual learning
+--> A-GEM
     Better architecture?
 
-Refactoring/additions:
+Refactoring/additions for this branchh:
 - Support for learning rate schedules in ContinualTrainer
 
-Generally, there should be less shared functionality between trainers. Right now,
-train.py runs a single training loop over which metrics are aggregated. This is specific
-to the case of training a single model, and isn't applicable to continual learning or
-meta learning. We sort of got around that with the meta_train function, but this is
-really just a temporary workaround. Each trainer should run its own training loop. This
-is a big refactor, though.
+Other refactoring:
+- Generally, there should be less shared functionality between trainers. Right now,
+  train.py runs a single training loop over which metrics are aggregated. This is
+  specific to the case of training a single model, and isn't applicable to continual
+  learning or meta learning. We sort of got around that with the meta_train function,
+  but this is really just a temporary workaround. Each trainer should run its own
+  training loop. This is a big refactor, though.
+- MTRegression should use the same data even when the number of tasks varies. Right now
+  we have a different copy of the data for MTRegression10, MTRegression20, etc.
 
 ----------------------------------------------------------------------------------------
 

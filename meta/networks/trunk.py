@@ -26,6 +26,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         num_shared_layers: int = 3,
         num_task_layers: int = 1,
         hidden_size: Union[int, List[int]] = 64,
+        batch_norm: bool = False,
         downscale_last_layer: bool = False,
         parallel_branches: bool = False,
         device: torch.device = None,
@@ -57,6 +58,8 @@ class MultiTaskTrunkNetwork(nn.Module):
             with a list of integers denoting the hidden sizes of each individual layer.
             The length of this list must be equal to `num_shared_layers +
             num_task_layers - 1`.
+        batch_norm : bool
+            Whether or not to include batchnorm after each layer (pre-activation).
         downscale_last_layer : bool
             Whether or not to downscale the variance of initialized weights in the last
             layer of the network. This is suggested in https://arxiv.org/abs/2006.05990.
@@ -98,6 +101,7 @@ class MultiTaskTrunkNetwork(nn.Module):
         else:
             assert isinstance(hidden_size, int)
             self.hidden_size = [hidden_size] * num_hidden_layers
+        self.batch_norm = batch_norm
         self.downscale_last_layer = downscale_last_layer
         self.parallel_branches = parallel_branches
         self.monitor_grads = monitor_grads
@@ -147,6 +151,7 @@ class MultiTaskTrunkNetwork(nn.Module):
                     out_size=layer_output_size,
                     activation=self.activation,
                     layer_init=init_base,
+                    batch_norm=self.batch_norm,
                 )
             )
 
@@ -160,16 +165,15 @@ class MultiTaskTrunkNetwork(nn.Module):
             for i in range(self.num_task_layers):
 
                 # Calculate input and output size of layer.
+                last_layer = i == self.num_task_layers - 1
                 layer_idx = i + self.num_shared_layers
                 layer_input_size = self.hidden_size[layer_idx - 1]
                 layer_output_size = (
-                    self.hidden_size[layer_idx]
-                    if i != self.num_task_layers - 1
-                    else self.output_size
+                    self.hidden_size[layer_idx] if not last_layer else self.output_size
                 )
 
                 # Determine init function for layer.
-                if i == self.num_task_layers - 1 and self.downscale_last_layer:
+                if last_layer and self.downscale_last_layer:
                     layer_init = init_downscale
                 else:
                     layer_init = init_base
@@ -179,10 +183,9 @@ class MultiTaskTrunkNetwork(nn.Module):
                     get_fc_layer(
                         in_size=layer_input_size,
                         out_size=layer_output_size,
-                        activation=self.activation
-                        if i != self.num_task_layers - 1
-                        else None,
+                        activation=self.activation if not last_layer else None,
                         layer_init=layer_init,
+                        batch_norm=self.batch_norm if not last_layer else False,
                     )
                 )
 

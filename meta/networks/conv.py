@@ -93,20 +93,20 @@ class ConvNetwork(nn.Module):
         for i in range(self.num_fc_layers):
 
             # Determine input/output size of layer.
+            last_layer = i == self.num_fc_layers - 1
             in_size = self.feature_size if i == 0 else self.fc_hidden_size
             out_size = (
-                self.output_size if i == self.num_fc_layers - 1 else self.fc_hidden_size
+                self.output_size if last_layer else self.fc_hidden_size
             )
 
             # Initialize_layer.
-            last_layer = i != self.num_fc_layers - 1
             fc_layers.append(
                 get_fc_layer(
                     in_size=in_size,
                     out_size=out_size,
-                    activation=self.activation if last_layer else None,
+                    activation=self.activation if not last_layer else None,
                     layer_init=init_base,
-                    batch_norm=self.batch_norm if last_layer else False,
+                    batch_norm=self.batch_norm if not last_layer else False,
                 )
             )
 

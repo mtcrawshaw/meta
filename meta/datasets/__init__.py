@@ -8,7 +8,8 @@ from meta.datasets.mtregression import MTRegression
 from meta.datasets.pcba import PCBA
 from meta.datasets.continual import ContinualDataset
 from meta.datasets.rotated import Rotated
+from meta.datasets.acd import ACD
 
 DATASETS = [
-    "MNIST", "CIFAR10", "CIFAR100", "NYUv2", "MTRegression", "PCBA", "Rotated"
+    "MNIST", "CIFAR10", "CIFAR100", "NYUv2", "MTRegression", "PCBA", "Rotated", "ACD"
 ]

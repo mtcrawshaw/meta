@@ -18,6 +18,7 @@ class MLPNetwork(nn.Module):
         activation: str = "tanh",
         num_layers: int = 3,
         hidden_size: int = 64,
+        batch_norm: bool = False,
         downscale_last_layer: bool = False,
         device: torch.device = None,
     ) -> None:
@@ -37,6 +38,7 @@ class MLPNetwork(nn.Module):
         self.activation = activation
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.batch_norm = batch_norm
         self.downscale_last_layer = downscale_last_layer
 
         # Set device.
@@ -74,6 +76,7 @@ class MLPNetwork(nn.Module):
                     out_size=layer_output_size,
                     activation=self.activation if i != self.num_layers - 1 else None,
                     layer_init=layer_init,
+                    batch_norm=self.batch_norm if i != self.num_layers - 1 else False,
                 )
             )
 
