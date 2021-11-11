@@ -14,8 +14,11 @@ Sprints:
 Current sprint (Continual learning on split MNIST):
     BatchNorm architectures (turn option on, set to eval for testing)
     Different BatchNorm parameters for different tasks
---> Unified BN parameters computed over all training data
-    A-GEM?
+    Unified BN parameters computed over all training data
+    Store + re-initialize BN parameters for each task
+--> Adversarial dataset for continual learning
+    A-GEM
+    Better architecture?
 
 Refactoring/additions:
 - Support for learning rate schedules in ContinualTrainer

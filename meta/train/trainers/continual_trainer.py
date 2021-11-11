@@ -45,6 +45,9 @@ class ContinualTrainer(Trainer):
             Size of each minibatch on which to compute gradient updates.
         num_workers : int
             Number of worker processes to load data.
+        continual_bn : str
+            Specification of protocol for handling batch normalization over tasks. One
+            of ["none", "global", "separate", "new"].
         """
 
         # Make sure that no learning rate schedule is used. This is currently not
@@ -132,7 +135,8 @@ class ContinualTrainer(Trainer):
         # Storage for BatchNorm parameters after training on each task. This is
         # temporary, in order to test out the limitations of batch normalization in
         # continual learning.
-        self.task_bn_moments = []
+        self.continual_bn = config["continual_bn"]
+        self.task_bn_state = []
 
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
@@ -145,6 +149,12 @@ class ContinualTrainer(Trainer):
             self.train_set.advance_task()
             self.test_set.advance_task()
             self.train_iter = iter(cycle(self.train_loader))
+
+            # Re-initialize batchnorm parameters, if necessary.
+            if self.continual_bn == "new":
+                for m in self.network.modules():
+                    if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
+                        m.reset_parameters()
 
         # Sample a batch and move it to device.
         inputs, labels = next(self.train_iter)
@@ -173,17 +183,15 @@ class ContinualTrainer(Trainer):
             )
             step_metrics.update({key: [val] for key, val in extra_metrics.items()})
 
-        # Check if BN moments should be saved (only on last step of the current task).
+        # Check if BN state should be saved (only on last step of the current task).
         if ((self.steps + 1) % self.updates_per_task) == 0:
-            self.task_bn_moments.append({})
+            self.task_bn_state.append({})
             for m_name, m in self.network.named_modules():
                 if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
-                    buffer_names = ["running_mean", "running_var"]
-                    for b_name, b in m.named_buffers():
-                        if b_name not in buffer_names:
-                            continue
+                    bn_state = deepcopy(m.state_dict())
+                    for b_name, b in bn_state.items():
                         full_name = f"{m_name}.{b_name}"
-                        self.task_bn_moments[-1][full_name] = b.clone().detach()
+                        self.task_bn_state[-1][full_name] = b
 
         return step_metrics
 
@@ -291,7 +299,7 @@ class ContinualTrainer(Trainer):
 
     def load_bn_params(self, task: int) -> None:
         """ Load stored BN params for task `task`. """
-        self.network.load_state_dict(self.task_bn_moments[task], strict=False)
+        self.network.load_state_dict(self.task_bn_state[task], strict=False)
 
     def compute_global_bn_moments(self) -> None:
         """

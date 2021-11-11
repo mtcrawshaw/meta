@@ -124,7 +124,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         # Run evaluation, if necessary.
         if (
             update_iteration % config["evaluation_freq"] == 0
-            or update_iteration == trainer.num_updates - 1
+            or (update_iteration + 1) % trainer.updates_per_task == 0
         ):
             eval_step_metrics = trainer.evaluate()
             step_metrics.update(eval_step_metrics)
@@ -133,7 +133,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         metrics.update(step_metrics)
         if (
             update_iteration % config["print_freq"] == 0
-            or update_iteration == trainer.num_updates - 1
+            or (update_iteration + 1) % trainer.updates_per_task == 0
         ):
             message = "Update %d | " % update_iteration
             message += str(metrics)
@@ -141,8 +141,8 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
             print(message, end="\r")
 
         # This is to ensure that printed out values don't get overwritten after we
-        # finish.
-        if update_iteration == trainer.num_updates - 1:
+        # finish training on each task.
+        if (update_iteration + 1) % trainer.updates_per_task == 0:
             print("")
 
         # Save intermediate training progress, if necessary. Note that we save an
@@ -168,7 +168,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     # TEMP: If we are training with continual learning, evaluate on all tasks.
     if isinstance(trainer, ContinualTrainer):
 
-        assert config["continual_bn"] in ["none", "global", "separate"]
+        assert config["continual_bn"] in ["none", "global", "separate", "new"]
 
         # Reproduce experiments from https://openreview.net/forum?id=vwLLQ-HwqhZ.
         if config["continual_bn"] == "global":
@@ -179,7 +179,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         for task in range(trainer.train_set.num_tasks):
             trainer.test_set.set_current_task(task)
 
-            if config["continual_bn"] == "separate":
+            if config["continual_bn"] in ["separate", "new"]:
                 trainer.load_bn_params(task)
 
             task_metrics = trainer.evaluate()
