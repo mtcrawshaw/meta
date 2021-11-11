@@ -1,17 +1,17 @@
 {
-    "trials_per_method": 1,
+    "trials_per_method": 3,
 
     "base_train_config": {
         "trainer": "ContinualTrainer",
         "dataset": "Rotated",
-        "num_updates": 50,
+        "num_updates": 500,
         "batch_size": 1000,
         "num_workers": 8,
 
         "dataset_kwargs": {
             "download": false,
             "dataset": "CIFAR10",
-            "num_tasks": 3,
+            "num_tasks": 10,
             "alpha": 9.0
         },
 
@@ -44,6 +44,9 @@
     },
 
     "methods": {
+        "frozen": {
+            "continual_bn": "frozen"
+        },
         "vanilla": {},
         "global": {
             "continual_bn": "global"

@@ -1,15 +1,15 @@
 {
-    "trials_per_method": 1,
+    "trials_per_method": 3,
 
     "base_train_config": {
         "trainer": "ContinualTrainer",
         "dataset": "ACD",
-        "num_updates": 10,
+        "num_updates": 500,
         "batch_size": 900,
         "num_workers": 8,
 
         "dataset_kwargs": {
-            "num_tasks": 3,
+            "num_tasks": 10,
             "flip_target": false
         },
 
@@ -40,6 +40,9 @@
     },
 
     "methods": {
+        "frozen": {
+            "continual_bn": "frozen"
+        },
         "vanilla": {},
         "global": {
             "continual_bn": "global"
