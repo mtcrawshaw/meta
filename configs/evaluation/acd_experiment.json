@@ -1,15 +1,15 @@
 {
-    "trials_per_method": 3,
+    "trials_per_method": 1,
 
     "base_train_config": {
         "trainer": "ContinualTrainer",
         "dataset": "ACD",
-        "num_updates": 500,
+        "num_updates": 10,
         "batch_size": 900,
         "num_workers": 8,
 
         "dataset_kwargs": {
-            "num_tasks": 10,
+            "num_tasks": 3,
             "flip_target": false
         },
 
@@ -29,6 +29,7 @@
 
         "evaluation_freq": 10,
         "continual_bn": "none",
+        "memory_size": 0,
 
         "cuda": true,
         "print_freq": 10,
@@ -40,9 +41,30 @@
 
     "methods": {
         "vanilla": {},
-        "global": {"continual_bn": "global"},
-        "separate": {"continual_bn": "separate"},
-        "new": {"continual_bn": "new"}
+        "global": {
+            "continual_bn": "global"
+        },
+        "separate": {
+            "continual_bn": "separate"
+        },
+        "new": {
+            "continual_bn": "new"
+        },
+        "agem": {
+            "memory_size": 300
+        },
+        "agem_global": {
+            "continual_bn": "global",
+            "memory_size": 300
+        },
+        "agem_separate": {
+            "continual_bn": "separate",
+            "memory_size": 300
+        },
+        "agem_new": {
+            "continual_bn": "new",
+            "memory_size": 300
+        }
     },
 
     "seed": 0,

@@ -1,18 +1,18 @@
 {
-    "trials_per_method": 3,
+    "trials_per_method": 1,
 
     "base_train_config": {
         "trainer": "ContinualTrainer",
         "dataset": "Rotated",
-        "num_updates": 250,
-        "batch_size": 1024,
+        "num_updates": 50,
+        "batch_size": 1000,
         "num_workers": 8,
 
         "dataset_kwargs": {
             "download": false,
             "dataset": "CIFAR10",
-            "num_tasks": 10,
-            "alpha": 18.0
+            "num_tasks": 3,
+            "alpha": 9.0
         },
 
         "lr_schedule_type": null,
@@ -23,16 +23,17 @@
 
         "architecture_config": {
             "type": "conv",
-            "num_conv_layers": 5,
-            "initial_channels": 32,
+            "num_conv_layers": 8,
+            "initial_channels": 64,
             "num_fc_layers": 2,
-            "fc_hidden_size": 64,
+            "fc_hidden_size": 128,
             "activation": "relu",
             "batch_norm": true
         },
 
         "evaluation_freq": 50,
         "continual_bn": "none",
+        "memory_size": 0,
 
         "cuda": true,
         "print_freq": 10,
@@ -44,9 +45,30 @@
 
     "methods": {
         "vanilla": {},
-        "global": {"continual_bn": "global"},
-        "separate": {"continual_bn": "separate"},
-        "new": {"continual_bn": "new"}
+        "global": {
+            "continual_bn": "global"
+        },
+        "separate": {
+            "continual_bn": "separate"
+        },
+        "new": {
+            "continual_bn": "new"
+        },
+        "agem": {
+            "memory_size": 300
+        },
+        "agem_global": {
+            "continual_bn": "global",
+            "memory_size": 300
+        },
+        "agem_separate": {
+            "continual_bn": "separate",
+            "memory_size": 300
+        },
+        "agem_new": {
+            "continual_bn": "new",
+            "memory_size": 300
+        }
     },
 
     "seed": 0,

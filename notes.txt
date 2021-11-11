@@ -23,6 +23,8 @@ Current sprint (Continual learning on split MNIST):
 
 Refactoring/additions for this branch:
 - Support for learning rate schedules in ContinualTrainer
+- Structured way to evaluate testing after training on all tasks. Right now it just
+  prints out values, but we should add them to Metrics, plot them, etc.
 
 Other refactoring:
 - Generally, there should be less shared functionality between trainers. Right now,
