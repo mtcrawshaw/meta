@@ -173,6 +173,7 @@ class SLTrainer(Trainer):
         # task losses into a single loss with a weighted sum.
         if isinstance(self.network, BaseMultiTaskSplittingNetwork):
             self.network.check_for_split(loss)
+            self.init_optimizer()
             loss = torch.sum(loss * self.criterion.loss_weighter.loss_weights)
 
         # Perform backward pass, clip gradient, and take optimizer step.

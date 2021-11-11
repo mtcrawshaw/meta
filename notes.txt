@@ -5,8 +5,8 @@ Road Map
 Current objective: Measure the gradient similarity of various tasks for CelebA.
 
 Tasks:
---> Splitting networks in SLTrainer (fully connected, MTRegression)
-    CelebA dataset wrapper
+    Splitting networks in SLTrainer (fully connected, MTRegression)
+--> CelebA dataset wrapper
     Training on CelebA with SLTrainer
     Convolutional splitting networks
     Gradient similarity evaluation
@@ -15,8 +15,7 @@ Overall performance improvements for splitting networks:
 - Use SAC instead of PPO
 - Hyperparameter tuning
 - Combine splitting networks with PCGrad
-- Add BatchNorm layers. Empirical evidence shows that this stabilizes distribution of
-  gradients.
+- Add BatchNorm layers to stabilize distribution of gradients
 
 Small changes:
 - Rename BaseMultiTaskSplittingNetwork to MultiTaskSplittingNetwork
@@ -25,11 +24,8 @@ Small changes:
 - Change max_grad_norm to None for all configs (update baselines accordingly)
 - Get actual mean/std of pixel values to normalize things correctly
 
-Something to investigate: When we perform a split and new parameters are added to the
-module, are those parameters also added to the optimizer? My guess is yes, but we should
-check on this. Answer: New parameters aren't automatically added to the optimzer! See
-scripts/optimizer_test.py. This is a HUGE bug in the training of splitting networks. FIX
-THIS!!!!!!!!
+Refactoring/additions:
+- Try preserving optimizer state through splits and compare performance
 
 
 ----------------------------------------------------------------------------------------

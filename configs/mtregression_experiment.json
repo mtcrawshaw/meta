@@ -4,7 +4,7 @@
     "base_train_config": {
         "trainer": "SLTrainer",
         "dataset": "MTRegression",
-        "num_updates": 3000,
+        "num_updates": 9000,
         "batch_size": 300,
         "num_workers": 8,
 
@@ -41,17 +41,16 @@
     },
 
     "methods": {
-        "base": {},
-        "splitting_1.0": {
+        "no_sharing": {
             "architecture_config": {
                 "type": "splitting_v2",
                 "num_tasks": 10,
                 "activation": "tanh",
                 "num_layers": 5,
-                "task_specific_layers": 1,
+                "task_specific_layers": 5,
                 "hidden_size": 100,
                 "split_step_threshold": 100,
-                "sharing_threshold": 1.0,
+                "sharing_threshold": 0.0,
                 "metric": "cosine",
                 "cap_sample_size": false,
                 "ema_alpha": 0.99,
@@ -59,7 +58,7 @@
                 "splits_per_step": 1
             }
         },
-        "splitting_0.75": {
+        "splitting_0": {
             "architecture_config": {
                 "type": "splitting_v2",
                 "num_tasks": 10,
@@ -68,7 +67,24 @@
                 "task_specific_layers": 1,
                 "hidden_size": 100,
                 "split_step_threshold": 100,
-                "sharing_threshold": 0.75,
+                "sharing_threshold": 0.0,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        },
+        "splitting_0.25": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "hidden_size": 100,
+                "split_step_threshold": 100,
+                "sharing_threshold": 0.25,
                 "metric": "cosine",
                 "cap_sample_size": false,
                 "ema_alpha": 0.99,
@@ -93,7 +109,7 @@
                 "splits_per_step": 1
             }
         },
-        "splitting_0.25": {
+        "splitting_0.75": {
             "architecture_config": {
                 "type": "splitting_v2",
                 "num_tasks": 10,
@@ -102,7 +118,24 @@
                 "task_specific_layers": 1,
                 "hidden_size": 100,
                 "split_step_threshold": 100,
-                "sharing_threshold": 0.25,
+                "sharing_threshold": 0.75,
+                "metric": "cosine",
+                "cap_sample_size": false,
+                "ema_alpha": 0.99,
+                "split_freq": 30,
+                "splits_per_step": 1
+            }
+        },
+        "trunk": {
+            "architecture_config": {
+                "type": "splitting_v2",
+                "num_tasks": 10,
+                "activation": "tanh",
+                "num_layers": 5,
+                "task_specific_layers": 1,
+                "hidden_size": 100,
+                "split_step_threshold": 100,
+                "sharing_threshold": 1.0,
                 "metric": "cosine",
                 "cap_sample_size": false,
                 "ema_alpha": 0.99,
@@ -113,5 +146,5 @@
     },
 
     "seed": 0,
-    "save_name": "211110_mtr"
+    "save_name": "211110_mtr_same_capacity"
 }
