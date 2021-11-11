@@ -8,7 +8,12 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
-from meta.train.trainers import SUPPORTED_TRAINERS, RLTrainer, SLTrainer, ContinualTrainer
+from meta.train.trainers import (
+    SUPPORTED_TRAINERS,
+    RLTrainer,
+    SLTrainer,
+    ContinualTrainer,
+)
 from meta.utils.logger import logger
 from meta.utils.metrics import Metrics
 from meta.report.plot import plot
@@ -168,7 +173,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
     # TEMP: If we are training with continual learning, evaluate on all tasks.
     if isinstance(trainer, ContinualTrainer):
 
-        assert config["continual_bn"] in ["none", "global", "separate", "new"]
+        assert config["continual_bn"] in ["none", "global", "separate", "new", "frozen"]
 
         # Reproduce experiments from https://openreview.net/forum?id=vwLLQ-HwqhZ.
         if config["continual_bn"] == "global":
@@ -179,7 +184,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         for task in range(trainer.train_set.num_tasks):
             trainer.test_set.set_current_task(task)
 
-            if config["continual_bn"] in ["separate", "new"]:
+            if config["continual_bn"] in ["separate", "new", "frozen"]:
                 trainer.load_bn_params(task)
 
             task_metrics = trainer.evaluate()

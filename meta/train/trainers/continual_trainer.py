@@ -47,7 +47,7 @@ class ContinualTrainer(Trainer):
             Number of worker processes to load data.
         continual_bn : str
             Specification of protocol for handling batch normalization over tasks. One
-            of ["none", "global", "separate", "new"].
+            of ["none", "global", "separate", "new", "frozen"].
         memory_size : int
             Number of data samples from each task to store in memory. Memories are used
             to alleviate catastrophic forgetting with A-GEM.
@@ -138,6 +138,7 @@ class ContinualTrainer(Trainer):
         # Storage for BatchNorm parameters after training on each task. This is
         # temporary, in order to test out the limitations of batch normalization in
         # continual learning.
+        assert config["continual_bn"] in ["none", "global", "separate", "new", "frozen"]
         self.continual_bn = config["continual_bn"]
         self.task_bn_state = []
 
@@ -164,10 +165,15 @@ class ContinualTrainer(Trainer):
         else:
             self.agem = False
 
+        # Check for compatibility of options.
+        if self.continual_bn == "frozen":
+            assert not self.agem
+
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
         self.network.train()
+
 
         # Check if task index needs to be switched.
         if self.steps > 0 and (self.steps % self.updates_per_task) == 0:
@@ -175,6 +181,18 @@ class ContinualTrainer(Trainer):
             self.train_set.advance_task()
             self.test_set.advance_task()
             self.train_iter = iter(cycle(self.train_loader))
+
+            # Freeze non-BN parameters, if necessary. The "frozen" continual BN protocol
+            # freezes the non-BN parameters after training on the first task finishes,
+            # and only trains the BN parameters for the remainder of the continual
+            # learning training. In addition, each task gets its own copy of the BN
+            # parameters. Note: For ease of implementation, this currently only freezes
+            # parameters of fully connected layers and convolutional layers.
+            if self.continual_bn == "frozen" and current_task == 1:
+                for m in self.network.modules():
+                    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+                        m.requires_grad_(False)
+                self.init_optimizer()
 
             # Re-initialize batchnorm parameters, if necessary.
             if self.continual_bn == "new":
@@ -378,7 +396,7 @@ class ContinualTrainer(Trainer):
 
     def parameters(self) -> Iterator[nn.parameter.Parameter]:
         """ Return parameters of model. """
-        return self.network.parameters()
+        return [p for p in self.network.parameters() if p.requires_grad]
 
     @property
     def metric_set(self) -> List[Tuple]:

@@ -68,9 +68,9 @@ class Trainer:
         self.init_model(config, **kwargs)
 
         # Initialize optimizer.
-        self.optimizer = torch.optim.Adam(
-            self.parameters(), lr=config["initial_lr"], eps=config["eps"]
-        )
+        self.initial_lr = config["initial_lr"]
+        self.eps = config["eps"]
+        self.init_optimizer()
 
         # Initialize learning rate schedule.
         if config["lr_schedule_type"] == "exponential":
@@ -113,6 +113,12 @@ class Trainer:
     def init_model(self) -> None:
         """ Initialize model and corresponding objects. """
         raise NotImplementedError
+
+    def init_optimizer(self) -> None:
+        """ Initialize optimizer. """
+        self.optimizer = torch.optim.Adam(
+            self.parameters(), lr=self.initial_lr, eps=self.eps
+        )
 
     def step(self) -> Dict[str, Any]:
         """ Perform a training step. """
