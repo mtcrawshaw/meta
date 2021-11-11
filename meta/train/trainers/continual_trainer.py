@@ -48,6 +48,9 @@ class ContinualTrainer(Trainer):
         continual_bn : str
             Specification of protocol for handling batch normalization over tasks. One
             of ["none", "global", "separate", "new"].
+        memory_size : int
+            Number of data samples from each task to store in memory. Memories are used
+            to alleviate catastrophic forgetting with A-GEM.
         """
 
         # Make sure that no learning rate schedule is used. This is currently not
@@ -138,13 +141,36 @@ class ContinualTrainer(Trainer):
         self.continual_bn = config["continual_bn"]
         self.task_bn_state = []
 
+        # Initialize episodic memory for A-GEM.
+        if (
+            "memory_size" in config
+            and config["memory_size"] is not None
+            and config["memory_size"] > 0
+        ):
+            self.agem = True
+            self.memory_size = config["memory_size"]
+            self.input_memory = None
+            self.label_memory = None
+            self.current_input_memory = None
+            self.current_label_memory = None
+
+            # This is the number of memories that are sampled from each minibatch during
+            # training until the memory for the current task is filled. We set this
+            # value so that we sample a (nearly) equal number of samples from each
+            # minibatch during the first epoch.
+            self.memories_per_batch = ceil(
+                self.memory_size / ceil(len(self.train_set) / self.batch_size)
+            )
+        else:
+            self.agem = False
+
     def _step(self) -> Dict[str, Any]:
         """ Perform one training step. """
 
         self.network.train()
 
         # Check if task index needs to be switched.
-        if (self.steps % self.updates_per_task) == 0:
+        if self.steps > 0 and (self.steps % self.updates_per_task) == 0:
             current_task = int(self.steps // self.updates_per_task)
             self.train_set.advance_task()
             self.test_set.advance_task()
@@ -169,7 +195,7 @@ class ContinualTrainer(Trainer):
         loss = self.criterion(outputs, labels, **self.criterion_kwargs["train"])
 
         # Perform backward pass, clip gradient, and take optimizer step.
-        loss.backward()
+        self._compute_grad(loss)
         self.clip_grads()
         self.optimizer.step()
 
@@ -193,7 +219,102 @@ class ContinualTrainer(Trainer):
                         full_name = f"{m_name}.{b_name}"
                         self.task_bn_state[-1][full_name] = b
 
+        # Add samples from batch into episodic memory for current task, if necessary.
+        if self.agem and (
+            self.current_input_memory is None
+            or len(self.current_input_memory) < self.memory_size
+        ):
+            already_sampled = (
+                0
+                if self.current_input_memory is None
+                else len(self.current_input_memory)
+            )
+            num_samples = min(
+                self.memories_per_batch, self.memory_size - already_sampled
+            )
+            sample_idxs = torch.randint(len(inputs), (num_samples,))
+            input_samples = inputs[sample_idxs]
+            label_samples = labels[sample_idxs]
+
+            if self.current_input_memory is None:
+                self.current_input_memory = input_samples
+                self.current_label_memory = label_samples
+            else:
+                self.current_input_memory = torch.cat(
+                    [self.current_input_memory, input_samples], dim=0
+                )
+                self.current_label_memory = torch.cat(
+                    [self.current_label_memory, label_samples], dim=0
+                )
+
+        # Add memory from current task to total episodic memory, if this is the last
+        # training step for the current task.
+        if self.agem and ((self.steps + 1) % self.updates_per_task) == 0:
+            if self.input_memory is None:
+                self.input_memory = self.current_input_memory
+                self.label_memory = self.current_label_memory
+            else:
+                self.input_memory = torch.cat(
+                    [self.input_memory, self.current_input_memory], dim=0
+                )
+                self.label_memory = torch.cat(
+                    [self.label_memory, self.current_label_memory], dim=0
+                )
+            self.current_input_memory = None
+            self.current_label_memory = None
+
         return step_metrics
+
+    def _compute_grad(self, loss: torch.Tensor) -> None:
+        """
+        Compute gradient of task parameters with respect to `loss`. This may be as
+        simple as calling `backward()`, more work is required for options like A-GEM.
+        """
+
+        # Use A-GEM. Compute the gradient of the current task's loss, and compute the
+        # gradient of the loss for a minibatch sampled from episodic memory, consisting
+        # of data from previous tasks. If these two gradients are conflicting, project
+        # the current task gradient onto the normal plane of the episodic gradient
+        # before applying it to update network parameters. Note that we just perform a
+        # regular backwards pass when the memory hasn't yet been populated.
+        if self.agem and self.input_memory is not None:
+
+            # Compute gradient of current task loss.
+            loss.backward()
+            task_grad = torch.cat([p.grad.view(-1) for p in self.network.parameters()])
+            self.network.zero_grad()
+
+            # Compute gradient of previous task losses by sampling episodic memory.
+            memory_len = len(self.input_memory)
+            memory_batch_size = min(self.batch_size, memory_len)
+            sample_idxs = torch.randint(memory_len, (memory_batch_size,))
+            memory_inputs = self.input_memory[sample_idxs]
+            memory_labels = self.label_memory[sample_idxs]
+            memory_outputs = self.network(memory_inputs)
+            memory_loss = self.criterion(
+                memory_outputs, memory_labels, **self.criterion_kwargs["train"]
+            )
+            memory_loss.backward()
+            memory_grad = torch.cat(
+                [p.grad.view(-1) for p in self.network.parameters()]
+            )
+
+            # Project current gradient and apply to parameters, if necessary.
+            dot = torch.dot(task_grad, memory_grad)
+            if dot < 0:
+                task_grad -= dot / torch.sum(memory_grad ** 2) * memory_grad
+
+                idx = 0
+                for p in self.network.parameters():
+                    grad_len = p.numel()
+                    flattened_grad = task_grad[idx : idx + grad_len]
+                    reshaped_grad = flattened_grad.reshape(p.shape)
+                    p.grad = reshaped_grad
+                    idx += grad_len
+
+        # Regular case, just perform backwards pass.
+        else:
+            loss.backward()
 
     def evaluate(self) -> None:
         """ Evaluate current model. """
@@ -311,7 +432,7 @@ class ContinualTrainer(Trainer):
         # Re-initialize the running parameters of all BatchNorm layers and convert
         # running stats to cumulative average instead of exponential moving average.
         for m in self.network.modules():
-            if isinstance(m, torch.nn.BatchNorm1d) or isinstance(m, torch.nn.BatchNorm2d):
+            if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
                 m.reset_running_stats()
                 m.momentum = None
         self.network.train()

@@ -1,0 +1,50 @@
+{
+    "trials_per_method": 3,
+
+    "base_train_config": {
+        "trainer": "ContinualTrainer",
+        "dataset": "ACD",
+        "num_updates": 500,
+        "batch_size": 900,
+        "num_workers": 8,
+
+        "dataset_kwargs": {
+            "num_tasks": 10,
+            "flip_target": false
+        },
+
+        "lr_schedule_type": null,
+        "initial_lr": 7e-4,
+        "final_lr": 7e-4,
+        "max_grad_norm": 0.5,
+        "eps": 1e-5,
+
+        "architecture_config": {
+            "type": "mlp",
+            "activation": "tanh",
+            "num_layers": 3,
+            "hidden_size": 100,
+            "batch_norm": true
+        },
+
+        "evaluation_freq": 10,
+        "continual_bn": "none",
+
+        "cuda": true,
+        "print_freq": 10,
+        "save_freq": null,
+        "load_from": null,
+        "metrics_filename": null,
+        "baseline_metrics_filename": null
+    },
+
+    "methods": {
+        "vanilla": {},
+        "global": {"continual_bn": "global"},
+        "separate": {"continual_bn": "separate"},
+        "new": {"continual_bn": "new"}
+    },
+
+    "seed": 0,
+    "save_name": "211111_acd"
+}

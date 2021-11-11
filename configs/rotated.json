@@ -1,13 +1,15 @@
 {
     "trainer": "ContinualTrainer",
-    "dataset": "ACD",
-    "num_updates": 500,
-    "batch_size": 900,
+    "dataset": "Rotated",
+    "num_updates": 250,
+    "batch_size": 256,
     "num_workers": 8,
 
     "dataset_kwargs": {
-        "num_tasks": 5,
-        "flip_target": false
+        "download": false,
+        "dataset": "CIFAR10",
+        "num_tasks": 10,
+        "alpha": 18.0
     },
 
     "lr_schedule_type": null,
@@ -17,16 +19,18 @@
     "eps": 1e-5,
 
     "architecture_config": {
-        "type": "mlp",
-        "activation": "tanh",
-        "num_layers": 3,
-        "hidden_size": 100,
+        "type": "conv",
+        "num_conv_layers": 5,
+        "initial_channels": 32,
+        "num_fc_layers": 2,
+        "fc_hidden_size": 64,
+        "activation": "relu",
         "batch_norm": true
     },
 
-    "evaluation_freq": 10,
+    "evaluation_freq": 50,
     "continual_bn": "none",
-    "memory_size": 500,
+    "memory_size": 0,
 
     "cuda": true,
     "seed": 0,
