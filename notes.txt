@@ -6,8 +6,8 @@ Current objective: Measure the gradient similarity of various tasks for CelebA.
 
 Tasks:
     Splitting networks in SLTrainer (fully connected, MTRegression)
---> CelebA dataset wrapper
-    Training on CelebA with SLTrainer
+    CelebA dataset wrapper
+--> Training on CelebA with SLTrainer
     Convolutional splitting networks
     Gradient similarity evaluation
 
@@ -26,7 +26,21 @@ Small changes:
 
 Refactoring/additions:
 - Try preserving optimizer state through splits and compare performance
+- Change NYUv2 training to expect task outputs to be stacked along a separate task
+  dimension instead of stacked along the channel dimension. However, this itself will
+  still be a temporary fix, since this solution doesn't support task sets in which the
+  task outputs can't be stacked in a tensor due to incompatible shapes. The more general
+  approach is to make it so that the multi-task model just gives back a list of outputs,
+  one for each task.
+- Add option to MultiTaskLoss which allows for loss functions to be computed in
+  parallel. With this addition, MultiTaskLoss would either take in a list of loss
+  functions or a single loss function that returns a 1D tensor containing the loss of
+  each task, given outputs/labels from all tasks. This will speed up training a decent
+  amount for task sets that have homogeneous task loss functions, such as PCBA,
+  MTRegression, and CelebA.
+- Speed up CelebA training. Run some profiling to see why it's so slow.
 
+Add option to scale down CelebA images
 
 ----------------------------------------------------------------------------------------
 

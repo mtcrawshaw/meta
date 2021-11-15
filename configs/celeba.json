@@ -1,9 +1,9 @@
 {
     "trainer": "SLTrainer",
     "dataset": "CelebA",
-    "num_updates": 90,
-    "batch_size": 32,
-    "num_workers": 0,
+    "num_updates": 6,
+    "batch_size": 16,
+    "num_workers": 4,
 
     "dataset_kwargs": {
         "num_tasks": 9
@@ -22,13 +22,13 @@
     "architecture_config": {
         "type": "backbone",
         "arch_type": "conv",
-        "num_backbone_layers": 9,
+        "num_backbone_layers": 4,
         "num_head_layers": 2,
         "initial_channels": 32,
         "head_channels": 32
     },
 
-    "evaluation_freq": 15,
+    "evaluation_freq": 3,
 
     "cuda": true,
     "seed": 0,

@@ -44,7 +44,7 @@ class CelebA(torch_CelebA, BaseDataset):
 
         # Store static dataset properties.
         self.input_size = (3, 178, 218)
-        self.output_size = 2
+        self.output_size = [2] * self.num_tasks
         self.loss_cls = MultiTaskLoss
         self.loss_kwargs = {
             "task_losses": [

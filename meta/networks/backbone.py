@@ -13,6 +13,7 @@ import torchvision
 
 from meta.networks.utils import (
     get_conv_layer,
+    get_fc_layer,
     init_base,
     IntermediateLayerGetter,
     Parallel,
@@ -81,7 +82,7 @@ class BackboneNetwork(nn.Module):
                 "Architecture '%s' not supported for BackboneNetwork." % arch_type
             )
 
-        # Set state and check for validity.
+        # Set state.
         self.input_size = input_size
         self.output_size = output_size
         self.num_backbone_layers = num_backbone_layers
@@ -89,6 +90,8 @@ class BackboneNetwork(nn.Module):
         self.head_channels = head_channels
         self.arch_type = arch_type
         self.initial_channels = initial_channels
+
+        # Check for valid architecture specificiation.
         if self.arch_type in PRETRAINED_MODELS:
             assert self.num_backbone_layers in PRETRAINED_LAYERS[self.arch_type]
             self.initial_channels = PRETRAINED_INCHANNELS[self.arch_type]
@@ -97,14 +100,32 @@ class BackboneNetwork(nn.Module):
         self.pretrained = pretrained
         if self.pretrained:
             assert self.arch_type in PRETRAINED_MODELS
+
+        # Check for valid output size. `output_size` can be a tuple (for dense output
+        # such as in semantic segmentation), an integer (for vector output such as image
+        # classification), a list of tuples (multi-task dense output), or a list of
+        # integers (multi-task vector output).
         if isinstance(self.output_size, tuple):
             assert len(self.output_size) == 3
             self.num_tasks = 1
+        elif isinstance(self.output_size, int):
+            self.num_tasks = 1
         elif isinstance(self.output_size, list):
             self.num_tasks = len(self.output_size)
+            output_type = None
             for size in self.output_size:
-                assert isinstance(size, tuple)
-                assert len(size) == 3
+                if output_type is None:
+                    assert isinstance(size, int) or isinstance(size, tuple)
+                    output_type = type(size)
+                else:
+                    assert isinstance(size, output_type)
+                if isinstance(size, tuple):
+                    assert len(size) == 3
+            assert output_type is not None
+        else:
+            raise ValueError(
+                f"Unsupported output type for BackboneNetwork: {type(self.output_size)}"
+            )
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -165,38 +186,75 @@ class BackboneNetwork(nn.Module):
 
         def get_head(num_layers, head_channels, output_size):
             """ Helper function to get output head. """
+
+            # Check for valid type of `output_size`.
+            assert isinstance(output_size, int) or isinstance(output_size, tuple)
+            if isinstance(output_size, tuple):
+                assert len(output_size) == 3
+
             head_layers = []
             for i in range(num_layers):
-                in_channels = backbone_out_channels if i == 0 else head_channels
-                out_channels = output_size if i == num_layers - 1 else head_channels
-                activation = None if i == num_layers - 1 else "relu"
-                batch_norm = i < num_layers - 1
-                kernel_size = 1 if i == num_layers - 1 else 3
-                head_layers.append(
-                    get_conv_layer(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        activation=activation,
-                        layer_init=init_base,
-                        batch_norm=batch_norm,
-                        kernel_size=kernel_size,
+                last_layer = i == num_layers - 1
+                layer_kwargs = {
+                    "layer_init": init_base,
+                    "activation": None if last_layer else "relu",
+                    "batch_norm": not last_layer,
+                }
+
+                # Make last layer fully-connected if necessary. In this case, we use an
+                # adaptive average pooling (as in ResNet) to pool convolutional features
+                # into 1x1 spatial resolution. Note that the flatten layer will flatten
+                # everything except the batch dimension.
+                if last_layer and isinstance(output_size, int):
+
+                    head_layers.append(nn.AdaptiveAvgPool2d((1, 1)))
+                    head_layers.append(nn.Flatten(1))
+                    head_layers.append(
+                        get_fc_layer(
+                            in_size=head_channels,
+                            out_size=output_size,
+                            **layer_kwargs,
+                        )
                     )
-                )
+
+                # All layers before last layer are convolutional, last layer may be
+                # convolutional.
+                else:
+                    in_channels = backbone_out_channels if i == 0 else head_channels
+                    out_channels = output_size[0] if last_layer else head_channels
+                    kernel_size = 1 if last_layer else 3
+                    head_layers.append(
+                        get_conv_layer(
+                            in_channels=in_channels,
+                            out_channels=out_channels,
+                            kernel_size=kernel_size,
+                            **layer_kwargs,
+                        )
+                    )
+
             return nn.Sequential(*head_layers)
 
         # Initialize output head(s).
         if self.num_tasks == 1:
             self.head = get_head(
-                self.num_head_layers, self.head_channels, self.output_size[0]
+                self.num_head_layers, self.head_channels, self.output_size
             )
         else:
             heads = [
                 get_head(
-                    self.num_head_layers, self.head_channels, self.output_size[task][0]
+                    self.num_head_layers, self.head_channels, self.output_size[task]
                 )
                 for task in range(self.num_tasks)
             ]
-            self.head = Parallel(heads, combine_dim=1)
+
+            # This is a really hacky way to shape the output the way we need for
+            # different tasks. Specifically, the NYUv2 training expects the outputs from
+            # multiple tasks to be stacked along the channel dimension, while the CelebA
+            # trainin expects the outputs from multiple tasks to be stacked in a
+            # separate task dimension. These should be consistent, and specifically we
+            # should change NYUv2 to be more like CelebA. For now, this is a hack.
+            new_dim = isinstance(self.output_size[0], int)
+            self.head = Parallel(heads, combine_dim=1, new_dim=new_dim)
 
             # Save number of shared and task-specific parameters.
             self.num_shared_params = sum(
@@ -228,8 +286,9 @@ class BackboneNetwork(nn.Module):
         features = self.backbone(inputs)
         out = self.head(features)
 
-        # Upsample output to match input resolution.
-        out = F.interpolate(out, size=input_size, mode="bilinear", align_corners=False)
+        # Upsample output to match input resolution, if the output is spatial.
+        if isinstance(self.output_size, tuple):
+            out = F.interpolate(out, size=input_size, mode="bilinear", align_corners=False)
 
         return out
 

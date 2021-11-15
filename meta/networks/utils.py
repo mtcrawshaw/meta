@@ -32,6 +32,7 @@ def get_fc_layer(
     out_size: int,
     activation: str,
     layer_init: Callable[[nn.Module], nn.Module],
+    batch_norm: bool = False,
 ) -> nn.Module:
     """
     Construct a fully-connected layer with the given input size, output size, activation
@@ -40,6 +41,11 @@ def get_fc_layer(
 
     layer = []
     layer.append(layer_init(nn.Linear(in_size, out_size)))
+    if batch_norm:
+        bn = nn.BatchNorm1d(out_size)
+        nn.init.constant_(bn.weight, 1)
+        nn.init.constant_(bn.bias, 0)
+        layer.append(bn)
     if activation is not None:
         layer.append(get_activation(activation))
     return nn.Sequential(*layer)
