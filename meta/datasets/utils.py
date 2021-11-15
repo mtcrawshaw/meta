@@ -9,7 +9,10 @@ GRAY_TRANSFORM = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
 )
 RGB_TRANSFORM = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize([0.5] * 3, [0.5] * 3)]
+    [
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
 )
 
 get_split = lambda train: "train" if train else "eval"
