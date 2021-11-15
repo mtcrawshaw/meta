@@ -7,8 +7,8 @@ Current objective: Measure the gradient similarity of various tasks for CelebA.
 Tasks:
     Splitting networks in SLTrainer (fully connected, MTRegression)
     CelebA dataset wrapper
---> Training on CelebA with SLTrainer
-    Convolutional splitting networks
+    Training on CelebA with SLTrainer
+--> Convolutional splitting networks
     Gradient similarity evaluation
 
 Overall performance improvements for splitting networks:
@@ -38,7 +38,8 @@ Refactoring/additions:
   each task, given outputs/labels from all tasks. This will speed up training a decent
   amount for task sets that have homogeneous task loss functions, such as PCBA,
   MTRegression, and CelebA.
-- Speed up CelebA training. Run some profiling to see why it's so slow.
+- Speed up CelebA training. Run some profiling to see why it's so slow. The scale of the
+  images seems to make a huge difference.
 
 Add option to scale down CelebA images
 

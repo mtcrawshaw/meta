@@ -6,7 +6,8 @@
     "num_workers": 4,
 
     "dataset_kwargs": {
-        "num_tasks": 9
+        "num_tasks": 9,
+        "scale": 0.25
     },
     "loss_weighter": {
         "type": "Constant",

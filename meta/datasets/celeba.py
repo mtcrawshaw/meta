@@ -8,6 +8,7 @@ from typing import Dict, Tuple
 
 import torch
 import torch.nn as nn
+from torchvision import transforms
 from torchvision.datasets import CelebA as torch_CelebA
 
 from meta.datasets import BaseDataset
@@ -15,17 +16,36 @@ from meta.datasets.utils import get_split, slice_second_dim, RGB_TRANSFORM
 from meta.train.loss import MultiTaskLoss
 
 
+IMG_SIZE = (3, 218, 178)
 TOTAL_TASKS = 40
 
 
 class CelebA(torch_CelebA, BaseDataset):
     """ CelebA dataset wrapper. """
 
-    def __init__(self, root: str, train: bool = True, num_tasks: int = 9) -> None:
+    def __init__(
+        self, root: str, train: bool = True, num_tasks: int = 9, scale: float = 1
+    ) -> None:
         """ Init function for CelebA. """
 
         # Check for valid arguments.
         assert 1 <= num_tasks <= TOTAL_TASKS
+
+        # Store settings.
+        self.num_tasks = num_tasks
+        self.scale = scale
+        self.spatial_size = (
+            round(IMG_SIZE[1] * self.scale),
+            round(IMG_SIZE[2] * self.scale),
+        )
+
+        # Construct data transformation.
+        if self.scale == 1.0:
+            transform = RGB_TRANSFORM
+        else:
+            transform = transforms.Compose(
+                [RGB_TRANSFORM, transforms.Resize(self.spatial_size)]
+            )
 
         # Call parent constructors.
         split = "train" if train else "test"
@@ -34,16 +54,17 @@ class CelebA(torch_CelebA, BaseDataset):
             root=root,
             target_type="attr",
             split=split,
-            transform=RGB_TRANSFORM,
+            transform=transform,
             download=True,
         )
         BaseDataset.__init__(self)
 
-        # Store settings.
-        self.num_tasks = num_tasks
-
         # Store static dataset properties.
-        self.input_size = (3, 178, 218)
+        self.input_size = (
+            IMG_SIZE[0],
+            self.spatial_size[0],
+            self.spatial_size[1],
+        )
         self.output_size = [2] * self.num_tasks
         self.loss_cls = MultiTaskLoss
         self.loss_kwargs = {
