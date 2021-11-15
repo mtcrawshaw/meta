@@ -109,8 +109,7 @@ class CelebA(torch_CelebA, BaseDataset):
         shape `(batch_size, self.num_tasks)`.
         """
 
-        # Compute accuracy for each task.
-        task_accs = (outputs.argmax(dim=-1) == labels).sum(dim=-1) / labels.shape[0]
+        task_accs = (outputs.argmax(dim=-1) == labels).sum(dim=0) / labels.shape[0]
         avg_acc = torch.mean(task_accs)
 
         # Store in expected format.
