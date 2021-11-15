@@ -40,6 +40,7 @@ Refactoring/additions:
   MTRegression, and CelebA.
 - Speed up CelebA training. Run some profiling to see why it's so slow. The scale of the
   images seems to make a huge difference.
+- Fix Resnet34 and Resnet18 compatbility with BackboneNetwork
 
 Add option to scale down CelebA images
 
