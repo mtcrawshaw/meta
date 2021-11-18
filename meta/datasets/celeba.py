@@ -77,6 +77,7 @@ class CelebA(torch_CelebA, BaseDataset):
                 for t in range(self.num_tasks)
             ]
         }
+        self.criterion_kwargs = {"train": {"train": True}, "eval": {"train": False}}
         self.extra_metrics = {
             "avg_accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
             **{

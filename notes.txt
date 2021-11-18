@@ -42,7 +42,8 @@ Refactoring/additions:
   images seems to make a huge difference.
 - Fix Resnet34 and Resnet18 compatbility with BackboneNetwork
 
-Add option to scale down CelebA images
+Add option to control spatial downscaling + channel upscaling in conv case of
+BackboneNetwork
 
 ----------------------------------------------------------------------------------------
 
