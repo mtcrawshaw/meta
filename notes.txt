@@ -18,7 +18,9 @@ Current sprint (Continual learning on split MNIST):
     Store + re-initialize BN parameters for each task
     Adversarial dataset for continual learning
     A-GEM
---> Training only batchnorm
+    Training only batchnorm
+    SplitMNIST and SplitCIFAR
+--> AlternatingMNIST and Alternating CIFAR
     Better architecture?
 
 Refactoring/additions for this branch:

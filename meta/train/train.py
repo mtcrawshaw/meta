@@ -182,7 +182,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         final_metrics = {}
         for task in range(trainer.train_set.num_tasks):
-            trainer.test_set.set_current_task(task)
+            trainer.set_current_task(task)
 
             if config["continual_bn"] in ["separate", "new", "frozen"]:
                 trainer.load_bn_params(task)

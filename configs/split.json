@@ -1,0 +1,41 @@
+{
+    "trainer": "ContinualTrainer",
+    "dataset": "Split",
+    "num_updates": 250,
+    "batch_size": 256,
+    "num_workers": 8,
+
+    "dataset_kwargs": {
+        "download": false,
+        "dataset": "CIFAR10"
+    },
+
+    "lr_schedule_type": null,
+    "initial_lr": 7e-4,
+    "final_lr": 7e-4,
+    "max_grad_norm": 0.5,
+    "eps": 1e-5,
+
+    "architecture_config": {
+        "type": "conv",
+        "num_conv_layers": 5,
+        "initial_channels": 32,
+        "num_fc_layers": 2,
+        "fc_hidden_size": 64,
+        "activation": "relu",
+        "batch_norm": true
+    },
+
+    "evaluation_freq": 50,
+    "continual_bn": "none",
+    "memory_size": 0,
+
+    "cuda": true,
+    "seed": 0,
+    "print_freq": 10,
+    "save_freq": null,
+    "load_from": null,
+    "metrics_filename": null,
+    "baseline_metrics_filename": null,
+    "save_name": null
+}

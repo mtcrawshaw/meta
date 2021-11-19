@@ -1,4 +1,4 @@
-""" Dataset object for continual learning on rotated datasets. """
+""" Dataset object for continual learning on split datasets. """
 
 import os
 from typing import Dict
@@ -10,17 +10,15 @@ import torchvision.transforms.functional as TF
 from torchvision.datasets import MNIST, CIFAR10, CIFAR100
 
 
-from meta.train.loss import get_accuracy
+from meta.train.loss import get_accuracy, PartialCrossEntropyLoss
 from meta.datasets import ContinualDataset
-from meta.datasets.utils import GRAY_TRANSFORM, get_split
+from meta.datasets.utils import get_split, GRAY_TRANSFORM, RGB_TRANSFORM
 
 
-class Rotated(ContinualDataset):
+class Split(ContinualDataset):
     """
-    Rotated MNIST/CIFAR dataset. This is a continual learning dataset made from
-    MNIST/CIFAR data. Each of the tasks is a classification task over all classes of the
-    original dataset, but the data from task i is rotated by an angle of i * alpha
-    degrees, where alpha is a parameter of the dataset.
+    Split MNIST/CIFAR dataset. This is a continual learning dataset made from
+    MNIST/CIFAR data.
     """
 
     def __init__(
@@ -29,8 +27,6 @@ class Rotated(ContinualDataset):
         train: bool = True,
         download: bool = False,
         dataset: str = "MNIST",
-        num_tasks: int = 10,
-        alpha: float = 18.0,
     ) -> None:
         """ Init function for Rotated. """
 
@@ -38,27 +34,33 @@ class Rotated(ContinualDataset):
 
         # Check for valid arguments.
         assert dataset in ["MNIST", "CIFAR10", "CIFAR100"]
-        assert alpha >= 0
-        assert alpha * (num_tasks - 1) <= 180
 
         if dataset == "MNIST":
             self.input_size = (1, 28, 28)
             self.output_size = 10
             self.dataset_cls = MNIST
+            self.num_tasks = 5
             self.transform = GRAY_TRANSFORM
         elif dataset == "CIFAR10":
             self.input_size = (3, 32, 32)
             self.output_size = 10
             self.dataset_cls = CIFAR10
+            self.num_tasks = 5
             self.transform = RGB_TRANSFORM
         elif dataset == "CIFAR100":
             self.input_size = (3, 32, 32)
             self.output_size = 100
             self.dataset_cls = CIFAR100
+            self.num_tasks = 10
             self.transform = RGB_TRANSFORM
         else:
             assert False
-        self.loss_cls = nn.CrossEntropyLoss
+        self.loss_cls = PartialCrossEntropyLoss
+        self.loss_kwargs = {
+            "num_classes": self.output_size,
+            "num_tasks": self.num_tasks,
+            "reduction": "mean",
+        }
         self.extra_metrics = {
             "accuracy": {"maximize": True, "train": True, "eval": True, "show": True},
         }
@@ -66,35 +68,44 @@ class Rotated(ContinualDataset):
         self.root = os.path.join(os.path.dirname(root), dataset)
         self.train = train
         self.download = download
-        self.num_tasks = num_tasks
-        self.alpha = alpha
+        self.total_dataset = self.dataset_cls(
+            root=self.root,
+            train=self.train,
+            transform=self.transform,
+            download=self.download,
+        )
+        assert self.output_size % self.num_tasks == 0
+        self.classes_per_task = self.output_size // self.num_tasks
+        self.task_subindices = None
+        self.task_len = None
 
         # Set current task.
         self.set_current_task(0)
 
     def __len__(self):
         """ Length of dataset. Overridden from parent class. """
-        return len(self.current_dataset)
+        return len(self.task_subindices)
 
     def __getitem__(self, idx: int):
         """ Get item `idx` from dataset. Overridden from parent class. """
-        return self.current_dataset[idx]
+        return self.total_dataset[self.task_subindices[idx]]
 
     def set_current_task(self, new_task: int) -> None:
         """ Set the current training task to `new_task`. """
 
         super().set_current_task(new_task)
 
-        # Set angle of rotation for current task and create corresponding dataset
-        # object.
-        angle = self.alpha * self._current_task
-        task_transform = transforms.Compose([RotationTransform(angle), self.transform])
-        self.current_dataset = self.dataset_cls(
-            root=self.root,
-            train=self.train,
-            transform=task_transform,
-            download=self.download,
+        # Get subindices for current task.
+        self.task_subindices = []
+        current_labels = list(
+            range(
+                self._current_task * self.classes_per_task,
+                (self._current_task + 1) * self.classes_per_task,
+            )
         )
+        for i, (_, label) in enumerate(self.total_dataset):
+            if label in current_labels:
+                self.task_subindices.append(i)
 
     def compute_metrics(
         self,
@@ -103,20 +114,13 @@ class Rotated(ContinualDataset):
         criterion: nn.Module = None,
         train: bool = True,
     ) -> Dict[str, float]:
-        """ Compute classification accuracy from `outputs` and `labels`. """
+        """
+        Compute classification accuracy from `outputs` and `labels`. Notice that we only
+        consider predictions from the classes relevant to the current task.
+        """
         split = get_split(train)
-        return {f"{split}_accuracy": get_accuracy(outputs, labels)}
-
-
-class RotationTransform:
-    """
-    Rotate an image tensor by a fixed angle. This is just a wrapper around TF.rotate().
-    """
-
-    def __init__(self, angle) -> None:
-        """ Init function for RotationTransform. Given angle should be in degrees. """
-        self.angle = angle
-
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        """ Compute rotation on input `x`. """
-        return TF.rotate(x, self.angle, fill=0)
+        start_class = self._current_task * self.classes_per_task
+        end_class = (self._current_task + 1) * self.classes_per_task
+        partial_outputs = outputs[:, start_class:end_class]
+        partial_labels = labels - start_class
+        return {f"{split}_accuracy": get_accuracy(partial_outputs, partial_labels)}

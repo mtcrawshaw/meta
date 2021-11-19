@@ -92,6 +92,38 @@ class ScaleInvariantDepthLoss(nn.Module):
         return loss
 
 
+class PartialCrossEntropyLoss(nn.Module):
+    """ Utility class to compute cross entropy loss on only a subset of classes. """
+
+    def __init__(self, num_classes: int, num_tasks: int, **kwargs) -> None:
+        """
+        Init function for PartialCrossEntropyLoss. Cross entropy loss is computed for
+        classes corresponding to current task. Extra arguments are passed to the
+        constructor of the underlying CrossEntropyLoss class.
+        """
+        assert num_classes % num_tasks == 0
+        super().__init__()
+        self.num_classes = num_classes
+        self.num_tasks = num_tasks
+        self.classes_per_task = self.num_classes // self.num_tasks
+        self.CE = nn.CrossEntropyLoss(**kwargs)
+
+    def forward(
+        self, outputs: torch.Tensor, labels: torch.Tensor, current_task: int, **kwargs
+    ) -> torch.Tensor:
+        """
+        Compute loss from `outputs` and `labels` for only classes trained in
+        `current_task`. Extra arguments are passed to the underlying cross entropy
+        module. `outputs` should have shape `(batch_size, self.num_classes)` and
+        `labels` should have shape `(batch_size,)`.
+        """
+        start_class = current_task * self.classes_per_task
+        end_class = (current_task + 1) * self.classes_per_task
+        partial_outputs = outputs[:, start_class:end_class]
+        partial_labels = labels - start_class
+        return self.CE(partial_outputs, partial_labels, **kwargs)
+
+
 class MultiTaskLoss(nn.Module):
     """ Computes the weighted sum of multiple loss functions. """
 
@@ -622,9 +654,7 @@ class SLAW(LossWeighter):
         super(SLAW, self).__init__(**kwargs)
 
         self.loss_stats = RunningStats(
-            compute_stdev=True,
-            shape=(self.num_tasks,),
-            ema_alpha=0.99,
+            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=0.99,
         )
 
     def _update_weights(self) -> None:
@@ -674,9 +704,7 @@ class SLAWTester(LossWeighter):
         self.last_step = random.randrange(self.step_bounds[0], self.step_bounds[1])
 
         self.loss_stats = RunningStats(
-            compute_stdev=True,
-            shape=(self.num_tasks,),
-            ema_alpha=0.99,
+            compute_stdev=True, shape=(self.num_tasks,), ema_alpha=0.99,
         )
 
     def _update_weights(self, loss_vals: torch.Tensor, network: nn.Module) -> None:

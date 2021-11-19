@@ -14,6 +14,7 @@ from torchvision.utils import save_image
 
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
+from meta.train.loss import PartialCrossEntropyLoss
 from meta.datasets import *
 from meta.networks import (
     ConvNetwork,
@@ -130,6 +131,11 @@ class ContinualTrainer(Trainer):
         self.criterion = self.criterion.to(self.device)
         self.criterion_kwargs = dict(self.train_set.criterion_kwargs)
 
+        # Add current task to arguments to loss function, if necessary.
+        if isinstance(self.criterion, PartialCrossEntropyLoss):
+            self.criterion_kwargs["train"]["current_task"] = 0
+            self.criterion_kwargs["eval"]["current_task"] = 0
+
         # Increase self.num_updates by a factor of dataset.num_tasks, so that each task
         # is trained for `self.num_updates` steps.
         self.updates_per_task = int(self.num_updates)
@@ -174,31 +180,10 @@ class ContinualTrainer(Trainer):
 
         self.network.train()
 
-
         # Check if task index needs to be switched.
         if self.steps > 0 and (self.steps % self.updates_per_task) == 0:
             current_task = int(self.steps // self.updates_per_task)
-            self.train_set.advance_task()
-            self.test_set.advance_task()
-            self.train_iter = iter(cycle(self.train_loader))
-
-            # Freeze non-BN parameters, if necessary. The "frozen" continual BN protocol
-            # freezes the non-BN parameters after training on the first task finishes,
-            # and only trains the BN parameters for the remainder of the continual
-            # learning training. In addition, each task gets its own copy of the BN
-            # parameters. Note: For ease of implementation, this currently only freezes
-            # parameters of fully connected layers and convolutional layers.
-            if self.continual_bn == "frozen" and current_task == 1:
-                for m in self.network.modules():
-                    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-                        m.requires_grad_(False)
-                self.init_optimizer()
-
-            # Re-initialize batchnorm parameters, if necessary.
-            if self.continual_bn == "new":
-                for m in self.network.modules():
-                    if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
-                        m.reset_parameters()
+            self.set_current_task(current_task)
 
         # Sample a batch and move it to device.
         inputs, labels = next(self.train_iter)
@@ -377,6 +362,36 @@ class ContinualTrainer(Trainer):
             ]
 
         return eval_step_metrics
+
+    def set_current_task(self, new_task: int) -> None:
+        """ Set current task for training. """
+
+        self.train_set.set_current_task(new_task)
+        self.test_set.set_current_task(new_task)
+        self.train_iter = iter(cycle(self.train_loader))
+
+        # Freeze non-BN parameters, if necessary. The "frozen" continual BN protocol
+        # freezes the non-BN parameters after training on the first task finishes,
+        # and only trains the BN parameters for the remainder of the continual
+        # learning training. In addition, each task gets its own copy of the BN
+        # parameters. Note: For ease of implementation, this currently only freezes
+        # parameters of fully connected layers and convolutional layers.
+        if self.continual_bn == "frozen" and new_task == 1:
+            for m in self.network.modules():
+                if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+                    m.requires_grad_(False)
+            self.init_optimizer()
+
+        # Re-initialize batchnorm parameters, if necessary.
+        if self.continual_bn == "new":
+            for m in self.network.modules():
+                if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
+                    m.reset_parameters()
+
+        # Update arguments to loss function, if necessary.
+        if "current_task" in self.criterion_kwargs["train"]:
+            self.criterion_kwargs["train"]["current_task"] = new_task
+            self.criterion_kwargs["eval"]["current_task"] = new_task
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         """ Load trainer state from checkpoint. """
