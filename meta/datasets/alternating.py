@@ -1,4 +1,4 @@
-""" Dataset object for continual learning on rotated datasets. """
+""" Dataset object for continual learning on alternating datasets. """
 
 import os
 from typing import Dict
@@ -15,12 +15,11 @@ from meta.datasets import ContinualDataset
 from meta.datasets.utils import GRAY_TRANSFORM, RGB_TRANSFORM, get_split
 
 
-class Rotated(ContinualDataset):
+class Alternating(ContinualDataset):
     """
-    Rotated MNIST/CIFAR dataset. This is a continual learning dataset made from
+    Alternating MNIST/CIFAR dataset. This is a continual learning dataset made from
     MNIST/CIFAR data. Each of the tasks is a classification task over all classes of the
-    original dataset, but the data from task i is rotated by an angle of i * alpha
-    degrees, where alpha is a parameter of the dataset.
+    original dataset, but the pixels from task i are inverted for when i is odd.
     """
 
     def __init__(
@@ -30,7 +29,6 @@ class Rotated(ContinualDataset):
         download: bool = False,
         dataset: str = "MNIST",
         num_tasks: int = 10,
-        alpha: float = 18.0,
     ) -> None:
         """ Init function for Rotated. """
 
@@ -38,8 +36,6 @@ class Rotated(ContinualDataset):
 
         # Check for valid arguments.
         assert dataset in ["MNIST", "CIFAR10", "CIFAR100"]
-        assert alpha >= 0
-        assert alpha * (num_tasks - 1) <= 180
 
         if dataset == "MNIST":
             self.input_size = (1, 28, 28)
@@ -67,7 +63,6 @@ class Rotated(ContinualDataset):
         self.train = train
         self.download = download
         self.num_tasks = num_tasks
-        self.alpha = alpha
 
         # Set current task.
         self.set_current_task(0)
@@ -85,10 +80,11 @@ class Rotated(ContinualDataset):
 
         super().set_current_task(new_task)
 
-        # Set angle of rotation for current task and create corresponding dataset
-        # object.
-        angle = self.alpha * self._current_task
-        task_transform = transforms.Compose([RotationTransform(angle), self.transform])
+        # Set inversion for current task and create corresponding dataset object.
+        if self._current_task % 2 == 1:
+            task_transform = transforms.Compose([InversionTransform(angle), self.transform])
+        else:
+            task_transform = self.transform
         self.current_dataset = self.dataset_cls(
             root=self.root,
             train=self.train,
@@ -108,15 +104,8 @@ class Rotated(ContinualDataset):
         return {f"{split}_accuracy": get_accuracy(outputs, labels)}
 
 
-class RotationTransform:
-    """
-    Rotate an image tensor by a fixed angle. This is just a wrapper around TF.rotate().
-    """
-
-    def __init__(self, angle) -> None:
-        """ Init function for RotationTransform. Given angle should be in degrees. """
-        self.angle = angle
-
+class InversionTransform:
+    """ Invert the pixels of an image. This is just a wrapper around TF.invert(). """
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        """ Compute rotation on input `x`. """
-        return TF.rotate(x, self.angle, fill=0)
+        """ Compute inversion on input `x`. """
+        return TF.invert(x)

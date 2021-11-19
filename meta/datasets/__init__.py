@@ -9,6 +9,7 @@ from meta.datasets.pcba import PCBA
 from meta.datasets.continual import ContinualDataset
 from meta.datasets.rotated import Rotated
 from meta.datasets.split import Split
+from meta.datasets.alternating import Alternating
 from meta.datasets.acd import ACD
 
 DATASETS = [
@@ -20,5 +21,6 @@ DATASETS = [
     "PCBA",
     "Rotated",
     "Split",
+    "Alternating",
     "ACD",
 ]
