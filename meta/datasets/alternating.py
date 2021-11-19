@@ -82,7 +82,7 @@ class Alternating(ContinualDataset):
 
         # Set inversion for current task and create corresponding dataset object.
         if self._current_task % 2 == 1:
-            task_transform = transforms.Compose([InversionTransform(angle), self.transform])
+            task_transform = transforms.Compose([InversionTransform(), self.transform])
         else:
             task_transform = self.transform
         self.current_dataset = self.dataset_cls(
