@@ -38,12 +38,36 @@ Refactoring/additions:
   each task, given outputs/labels from all tasks. This will speed up training a decent
   amount for task sets that have homogeneous task loss functions, such as PCBA,
   MTRegression, and CelebA.
-- Speed up CelebA training. Run some profiling to see why it's so slow. The scale of the
-  images seems to make a huge difference.
 - Fix Resnet34 and Resnet18 compatbility with BackboneNetwork
+- Add option to control spatial downscaling + channel upscaling in conv case of
+  BackboneNetwork
+- In check_for_split(), modify task_grads into a list of tensors instead of one giant
+  tensor. Having one giant tensor is a waste of memory because a lot of the elements are
+  just 0 due to padding each row to the length of the maximum region size.
+- In update_grad_stats() of splitting network V1, call super().update_grad_stats() and
+  add functionality, instead of copy and pasting the code from the super method.
+- Check that our method of handling nans/infs for get_task_grad_diffs() (setting
+  task_grad_diffs to zero) is okay. Does this mean that grad pairs which cause a nan are
+  seen as identical?
+- Fix re-loading of inititalization in base splitting network, which is almost certainly
+  broken after changes to network structure from adding convolutional option.
 
-Add option to control spatial downscaling + channel upscaling in conv case of
-BackboneNetwork
+Next:
+- Tests for splitting network with conv layers
+- Option for BatchNorm
+- Option for spatial downscaling + channel upscaling
+- Support for 3D outputs
+- Support for task outputs of varying size
+
+Thoughts:
+- Still need to evaluate other multi-task baselines on CelebA. Why was performance so
+  uniform across baselines?
+- Interesting question: do learned splitting maps transfer well across architecture
+  types? For example, we learn a splitting map with one architecture, then instantiate a
+  new architecture with the same number of layers (could be different initialization,
+  different width, maybe even different layer type such as conv -> fc or fc -> conv) and
+  load the learned splitting map, then train from scratch. It would be interesting to
+  see if this would be any good.
 
 ----------------------------------------------------------------------------------------
 

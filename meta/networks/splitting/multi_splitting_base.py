@@ -5,16 +5,19 @@ multi-task splitting network.
 
 import pickle
 from copy import deepcopy
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union, List, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.networks.utils import get_fc_layer, init_base, init_downscale
+from meta.networks.utils import get_fc_layer, get_conv_layer, init_base, init_downscale
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
+
+
+ARCH_TYPES = ["fc", "conv"]
 
 
 class BaseMultiTaskSplittingNetwork(nn.Module):
@@ -26,12 +29,13 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
     def __init__(
         self,
-        input_size: int,
-        output_size: int,
-        num_tasks: int,
-        activation: str = "tanh",
+        input_size: Union[int, Tuple[int, int, int]],
+        output_size: Union[int, List[int]],
+        num_tasks: int = None,
+        arch_type: str = "fc",
         num_layers: int = 3,
-        hidden_size: int = 64,
+        width: int = 64,
+        activation: str = "tanh",
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         metric: str = "sqeuclidean",
@@ -47,16 +51,28 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         Arguments
         ---------
-        input_size : int
-            Input size for first layer of network.
-        output_size : int
-            Output size for last layer of network.
+        input_size : Union[int, Tuple[int, int, int]]
+            Input size for first layer of network. This can be an integer (vector input)
+            or a tuple of 3 integers (image input). When input space is 3D, order of
+            dimensions is [channels, width, height].
+        output_size : Union[int, List[int]]
+            Output size for last layer of network, which can be specified as a single
+            integer (if all tasks have the same output size) or as a list of integers.
+            If the output size is provided as a list of ints, then the number of tasks
+            is inferred from the length of this list, and in this case `num_tasks`
+            doesn't have to be provided. If `num_tasks` is provided in this case, it
+            must match the length of `output_size`. We currently only support vector
+            valued outputs.
         num_tasks : int
-            Number of tasks that we are training over.
+            Number of tasks that we are training over. Not required if `output_size` is
+            a list, since the number of tasks is inferred from the length of this list.
+        arch_type : str
+            Type of architecture for each layer. Options are listed in `ARCH_TYPES`.
         num_layers : int
             Number of layers in network.
-        hidden_size : int
-            Hidden size of network layers.
+        width : int
+            Hidden size for network in fully connected case, number of initial
+            convolutional channels in convolutional case.
         split_step_threshold : int
             Number of updates before any splitting is performed. This is in place to
             make sure that we don't perform any splits based on a tiny amount of data.
@@ -107,7 +123,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         super(BaseMultiTaskSplittingNetwork, self).__init__()
 
-        # Check number of layers.
+        # Check for valid arguments.
         if num_layers < 1:
             raise ValueError(
                 "Number of layers in network should be at least 1. Given value is: %d"
@@ -118,14 +134,55 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                 f"There must be at least as many total layers ({num_layers}) as"
                 f" task-specific layers ({task_specific_layers})."
             )
+        if arch_type not in ARCH_TYPES:
+            raise ValueError(
+                "Architecture '%s' not supported for MultiTaskSplittingNetwork."
+                % arch_type
+            )
+        if isinstance(input_size, int):
+            if arch_type not in ["fc"]:
+                raise ValueError(f"Unsupported arch_type for 1D inputs: {arch_type}")
+        elif isinstance(input_size, tuple):
+            if len(input_size) != 3:
+                raise ValueError(f"Unsupported input size: {input_size}")
+            if arch_type not in ["conv"]:
+                raise ValueError(f"Unsupported arch_type for 3D inputs: {arch_type}")
+        else:
+            raise ValueError(f"Unsupported input type: {type(input_size)}")
+        if isinstance(output_size, int):
+            if num_tasks is None:
+                raise ValueError(
+                    "Number of tasks must be provided either through `num_tasks` "
+                    "argument or by specifying `output_size` as a list whose length "
+                    "is equal to the number of tasks."
+                )
+        elif isinstance(output_size, list):
+            if num_tasks is not None and len(output_size) != num_tasks:
+                raise ValueError(
+                    f"Argument `num_tasks` ({num_tasks}) doesn't match length of "
+                    "`output_size` ({len(output_size)})."
+                )
+            num_tasks = len(output_size)
+
+            # TEMP: Right now, we only support sets of tasks that have the same output
+            # sizes.
+            out = output_size[0]
+            for x in output_size:
+                assert isinstance(x, int) and x == out
+
+        else:
+            raise ValueError(f"Unsupported output type: {type(output_size)}")
+        if not isinstance(output_size, int) and not isinstance(output_size, List):
+            raise ValueError(f"Unsupported output type: {type(output_size)}")
 
         # Set state.
         self.input_size = input_size
         self.output_size = output_size
         self.activation = activation
         self.num_tasks = num_tasks
+        self.arch_type = arch_type
         self.num_layers = num_layers
-        self.hidden_size = hidden_size
+        self.width = width
         self.split_step_threshold = split_step_threshold
         self.sharing_threshold = sharing_threshold
         self.metric = metric
@@ -200,28 +257,84 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         region_list = []
         for i in range(self.num_layers):
 
-            # Calcuate input and output size of layer.
-            layer_input_size = self.input_size if i == 0 else self.hidden_size
-            layer_output_size = (
-                self.output_size if i == self.num_layers - 1 else self.hidden_size
-            )
-
             # Determine init function for layer.
             if i == self.num_layers - 1 and self.downscale_last_layer:
                 layer_init = init_downscale
             else:
                 layer_init = init_base
 
-            # Initialize copies of layer.
-            layer_list = [
-                get_fc_layer(
-                    in_size=layer_input_size,
-                    out_size=layer_output_size,
-                    activation=self.activation if i != self.num_layers - 1 else None,
-                    layer_init=layer_init,
-                )
-                for _ in range(int(self.splitting_map.num_copies[i]))
-            ]
+            if self.arch_type == "fc":
+
+                # Calcuate input and output size of layer.
+                if isinstance(self.output_size, int):
+                    out = self.output_size
+                elif isinstance(self.output_size, List):
+                    out = self.output_size[0]
+                else:
+                    raise NotImplementedError
+                layer_input_size = self.input_size if i == 0 else self.width
+                layer_output_size = out if i == self.num_layers - 1 else self.width
+
+                # Initialize copies of layer.
+                layer_list = [
+                    get_fc_layer(
+                        in_size=layer_input_size,
+                        out_size=layer_output_size,
+                        activation=self.activation
+                        if i != self.num_layers - 1
+                        else None,
+                        layer_init=layer_init,
+                    )
+                    for _ in range(int(self.splitting_map.num_copies[i]))
+                ]
+
+            elif self.arch_type == "conv":
+
+                if i < self.num_layers - 1:
+
+                    # Calculate input and output channels of layer.
+                    layer_in_channels = self.input_size[0] if i == 0 else self.width
+                    layer_out_channels = self.width
+
+                    # Inititalize copies of layer.
+                    layer_list = [
+                        get_conv_layer(
+                            in_channels=layer_in_channels,
+                            out_channels=layer_out_channels,
+                            activation=self.activation,
+                            layer_init=layer_init,
+                        )
+                        for _ in range(int(self.splitting_map.num_copies[i]))
+                    ]
+
+                else:
+
+                    # Initialize copies of final layer. Note that we insert an adaptive
+                    # average pooling and flattening before the final fully connected
+                    # layer, following the ResNet style output.
+                    if isinstance(self.output_size, int):
+                        out = self.output_size
+                    elif isinstance(self.output_size, list):
+                        out = self.output_size[0]
+                    else:
+                        raise NotImplementedError
+                    layer_list = [
+                        nn.Sequential(
+                            nn.AdaptiveAvgPool2d((1, 1)),
+                            nn.Flatten(1),
+                            get_fc_layer(
+                                in_size=self.width,
+                                out_size=out,
+                                activation=None,
+                                layer_init=layer_init,
+                            ),
+                        )
+                        for _ in range(int(self.splitting_map.num_copies[i]))
+                    ]
+
+            else:
+                raise NotImplementedError
+
             region = nn.ModuleList(layer_list)
             region_list.append(region)
 
@@ -346,13 +459,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             )
             for layer in range(self.num_layers):
 
-                layer_output_size = (
-                    self.output_size if layer == self.num_layers - 1 else self.hidden_size
-                )
-                layer_outputs = torch.zeros(
-                    self.num_tasks, batch_size, layer_output_size, device=self.device
-                )
-
+                layer_outputs = None
                 for copy in range(int(self.splitting_map.num_copies[layer])):
 
                     # Get tasks which are routed through the current copy, and aggregate
@@ -365,13 +472,19 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                     # Flatten task dimension of inputs, feed through copy, then
                     # un-flatten task dimension.
                     num_tasks, num_inputs = copy_inputs.shape[:2]
-                    batch = copy_inputs.view(num_tasks * num_inputs, *copy_inputs.shape[2:])
+                    batch = copy_inputs.view(
+                        num_tasks * num_inputs, *copy_inputs.shape[2:]
+                    )
                     copy_outputs = self.regions[layer][copy](batch)
                     task_outputs = copy_outputs.view(
                         num_tasks, num_inputs, *copy_outputs.shape[1:]
                     )
 
                     # Store task activations.
+                    if layer_outputs is None:
+                        layer_outputs = torch.zeros(
+                            self.num_tasks, *task_outputs.shape[1:], device=self.device,
+                        )
                     layer_outputs[copy_tasks] = task_outputs
 
                 layer_inputs = layer_outputs.clone()
