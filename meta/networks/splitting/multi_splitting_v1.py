@@ -74,7 +74,7 @@ class MultiTaskSplittingNetworkV1(BaseMultiTaskSplittingNetwork):
                 cap_sample_size=self.cap_sample_size,
                 ema_alpha=self.ema_alpha,
             )
-            self.grad_stats.to(device)
+            self.grad_stats.to(self.device)
 
         # Compute critical value of z-statistic based on given value of `split_alpha`.
         self.critical_z = norm.ppf(1 - self.split_alpha)

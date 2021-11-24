@@ -26,7 +26,7 @@ def test_forward_shared() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 
@@ -87,7 +87,7 @@ def test_forward_single() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 
@@ -156,7 +156,7 @@ def test_forward_multiple() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 
@@ -256,7 +256,7 @@ def test_backward_shared() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 
@@ -292,7 +292,7 @@ def test_backward_single() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 
@@ -331,7 +331,7 @@ def test_backward_multiple() -> None:
     settings["output_size"] = dim
     settings["num_tasks"] = BASE_SETTINGS["num_tasks"]
     settings["num_layers"] = BASE_SETTINGS["num_layers"]
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     settings["device"] = BASE_SETTINGS["device"]
     settings["seed"] = DEFAULT_SETTINGS["seed"]
 

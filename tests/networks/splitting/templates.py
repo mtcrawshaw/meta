@@ -53,7 +53,7 @@ def gradients_template(
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=settings["device"],
     )
 
@@ -223,7 +223,7 @@ def backward_template(
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=settings["device"],
     )
 
@@ -301,7 +301,7 @@ def grad_diffs_template(settings: Dict[str, Any], grad_type: str) -> None:
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         metric=settings["metric"],
         device=settings["device"],
     )
@@ -379,7 +379,7 @@ def grad_stats_template(
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         metric=settings["metric"],
         ema_alpha=settings["ema_alpha"],
         device=settings["device"],
@@ -392,9 +392,9 @@ def grad_stats_template(
 
     # Check that the region sizes are what we think they are.
     expected_region_sizes = torch.zeros(settings["num_layers"], dtype=torch.long)
-    expected_region_sizes[1:-1] = settings["hidden_size"] ** 2 + settings["hidden_size"]
-    expected_region_sizes[0] = settings["hidden_size"] * (dim + 1)
-    expected_region_sizes[-1] = dim * (settings["hidden_size"] + 1)
+    expected_region_sizes[1:-1] = settings["width"] ** 2 + settings["width"]
+    expected_region_sizes[0] = settings["width"] * (dim + 1)
+    expected_region_sizes[-1] = dim * (settings["width"] + 1)
     assert torch.all(expected_region_sizes == network.region_sizes)
     region_sizes = expected_region_sizes.tolist()
 
@@ -519,7 +519,7 @@ def split_stats_template(
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         grad_var=settings["grad_var"],
         cap_sample_size=settings["cap_sample_size"],
         ema_alpha=settings["ema_alpha"],
@@ -533,9 +533,9 @@ def split_stats_template(
 
     # Check that the region sizes are what we think they are.
     expected_region_sizes = torch.zeros(settings["num_layers"], dtype=torch.long)
-    expected_region_sizes[1:-1] = settings["hidden_size"] ** 2 + settings["hidden_size"]
-    expected_region_sizes[0] = settings["hidden_size"] * (dim + 1)
-    expected_region_sizes[-1] = dim * (settings["hidden_size"] + 1)
+    expected_region_sizes[1:-1] = settings["width"] ** 2 + settings["width"]
+    expected_region_sizes[0] = settings["width"] * (dim + 1)
+    expected_region_sizes[-1] = dim * (settings["width"] + 1)
     assert torch.all(expected_region_sizes == network.region_sizes)
     region_sizes = expected_region_sizes.tolist()
 
@@ -669,7 +669,7 @@ def split_v1_template(
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=dim,
+        width=dim,
         ema_alpha=settings["ema_alpha"],
     )
     for split_args in splits_args:
@@ -765,7 +765,7 @@ def split_v2_template(settings: Dict[str, Any], task_grads: torch.Tensor) -> Non
         output_size=dim,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=dim,
+        width=dim,
         ema_alpha=settings["ema_alpha"],
         split_freq=settings["split_freq"],
         splits_per_step=settings["splits_per_step"],
@@ -903,7 +903,7 @@ def score_template(
         output_size=settings["output_size"],
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         ema_alpha=settings["ema_alpha"],
     )
     for split_args in splits_args:
@@ -929,7 +929,7 @@ def meta_forward_template(
         output_size=settings["output_size"],
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         device=settings["device"],
     )
 
@@ -984,7 +984,7 @@ def meta_backward_template(
         output_size=settings["output_size"],
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         device=settings["device"],
     )
 

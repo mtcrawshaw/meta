@@ -37,7 +37,7 @@ def test_split_stats_arithmetic_simple_shared() -> None:
     settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
 
     # Construct series of splits.
     splits_args = []
@@ -47,7 +47,7 @@ def test_split_stats_arithmetic_simple_shared() -> None:
     # statistics.
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grad_vals = [[-2, 1, 0, -1], [2, -1, 1, 1]]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
@@ -56,9 +56,9 @@ def test_split_stats_arithmetic_simple_shared() -> None:
         range(settings["num_tasks"]), range(settings["num_layers"])
     ):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -83,7 +83,7 @@ def test_split_stats_arithmetic_simple_split() -> None:
     settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
 
     # Construct series of splits.
     splits_args = [
@@ -98,7 +98,7 @@ def test_split_stats_arithmetic_simple_split() -> None:
     # statistics.
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grad_vals = [[-2, 1, 0, -1], [2, -1, 1, 1]]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
@@ -107,9 +107,9 @@ def test_split_stats_arithmetic_simple_split() -> None:
         range(settings["num_tasks"]), range(settings["num_layers"])
     ):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -134,7 +134,7 @@ def test_split_stats_arithmetic_random_shared() -> None:
     settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
 
     # Construct series of splits.
     splits_args = []
@@ -144,15 +144,15 @@ def test_split_stats_arithmetic_random_shared() -> None:
     # statistics.
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -176,7 +176,7 @@ def test_split_stats_arithmetic_random_split() -> None:
     settings = dict(V1_SETTINGS)
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
 
     # Construct series of splits.
     splits_args = [
@@ -191,15 +191,15 @@ def test_split_stats_arithmetic_random_split() -> None:
     # statistics.
     total_steps = settings["split_step_threshold"] + 10
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -224,7 +224,7 @@ def test_split_stats_EMA_random_shared() -> None:
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -235,15 +235,15 @@ def test_split_stats_EMA_random_shared() -> None:
     # statistics.
     total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -268,7 +268,7 @@ def test_split_stats_EMA_random_split() -> None:
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -284,15 +284,15 @@ def test_split_stats_EMA_random_split() -> None:
     # statistics.
     total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -318,7 +318,7 @@ def test_split_stats_EMA_random_split_batch() -> None:
     settings["obs_dim"] = 2
     settings["num_tasks"] = 4
     settings["ema_alpha"] = 0.99
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -334,7 +334,7 @@ def test_split_stats_EMA_random_split_batch() -> None:
     # statistics.
     total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
@@ -346,9 +346,9 @@ def test_split_stats_EMA_random_split_batch() -> None:
         batch_tasks = batch_tasks.view(settings["num_tasks"], 1, 1)
         for region in product(range(settings["num_layers"])):
             if region == 0:
-                region_size = settings["hidden_size"] * (dim + 1)
+                region_size = settings["width"] * (dim + 1)
             elif region == settings["num_layers"] - 1:
-                region_size = dim * (settings["hidden_size"] + 1)
+                region_size = dim * (settings["width"] + 1)
             else:
                 region_size = max_region_size
 
@@ -374,7 +374,7 @@ def test_split_stats_EMA_random_capped() -> None:
     settings["num_tasks"] = 4
     settings["cap_sample_size"] = False
     settings["ema_alpha"] = 0.99
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -385,15 +385,15 @@ def test_split_stats_EMA_random_capped() -> None:
     # statistics.
     total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -420,7 +420,7 @@ def test_split_stats_EMA_random_split_grad_var() -> None:
     settings["num_tasks"] = 4
     settings["grad_var"] = 0.01
     settings["ema_alpha"] = 0.99
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -436,15 +436,15 @@ def test_split_stats_EMA_random_split_grad_var() -> None:
     # statistics.
     total_steps = ema_threshold + 20
     dim = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+    max_region_size = settings["width"] ** 2 + settings["width"]
     task_grads = torch.zeros(
         total_steps, settings["num_tasks"], settings["num_layers"], max_region_size
     )
     for region in product(range(settings["num_layers"])):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
             region_size = max_region_size
 
@@ -469,7 +469,7 @@ def test_split_stats_manual() -> None:
     settings["ema_alpha"] = 0.8
     input_size = 1
     output_size = 2
-    settings["hidden_size"] = 2
+    settings["width"] = 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct a sequence of task gradients. The network gradient statistics will be
@@ -713,7 +713,7 @@ def test_split_stats_manual() -> None:
         output_size=output_size,
         num_tasks=settings["num_tasks"],
         num_layers=settings["num_layers"],
-        hidden_size=settings["hidden_size"],
+        width=settings["width"],
         ema_alpha=settings["ema_alpha"],
     )
 
@@ -768,8 +768,8 @@ def test_split_rand_all_tasks() -> None:
 
     # Generate task grads. Since all tasks are included in each batch, none of these
     # will be zero.
-    hidden_size = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = hidden_size ** 2 + hidden_size
+    width = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = width ** 2 + width
     task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
@@ -809,8 +809,8 @@ def test_split_rand_some_tasks() -> None:
 
     # Generate task grads. Since only some tasks are included in each batch, some grads
     # in each batch will be set to zero.
-    hidden_size = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = hidden_size ** 2 + hidden_size
+    width = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = width ** 2 + width
     task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
     task_grads = torch.ones(total_steps, *task_grad_shape)
     task_probs = [1.0, 0.1, 1.0, 0.5]
@@ -846,8 +846,8 @@ def test_split_always() -> None:
     z *= critical_z + 1
 
     # Generate task grads.
-    hidden_size = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = hidden_size ** 2 + hidden_size
+    width = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = width ** 2 + width
     task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
@@ -876,8 +876,8 @@ def test_split_never() -> None:
     )
 
     # Generate task grads.
-    hidden_size = settings["obs_dim"] + settings["num_tasks"]
-    max_region_size = hidden_size ** 2 + hidden_size
+    width = settings["obs_dim"] + settings["num_tasks"]
+    max_region_size = width ** 2 + width
     task_grad_shape = (settings["num_tasks"], settings["num_layers"], max_region_size)
     task_grads = torch.ones(total_steps, *task_grad_shape)
 
@@ -912,7 +912,7 @@ def split_stats_distribution() -> None:
     # Construct list of options for each setting.
     settings_vals = {
         "obs_dim": [2, 4, 10],
-        "hidden_size": [2, 5, 10],
+        "width": [2, 5, 10],
         "num_layers": [3, 20, 100],
         "splits_args": [[]],
         "grad_sigma": [0.001, 0.1, 1.0],
@@ -939,7 +939,7 @@ def split_stats_distribution() -> None:
             output_size=dim,
             num_tasks=NUM_TASKS,
             num_layers=settings["num_layers"],
-            hidden_size=settings["hidden_size"],
+            width=settings["width"],
         )
 
         # Construct a sequence of task gradients according to the distribution of the null

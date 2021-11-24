@@ -49,7 +49,7 @@ def test_forward_shared() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -96,7 +96,7 @@ def test_forward_shared_all_tasks() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -146,7 +146,7 @@ def test_forward_single() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -209,7 +209,7 @@ def test_forward_single_all_tasks() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -275,7 +275,7 @@ def test_forward_multiple() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -359,7 +359,7 @@ def test_forward_multiple_all_tasks() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -439,7 +439,7 @@ def test_split_single() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -482,7 +482,7 @@ def test_split_multiple() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=hidden_size,
+        width=hidden_size,
         device=BASE_SETTINGS["device"],
     )
 
@@ -720,7 +720,7 @@ def test_task_grad_stats_zero_euclidean_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -752,7 +752,7 @@ def test_task_grad_stats_rand_zero_euclidean_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -783,7 +783,7 @@ def test_task_grad_stats_rand_euclidean_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -814,7 +814,7 @@ def test_task_grad_stats_zero_euclidean_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -851,7 +851,7 @@ def test_task_grad_stats_rand_zero_euclidean_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -887,7 +887,7 @@ def test_task_grad_stats_rand_euclidean_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "sqeuclidean"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -924,7 +924,7 @@ def test_task_grad_stats_zero_cosine_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -956,7 +956,7 @@ def test_task_grad_stats_rand_zero_cosine_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -988,7 +988,7 @@ def test_task_grad_stats_rand_cosine_shared() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -1020,7 +1020,7 @@ def test_task_grad_stats_zero_cosine_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -1057,7 +1057,7 @@ def test_task_grad_stats_rand_zero_cosine_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -1093,7 +1093,7 @@ def test_task_grad_stats_rand_cosine_split() -> None:
     # Set up case.
     settings = dict(BASE_SETTINGS)
     settings["metric"] = "cosine"
-    settings["hidden_size"] = settings["obs_dim"] + settings["num_tasks"] + 2
+    settings["width"] = settings["obs_dim"] + settings["num_tasks"] + 2
     ema_threshold = alpha_to_threshold(settings["ema_alpha"])
 
     # Construct series of splits.
@@ -1130,7 +1130,7 @@ def test_sharing_score_shared() -> None:
     dim = settings["obs_dim"] + settings["num_tasks"]
     settings["input_size"] = dim
     settings["output_size"] = dim
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     splits_args = []
     expected_score = 1.0
 
@@ -1149,7 +1149,7 @@ def test_sharing_score_separate() -> None:
     dim = settings["obs_dim"] + settings["num_tasks"]
     settings["input_size"] = dim
     settings["output_size"] = dim
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     splits_args = [
         {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
         {"region": 0, "copy": 0, "group1": [0], "group2": [1]},
@@ -1178,7 +1178,7 @@ def test_sharing_score_split_1() -> None:
     dim = settings["obs_dim"] + settings["num_tasks"]
     settings["input_size"] = dim
     settings["output_size"] = dim
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     splits_args = [
         {"region": 0, "copy": 0, "group1": [0, 1], "group2": [2, 3]},
         {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
@@ -1201,7 +1201,7 @@ def test_sharing_score_split_2() -> None:
     dim = settings["obs_dim"] + settings["num_tasks"]
     settings["input_size"] = settings["obs_dim"]
     settings["output_size"] = dim
-    settings["hidden_size"] = dim
+    settings["width"] = dim
     splits_args = [
         {"region": 1, "copy": 0, "group1": [0, 2], "group2": [1, 3]},
         {"region": 2, "copy": 0, "group1": [0], "group2": [1, 2, 3]},
@@ -1235,7 +1235,7 @@ def test_shared_regions_shared() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=dim,
+        width=dim,
         device=BASE_SETTINGS["device"],
     )
 
@@ -1266,7 +1266,7 @@ def test_shared_regions_single() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=dim,
+        width=dim,
         device=BASE_SETTINGS["device"],
     )
 
@@ -1305,7 +1305,7 @@ def test_shared_regions_multiple() -> None:
         output_size=dim,
         num_tasks=BASE_SETTINGS["num_tasks"],
         num_layers=BASE_SETTINGS["num_layers"],
-        hidden_size=dim,
+        width=dim,
         device=BASE_SETTINGS["device"],
     )
 
@@ -1403,11 +1403,11 @@ def get_region_sizes(settings: Dict[str, Any]) -> List[int]:
     region_sizes = []
     for region in range(settings["num_layers"]):
         if region == 0:
-            region_size = settings["hidden_size"] * (dim + 1)
+            region_size = settings["width"] * (dim + 1)
         elif region == settings["num_layers"] - 1:
-            region_size = dim * (settings["hidden_size"] + 1)
+            region_size = dim * (settings["width"] + 1)
         else:
-            region_size = settings["hidden_size"] ** 2 + settings["hidden_size"]
+            region_size = settings["width"] ** 2 + settings["width"]
         region_sizes.append(region_size)
 
     return region_sizes

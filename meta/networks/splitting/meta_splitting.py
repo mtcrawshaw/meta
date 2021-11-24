@@ -44,7 +44,7 @@ class MetaSplittingNetwork(nn.Module):
         self.output_size = split_net.output_size
         self.num_train_tasks = split_net.num_tasks
         self.num_layers = split_net.num_layers
-        self.hidden_size = split_net.hidden_size
+        self.width = split_net.width
 
         # Set state.
         self.num_test_tasks = num_test_tasks
