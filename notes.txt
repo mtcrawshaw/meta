@@ -53,11 +53,12 @@ Refactoring/additions:
   broken after changes to network structure from adding convolutional option.
 
 Next:
-- Tests for splitting network with conv layers
-- Option for BatchNorm
 - Option for spatial downscaling + channel upscaling
+- Option for ResNet architecture
+- CelebA Experiments
 - Support for 3D outputs
 - Support for task outputs of varying size
+- Tests for splitting network with conv layers
 
 Thoughts:
 - Still need to evaluate other multi-task baselines on CelebA. Why was performance so

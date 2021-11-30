@@ -36,6 +36,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         num_layers: int = 3,
         width: int = 64,
         activation: str = "tanh",
+        batch_norm: bool = False,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         metric: str = "sqeuclidean",
@@ -73,6 +74,11 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         width : int
             Hidden size for network in fully connected case, number of initial
             convolutional channels in convolutional case.
+        activation : str
+            Name of activation function.
+        batch_norm : bool
+            Whether to include BatchNorm layers after each FC/conv layer (before
+            activation).
         split_step_threshold : int
             Number of updates before any splitting is performed. This is in place to
             make sure that we don't perform any splits based on a tiny amount of data.
@@ -179,6 +185,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.activation = activation
+        self.batch_norm = batch_norm
         self.num_tasks = num_tasks
         self.arch_type = arch_type
         self.num_layers = num_layers
@@ -257,8 +264,10 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         region_list = []
         for i in range(self.num_layers):
 
+            last_layer = i == self.num_layers - 1
+
             # Determine init function for layer.
-            if i == self.num_layers - 1 and self.downscale_last_layer:
+            if last_layer and self.downscale_last_layer:
                 layer_init = init_downscale
             else:
                 layer_init = init_base
@@ -273,24 +282,23 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                 else:
                     raise NotImplementedError
                 layer_input_size = self.input_size if i == 0 else self.width
-                layer_output_size = out if i == self.num_layers - 1 else self.width
+                layer_output_size = out if last_layer else self.width
 
                 # Initialize copies of layer.
                 layer_list = [
                     get_fc_layer(
                         in_size=layer_input_size,
                         out_size=layer_output_size,
-                        activation=self.activation
-                        if i != self.num_layers - 1
-                        else None,
+                        activation=self.activation if not last_layer else None,
                         layer_init=layer_init,
+                        batch_norm=self.batch_norm if not last_layer else False,
                     )
                     for _ in range(int(self.splitting_map.num_copies[i]))
                 ]
 
             elif self.arch_type == "conv":
 
-                if i < self.num_layers - 1:
+                if not last_layer:
 
                     # Calculate input and output channels of layer.
                     layer_in_channels = self.input_size[0] if i == 0 else self.width
@@ -303,6 +311,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                             out_channels=layer_out_channels,
                             activation=self.activation,
                             layer_init=layer_init,
+                            batch_norm=self.batch_norm,
                         )
                         for _ in range(int(self.splitting_map.num_copies[i]))
                     ]
@@ -327,6 +336,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                                 out_size=out,
                                 activation=None,
                                 layer_init=layer_init,
+                                batch_norm=False,
                             ),
                         )
                         for _ in range(int(self.splitting_map.num_copies[i]))

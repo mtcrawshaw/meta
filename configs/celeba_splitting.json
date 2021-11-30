@@ -27,6 +27,7 @@
         "task_specific_layers": 1,
         "width": 100,
         "activation": "relu",
+        "batch_norm": false,
         "split_step_threshold": 10,
         "sharing_threshold": 0.5,
         "metric": "cosine",
