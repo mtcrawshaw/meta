@@ -5,6 +5,7 @@ multi-task splitting network.
 
 import pickle
 from copy import deepcopy
+from math import floor
 from typing import List, Dict, Any, Union, List, Tuple
 
 import numpy as np
@@ -37,6 +38,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         width: int = 64,
         activation: str = "tanh",
         batch_norm: bool = False,
+        num_downscales: int = 0,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         metric: str = "sqeuclidean",
@@ -79,6 +81,13 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         batch_norm : bool
             Whether to include BatchNorm layers after each FC/conv layer (before
             activation).
+        num_downscales : int
+            Number of spatial downscales/channel upscales to perform during forward
+            pass. This down/up-scaling is performed by increasing the stride of certain
+            convolutional layers to 2, while doubling the number of output channels of
+            the same layers. These down/up sampling layers are placed uniformly
+            throughout the network. Note that this option is ignored for values of
+            `arch_type` which don't employ convolutional layers.
         split_step_threshold : int
             Number of updates before any splitting is performed. This is in place to
             make sure that we don't perform any splits based on a tiny amount of data.
@@ -180,12 +189,17 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
         if not isinstance(output_size, int) and not isinstance(output_size, List):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
+        if num_downscales is not None:
+            assert arch_type == "conv"
+            assert isinstance(num_downscales, int)
+            assert 0 <= num_downscales <= num_layers - 1
 
         # Set state.
         self.input_size = input_size
         self.output_size = output_size
         self.activation = activation
         self.batch_norm = batch_norm
+        self.num_downscales = num_downscales
         self.num_tasks = num_tasks
         self.arch_type = arch_type
         self.num_layers = num_layers
@@ -198,6 +212,8 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         self.task_specific_layers = task_specific_layers
         self.network_load = network_load
         self.downscale_last_layer = downscale_last_layer
+        if self.num_downscales is not None:
+            self.scales_per_layer = (self.num_downscales + 1) / (self.num_layers - 1)
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -300,9 +316,21 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
                 if not last_layer:
 
-                    # Calculate input and output channels of layer.
-                    layer_in_channels = self.input_size[0] if i == 0 else self.width
-                    layer_out_channels = self.width
+                    # Determine whether to downscale activations at current layer. In
+                    # this case, the convolutional layer has a stride of 2 and has twice
+                    # the number of output channels as input channels.
+                    current_seg = floor(self.scales_per_layer * i)
+                    next_seg = floor(self.scales_per_layer * (i + 1))
+                    next_seg = min(next_seg, self.num_downscales)
+                    downscale = current_seg != next_seg
+
+                    # Calculate input channels, output channels, and stride of layer.
+                    if i == 0:
+                        layer_in_channels = self.input_size[0]
+                    else:
+                        layer_in_channels = self.width * 2 ** current_seg
+                    layer_out_channels = self.width * 2 ** next_seg
+                    stride = 2 if downscale else 1
 
                     # Inititalize copies of layer.
                     layer_list = [
@@ -312,6 +340,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                             activation=self.activation,
                             layer_init=layer_init,
                             batch_norm=self.batch_norm,
+                            stride=stride,
                         )
                         for _ in range(int(self.splitting_map.num_copies[i]))
                     ]
@@ -322,9 +351,9 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                     # average pooling and flattening before the final fully connected
                     # layer, following the ResNet style output.
                     if isinstance(self.output_size, int):
-                        out = self.output_size
+                        out_size = self.output_size
                     elif isinstance(self.output_size, list):
-                        out = self.output_size[0]
+                        out_size = self.output_size[0]
                     else:
                         raise NotImplementedError
                     layer_list = [
@@ -332,8 +361,8 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                             nn.AdaptiveAvgPool2d((1, 1)),
                             nn.Flatten(1),
                             get_fc_layer(
-                                in_size=self.width,
-                                out_size=out,
+                                in_size=self.width * 2 ** self.num_downscales,
+                                out_size=out_size,
                                 activation=None,
                                 layer_init=layer_init,
                                 batch_norm=False,

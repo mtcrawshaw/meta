@@ -58,6 +58,7 @@ def get_conv_layer(
     layer_init: Callable[[nn.Module], nn.Module],
     batch_norm: bool = False,
     kernel_size: int = 3,
+    stride: int = 1,
 ) -> nn.Module:
     """
     Construct a convolutional layer with the given number of input channels and output
@@ -71,7 +72,11 @@ def get_conv_layer(
     layer.append(
         layer_init(
             nn.Conv2d(
-                in_channels, out_channels, kernel_size=kernel_size, padding=padding
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                stride=stride,
             )
         )
     )
