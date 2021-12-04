@@ -13,12 +13,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from meta.networks.utils import get_fc_layer, get_conv_layer, init_base, init_downscale
+from meta.networks.utils import (
+    get_fc_layer,
+    get_conv_layer,
+    get_resnet_layer,
+    init_base,
+    init_downscale,
+)
 from meta.utils.estimate import RunningStats
 from meta.utils.logger import logger
 
 
-ARCH_TYPES = ["fc", "conv"]
+ARCH_TYPES = ["fc", "conv", "resnet"]
 
 
 class BaseMultiTaskSplittingNetwork(nn.Module):
@@ -160,7 +166,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         elif isinstance(input_size, tuple):
             if len(input_size) != 3:
                 raise ValueError(f"Unsupported input size: {input_size}")
-            if arch_type not in ["conv"]:
+            if arch_type not in ["conv", "resnet"]:
                 raise ValueError(f"Unsupported arch_type for 3D inputs: {arch_type}")
         else:
             raise ValueError(f"Unsupported input type: {type(input_size)}")
@@ -175,7 +181,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             if num_tasks is not None and len(output_size) != num_tasks:
                 raise ValueError(
                     f"Argument `num_tasks` ({num_tasks}) doesn't match length of "
-                    "`output_size` ({len(output_size)})."
+                    f"`output_size` ({len(output_size)})."
                 )
             num_tasks = len(output_size)
 
@@ -189,7 +195,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
         if not isinstance(output_size, int) and not isinstance(output_size, List):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
-        if arch_type == "conv":
+        if arch_type in ["conv", "resnet"]:
             assert num_downscales is not None
             assert isinstance(num_downscales, int)
             assert 0 <= num_downscales <= num_layers - 1
@@ -316,7 +322,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                     for _ in range(int(self.splitting_map.num_copies[i]))
                 ]
 
-            elif self.arch_type == "conv":
+            elif self.arch_type in ["conv", "resnet"]:
 
                 if not last_layer:
 
@@ -337,8 +343,14 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
                     stride = 2 if downscale else 1
 
                     # Inititalize copies of layer.
+                    if self.arch_type == "conv":
+                        layer_fn = get_conv_layer
+                    elif self.arch_type == "resnet":
+                        layer_fn = get_resnet_layer
+                    else:
+                        raise NotImplementedError
                     layer_list = [
-                        get_conv_layer(
+                        layer_fn(
                             in_channels=layer_in_channels,
                             out_channels=layer_out_channels,
                             activation=self.activation,
