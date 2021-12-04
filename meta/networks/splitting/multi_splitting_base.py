@@ -38,7 +38,7 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
         width: int = 64,
         activation: str = "tanh",
         batch_norm: bool = False,
-        num_downscales: int = 0,
+        num_downscales: int = None,
         split_step_threshold: int = 30,
         sharing_threshold: float = 0.1,
         metric: str = "sqeuclidean",
@@ -189,10 +189,14 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
         if not isinstance(output_size, int) and not isinstance(output_size, List):
             raise ValueError(f"Unsupported output type: {type(output_size)}")
-        if num_downscales is not None:
-            assert arch_type == "conv"
+        if arch_type == "conv":
+            assert num_downscales is not None
             assert isinstance(num_downscales, int)
             assert 0 <= num_downscales <= num_layers - 1
+        elif arch_type == "fc":
+            assert num_downscales is None
+        else:
+            raise NotImplementedError
 
         # Set state.
         self.input_size = input_size

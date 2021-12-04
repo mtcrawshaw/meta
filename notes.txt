@@ -70,6 +70,17 @@ Thoughts:
   load the learned splitting map, then train from scratch. It would be interesting to
   see if this would be any good.
 
+Performance improvements:
+The model seems to overfit extremely quickly on CelebA. Peak performance on test set is
+reached in less than 0.125 epochs. This may be because the training and test sets are
+split so that all images of a single celebrity are assigned to either training or
+testing, so that the training and testing sets have different distributions. Still,
+overfitting this severe is surprising. How to combat this:
+- Smaller network
+- Dropout
+- L2 regularization
+- Data augmentation
+
 ----------------------------------------------------------------------------------------
 
 
