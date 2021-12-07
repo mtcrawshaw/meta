@@ -16,6 +16,7 @@ from meta.datasets import *
 from meta.train.loss import MultiTaskLoss, Uncertainty
 from meta.networks import (
     ConvNetwork,
+    ResNetwork,
     BackboneNetwork,
     MLPNetwork,
     MultiTaskTrunkNetwork,
@@ -89,6 +90,9 @@ class SLTrainer(Trainer):
         elif config["architecture_config"]["type"] == "conv":
             assert isinstance(input_size, tuple) and len(input_size) == 3
             network_cls = ConvNetwork
+        elif config["architecture_config"]["type"] == "resnet":
+            assert isinstance(input_size, tuple) and len(input_size) == 3
+            network_cls = ResNetwork
         elif config["architecture_config"]["type"] == "mlp":
             assert isinstance(input_size, int)
             network_cls = MLPNetwork
