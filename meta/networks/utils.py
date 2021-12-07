@@ -296,3 +296,20 @@ class ResNetBasicBlock(nn.Module):
         out = self.act(out)
 
         return out
+
+
+class DebugSequential(nn.Sequential):
+    """
+    Helper class to inspect shape of input/output of modules in an nn.Sequential.
+    """
+
+    def forward(self, input):
+        """
+        Forward function for DebugSequential. Simply adds print statements of the shape
+        of each layer's activation.
+        """
+        print(f"input shape: {input.shape}")
+        for i, module in enumerate(self):
+            input = module(input)
+            print(f"layer {i} out shape: {input.shape}")
+        return input

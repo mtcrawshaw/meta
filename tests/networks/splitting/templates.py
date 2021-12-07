@@ -87,8 +87,9 @@ def gradients_template(
             network.regions[region][copy].register_forward_hook(get_activation(name))
 
     # Construct batch of observations concatenated with one-hot task vectors.
+    batch_size = settings["num_processes"]
     obs, task_indices = get_obs_batch(
-        batch_size=settings["num_processes"],
+        batch_size=batch_size,
         obs_space=observation_subspace,
         num_tasks=settings["num_tasks"],
         all_tasks=all_tasks,
@@ -113,14 +114,20 @@ def gradients_template(
         c = network.splitting_map.copy[r, t]
 
         if all_tasks:
-            copy_tasks = (network.splitting_map.copy[r] == c).nonzero().squeeze(-1)
-            copy_tasks = copy_tasks.tolist()
             copy_activations = activation["regions.%d.%d" % (r, c)]
-            task_activations = copy_activations.view(
-                len(copy_tasks), -1, *copy_activations.shape[1:]
+            copy_activations = copy_activations.view(
+                -1, batch_size, *copy_activations.shape[1:]
             )
-            sub_t = copy_tasks.index(t)
-            activations = task_activations[sub_t]
+            copy_tasks = (network.splitting_map.copy[r] == c).nonzero().squeeze(-1)
+            copy_activation_idxs = network.task_to_activation[r, copy_tasks].unique()
+            local_pos = (
+                (copy_activation_idxs == network.task_to_activation[r, t])
+                .nonzero()
+                .squeeze(-1)
+            )
+            assert local_pos.numel() == 1
+            local_pos = int(local_pos)
+            activations = copy_activations[local_pos]
         else:
             copy_indices = network.splitting_map.copy[r, tasks]
             sorted_copy_indices, copy_permutation = torch.sort(copy_indices)

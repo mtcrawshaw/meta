@@ -508,44 +508,68 @@ class BaseMultiTaskSplittingNetwork(nn.Module):
 
         else:
 
-            # Pass through each splitting layer.
-            layer_inputs = torch.stack(
-                [inputs.clone() for _ in range(self.num_tasks)], dim=0
+            # Store task_to_activation. This is hacky and only used for tests: it's an
+            # unfortunate (but necessary) byproduct of minimizing memory and time cost
+            # in this function.
+            self.task_to_activation = torch.zeros(
+                (self.num_layers + 1, self.num_tasks),
+                device=inputs.device,
+                dtype=torch.long,
             )
+            activations = torch.stack([inputs], dim=0)
+
+            # Pass through each splitting layer.
             for layer in range(self.num_layers):
 
-                layer_outputs = None
-                for copy in range(int(self.splitting_map.num_copies[layer])):
+                layer_outputs = []
+                activations_completed = 0
+                num_copies = int(self.splitting_map.num_copies[layer])
+                for copy in range(num_copies):
 
                     # Get tasks which are routed through the current copy, and aggregate
                     # the activations for those tasks.
                     copy_tasks = (
                         (self.splitting_map.copy[layer] == copy).nonzero().squeeze(-1)
                     )
-                    copy_inputs = layer_inputs[copy_tasks]
+                    copy_activations = self.task_to_activation[
+                        layer, copy_tasks
+                    ].unique()
+                    copy_inputs = activations[copy_activations]
 
-                    # Flatten task dimension of inputs, feed through copy, then
-                    # un-flatten task dimension.
-                    num_tasks, num_inputs = copy_inputs.shape[:2]
+                    # Flatten activation dimension of inputs, feed through copy, then
+                    # un-flatten activation dimension.
+                    num_activations, num_inputs = copy_inputs.shape[:2]
                     batch = copy_inputs.view(
-                        num_tasks * num_inputs, *copy_inputs.shape[2:]
+                        num_activations * num_inputs, *copy_inputs.shape[2:]
                     )
                     copy_outputs = self.regions[layer][copy](batch)
-                    task_outputs = copy_outputs.view(
-                        num_tasks, num_inputs, *copy_outputs.shape[1:]
+                    activation_outputs = copy_outputs.view(
+                        num_activations, num_inputs, *copy_outputs.shape[1:]
                     )
 
                     # Store task activations.
-                    if layer_outputs is None:
-                        layer_outputs = torch.zeros(
-                            self.num_tasks, *task_outputs.shape[1:], device=self.device,
+                    for task in copy_tasks:
+                        t = int(task)
+                        local_pos = (
+                            copy_activations == self.task_to_activation[layer, t]
                         )
-                    layer_outputs[copy_tasks] = task_outputs
+                        local_pos = local_pos.nonzero().squeeze(-1)
+                        assert local_pos.numel() == 1
+                        local_pos = int(local_pos)
+                        self.task_to_activation[layer + 1, t] = (
+                            activations_completed + local_pos
+                        )
+                    activations_completed += len(copy_activations)
+                    layer_outputs.append(activation_outputs)
 
-                layer_inputs = layer_outputs.clone()
+                activations = torch.cat(layer_outputs, dim=0)
 
-            # Switch first two dimensions, so that batch dimension still comes first.
-            return torch.transpose(layer_outputs, 0, 1)
+            # Reshape output so that activation dimension is converted to task
+            # dimension, i.e. each task has it's own separate copy of the output. Also,
+            # switch first two dimensions so that batch dimension still comes first.
+            output = activations[self.task_to_activation[-1]]
+            output = torch.transpose(output, 0, 1)
+            return output
 
     def check_for_split(self, task_losses: torch.Tensor) -> bool:
         """

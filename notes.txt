@@ -72,6 +72,7 @@ reached in less than 0.125 epochs. This may be because the training and test set
 split so that all images of a single celebrity are assigned to either training or
 testing, so that the training and testing sets have different distributions. Still,
 overfitting this severe is surprising. How to combat this:
+- Change image size?
 - Smaller network
 - Dropout
 - L2 regularization
