@@ -22,8 +22,8 @@ class ConvNetwork(nn.Module):
         num_fc_layers: int,
         fc_hidden_size: int,
         output_size: Union[int, List[int]],
-        activation: str,
-        batch_norm: False,
+        activation: str = "relu",
+        batch_norm: bool = False,
         device: torch.device = None,
     ) -> None:
 
@@ -95,9 +95,7 @@ class ConvNetwork(nn.Module):
             # Determine input/output size of layer.
             last_layer = i == self.num_fc_layers - 1
             in_size = self.feature_size if i == 0 else self.fc_hidden_size
-            out_size = (
-                self.output_size if last_layer else self.fc_hidden_size
-            )
+            out_size = self.output_size if last_layer else self.fc_hidden_size
 
             # Initialize_layer.
             fc_layers.append(

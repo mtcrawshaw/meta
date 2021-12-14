@@ -12,7 +12,7 @@ import torch
 from torch import nn
 from torch.optim.optimizer import Optimizer, _RequiredParameter, required
 
-from meta.networks import MLPNetwork
+from meta.networks import MLPNetwork, ConvNetwork
 
 
 class SGDG(Optimizer):
@@ -458,49 +458,39 @@ class PSISGD(Optimizer):
 
             if PSI:
 
-                # Check that parameter group consists of only a weight and a bias.
+                # Check that parameter group consists of only a weight (fully connected
+                # or convolutional) and a bias.
                 params = list(group["params"])
                 assert len(params) == 2
-                assert len(params[0].shape) == 2
+                assert len(params[0].shape) in [2, 4]
                 assert len(params[1].shape) == 1
                 assert params[0].shape[0] == params[1].shape[0]
 
                 # Compute norms of parameter vector for each neuron.
-                neuron_params = torch.cat([params[0], params[1].unsqueeze(-1)], dim=-1)
+                reshaped_params = []
+                if len(params[0].shape) == 2:
+                    reshaped_params.append(params[0])
+                else:
+                    reshaped_params.append(params[0].view(params[0].shape[0], -1))
+                reshaped_params.append(params[1].unsqueeze(-1))
+                neuron_params = torch.cat(reshaped_params, dim=-1)
                 neuron_norms = torch.sum(neuron_params ** 2, dim=-1)
+                num_neurons = neuron_norms.shape[0]
 
                 # Update each parameter with the PSI update.
                 for p in params:
-                    assert p.grad is not None
-
-                    """
-                    # OLD CODE FROM SGDG. Keep this around for a model of momentum.
-                    unity, _ = unit(p.data.view(p.size()[0], -1))
-                    g = p.grad.data.view(p.size()[0], -1)
-
-                    h = gproj(unity, g)
-
-                    param_state = self.state[p]
-                    if "momentum_buffer" not in param_state:
-                        param_state["momentum_buffer"] = torch.zeros(h_hat.size())
-                        if p.is_cuda:
-                            param_state["momentum_buffer"] = param_state[
-                                "momentum_buffer"
-                            ].cuda()
-
-                    mom = param_state["momentum_buffer"]
-                    mom_new = momentum * mom - group["lr"] * h_hat
-
-                    p.data.copy_(gexp(unity, mom_new).view(p.size()))
-                    mom.copy_(gpt(unity, mom_new))
-                    """
+                    if p.grad is None:
+                        continue
 
                     if len(p.shape) == 2:
-                        d_p = p.grad.data * neuron_norms.unsqueeze(-1)
+                        reshaped_norms = neuron_norms.view(num_neurons, 1)
+                    elif len(p.shape) == 4:
+                        reshaped_norms = neuron_norms.view(num_neurons, 1, 1, 1)
                     elif len(p.shape) == 1:
-                        d_p = p.grad.data * neuron_norms
+                        reshaped_norms = neuron_norms
                     else:
                         raise NotImplementedError
+                    d_p = p.grad.data * reshaped_norms
                     p.data.add_(-group["lr"], d_p)
 
             else:
@@ -559,6 +549,55 @@ def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
             # Collect parameter names.
             for name, p in layer[0].named_parameters():
                 full_name = f"layers.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+
+            # Add parameter group for layer.
+            param_groups.append(
+                {
+                    "params": [p for p in layer[0].parameters() if p.requires_grad],
+                    "lr": lr,
+                    "momentum": 0.9,
+                    "PSI": True,
+                }
+            )
+
+    elif isinstance(network, ConvNetwork):
+
+        for i, layer in enumerate(network.conv):
+
+            # Check that layer structure matches our expectations.
+            assert isinstance(layer[0], nn.Conv2d)
+            assert isinstance(layer[1], nn.BatchNorm2d)
+
+            # Collect parameter names.
+            for name, p in layer[0].named_parameters():
+                full_name = f"conv.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+
+            # Add parameter group for layer.
+            param_groups.append(
+                {
+                    "params": [p for p in layer[0].parameters() if p.requires_grad],
+                    "lr": lr,
+                    "momentum": 0.9,
+                    "PSI": True,
+                }
+            )
+
+        for i, layer in enumerate(network.fc):
+
+            # Batch normalization isn't applied in last layer, so no need to use
+            # PSI optimizer.
+            if i == len(network.fc) - 1:
+                continue
+
+            # Check that layer structure matches our expectations.
+            assert isinstance(layer[0], nn.Linear)
+            assert isinstance(layer[1], nn.BatchNorm1d)
+
+            # Collect parameter names.
+            for name, p in layer[0].named_parameters():
+                full_name = f"fc.{i}.0.{name}"
                 pre_bn_param_names.append(full_name)
 
             # Add parameter group for layer.
