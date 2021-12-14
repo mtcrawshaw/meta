@@ -482,6 +482,7 @@ class PSISGD(Optimizer):
                     if p.grad is None:
                         continue
 
+                    # Compute single-step update.
                     if len(p.shape) == 2:
                         reshaped_norms = neuron_norms.view(num_neurons, 1)
                     elif len(p.shape) == 4:
@@ -491,7 +492,21 @@ class PSISGD(Optimizer):
                     else:
                         raise NotImplementedError
                     d_p = p.grad.data * reshaped_norms
-                    p.data.add_(-group["lr"], d_p)
+
+                    # Retrieve or initialize momentum.
+                    param_state = self.state[p]
+                    if "momentum_buffer" not in param_state:
+                        param_state["momentum_buffer"] = torch.zeros(d_p.size())
+                        if p.is_cuda:
+                            param_state["momentum_buffer"] = param_state[
+                                "momentum_buffer"
+                            ].cuda()
+
+                    # Update momentum and p.
+                    param_state["momentum_buffer"] = (
+                        momentum * param_state["momentum_buffer"] - group["lr"] * d_p
+                    )
+                    p.data.add(param_state["momentum_buffer"])
 
             else:
 
@@ -517,7 +532,7 @@ class PSISGD(Optimizer):
         return loss
 
 
-def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
+def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
     """ Returns a PSI optimizer for the parameters in `network`. """
 
     # Check that network uses batch normalization.
@@ -556,7 +571,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
                 {
                     "params": [p for p in layer[0].parameters() if p.requires_grad],
                     "lr": lr,
-                    "momentum": 0.9,
+                    "momentum": momentum,
                     "PSI": True,
                 }
             )
@@ -579,7 +594,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
                 {
                     "params": [p for p in layer[0].parameters() if p.requires_grad],
                     "lr": lr,
-                    "momentum": 0.9,
+                    "momentum": momentum,
                     "PSI": True,
                 }
             )
@@ -605,7 +620,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
                 {
                     "params": [p for p in layer[0].parameters() if p.requires_grad],
                     "lr": lr,
-                    "momentum": 0.9,
+                    "momentum": momentum,
                     "PSI": True,
                 }
             )
@@ -619,7 +634,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
         if name not in pre_bn_param_names and p.requires_grad:
             other_params.append(p)
     param_groups.append(
-        {"params": other_params, "lr": lr, "momentum": 0.9, "PSI": False}
+        {"params": other_params, "lr": lr, "momentum": momentum, "PSI": False}
     )
 
     # Initialize optimizer.

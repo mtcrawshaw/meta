@@ -15,7 +15,7 @@ from torchvision.utils import save_image
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
 from meta.train.loss import PartialCrossEntropyLoss
-from meta.train.optimize import SGDG, AdamG, unit
+from meta.train.optimize import SGDG, AdamG, unit, get_PSI_optimizer
 from meta.datasets import *
 from meta.networks import (
     ConvNetwork,
@@ -494,7 +494,8 @@ class ContinualTrainer(Trainer):
             )
 
         elif self.config["optimizer"] == "psi_sgd":
-            self.optimizer = get_psi_optimizer(self.network, self.initial_lr)
+            momentum = config["momentum"] if "momentum" in "config" else 0.0
+            self.optimizer = get_PSI_optimizer(self.network, self.initial_lr, momentum)
         else:
             raise NotImplementedError
 
