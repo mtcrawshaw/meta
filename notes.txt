@@ -9,19 +9,13 @@ setting.
 
 Sprints:
     Naive continual learning on split MNIST
---> Continual batch normalization protocols + experiments
+    Continual batch normalization protocols + experiments
+--> Manifold optimization
 
 Current sprint (Continual learning on split MNIST):
-    BatchNorm architectures (turn option on, set to eval for testing)
-    Different BatchNorm parameters for different tasks
-    Unified BN parameters computed over all training data
-    Store + re-initialize BN parameters for each task
-    Adversarial dataset for continual learning
-    A-GEM
-    Training only batchnorm
-    SplitMNIST and SplitCIFAR
---> AlternatingMNIST and Alternating CIFAR
-    Better architecture?
+    SGDG and AdamG
+--> PSI-SGD
+    Experiments for PSI-SGD + A-GEM
 
 Refactoring/additions for this branch:
 - Support for learning rate schedules in ContinualTrainer
@@ -39,6 +33,12 @@ Other refactoring:
   we have a different copy of the data for MTRegression10, MTRegression20, etc.
 - Experiment should store all results in a single directory in results/, and the
   individual results should be subdirectories of this main directory.
+
+Current task:
+- Bare PSI-SGD (DONE)
+- PSI-SGD with momentum
+- PSI-SGD for convolutional networks
+- Add in upper bound for neuron norms for overflow protection?
 
 ----------------------------------------------------------------------------------------
 

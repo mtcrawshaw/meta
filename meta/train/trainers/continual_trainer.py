@@ -15,7 +15,7 @@ from torchvision.utils import save_image
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
 from meta.train.loss import PartialCrossEntropyLoss
-from meta.train.optimize import SGDG, AdamG, unit
+from meta.train.optimize import SGDG, AdamG, PSISGD, unit
 from meta.datasets import *
 from meta.networks import (
     ConvNetwork,
@@ -444,6 +444,8 @@ class ContinualTrainer(Trainer):
             elif isinstance(self.network, MLPNetwork):
 
                 for i, layer in enumerate(self.network.layers):
+                    if i == len(self.network.layers) - 1:
+                        continue
                     assert isinstance(layer[0], nn.Linear)
                     assert isinstance(layer[1], nn.BatchNorm1d)
                     for name, p in layer[0].named_parameters():
@@ -490,6 +492,71 @@ class ContinualTrainer(Trainer):
                     },
                 ]
             )
+
+        elif self.config["optimizer"] == "psi_sgd":
+
+            # Check that network uses batch normalization.
+            if not hasattr(self.network, "batch_norm") or not self.network.batch_norm:
+                raise ValueError(
+                    "PSI optimizer should only be used for networks that use batch"
+                    " normalization."
+                )
+
+            # The PSI optimizer is only used on parameters in layers which precede a
+            # batch normalization layer. Collecting these parameters is only supported
+            # for certain architectures. In addition, each layer's parameters (weight
+            # and bias) must be in their own separate param group.
+            param_groups = []
+            pre_bn_param_names = []
+            if isinstance(self.network, MLPNetwork):
+
+                for i, layer in enumerate(self.network.layers):
+
+                    # Batch normalization isn't applied in last layer, so no need to use
+                    # PSI optimizer.
+                    if i == len(self.network.layers) - 1:
+                        continue
+
+                    # Check that layer structure matches our expectations.
+                    assert isinstance(layer[0], nn.Linear)
+                    assert isinstance(layer[1], nn.BatchNorm1d)
+
+                    # Collect parameter names.
+                    for name, p in layer[0].named_parameters():
+                        full_name = f"layers.{i}.0.{name}"
+                        pre_bn_param_names.append(full_name)
+
+                    # Add parameter group for layer.
+                    param_groups.append(
+                        {
+                            "params": [
+                                p for p in layer[0].parameters() if p.requires_grad
+                            ],
+                            "lr": self.initial_lr,
+                            "momentum": 0.9,
+                            "PSI": True,
+                        }
+                    )
+
+            else:
+                raise NotImplementedError
+
+            # Add parameter group for parameters optimized with regular SGD.
+            other_params = []
+            for name, p in self.network.named_parameters():
+                if name not in pre_bn_param_names and p.requires_grad:
+                    other_params.append(p)
+            param_groups.append(
+                {
+                    "params": other_params,
+                    "lr": self.initial_lr,
+                    "momentum": 0.9,
+                    "PSI": False,
+                }
+            )
+
+            # Initialize optimizer.
+            self.optimizer = PSISGD(param_groups)
 
         else:
             raise NotImplementedError
