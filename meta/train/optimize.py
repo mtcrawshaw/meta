@@ -12,6 +12,8 @@ import torch
 from torch import nn
 from torch.optim.optimizer import Optimizer, _RequiredParameter, required
 
+from meta.networks import MLPNetwork
+
 
 class SGDG(Optimizer):
     r"""This optimizer updates variables with two different routines
@@ -523,3 +525,63 @@ class PSISGD(Optimizer):
                     p.data.add_(-group["lr"], d_p)
 
         return loss
+
+
+def get_PSI_optimizer(network: nn.Module, lr: float) -> PSISGD:
+    """ Returns a PSI optimizer for the parameters in `network`. """
+
+    # Check that network uses batch normalization.
+    if not hasattr(network, "batch_norm") or not network.batch_norm:
+        raise ValueError(
+            "PSI optimizer should only be used for networks that use batch"
+            " normalization."
+        )
+
+    # The PSI optimizer is only used on parameters in layers which precede a
+    # batch normalization layer. Collecting these parameters is only supported
+    # for certain architectures. In addition, each layer's parameters (weight
+    # and bias) must be in their own separate param group.
+    param_groups = []
+    pre_bn_param_names = []
+    if isinstance(network, MLPNetwork):
+
+        for i, layer in enumerate(network.layers):
+
+            # Batch normalization isn't applied in last layer, so no need to use
+            # PSI optimizer.
+            if i == len(network.layers) - 1:
+                continue
+
+            # Check that layer structure matches our expectations.
+            assert isinstance(layer[0], nn.Linear)
+            assert isinstance(layer[1], nn.BatchNorm1d)
+
+            # Collect parameter names.
+            for name, p in layer[0].named_parameters():
+                full_name = f"layers.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+
+            # Add parameter group for layer.
+            param_groups.append(
+                {
+                    "params": [p for p in layer[0].parameters() if p.requires_grad],
+                    "lr": lr,
+                    "momentum": 0.9,
+                    "PSI": True,
+                }
+            )
+
+    else:
+        raise NotImplementedError
+
+    # Add parameter group for parameters optimized with regular SGD.
+    other_params = []
+    for name, p in network.named_parameters():
+        if name not in pre_bn_param_names and p.requires_grad:
+            other_params.append(p)
+    param_groups.append(
+        {"params": other_params, "lr": lr, "momentum": 0.9, "PSI": False}
+    )
+
+    # Initialize optimizer.
+    return PSISGD(param_groups)

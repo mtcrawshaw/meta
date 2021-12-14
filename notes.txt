@@ -36,9 +36,11 @@ Other refactoring:
 
 Current task:
 - Bare PSI-SGD (DONE)
-- PSI-SGD with momentum
+- Test for scale invariance of PSI-SGD (DONE)
 - PSI-SGD for convolutional networks
+- Test for scale invariance with conv networks
 - Add in upper bound for neuron norms for overflow protection?
+- PSI-SGD with momentum
 
 ----------------------------------------------------------------------------------------
 
