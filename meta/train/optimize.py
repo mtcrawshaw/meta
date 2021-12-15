@@ -582,7 +582,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
 
             # Check that layer structure matches our expectations.
             if not (
-                isinstance(layer[0], nn.Linear) and isinstance(layer[1], nn.BatchNorm1d)
+                isinstance(layer[0], nn.Conv2d) and isinstance(layer[1], nn.BatchNorm2d)
             ):
                 raise ValueError(
                     f"Conv layer {i} of network with type {type(network)} doesn't match"
@@ -614,7 +614,7 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
 
             # Check that layer structure matches our expectations.
             if not (
-                isinstance(layer[0], nn.Conv2d) and isinstance(layer[1], nn.BatchNorm2d)
+                isinstance(layer[0], nn.Linear) and isinstance(layer[1], nn.BatchNorm1d)
             ):
                 raise ValueError(
                     f"FC layer {i} of network with type {type(network)} doesn't match "
@@ -623,14 +623,14 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
                 )
 
             # Collect parameter names.
-            for name, p in linear.named_parameters():
+            for name, p in layer[0].named_parameters():
                 full_name = f"fc.{i}.0.{name}"
                 pre_bn_param_names.append(full_name)
 
             # Add parameter group for layer.
             param_groups.append(
                 {
-                    "params": [p for p in linear.parameters() if p.requires_grad],
+                    "params": [p for p in layer[0].parameters() if p.requires_grad],
                     "lr": lr,
                     "momentum": momentum,
                     "PSI": True,
