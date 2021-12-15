@@ -14,8 +14,8 @@ Sprints:
 
 Current sprint (Continual learning on split MNIST):
     SGDG and AdamG
---> PSI-SGD
-    Experiments for PSI-SGD + A-GEM
+    PSI-SGD
+--> Experiments for PSI-SGD + A-GEM
 
 Refactoring/additions for this branch:
 - Support for learning rate schedules in ContinualTrainer
@@ -43,6 +43,7 @@ Current task:
 - Test for scale invariance with momentum (DONE)
 - Add in upper bound for neuron norms for overflow protection?
 
+Better initialization for PSI?
 
 ----------------------------------------------------------------------------------------
 

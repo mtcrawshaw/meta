@@ -581,8 +581,14 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
         for i, layer in enumerate(network.conv):
 
             # Check that layer structure matches our expectations.
-            assert isinstance(layer[0], nn.Conv2d)
-            assert isinstance(layer[1], nn.BatchNorm2d)
+            if not (
+                isinstance(layer[0], nn.Linear) and isinstance(layer[1], nn.BatchNorm1d)
+            ):
+                raise ValueError(
+                    f"Conv layer {i} of network with type {type(network)} doesn't match"
+                    " expected architecture. The given architecture is currently"
+                    " unsupported by the PSI optimizer."
+                )
 
             # Collect parameter names.
             for name, p in layer[0].named_parameters():
@@ -606,40 +612,19 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
             if i == len(network.fc) - 1:
                 continue
 
-            # Check that layer structure matches our expectations. Note that we have to
-            # account for the case that the first fully connected layer in the
-            # ConvNetwork involves a global average pooling.
-            def is_fc(l):
-                return isinstance(l[0], nn.Linear) and isinstance(l[1], nn.BatchNorm1d)
-
-            def is_downsample(l):
-                return (
-                    isinstance(l[0], nn.AdaptiveAvgPool2d)
-                    and isinstance(l[1], nn.Flatten)
-                    and isinstance(l[2], nn.Sequential)
-                    and isinstance(l[2][0], nn.Linear)
-                    and isinstance(l[2][1], nn.BatchNorm1d)
-                )
-
-            if is_fc(layer):
-                linear = layer[0]
-                downsample = False
-            elif is_downsample(layer):
-                linear = layer[2][0]
-                downsample = True
-            else:
+            # Check that layer structure matches our expectations.
+            if not (
+                isinstance(layer[0], nn.Conv2d) and isinstance(layer[1], nn.BatchNorm2d)
+            ):
                 raise ValueError(
                     f"FC layer {i} of network with type {type(network)} doesn't match "
-                    "expected architecture. This architecture is currently unsupported "
-                    "by the PSI optimizer."
+                    "expected architecture. The given architecture is currently "
+                    "unsupported by the PSI optimizer."
                 )
 
             # Collect parameter names.
             for name, p in linear.named_parameters():
-                if downsample:
-                    full_name = f"fc.{i}.2.0.{name}"
-                else:
-                    full_name = f"fc.{i}.0.{name}"
+                full_name = f"fc.{i}.0.{name}"
                 pre_bn_param_names.append(full_name)
 
             # Add parameter group for layer.

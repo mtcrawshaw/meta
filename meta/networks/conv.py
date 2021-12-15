@@ -87,12 +87,19 @@ class ConvNetwork(nn.Module):
 
         self.conv = nn.Sequential(*conv_layers)
 
+        # Initialize flattening layers to reshape convolutional features for input to
+        # the fully connected layers.
+        if self.pooling:
+            self.flatten = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(1))
+            self.feature_size = self.initial_channels
+        else:
+            self.flatten = nn.Flatten(1)
+            self.feature_size = (
+                self.initial_channels * self.input_size[1] * self.input_size[2]
+            )
+
         # Initialize fully connected layers.
         fc_layers = []
-        self.feature_size = self.initial_channels
-        if not self.pooling:
-            self.feature_size *= self.input_size[1] * self.input_size[2]
-
         for i in range(self.num_fc_layers):
 
             # Determine input/output size of layer.
@@ -101,21 +108,15 @@ class ConvNetwork(nn.Module):
             out_size = self.output_size if last_layer else self.fc_hidden_size
 
             # Initialize_layer.
-            linear = get_fc_layer(
-                in_size=in_size,
-                out_size=out_size,
-                activation=self.activation if not last_layer else None,
-                layer_init=init_base,
-                batch_norm=self.batch_norm if not last_layer else False,
-            )
-            if i == 0 and self.pooling:
-                layer = nn.Sequential(
-                    nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(1), linear,
+            fc_layers.append(
+                get_fc_layer(
+                    in_size=in_size,
+                    out_size=out_size,
+                    activation=self.activation if not last_layer else None,
+                    layer_init=init_base,
+                    batch_norm=self.batch_norm if not last_layer else False,
                 )
-            else:
-                layer = linear
-
-            fc_layers.append(layer)
+            )
 
         self.fc = nn.Sequential(*fc_layers)
 
@@ -133,9 +134,7 @@ class ConvNetwork(nn.Module):
         outputs : torch.Tensor
             Output of network when given `inputs` as input.
         """
-
         features = self.conv(inputs)
-        if not self.pooling:
-            features = features.reshape(-1, self.feature_size)
+        features = self.flatten(features)
         out = self.fc(features)
         return out

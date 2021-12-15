@@ -381,7 +381,6 @@ class ContinualTrainer(Trainer):
             for m in self.network.modules():
                 if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
                     m.requires_grad_(False)
-            self.init_optimizer()
 
         # Re-initialize batchnorm parameters, if necessary.
         if self.continual_bn == "new":
@@ -393,6 +392,8 @@ class ContinualTrainer(Trainer):
         if "current_task" in self.criterion_kwargs["train"]:
             self.criterion_kwargs["train"]["current_task"] = new_task
             self.criterion_kwargs["eval"]["current_task"] = new_task
+
+        self.init_optimizer()
 
     def init_optimizer(self) -> None:
         """
