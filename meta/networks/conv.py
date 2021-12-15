@@ -24,6 +24,7 @@ class ConvNetwork(nn.Module):
         output_size: Union[int, List[int]],
         activation: str = "relu",
         batch_norm: bool = False,
+        pooling: bool = False,
         device: torch.device = None,
     ) -> None:
 
@@ -49,6 +50,7 @@ class ConvNetwork(nn.Module):
         self.output_size = output_size
         self.activation = activation
         self.batch_norm = batch_norm
+        self.pooling = pooling
 
         # Set device.
         self.device = device if device is not None else torch.device("cpu")
@@ -87,9 +89,10 @@ class ConvNetwork(nn.Module):
 
         # Initialize fully connected layers.
         fc_layers = []
-        self.feature_size = (
-            self.input_size[1] * self.input_size[2] * self.initial_channels
-        )
+        self.feature_size = self.initial_channels
+        if not self.pooling:
+            self.feature_size *= self.input_size[1] * self.input_size[2]
+
         for i in range(self.num_fc_layers):
 
             # Determine input/output size of layer.
@@ -98,15 +101,21 @@ class ConvNetwork(nn.Module):
             out_size = self.output_size if last_layer else self.fc_hidden_size
 
             # Initialize_layer.
-            fc_layers.append(
-                get_fc_layer(
-                    in_size=in_size,
-                    out_size=out_size,
-                    activation=self.activation if not last_layer else None,
-                    layer_init=init_base,
-                    batch_norm=self.batch_norm if not last_layer else False,
-                )
+            linear = get_fc_layer(
+                in_size=in_size,
+                out_size=out_size,
+                activation=self.activation if not last_layer else None,
+                layer_init=init_base,
+                batch_norm=self.batch_norm if not last_layer else False,
             )
+            if i == 0 and self.pooling:
+                layer = nn.Sequential(
+                    nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(1), linear,
+                )
+            else:
+                layer = linear
+
+            fc_layers.append(layer)
 
         self.fc = nn.Sequential(*fc_layers)
 
@@ -125,6 +134,8 @@ class ConvNetwork(nn.Module):
             Output of network when given `inputs` as input.
         """
 
-        features = self.conv(inputs).reshape(-1, self.feature_size)
+        features = self.conv(inputs)
+        if not self.pooling:
+            features = features.reshape(-1, self.feature_size)
         out = self.fc(features)
         return out
