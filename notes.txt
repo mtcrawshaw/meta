@@ -50,7 +50,6 @@ Tasks:
     Convert supervised learning to use a fixed dataset with train/test evaluation
     Extend to ReLU activation
 --> Convert loss expression computation/evaluation to work with sparse matrices
-    Loss expression computation with GPU
     Add option to measure accuracy of polynomial approximation to each network
     Move to CKDTrainer?
 
@@ -86,16 +85,16 @@ Other directions worth exploring:
   Still, it's an option.
 
 Notes for current task:
-I implemented a conversion of SymPy expression to power/coefficient matrices, but I
-haven't thoroughly tested it. To do so, we first have to implement functionality to
-compute the loss using these matrices. Then, we can just compare the loss against the
-loss computed using the SymPy expression. If they align, we can get rid of the code that
-evaluates the SymPy expression, then remove the dependence on SymPy entirely by
-computing the matrices from scratch with torch operations. If they don't align, gotta
-fix the conversion functionality first. New note: the two methods for computing the CKD
-loss do align, so I'm going to eliminate all of the SymPy evaluation code. Committing
-this version so we have a nice screenshot with both loss methods intact in a single
-version.
+The current version contains a working implementation of CKD that uses matrix operations
+to evaluate the CKD loss, but still produces the matrices involved in this operation
+using SymPy. In addition, the matrix operations are performed with the dense equivalent
+of a sparse matrix because torch doesn't currently support exponentiation with sparse
+tensors. For now, we can go ahead and eliminate the dependence on SymPy by writing
+functionality to compute the power and coefficient matrices themselves with matrix
+operations. Once this is done, we're kind of stuck: we need torch functionality to
+compute exponentials with sparse tensors. If/when this happens, we just need to make a
+small change to the loss evaluation (described in a comment in `evaluate_error()` in
+order to keep memory costs managable, then it should be good to try on a larger network.
 
 
 ----------------------------------------------------------------------------------------

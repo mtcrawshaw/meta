@@ -272,56 +272,6 @@ def get_variable_index(symbol: Symbol, networks: Dict[str, nn.Module]) -> int:
     return var_idx
 
 
-def evaluate_symbol(symbol: Symbol, networks: Dict[str, nn.Module]) -> torch.Tensor:
-    """
-    Evaluate a symbol representing a network parameter and return the corresponding
-    torch Tensor. `symbol.name` should be of the form `wi_j_k_<name>` or `bi_j_<name>`,
-    where <name> is a key in `networks`.
-    """
-
-    layer, in_unit, out_unit, name = symbol_to_position(symbol)
-    if symbol.name.startswith("w"):
-        val = networks[name][layer][0].weight[out_unit, in_unit]
-    elif symbol.name.startswith("b"):
-        val = networks[name][layer][0].bias[out_unit]
-    else:
-        raise ValueError("Can only handle symbols with names starting with 'w' or 'b'.")
-
-    return val
-
-
-def evaluate_monomial(monomial: Expr, networks: Dict[str, nn.Module]) -> torch.Tensor:
-    """
-    Numberically evaluate a monomial expression by substituting torch tensors in for the
-    symbols, returning a torch Tensor.
-    """
-
-    if issubclass(monomial.func, Number):
-        val = torch.Tensor([float(monomial)]).to(DEVICE)
-
-    elif monomial.func == Symbol:
-        val = evaluate_symbol(monomial, networks)
-
-    elif monomial.func == Pow:
-        base, exp = monomial.args
-        if issubclass(base.func, Number):
-            base_val = torch.Tensor([float(base)]).to(DEVICE)
-        else:
-            base_val = evaluate_symbol(base, networks)
-        exp_val = torch.Tensor([float(exp)]).to(DEVICE)
-        val = torch.pow(base_val, exp_val)
-
-    elif monomial.func == Mul:
-        val = torch.Tensor([1]).to(DEVICE)
-        for subexpr in monomial.args:
-            val *= evaluate_monomial(subexpr, networks)
-
-    else:
-        assert False
-
-    return val
-
-
 def is_input_symbol(sym: Symbol) -> bool:
     """ Whether `sym` is an input symbol. """
     return isinstance(sym, Symbol) and sym.name.startswith("x")
@@ -380,27 +330,9 @@ def gaussian_integral(expr: Expr, d: int) -> Expr:
     return integral
 
 
-def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> torch.Tensor:
-    """
-    Evaluate `error_expr` by substituting Symbols with the corresponding torch Tensors.
-    This expression should depend only on constants and symbols with names of the form
-    `wi_j_k_<name>`, `bi_j_<name>`, which correspond to weights and biases from networks
-    in `networks`. The name at the end of each symbol name should be a key in
-    `networks`.
-    """
-
-    # Check that `error_expr` is a sum of monomials, and sum evaluations of each
-    # monomial.
-    assert error_expr.func == Add
-    error = 0
-    for monomial in error_expr.args:
-        assert is_monomial(monomial)
-        error += evaluate_monomial(monomial, networks)
-
-    return error
-
-
-def temp_evaluate_error(powers: torch.Tensor, coeffs: torch.Tensor, networks: Dict[str, nn.Module]) -> torch.Tensor:
+def evaluate_error(
+    powers: torch.Tensor, coeffs: torch.Tensor, networks: Dict[str, nn.Module]
+) -> torch.Tensor:
     """
     Evaluate the complete KD loss using parallel matrix operations. `powers` is a matrix
     with shape `(num_monomials, num_vars)` (stored in sparse COO format) and `coeffs` is
@@ -417,7 +349,8 @@ def temp_evaluate_error(powers: torch.Tensor, coeffs: torch.Tensor, networks: Di
     # preserve sparsity of the result `terms`. Currently, even if `powers` is sparse,
     # `terms` will be mostly filled with 1s and therefore not sparse. When the code is
     # updated so that `powers` is sparse, we will have to change this line to preserve
-    # sparsity, which we can probably do with some hacky matrix operations.
+    # sparsity, which we can probably do with some hacky matrix operations. As it
+    # stands, the memory cost will be much too large.
     terms = params.unsqueeze(0) ** powers
     monomials = terms.prod(dim=1)
     weighted_monomials = monomials * coeffs
@@ -685,7 +618,7 @@ def run_complete_kd(
     powers, coeffs = expr_to_matrices(complete_error_expr, networks, num_symbols)
 
     # TEMP: For now, we have to convert powers to a dense matrix in order to use it as
-    # an operand in an exponentiation since PyTorch doesn't support expontiation with
+    # an operand in an exponentiation since PyTorch doesn't support exponentiation with
     # sparse Tensors. This is not scalable to networks of any reasonable size.
     powers = powers.to_dense()
 
@@ -693,8 +626,7 @@ def run_complete_kd(
     for update in range(NUM_UPDATES):
 
         # Evaluate the complete student loss.
-        # loss = evaluate_error(complete_error_expr, networks)
-        loss = temp_evaluate_error(powers, coeffs, networks)
+        loss = evaluate_error(powers, coeffs, networks)
 
         # Backwards pass to update student network.
         optimizer.zero_grad()
