@@ -43,6 +43,8 @@ LOSS_EXPR_PATH = "./data/ckd_loss_expr.pkl"
 LR = 3e-6
 MOMENTUM = 0.9
 SEED = 0
+CUDA = True
+DEVICE = torch.device("cuda:0" if CUDA else "cpu")
 
 # Cached polynomial approximations.
 RELU_POLY = {
@@ -295,7 +297,7 @@ def evaluate_monomial(monomial: Expr, networks: Dict[str, nn.Module]) -> torch.T
     """
 
     if issubclass(monomial.func, Number):
-        val = torch.Tensor([float(monomial)])
+        val = torch.Tensor([float(monomial)]).to(DEVICE)
 
     elif monomial.func == Symbol:
         val = evaluate_symbol(monomial, networks)
@@ -303,14 +305,14 @@ def evaluate_monomial(monomial: Expr, networks: Dict[str, nn.Module]) -> torch.T
     elif monomial.func == Pow:
         base, exp = monomial.args
         if issubclass(base.func, Number):
-            base_val = torch.Tensor([float(base)])
+            base_val = torch.Tensor([float(base)]).to(DEVICE)
         else:
             base_val = evaluate_symbol(base, networks)
-        exp_val = torch.Tensor([float(exp)])
+        exp_val = torch.Tensor([float(exp)]).to(DEVICE)
         val = torch.pow(base_val, exp_val)
 
     elif monomial.func == Mul:
-        val = torch.Tensor([1])
+        val = torch.Tensor([1]).to(DEVICE)
         for subexpr in monomial.args:
             val *= evaluate_monomial(subexpr, networks)
 
@@ -398,6 +400,32 @@ def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> torch.Te
     return error
 
 
+def temp_evaluate_error(powers: torch.Tensor, coeffs: torch.Tensor, networks: Dict[str, nn.Module]) -> torch.Tensor:
+    """
+    Evaluate the complete KD loss using parallel matrix operations. `powers` is a matrix
+    with shape `(num_monomials, num_vars)` (stored in sparse COO format) and `coeffs` is
+    a vector with length `num_monomials`.
+    """
+
+    # Construct flattened parameter vector containing parameters from student and
+    # teacher networks.
+    student_params = torch.cat([p.view(-1) for p in networks["student"].parameters()])
+    teacher_params = torch.cat([p.view(-1) for p in networks["teacher"].parameters()])
+    params = torch.cat([student_params, teacher_params])
+
+    # Compute complete KD loss. Note: This next line will have to change in order to
+    # preserve sparsity of the result `terms`. Currently, even if `powers` is sparse,
+    # `terms` will be mostly filled with 1s and therefore not sparse. When the code is
+    # updated so that `powers` is sparse, we will have to change this line to preserve
+    # sparsity, which we can probably do with some hacky matrix operations.
+    terms = params.unsqueeze(0) ** powers
+    monomials = terms.prod(dim=1)
+    weighted_monomials = monomials * coeffs
+    loss = torch.sum(monomials)
+
+    return loss
+
+
 def monomial_to_matrices(
     monomial: Expr, networks: Dict[str, nn.Module]
 ) -> Tuple[float, List[int], List[int]]:
@@ -483,6 +511,8 @@ def expr_to_matrices(
         [monomial_idxs, var_idxs], powers, size=(num_monomials, num_vars)
     )
     coeffs = torch.Tensor(coeffs)
+    powers = powers.to(DEVICE)
+    coeffs = coeffs.to(DEVICE)
 
     return powers, coeffs
 
@@ -556,6 +586,8 @@ def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimi
     test_data = torch.normal(
         torch.zeros(test_size, INPUT_SIZE), torch.ones(test_size, INPUT_SIZE),
     )
+    train_data = train_data.to(DEVICE)
+    test_data = test_data.to(DEVICE)
 
     # Construct data loaders.
     train_loader = torch.utils.data.DataLoader(
@@ -651,15 +683,18 @@ def run_complete_kd(
 
     # Convert the SymPy polynomial into matrix form for fast evaluation during training.
     powers, coeffs = expr_to_matrices(complete_error_expr, networks, num_symbols)
-    print(powers)
-    print(coeffs)
-    exit()
+
+    # TEMP: For now, we have to convert powers to a dense matrix in order to use it as
+    # an operand in an exponentiation since PyTorch doesn't support expontiation with
+    # sparse Tensors. This is not scalable to networks of any reasonable size.
+    powers = powers.to_dense()
 
     # Training loop.
     for update in range(NUM_UPDATES):
 
         # Evaluate the complete student loss.
-        loss = evaluate_error(complete_error_expr, networks)
+        # loss = evaluate_error(complete_error_expr, networks)
+        loss = temp_evaluate_error(powers, coeffs, networks)
 
         # Backwards pass to update student network.
         optimizer.zero_grad()
@@ -697,6 +732,8 @@ def main(complete: bool = False, use_cache: bool = False) -> None:
     student = get_network(
         INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, ACTIVATION
     )
+    teacher = teacher.to(DEVICE)
+    student = student.to(DEVICE)
 
     # Construct optimizer.
     optimizer = torch.optim.SGD(student.parameters(), lr=LR, momentum=MOMENTUM)

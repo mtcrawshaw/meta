@@ -92,7 +92,10 @@ compute the loss using these matrices. Then, we can just compare the loss agains
 loss computed using the SymPy expression. If they align, we can get rid of the code that
 evaluates the SymPy expression, then remove the dependence on SymPy entirely by
 computing the matrices from scratch with torch operations. If they don't align, gotta
-fix the conversion functionality first.
+fix the conversion functionality first. New note: the two methods for computing the CKD
+loss do align, so I'm going to eliminate all of the SymPy evaluation code. Committing
+this version so we have a nice screenshot with both loss methods intact in a single
+version.
 
 
 ----------------------------------------------------------------------------------------
