@@ -120,7 +120,8 @@ def network_to_expr(
                     )
                 elif isinstance(activation, nn.ReLU):
                     outputs[i] = sum(
-                        RELU_POLY[MAX_PS_DEGREE][m] * outputs[i] ** m for m in range(MAX_PS_DEGREE + 1)
+                        RELU_POLY[MAX_PS_DEGREE][m] * outputs[i] ** m
+                        for m in range(MAX_PS_DEGREE + 1)
                     )
                 else:
                     raise NotImplementedError
@@ -186,11 +187,12 @@ def get_monomial_terms(expr: Expr) -> List[Expr]:
         assert False
 
 
-def evaluate_symbol(symbol: Symbol, networks: Dict[str, nn.Module]) -> torch.Tensor:
+def symbol_to_position(symbol: Symbol) -> Tuple[int, int, int, str]:
     """
-    Evaluate a symbol representing a network parameter and return the corresponding
-    torch Tensor. `symbol.name` should be of the form `wi_j_k_<name>` or `bi_j_<name>`,
-    where <name> is a key in `networks`.
+    Given a symbol which corresponds to a single parameter in a network, returns the
+    indices of the layer, input unit, output unit, and network name corresponding for
+    the corresponding parameter. When the parameter is a bias (so that there is no
+    corresponding input unit), the input unit index is given as None.
     """
 
     if symbol.name.startswith("w"):
@@ -200,21 +202,88 @@ def evaluate_symbol(symbol: Symbol, networks: Dict[str, nn.Module]) -> torch.Ten
         layer = int(symbol.name[1:first_pos])
         out_unit = int(symbol.name[first_pos + 1 : second_pos])
         in_unit = int(symbol.name[second_pos + 1 : last_pos])
-        name = symbol.name[last_pos + 1:]
-        val = networks[name][layer][0].weight[out_unit, in_unit]
+        name = symbol.name[last_pos + 1 :]
 
     elif symbol.name.startswith("b"):
         first_pos = symbol.name.find("_")
         second_pos = symbol.name.find("_", first_pos + 1)
         layer = int(symbol.name[1:first_pos])
         out_unit = int(symbol.name[first_pos + 1 : second_pos])
-        name = symbol.name[second_pos + 1:]
-        val = networks[name][layer][0].bias[out_unit]
+        in_unit = None
+        name = symbol.name[second_pos + 1 :]
 
     else:
-        raise ValueError(
-            "Can only handle symbols with names starting with 'w' or 'b'."
+        raise ValueError("Can only handle symbols with names starting with 'w' or 'b'.")
+
+    return layer, in_unit, out_unit, name
+
+
+def get_parameter_index(
+    layer: int, in_unit: int, out_unit: int, network: nn.Module
+) -> int:
+    """
+    Returns the index of a particular parameter in the flattened parameter vector of a
+    network. This function assumes that the network is an instance of nn.Sequential
+    whose elements are instances of nn.Sequential consisting of a Linear layer and a
+    parameter-free activation function.
+    """
+
+    idx = 0
+    for l in range(layer):
+        idx += (network[l][0].in_features + 1) * network[l][0].out_features
+
+    in_features = network[layer][0].in_features
+    out_features = network[layer][0].out_features
+    if in_unit is not None:
+        # Weight.
+        idx += in_features * out_unit
+        idx += in_unit
+    else:
+        # Bias.
+        idx += in_features * out_features
+        idx += out_unit
+
+    return idx
+
+
+def get_variable_index(symbol: Symbol, networks: Dict[str, nn.Module]) -> int:
+    """
+    Returns the index of a symbol (which corresponds to a network weight) in the vector
+    made from the flattened vector containing parameters of the teacher and student
+    network. This function expects that the parameter vector contains the parameters of
+    first the student network then the teacher network.
+    """
+
+    layer, in_unit, out_unit, name = symbol_to_position(symbol)
+
+    network_idx = get_parameter_index(layer, in_unit, out_unit, networks[name])
+    if name == "student":
+        var_idx = network_idx
+    elif name == "teacher":
+        student_params = torch.cat(
+            [p.view(-1) for p in networks["student"].parameters()]
         )
+        var_idx = network_idx + len(student_params)
+    else:
+        raise NotImplementedError
+
+    return var_idx
+
+
+def evaluate_symbol(symbol: Symbol, networks: Dict[str, nn.Module]) -> torch.Tensor:
+    """
+    Evaluate a symbol representing a network parameter and return the corresponding
+    torch Tensor. `symbol.name` should be of the form `wi_j_k_<name>` or `bi_j_<name>`,
+    where <name> is a key in `networks`.
+    """
+
+    layer, in_unit, out_unit, name = symbol_to_position(symbol)
+    if symbol.name.startswith("w"):
+        val = networks[name][layer][0].weight[out_unit, in_unit]
+    elif symbol.name.startswith("b"):
+        val = networks[name][layer][0].bias[out_unit]
+    else:
+        raise ValueError("Can only handle symbols with names starting with 'w' or 'b'.")
 
     return val
 
@@ -284,7 +353,7 @@ def gaussian_integral(expr: Expr, d: int) -> Expr:
                 if is_input_symbol(base):
                     if power % 2 == 0:
                         j = power // 2
-                        current_integral *= double_factorial(2*j - 1)
+                        current_integral *= double_factorial(2 * j - 1)
                     else:
                         nonzero = False
                         break
@@ -329,8 +398,101 @@ def evaluate_error(error_expr: Expr, networks: Dict[str, nn.Module]) -> torch.Te
     return error
 
 
+def monomial_to_matrices(
+    monomial: Expr, networks: Dict[str, nn.Module]
+) -> Tuple[float, List[int], List[int]]:
+    """
+    Collects and returns the coefficient, variable indices, and powers for a monomial
+    expression.
+    """
+
+    coeff = 1.0
+    var_idxs = []
+    powers = []
+
+    # Parse monomial based on its type to collect powers and coefficient.
+    if issubclass(monomial.func, Number):
+        coeff = torch.Tensor([float(monomial)])
+
+    elif monomial.func == Symbol:
+        var_idx = get_variable_index(monomial, networks)
+        var_idxs.append(var_idx)
+        powers.append(1.0)
+
+    elif monomial.func == Pow:
+        base, exp = monomial.args
+        if issubclass(base.func, Number):
+            coeff = float(base) ** float(exp)
+        else:
+            var_idx = get_variable_index(base, networks)
+            var_idxs.append(var_idx)
+            powers.append(float(exp))
+
+    elif monomial.func == Mul:
+
+        for subexpr in monomial.args:
+            sub_coeff, sub_var_idxs, sub_powers = monomial_to_matrices(
+                subexpr, networks
+            )
+            coeff *= sub_coeff
+            var_idxs += sub_var_idxs
+            powers += sub_powers
+
+    else:
+        raise NotImplementedError
+
+    return coeff, var_idxs, powers
+
+
+def expr_to_matrices(
+    error_expr: Expr, networks: Dict[str, nn.Module], num_vars: int
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Convert the SymPy polynomial expression into matrix form. The polynomial is
+    represented with one sparse matrix of size (num_monomials, num_vars) and one dense
+    vector of size (num_monomials), both stored as Tensors. The matrix value at row i,
+    column j holds the power of variable j in monomial i. If variable j doesn't appear
+    in monomial i, the corresponding matrix value is natually 0. The vector value at
+    position i holds the coefficient of monomial i. This distributed representation
+    allows for a parallel evaluation of the huge polynomial with torch.
+    """
+
+    monomial_idxs = []
+    var_idxs = []
+    powers = []
+    coeffs = []
+
+    num_monomials = len(error_expr.args)
+
+    # Loop over each monomial and collect values of powers and coefficients.
+    assert error_expr.func == Add
+    for m_idx, monomial in enumerate(error_expr.args):
+
+        assert is_monomial(monomial)
+        coeff, m_var_idxs, m_powers = monomial_to_matrices(monomial, networks)
+
+        # Aggregate coefficients and powers from monomial into running list.
+        for var_idx, power in zip(m_var_idxs, m_powers):
+            monomial_idxs.append(m_idx)
+            var_idxs.append(var_idx)
+            powers.append(power)
+        coeffs.append(coeff)
+
+    # Construct matrices from power/coefficient values.
+    powers = torch.sparse_coo_tensor(
+        [monomial_idxs, var_idxs], powers, size=(num_monomials, num_vars)
+    )
+    coeffs = torch.Tensor(coeffs)
+
+    return powers, coeffs
+
+
 def get_network(
-    input_size: int, output_size: int, hidden_size: int, num_layers: int, activation: str,
+    input_size: int,
+    output_size: int,
+    hidden_size: int,
+    num_layers: int,
+    activation: str,
 ) -> nn.Module:
     """ Construct an MLP with the given parameters. """
 
@@ -350,28 +512,32 @@ def get_network(
         layers.append(nn.Sequential(*layer))
     return nn.Sequential(*layers)
 
+
 def get_network_symbols(
     input_size: int, output_size: int, hidden_size: int, num_layers: int, name: str,
-) -> Tuple[List[List[List[Symbol]]], List[List[Symbol]]]:
+) -> Tuple[List[List[List[Symbol]]], List[List[Symbol]], int]:
     """
     Construct SymPy symbols for network weights and biases. Returns nested lists of
-    SymPy symbols representing weights and biases.
+    SymPy symbols representing weights and biases, as well as the total number of
+    symbols in the network.
     """
 
     weight_symbols = []
     bias_symbols = []
+    num_symbols = 0
     for i in range(num_layers):
         layer_in = input_size if i == 0 else hidden_size
         layer_out = output_size if i == num_layers - 1 else hidden_size
         weight_symbols.append([])
         bias_symbols.append([])
+        num_symbols += (layer_in + 1) * layer_out
         for j in range(layer_out):
             weight_symbols[i].append([])
             for k in range(layer_in):
                 weight_symbols[i][j].append(Symbol(f"w{i}_{j}_{k}_{name}"))
             bias_symbols[i].append(Symbol(f"b{i}_{j}_{name}"))
 
-    return weight_symbols, bias_symbols
+    return weight_symbols, bias_symbols, num_symbols
 
 
 def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer):
@@ -385,24 +551,18 @@ def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimi
     test_size = DATASET_SIZE - train_size
     assert 0 < train_size < DATASET_SIZE
     train_data = torch.normal(
-        torch.zeros(train_size, INPUT_SIZE),
-        torch.ones(train_size, INPUT_SIZE),
+        torch.zeros(train_size, INPUT_SIZE), torch.ones(train_size, INPUT_SIZE),
     )
     test_data = torch.normal(
-        torch.zeros(test_size, INPUT_SIZE),
-        torch.ones(test_size, INPUT_SIZE),
+        torch.zeros(test_size, INPUT_SIZE), torch.ones(test_size, INPUT_SIZE),
     )
 
     # Construct data loaders.
     train_loader = torch.utils.data.DataLoader(
-        train_data,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
+        train_data, batch_size=BATCH_SIZE, shuffle=True,
     )
     test_loader = torch.utils.data.DataLoader(
-        test_data,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
+        test_data, batch_size=BATCH_SIZE, shuffle=False,
     )
 
     # Training loop.
@@ -445,19 +605,25 @@ def run_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimi
         print(f"Epoch {epoch} test loss: {test_loss}\n")
 
 
-def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.optim.Optimizer, use_cache: bool = False):
+def run_complete_kd(
+    teacher: nn.Module,
+    student: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    use_cache: bool = False,
+):
     """ Runs complete knowledge distillation on a student and teacher network. """
 
     # Construct SymPy symbols for network inputs.
     input_symbols = [Symbol(f"x{i}") for i in range(INPUT_SIZE)]
 
     # Construct SymPy symbols for network inputs, weights, and biases.
-    teacher_weight_symbols, teacher_bias_symbols = get_network_symbols(
+    teacher_weight_symbols, teacher_bias_symbols, teacher_symbols = get_network_symbols(
         INPUT_SIZE, OUTPUT_SIZE, TEACHER_HIDDEN_SIZE, NUM_TEACHER_LAYERS, name="teacher"
     )
-    student_weight_symbols, student_bias_symbols = get_network_symbols(
+    student_weight_symbols, student_bias_symbols, student_symbols = get_network_symbols(
         INPUT_SIZE, OUTPUT_SIZE, STUDENT_HIDDEN_SIZE, NUM_STUDENT_LAYERS, name="student"
     )
+    num_symbols = teacher_symbols + student_symbols
 
     # Symbolically compute the student error over the entire input distribution as a
     # function of network parameters.
@@ -466,7 +632,6 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
         raise ValueError("Cached expression doesn't exist, but `use_cache` is True.")
         with open(LOSS_EXPR_PATH, "rb") as f:
             complete_error_expr = pickle.load(f)
-        symbolic_time = None
     else:
         teacher_expr = network_to_expr(
             teacher, input_symbols, teacher_weight_symbols, teacher_bias_symbols
@@ -475,12 +640,20 @@ def run_complete_kd(teacher: nn.Module, student: nn.Module, optimizer: torch.opt
             student, input_symbols, student_weight_symbols, student_bias_symbols
         )
         assert len(teacher_expr) == len(student_expr)
-        error_expr = expand(sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr)))
+        error_expr = expand(
+            sum((t - s) ** 2 for t, s in zip(teacher_expr, student_expr))
+        )
         complete_error_expr = gaussian_integral(error_expr, INPUT_SIZE)
 
         # Cache expression.
         with open(LOSS_EXPR_PATH, "wb") as f:
             pickle.dump(complete_error_expr, f)
+
+    # Convert the SymPy polynomial into matrix form for fast evaluation during training.
+    powers, coeffs = expr_to_matrices(complete_error_expr, networks, num_symbols)
+    print(powers)
+    print(coeffs)
+    exit()
 
     # Training loop.
     for update in range(NUM_UPDATES):
@@ -544,13 +717,13 @@ if __name__ == "__main__":
         "--complete",
         default=False,
         action="store_true",
-        help="Use Complete Knowledge Distillation instead of distillation with supervised learning."
+        help="Use Complete Knowledge Distillation instead of distillation with supervised learning.",
     )
     parser.add_argument(
         "--use_cache",
         default=False,
         action="store_true",
-        help="Use the cached expression for the complete KD loss."
+        help="Use the cached expression for the complete KD loss.",
     )
     args = parser.parse_args()
 

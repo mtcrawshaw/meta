@@ -59,6 +59,11 @@ Other directions worth exploring:
   The approximations can be computed by minimizing the L2 distance between the desired
   activation function and a polynomial of given degree either over a fixed neighborhood
   of the origin or over a normally distributed real random variable.
+- Support for more complex architectures:
+  - Convolutional layers
+  - Batch normalization layers
+  - Residual blocks
+  - ?
 - Implement CKD for convolutional networks
 - Compute the number of terms in the final expression as a function of the number of
   layers, the hidden size, input size, output size, and the power series truncation
@@ -79,7 +84,16 @@ Other directions worth exploring:
   memory/time savings will be, since the sums with the largest number of terms will be
   result from the matrix-vector operations, and these sums cannot be made symbolic.
   Still, it's an option.
- 
+
+Notes for current task:
+I implemented a conversion of SymPy expression to power/coefficient matrices, but I
+haven't thoroughly tested it. To do so, we first have to implement functionality to
+compute the loss using these matrices. Then, we can just compare the loss against the
+loss computed using the SymPy expression. If they align, we can get rid of the code that
+evaluates the SymPy expression, then remove the dependence on SymPy entirely by
+computing the matrices from scratch with torch operations. If they don't align, gotta
+fix the conversion functionality first.
+
 
 ----------------------------------------------------------------------------------------
 
