@@ -121,24 +121,23 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         trainer.load_checkpoint(checkpoint)
 
     # Training loop.
+    CL = isinstance(trainer, ContinualTrainer)
     while update_iteration < trainer.num_updates:
 
         # Perform training step.
         step_metrics = trainer.step()
 
         # Run evaluation, if necessary.
-        if (
-            update_iteration % config["evaluation_freq"] == 0
-            or (update_iteration + 1) % trainer.updates_per_task == 0
+        if update_iteration % config["evaluation_freq"] == 0 or (
+            CL and (update_iteration + 1) % trainer.updates_per_task == 0
         ):
             eval_step_metrics = trainer.evaluate()
             step_metrics.update(eval_step_metrics)
 
         # Update and print metrics.
         metrics.update(step_metrics)
-        if (
-            update_iteration % config["print_freq"] == 0
-            or (update_iteration + 1) % trainer.updates_per_task == 0
+        if update_iteration % config["print_freq"] == 0 or (
+            CL and (update_iteration + 1) % trainer.updates_per_task == 0
         ):
             message = "Update %d | " % update_iteration
             message += str(metrics)
@@ -147,7 +146,9 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
         # This is to ensure that printed out values don't get overwritten after we
         # finish training on each task.
-        if (update_iteration + 1) % trainer.updates_per_task == 0:
+        if update_iteration == (trainer.num_updates - 1) or (
+            CL and (update_iteration + 1) % trainer.updates_per_task == 0
+        ):
             print("")
 
         # Save intermediate training progress, if necessary. Note that we save an
@@ -171,7 +172,7 @@ def train(config: Dict[str, Any], **kwargs: Dict[str, Any]) -> Dict[str, Any]:
         update_iteration += 1
 
     # TEMP: If we are training with continual learning, evaluate on all tasks.
-    if isinstance(trainer, ContinualTrainer):
+    if CL:
 
         assert config["continual_bn"] in ["none", "global", "separate", "new", "frozen"]
 

@@ -6,6 +6,8 @@ from typing import Dict, Any
 import numpy as np
 import torch
 
+from meta.train.optimize import SGDG, AdamG, get_grassmann_optimizer, get_PSI_optimizer
+
 
 class Trainer:
     """ Abstract base class for trainers. """
@@ -69,7 +71,9 @@ class Trainer:
 
         # Initialize optimizer.
         self.initial_lr = config["initial_lr"]
-        self.eps = config["eps"]
+        self.momentum = config["momentum"] if "momentum" in config else None
+        self.max_grad_norm = config["max_grad_norm"] if "max_grad_norm" in config else None
+        self.eps = config["eps"] if "eps" in config else None
         self.init_optimizer()
 
         # Initialize learning rate schedule.
@@ -116,9 +120,32 @@ class Trainer:
 
     def init_optimizer(self) -> None:
         """ Initialize optimizer. """
-        self.optimizer = torch.optim.Adam(
-            self.parameters(), lr=self.initial_lr, eps=self.eps
-        )
+
+        # Set optimizer to Adam if none was set in config.
+        if "optimizer" not in self.config:
+            self.config["optimizer"] = "adam"
+
+        # Construct optimizer according to config.
+        if self.config["optimizer"] == "adam":
+            self.optimizer = torch.optim.Adam(
+                self.parameters(), lr=self.initial_lr, eps=self.eps,
+            )
+
+        elif self.config["optimizer"] == "sgd":
+            self.optimizer = torch.optim.SGD(
+                self.parameters(), lr=self.initial_lr, momentum=self.momentum,
+            )
+
+        elif self.config["optimizer"] in ["sgdg", "adamg"]:
+            self.optimizer = get_grassmann_optimizer(
+                self.network, self.config["optimizer"], self.initial_lr, self.momentum, self.max_grad_norm
+            )
+
+        elif self.config["optimizer"] == "psi_sgd":
+            self.optimizer = get_PSI_optimizer(self.network, self.initial_lr, self.momentum)
+
+        else:
+            raise NotImplementedError
 
     def step(self) -> Dict[str, Any]:
         """ Perform a training step. """
@@ -160,11 +187,14 @@ class Trainer:
         raise NotImplementedError
 
     def clip_grads(self) -> None:
-        """ Clip gradients of model parameters, if necessary. """
-        if self.config["max_grad_norm"] is not None:
-            torch.nn.utils.clip_grad_norm_(
-                self.parameters(), self.config["max_grad_norm"],
-            )
+        """
+        Clip gradients of model parameters, if necessary. If a Grassmann optimizer is
+        used, gradient clipping is not performed here (it is performed in the optimizer
+        instead).
+        """
+        grassmann = isinstance(self.optimizer, SGDG) or isinstance(self.optimizer, AdamG)
+        if self.max_grad_norm is not None and not grassmann:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), self.max_grad_norm)
 
     @property
     def metric_set(self) -> None:

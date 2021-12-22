@@ -1,7 +1,7 @@
 """
 Definitions for custom optimizers.
 
-The SGDG and Adam optimizers (and related utilities) are copied from the following
+The SGDG and AdamG optimizers (and related utilities) are copied from the following
 repository: https://github.com/MinhyungCho/riemannian-batch-normalization-pytorch
 """
 
@@ -530,6 +530,102 @@ class PSISGD(Optimizer):
                     p.data.add_(-group["lr"], d_p)
 
         return loss
+
+
+def get_grassmann_optimizer(
+    network: nn.Module,
+    opt_type: str,
+    lr: float,
+    momentum: float = None,
+    grad_clip: float = None,
+) -> Union[SGDG, AdamG]:
+    """
+    Returns an optimizer on the Grassmann manifold (either SGDG or AdamG) for the
+    parameters in `network`.
+    """
+
+    # Check for a valid optimizer type.
+    if opt_type not in ["sgdg", "adamg"]:
+        raise ValueError(f"Unrecognized Grassmann optimizer: '{opt_type}'.")
+
+    # Check that network uses batch normalization.
+    if not hasattr(network, "batch_norm") or not network.batch_norm:
+        raise ValueError(
+            "Riemannian optimizers should only be used for networks that "
+            " use batch normalization."
+        )
+
+    # The Riemannian optimizer is only used on parameters in layers which
+    # precede a batch normalization layer. Collecting these parameters is only
+    # supported for certain architectures.
+    pre_bn_param_names = []
+    pre_bn_params = []
+    if isinstance(network, ConvNetwork):
+
+        for i, layer in enumerate(network.conv):
+            assert isinstance(layer[0], nn.Conv2d)
+            assert isinstance(layer[1], nn.BatchNorm2d)
+            for name, p in layer[0].named_parameters():
+                full_name = f"conv.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+                pre_bn_params.append(p)
+        for i, layer in enumerate(network.fc[:-1]):
+            assert isinstance(layer[0], nn.Linear)
+            assert isinstance(layer[1], nn.BatchNorm1d)
+            for name, p in layer[0].named_parameters():
+                full_name = f"fc.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+                pre_bn_params.append(p)
+
+    elif isinstance(network, MLPNetwork):
+
+        for i, layer in enumerate(network.layers):
+            if i == len(network.layers) - 1:
+                continue
+            assert isinstance(layer[0], nn.Linear)
+            assert isinstance(layer[1], nn.BatchNorm1d)
+            for name, p in layer[0].named_parameters():
+                full_name = f"layers.{i}.0.{name}"
+                pre_bn_param_names.append(full_name)
+                pre_bn_params.append(p)
+
+    else:
+        raise NotImplementedError
+    pre_bn_params = [p for p in pre_bn_params if p.requires_grad]
+    other_params = []
+    for name, p in network.named_parameters():
+        if name not in pre_bn_param_names and p.requires_grad:
+            other_params.append(p)
+
+    # Scale all of the pre-BatchNorm parameters to unit norm.
+    for i, p in enumerate(pre_bn_params):
+        unitp, _ = unit(p.data.view(p.shape[0], -1))
+        pre_bn_params[i].data.copy_(unitp.view(p.size()))
+
+    # Initialize optimizer.
+    if opt_type == "sgdg":
+        optimizer_cls = SGDG
+    elif opt_type == "adamg":
+        optimizer_cls = AdamG
+    else:
+        raise NotImplementedError
+    return optimizer_cls(
+        [
+            {
+                "params": pre_bn_params,
+                "lr": lr,
+                "momentum": momentum,
+                "grassmann": True,
+                "grad_clip": grad_clip,
+            },
+            {
+                "params": other_params,
+                "lr": lr,
+                "momentum": momentum,
+                "grassmann": False,
+            },
+        ]
+    )
 
 
 def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:

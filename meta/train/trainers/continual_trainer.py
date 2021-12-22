@@ -15,7 +15,7 @@ from torchvision.utils import save_image
 from meta.train.trainers.base_trainer import Trainer
 from meta.train.trainers.utils import cycle
 from meta.train.loss import PartialCrossEntropyLoss
-from meta.train.optimize import SGDG, AdamG, unit, get_PSI_optimizer
+from meta.train.optimize import SGDG, AdamG, unit
 from meta.datasets import *
 from meta.networks import (
     ConvNetwork,
@@ -394,111 +394,6 @@ class ContinualTrainer(Trainer):
             self.criterion_kwargs["eval"]["current_task"] = new_task
 
         self.init_optimizer()
-
-    def init_optimizer(self) -> None:
-        """
-        Initialize optimizer. Overridding this function from the base Trainer class
-        allows us to use the Riemannian optimizers for continual learning.
-        """
-
-        # Set optimizer to Adam if none was set in config.
-        if "optimizer" not in self.config:
-            self.config["optimizer"] = "adam"
-
-        # Construct optimizer according to config.
-        if self.config["optimizer"] == "adam":
-            self.optimizer = torch.optim.Adam(
-                self.parameters(), lr=self.initial_lr, eps=self.eps
-            )
-
-        elif self.config["optimizer"] in ["sgdg", "adamg"]:
-
-            # Check that network uses batch normalization.
-            if not hasattr(self.network, "batch_norm") or not self.network.batch_norm:
-                raise ValueError(
-                    "Riemannian optimizers should only be used for networks that "
-                    " use batch normalization."
-                )
-
-            # The Riemannian optimizer is only used on parameters in layers which
-            # precede a batch normalization layer. Collecting these parameters is only
-            # supported for certain architectures.
-            pre_bn_param_names = []
-            pre_bn_params = []
-            if isinstance(self.network, ConvNetwork):
-
-                for i, layer in enumerate(self.network.conv):
-                    assert isinstance(layer[0], nn.Conv2d)
-                    assert isinstance(layer[1], nn.BatchNorm2d)
-                    for name, p in layer[0].named_parameters():
-                        full_name = f"conv.{i}.0.{name}"
-                        pre_bn_param_names.append(full_name)
-                        pre_bn_params.append(p)
-                for i, layer in enumerate(self.network.fc[:-1]):
-                    assert isinstance(layer[0], nn.Linear)
-                    assert isinstance(layer[1], nn.BatchNorm1d)
-                    for name, p in layer[0].named_parameters():
-                        full_name = f"fc.{i}.0.{name}"
-                        pre_bn_param_names.append(full_name)
-                        pre_bn_params.append(p)
-
-            elif isinstance(self.network, MLPNetwork):
-
-                for i, layer in enumerate(self.network.layers):
-                    if i == len(self.network.layers) - 1:
-                        continue
-                    assert isinstance(layer[0], nn.Linear)
-                    assert isinstance(layer[1], nn.BatchNorm1d)
-                    for name, p in layer[0].named_parameters():
-                        full_name = f"layers.{i}.0.{name}"
-                        pre_bn_param_names.append(full_name)
-                        pre_bn_params.append(p)
-
-            else:
-                raise NotImplementedError
-            pre_bn_params = [p for p in pre_bn_params if p.requires_grad]
-            other_params = []
-            for name, p in self.network.named_parameters():
-                if name not in pre_bn_param_names and p.requires_grad:
-                    other_params.append(p)
-
-            # Scale all of the pre-BatchNorm parameters to unit norm.
-            for i, p in enumerate(pre_bn_params):
-                unitp, _ = unit(p.data.view(p.shape[0], -1))
-                pre_bn_params[i].data.copy_(unitp.view(p.size()))
-
-            # Initialize optimizer.
-            if self.config["optimizer"] == "sgdg":
-                optimizer_cls = SGDG
-            elif self.config["optimizer"] == "adamg":
-                optimizer_cls = AdamG
-            else:
-                raise NotImplementedError
-            self.optimizer = optimizer_cls(
-                [
-                    {
-                        "params": pre_bn_params,
-                        "lr": self.initial_lr,
-                        "momentum": 0.9,
-                        "eps": self.eps,
-                        "grassmann": True,
-                        "grad_clip": 0.1,
-                    },
-                    {
-                        "params": other_params,
-                        "lr": self.initial_lr,
-                        "momentum": 0.9,
-                        "eps": self.eps,
-                        "grassmann": False,
-                    },
-                ]
-            )
-
-        elif self.config["optimizer"] == "psi_sgd":
-            momentum = config["momentum"] if "momentum" in "config" else 0.0
-            self.optimizer = get_PSI_optimizer(self.network, self.initial_lr, momentum)
-        else:
-            raise NotImplementedError
 
     def load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         """ Load trainer state from checkpoint. """
