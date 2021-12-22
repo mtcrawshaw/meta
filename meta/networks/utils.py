@@ -85,6 +85,32 @@ def get_conv_layer(
     return nn.Sequential(*layer)
 
 
+def get_resnet_layer(
+    in_channels: int,
+    out_channels: int,
+    activation: str,
+    layer_init: Callable[[nn.Module], nn.Module],
+    batch_norm: bool = False,
+    kernel_size: int = 3,
+    stride: int = 1,
+) -> nn.Module:
+    """
+    Construct a resnet block with the given number of input channels and output
+    channels, using the initialization function `layer_init`. This is really just a
+    wrapper around `ResNetBasicBlock` to match other functions to construct individual
+    layers.
+    """
+    return ResNetBasicBlock(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        kernel_size=kernel_size,
+        activation=activation,
+        layer_init=layer_init,
+        batch_norm=batch_norm,
+        stride=stride,
+    )
+
+
 def get_activation(activation: str) -> nn.Module:
     """ Get single activation layer by name. """
 
@@ -184,3 +210,84 @@ class Parallel(nn.Module):
     def __getitem__(self, i: int) -> nn.Module:
         """ Access `i`th module. """
         return self.p_modules[i]
+
+
+class ResNetBasicBlock(nn.Module):
+    """ Basic ResNet block. Code modified from PyTorch source. """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        activation: str,
+        layer_init: Callable[[nn.Module], nn.Module],
+        batch_norm: bool = False,
+        stride: int = 1,
+    ) -> None:
+        """ Init function for ResNetBasicBlock. """
+
+        super().__init__()
+
+        assert kernel_size % 2 == 1
+        padding = (kernel_size - 1) // 2
+
+        self.batch_norm = batch_norm
+        self.activation = activation
+
+        # Initialize convolutional layers.
+        self.conv1 = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            stride=stride,
+        )
+        self.conv2 = nn.Conv2d(
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            stride=1,
+        )
+
+        # Initialize downsample layer, if necessary.
+        if out_channels != in_channels or stride != 1:
+            downsample_layers = [
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
+            ]
+            if batch_norm:
+                downsample_layers.append(nn.BatchNorm2d(out_channels))
+            self.downsample = nn.Sequential(*downsample_layers)
+        else:
+            self.downsample = None
+
+        # Initialize normalization and activation, if necessary.
+        if batch_norm:
+            self.bn1 = nn.BatchNorm2d(out_channels)
+            self.bn2 = nn.BatchNorm2d(out_channels)
+        if activation is not None:
+            self.act = get_activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """ Forward function for ResNetBasicBlock. """
+
+        identity = x
+
+        out = self.conv1(x)
+        if self.batch_norm:
+            out = self.bn1(out)
+        if self.activation is not None:
+            out = self.act(out)
+
+        out = self.conv2(out)
+        if self.batch_norm:
+            out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.act(out)
+
+        return out

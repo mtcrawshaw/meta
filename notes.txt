@@ -45,7 +45,7 @@ Current task:
 - Test for scale invariance with momentum (DONE)
 - Reproduce PSI-SGD supervised learning experiments
     - Custom optimizers with SLTrainer (DONE)
-    - ResNet architecture
+    - ResNet architecture (DONE)
     - ResNet support for Riemannian optimizers
     - LR schedule support?
 - Add in upper bound for neuron norms for overflow protection?

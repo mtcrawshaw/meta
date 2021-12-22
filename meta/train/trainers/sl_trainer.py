@@ -19,6 +19,7 @@ from meta.networks import (
     ConvNetwork,
     BackboneNetwork,
     MLPNetwork,
+    ResNetwork,
     MultiTaskTrunkNetwork,
 )
 from meta.utils.utils import aligned_train_configs, DATA_DIR
@@ -90,6 +91,9 @@ class SLTrainer(Trainer):
         elif config["architecture_config"]["type"] == "mlp":
             assert isinstance(input_size, int)
             network_cls = MLPNetwork
+        elif config["architecture_config"]["type"] == "resnet":
+            assert isinstance(input_size, tuple) and len(input_size) == 3
+            network_cls = ResNetwork
         elif config["architecture_config"]["type"] == "trunk":
             assert isinstance(input_size, int)
             network_cls = MultiTaskTrunkNetwork

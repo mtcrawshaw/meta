@@ -142,6 +142,7 @@ class Trainer:
             )
 
         elif self.config["optimizer"] == "psi_sgd":
+            assert self.max_grad_norm is None
             self.optimizer = get_PSI_optimizer(self.network, self.initial_lr, self.momentum)
 
         else:
