@@ -46,11 +46,14 @@ Current task:
 - Reproduce PSI-SGD supervised learning experiments
     - Custom optimizers with SLTrainer (DONE)
     - ResNet architecture (DONE)
-    - ResNet support for Riemannian optimizers
-    - LR schedule support?
+    - ResNet support for Riemannian optimizers (DONE)
+    - Test for invariance of PSI optimizer for equivalent ResNets
+- LR schedule support?
 - Add in upper bound for neuron norms for overflow protection?
+- Better initialization for PSI?
 
-Better initialization for PSI?
+Just noticed a memory leak with the PSI-SGD optimizer. Gotta figure this one out before
+running long experiments.
 
 ----------------------------------------------------------------------------------------
 

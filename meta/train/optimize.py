@@ -754,6 +754,51 @@ def get_PSI_optimizer(network: nn.Module, lr: float, momentum: float) -> PSISGD:
                 }
             )
 
+    elif isinstance(network, ResNetwork):
+
+        for i, layer in enumerate(network.backbone):
+
+            # Check that layer structure matches our expectations.
+            assert isinstance(layer, ResNetBasicBlock)
+            if layer.downsample is not None:
+                assert isinstance(layer.downsample[0], nn.Conv2d)
+                assert isinstance(layer.downsample[1], nn.BatchNorm2d)
+
+            # Collect parameter names and add a parameter group for each convolutional
+            # layer.
+            conv_layers = {"conv1": layer.conv1, "conv2": layer.conv2}
+            for conv_name, conv in conv_layers.items():
+                for name, p in conv.named_parameters():
+                    full_name = f"backbone.{i}.{conv_name}.{name}"
+                    pre_bn_param_names.append(full_name)
+
+                param_groups.append(
+                    {
+                        "params": [p for p in conv.parameters() if p.requires_grad],
+                        "lr": lr,
+                        "momentum": momentum,
+                        "PSI": True,
+                    }
+                )
+
+            if layer.downsample is not None:
+                for name, p in layer.downsample[0].named_parameters():
+                    full_name = f"backbone.{i}.downsample.0.{name}"
+                    pre_bn_param_names.append(full_name)
+
+                param_groups.append(
+                    {
+                        "params": [
+                            p
+                            for p in layer.downsample[0].parameters()
+                            if p.requires_grad
+                        ],
+                        "lr": lr,
+                        "momentum": momentum,
+                        "PSI": True,
+                    }
+                )
+
     else:
         raise NotImplementedError
 
