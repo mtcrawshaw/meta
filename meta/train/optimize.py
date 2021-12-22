@@ -12,7 +12,8 @@ import torch
 from torch import nn
 from torch.optim.optimizer import Optimizer, _RequiredParameter, required
 
-from meta.networks import MLPNetwork, ConvNetwork
+from meta.networks import MLPNetwork, ConvNetwork, ResNetwork
+from meta.networks.utils import ResNetBasicBlock
 
 
 class SGDG(Optimizer):
@@ -588,6 +589,26 @@ def get_grassmann_optimizer(
                 full_name = f"layers.{i}.0.{name}"
                 pre_bn_param_names.append(full_name)
                 pre_bn_params.append(p)
+
+    elif isinstance(network, ResNetwork):
+
+        for i, layer in enumerate(network.backbone):
+            assert isinstance(layer, ResNetBasicBlock)
+            assert layer.batch_norm
+            conv_layers = {"conv1": layer.conv1, "conv2": layer.conv2}
+            for conv_name, conv in conv_layers.items():
+                for name, p in conv.named_parameters():
+                    full_name = f"backbone.{i}.{conv_name}.{name}"
+                    pre_bn_param_names.append(full_name)
+                    pre_bn_params.append(p)
+
+            if layer.downsample is not None:
+                assert isinstance(layer.downsample[0], nn.Conv2d)
+                assert isinstance(layer.downsample[1], nn.BatchNorm2d)
+                for name, p in layer.downsample[0].named_parameters():
+                    full_name = f"backbone.{i}.downsample.0.{name}"
+                    pre_bn_param_names.append(full_name)
+                    pre_bn_params.append(p)
 
     else:
         raise NotImplementedError
